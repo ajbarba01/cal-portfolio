@@ -266,18 +266,18 @@ The engineering foundation is scaffolded (Next 16, Supabase SSR clients with `sb
 
 ---
 
-## Phase 8 — Admin: availability, approvals, services, settings (wireframe)
+## Phase 8 — Admin: availability, approvals, services, settings (wireframe) — ✅ DONE (`c032764` + trim-fix `5efd257` + review-fix `27bd6ee`)
 
 **Goal:** Full in-app admin so Cal never touches the Supabase dashboard.
 **Systems landed:** availability-window CRUD + block-out (cancel-confirm), approvals queue, services editor (config-schema-validated), settings editor.
 **Deps:** Phases 1, 2, 7. **Wireframe screens:** `/admin/availability`, `/admin/bookings`, `/admin/services`, `/admin/settings`, `/admin/reviews`, (optional) `/admin/clients`.
 
-- [ ] **Availability.** List/create/trim/delete `availability_windows`; block-out = delete/trim with a confirm dialog that also cancels any booking inside (server action; reuse `cancelBooking`).
-- [ ] **Approvals.** `/admin/bookings` lists `pending_approval`; approve/decline call `transition` server actions (admin-guarded).
-- [ ] **Services + settings editors.** Forms validated by the Phase-4 per-type config schemas / a settings Zod schema; write under admin RLS. All values, not code.
-- [ ] **Reviews moderation.** `/admin/reviews` flips `status` published/rejected.
-- [ ] **Tests.** Action-level: only admins can mutate (RLS + guard); block-out cancels the inner booking; invalid `pricing_config` rejected by Zod.
-- [ ] **Commit** `feat: add admin availability, approvals, services, and settings`.
+- [x] **Availability.** List/create/trim/delete `availability_windows`; block-out = delete/trim with a confirm dialog that also cancels any booking inside (server action; reuse `cancelBooking`).
+- [x] **Approvals.** `/admin/bookings` lists `pending_approval`; approve/decline call `transition` server actions (admin-guarded).
+- [x] **Services + settings editors.** Forms validated by the Phase-4 per-type config schemas / a settings Zod schema; write under admin RLS. All values, not code.
+- [x] **Reviews moderation.** `/admin/reviews` flips `status` published/rejected.
+- [x] **Tests.** Action-level: only admins can mutate (RLS + guard); block-out cancels the inner booking; invalid `pricing_config` rejected by Zod.
+- [x] **Commit** `feat: add admin availability, approvals, services, and settings`.
 
 **Verification:** manual `verify` — Cal opens a window, a booking lands in it, block-out cancels it with confirmation; editing a rate changes a fresh quote.
 
