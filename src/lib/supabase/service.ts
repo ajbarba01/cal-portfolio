@@ -2,20 +2,18 @@ import "server-only";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 
 /**
- * Supabase client using the service-role key, which **bypasses Row Level Security**.
- * Server-only — never import this into client code. Use only for trusted server operations
- * (e.g. webhook handlers, admin tasks).
+ * Supabase client using the secret key (`sb_secret_...`), which has elevated privileges and
+ * **bypasses Row Level Security**. Server-only — never import this into client code. Use only for
+ * trusted server operations (e.g. webhook handlers, admin tasks).
  */
 export function createServiceClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !serviceRoleKey) {
-    throw new Error(
-      "Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY",
-    );
+  const secretKey = process.env.SUPABASE_SECRET_KEY;
+  if (!url || !secretKey) {
+    throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SECRET_KEY");
   }
 
-  return createSupabaseClient(url, serviceRoleKey, {
+  return createSupabaseClient(url, secretKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 }
