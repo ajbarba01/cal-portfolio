@@ -48,6 +48,9 @@ Find your current situation; do the action. (Details for each step are in the ne
 - **Never `--no-verify`** — a failing hook means fix the root cause.
 - No AI attribution in commit messages unless explicitly requested.
 - **Gates before commit:** `tsc --strict` + ESLint + Prettier + tests on core logic + `/code-review` + manual `verify`.
+- **Subject line only — no body.** Subject is the entire message. Never add bullet points, description paragraphs, or multi-line content after the subject. Single imperative sentence.
+- **Don't reference specific implementation plans** (phase 1a, etc).
+- **No Claude attribution** in messages unless explicitly requested.
 
 ## Definition of Done
 
