@@ -67,29 +67,25 @@ No string keys where a union/enum fits. Reused or non-obvious numbers get a name
 
 - **Example:** `type Status = 'pending' | 'confirmed'`, not loose strings. A reused or non-obvious number becomes a named, commented constant, not a bare literal.
 
-### 9. Design for extension, avoid premature abstraction
-
-Solve the problem in front of you. Generalize only on the **third** real use (rule of three). Do not build configurable machinery for hypothetical futures.
-
 - **Why:** premature abstraction is harder to undo than duplication; modular boundaries (above) already make later extraction cheap.
 
-### 10. DRY by ownership
+### 9. DRY by ownership
 
 Each piece of state has **one** owner; no two systems write the same data, no parallel implementations of the same responsibility.
 
 - **Example:** a derived value is computed by one service; multiple views read from it — none re-derive it independently.
 
-### 11. Error handling discipline
+### 10. Error handling discipline
 
 Handle **expected** absence explicitly (no selection, optional field, not-yet-loaded). For **invariants that should always hold**, fail loud — throw or surface — rather than silently swallowing. When a defensive guard exists for a real race or load-order case, comment **why** so the next reader doesn't promote it to a hard error or delete it.
 
 - **Why:** silent catches hide bugs; loud failures on broken invariants get fixed.
 
-### 12. Events/callbacks over polling; no prop-drilling
+### 11. Events/callbacks over polling; no prop-drilling
 
 Prefer reactive data flow (server actions, Supabase realtime subscriptions, context) over polling. Don't thread props through many layers — lift state or use context.
 
-### 13. Production-ready or surfaced
+### 12. Production-ready or surfaced
 
 No dead or commented-out code, no leftover `console.log`, no naked `TODO` without a tracked follow-up. If something is temporary, say why and where it's tracked.
 
