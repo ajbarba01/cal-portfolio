@@ -1,0 +1,225 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { updateSettings } from "@/features/admin/settings-actions";
+import type { SettingsRow } from "@/features/admin/settings-actions";
+
+export function SettingsClient({
+  initialSettings,
+}: {
+  initialSettings: SettingsRow;
+}) {
+  const s = initialSettings;
+  const [originLabel, setOriginLabel] = useState(s.origin_label);
+  const [originLat, setOriginLat] = useState(String(s.origin_lat));
+  const [originLng, setOriginLng] = useState(String(s.origin_lng));
+  const [roadFactor, setRoadFactor] = useState(String(s.road_factor));
+  const [avgSpeed, setAvgSpeed] = useState(String(s.avg_speed_mph));
+  const [autoApprove, setAutoApprove] = useState(
+    String(s.auto_approve_threshold_min),
+  );
+  const [hardCutoff, setHardCutoff] = useState(String(s.hard_cutoff_min));
+  const [openHour, setOpenHour] = useState(String(s.booking_open_hour));
+  const [closeHour, setCloseHour] = useState(String(s.booking_close_hour));
+  const [minLead, setMinLead] = useState(String(s.min_lead_time_hours));
+  const [maxAdvance, setMaxAdvance] = useState(String(s.max_advance_days));
+  const [discountPct, setDiscountPct] = useState(
+    String(s.recurring_discount_pct),
+  );
+  const [discountMin, setDiscountMin] = useState(
+    String(s.recurring_min_occurrences),
+  );
+  const [holidaySurcharge, setHolidaySurcharge] = useState(
+    String(s.holiday_surcharge_cents),
+  );
+  const [holidayDates, setHolidayDates] = useState(
+    (s.holiday_dates ?? []).join("\n"),
+  );
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+  const [isPending, startTransition] = useTransition();
+
+  async function handleSave() {
+    setError(null);
+    setSuccess(false);
+
+    startTransition(async () => {
+      const result = await updateSettings({
+        origin_label: originLabel,
+        origin_lat: parseFloat(originLat),
+        origin_lng: parseFloat(originLng),
+        road_factor: parseFloat(roadFactor),
+        avg_speed_mph: parseFloat(avgSpeed),
+        auto_approve_threshold_min: parseInt(autoApprove, 10),
+        hard_cutoff_min: parseInt(hardCutoff, 10),
+        booking_open_hour: parseInt(openHour, 10),
+        booking_close_hour: parseInt(closeHour, 10),
+        min_lead_time_hours: parseInt(minLead, 10),
+        max_advance_days: parseInt(maxAdvance, 10),
+        recurring_discount_pct: parseFloat(discountPct),
+        recurring_min_occurrences: parseInt(discountMin, 10),
+        holiday_surcharge_cents: parseInt(holidaySurcharge, 10),
+        holiday_dates: holidayDates
+          .split("\n")
+          .map((d) => d.trim())
+          .filter(Boolean),
+      });
+      if (result.kind === "success") {
+        setSuccess(true);
+      } else {
+        setError(
+          "message" in result
+            ? result.message
+            : `Action failed: ${result.kind}`,
+        );
+      }
+    });
+  }
+
+  function field(
+    id: string,
+    label: string,
+    value: string,
+    onChange: (v: string) => void,
+    type = "text",
+  ) {
+    return (
+      <div className="space-y-1">
+        <Label htmlFor={id}>{label}</Label>
+        <Input
+          id={id}
+          type={type}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6 rounded-md border p-6">
+      <fieldset className="space-y-4">
+        <legend className="text-base font-medium">Origin</legend>
+        {field("origin-label", "Origin Label", originLabel, setOriginLabel)}
+        {field("origin-lat", "Latitude", originLat, setOriginLat, "number")}
+        {field("origin-lng", "Longitude", originLng, setOriginLng, "number")}
+      </fieldset>
+
+      <fieldset className="space-y-4">
+        <legend className="text-base font-medium">Distance & Approval</legend>
+        {field(
+          "road-factor",
+          "Road Factor",
+          roadFactor,
+          setRoadFactor,
+          "number",
+        )}
+        {field("avg-speed", "Avg Speed (mph)", avgSpeed, setAvgSpeed, "number")}
+        {field(
+          "auto-approve",
+          "Auto-Approve Threshold (min)",
+          autoApprove,
+          setAutoApprove,
+          "number",
+        )}
+        {field(
+          "hard-cutoff",
+          "Hard Cutoff (min)",
+          hardCutoff,
+          setHardCutoff,
+          "number",
+        )}
+      </fieldset>
+
+      <fieldset className="space-y-4">
+        <legend className="text-base font-medium">Booking Hours</legend>
+        {field(
+          "open-hour",
+          "Open Hour (0–23, Denver)",
+          openHour,
+          setOpenHour,
+          "number",
+        )}
+        {field(
+          "close-hour",
+          "Close Hour (0–23, Denver)",
+          closeHour,
+          setCloseHour,
+          "number",
+        )}
+        {field(
+          "min-lead",
+          "Min Lead Time (hours)",
+          minLead,
+          setMinLead,
+          "number",
+        )}
+        {field(
+          "max-advance",
+          "Max Advance Booking (days)",
+          maxAdvance,
+          setMaxAdvance,
+          "number",
+        )}
+      </fieldset>
+
+      <fieldset className="space-y-4">
+        <legend className="text-base font-medium">Recurring Discount</legend>
+        {field(
+          "discount-pct",
+          "Discount %",
+          discountPct,
+          setDiscountPct,
+          "number",
+        )}
+        {field(
+          "discount-min",
+          "Min Occurrences",
+          discountMin,
+          setDiscountMin,
+          "number",
+        )}
+      </fieldset>
+
+      <fieldset className="space-y-4">
+        <legend className="text-base font-medium">Holiday Surcharge</legend>
+        {field(
+          "holiday-surcharge",
+          "Surcharge (cents)",
+          holidaySurcharge,
+          setHolidaySurcharge,
+          "number",
+        )}
+        <div className="space-y-1">
+          <Label htmlFor="holiday-dates">
+            Holiday Dates (one YYYY-MM-DD per line)
+          </Label>
+          <textarea
+            id="holiday-dates"
+            className="bg-background w-full rounded-md border px-3 py-2 font-mono text-sm focus-visible:outline-2"
+            rows={5}
+            value={holidayDates}
+            onChange={(e) => setHolidayDates(e.target.value)}
+          />
+        </div>
+      </fieldset>
+
+      {error && (
+        <p role="alert" className="text-destructive text-sm">
+          {error}
+        </p>
+      )}
+      {success && (
+        <p role="status" className="text-sm text-green-700">
+          Settings saved.
+        </p>
+      )}
+      <Button onClick={handleSave} disabled={isPending}>
+        {isPending ? "Saving…" : "Save Settings"}
+      </Button>
+    </div>
+  );
+}
