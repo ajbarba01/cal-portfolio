@@ -10,6 +10,7 @@
  * Supabase types. No `any`.
  */
 
+import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { PricingType } from "@/features/pricing/types";
 
@@ -63,12 +64,44 @@ export interface BookingInsert {
   status: BookingStatusDb;
   concurrency: ConcurrencyClass;
   distance_miles: number | null;
-  quote_inputs: Record<string, unknown>;
-  quote_breakdown: Record<string, unknown>;
+  /** jsonb column — typed as unknown at the DB boundary (honest about the json shape). */
+  quote_inputs: unknown;
+  /** jsonb column — typed as unknown at the DB boundary. */
+  quote_breakdown: unknown;
   final_cents: number;
   requires_approval: boolean;
   discount_cents: number;
 }
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Zod schemas for DB rows (parse at the edge — ENGINEERING #11)
+// ──────────────────────────────────────────────────────────────────────────────
+
+/** Parsed and validated settings row. All numeric fields verified as numbers. */
+const settingsRowSchema = z.object({
+  origin_lat: z.number(),
+  origin_lng: z.number(),
+  road_factor: z.number(),
+  avg_speed_mph: z.number(),
+  auto_approve_threshold_min: z.number(),
+  hard_cutoff_min: z.number(),
+  booking_open_hour: z.number(),
+  booking_close_hour: z.number(),
+  min_lead_time_hours: z.number(),
+  max_advance_days: z.number(),
+  recurring_discount_pct: z.number(),
+  recurring_min_occurrences: z.number(),
+});
+
+/** Parsed and validated service row. pricing_type is the closed enum. */
+const serviceRowSchema = z.object({
+  id: z.string(),
+  slug: z.string(),
+  pricing_type: z.enum(["house_sitting", "check_in", "walk", "training"]),
+  pricing_config: z.unknown(),
+  concurrency: z.enum(["exclusive", "resident"]),
+  requires_approval: z.boolean(),
+});
 
 export interface BookingRow {
   id: string;
@@ -134,7 +167,14 @@ export function createSupabaseBookingRepository(
         throw new Error(`Failed to load service '${slug}': ${error.message}`);
       }
 
-      return data as ServiceRow;
+      // Parse at the edge: verify DB shape matches expected schema.
+      const parsed = serviceRowSchema.safeParse(data);
+      if (!parsed.success) {
+        throw new Error(
+          `Service '${slug}' has unexpected DB shape: ${parsed.error.message}`,
+        );
+      }
+      return parsed.data;
     },
 
     async getSettings() {
@@ -154,7 +194,15 @@ export function createSupabaseBookingRepository(
         throw new Error(`Failed to load settings: ${error.message}`);
       }
 
-      return data as unknown as SettingsRow;
+      // Parse at the edge: all numeric fields verified as numbers (guards against
+      // null/garbage values flowing into arithmetic as NaN — ENGINEERING #11).
+      const parsed = settingsRowSchema.safeParse(data);
+      if (!parsed.success) {
+        throw new Error(
+          `Settings row has unexpected DB shape: ${parsed.error.message}`,
+        );
+      }
+      return parsed.data;
     },
 
     async getProfileLatLng(userId) {
@@ -165,8 +213,14 @@ export function createSupabaseBookingRepository(
         .single();
 
       if (error) {
-        // Profile may not exist yet; return nulls rather than throwing.
-        return { lat: null, lng: null };
+        if (error.code === "PGRST116") {
+          // Profile row not found — return nulls (safe default: force manual approval).
+          return { lat: null, lng: null };
+        }
+        // Any other DB error is unexpected; throw rather than silently returning nulls.
+        throw new Error(
+          `Failed to load profile lat/lng for user '${userId}': ${error.message}`,
+        );
       }
 
       return { lat: data.lat ?? null, lng: data.lng ?? null };

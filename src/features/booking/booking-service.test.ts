@@ -59,13 +59,13 @@ let nearUserId: string;
 let farUserId: string;
 let refuseUserId: string;
 
-// A future start time well within the booking window (use noon UTC on a
-// weekday ~5 days from now, which is 6am Denver MST — within 8-18 window).
-// We use a fixed offset from now so the lead-time guard (24h) is always met.
+// A future start time well within the booking window. We offset a fixed number
+// of days from now so the lead-time guard (24h) is always met, and pin the
+// clock to 17:00 UTC = 11:00 MDT / 10:00 MST — always within the 08-18 Denver
+// open-hours window enforced by passesGuards.
 function futureStart(offsetDays = 5): Date {
   const d = new Date();
   d.setUTCDate(d.getUTCDate() + offsetDays);
-  // Set to 17:00 UTC = 10:00 MDT / 11:00 MST — always within 08-18 Denver window.
   d.setUTCHours(17, 0, 0, 0);
   return d;
 }
@@ -150,6 +150,24 @@ function makeRepo() {
   return createSupabaseBookingRepository(serviceClient);
 }
 
+/**
+ * Build the injected deps for a core call. `now` is supplied here (the core is
+ * pure — it never reads the clock itself). Fresh `new Date()` per call keeps it
+ * consistent with the futureStart offsets computed from the same wall clock.
+ */
+function deps() {
+  return { repo: makeRepo(), now: new Date() };
+}
+
+/** Count persisted bookings for a client (used to assert no-row on rejection). */
+async function countRows(clientId: string): Promise<number> {
+  const { data } = await serviceClient
+    .from("bookings")
+    .select("id")
+    .eq("client_id", clientId);
+  return data?.length ?? 0;
+}
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Tests
 // ──────────────────────────────────────────────────────────────────────────────
@@ -159,17 +177,14 @@ describe("createBookingCore", () => {
     const start = futureStart(5);
     const end = futureEnd(start);
 
-    const result = await createBookingCore(
-      { repo: makeRepo() },
-      {
-        userId: nearUserId,
-        serviceSlug: "walk",
-        startsAt: start,
-        endsAt: end,
-        quantities: { hours: 1, dogs: 1 },
-        recurringRule: null,
-      },
-    );
+    const result = await createBookingCore(deps(), {
+      userId: nearUserId,
+      serviceSlug: "walk",
+      startsAt: start,
+      endsAt: end,
+      quantities: { hours: 1, dogs: 1 },
+      recurringRule: null,
+    });
 
     expect(result.kind).toBe("success");
     if (result.kind !== "success") return;
@@ -194,17 +209,14 @@ describe("createBookingCore", () => {
     const start = futureStart(6);
     const end = futureEnd(start);
 
-    const result = await createBookingCore(
-      { repo: makeRepo() },
-      {
-        userId: farUserId,
-        serviceSlug: "walk",
-        startsAt: start,
-        endsAt: end,
-        quantities: { hours: 1, dogs: 1 },
-        recurringRule: null,
-      },
-    );
+    const result = await createBookingCore(deps(), {
+      userId: farUserId,
+      serviceSlug: "walk",
+      startsAt: start,
+      endsAt: end,
+      quantities: { hours: 1, dogs: 1 },
+      recurringRule: null,
+    });
 
     expect(result.kind).toBe("success");
     if (result.kind !== "success") return;
@@ -223,17 +235,14 @@ describe("createBookingCore", () => {
     const start = futureStart(7);
     const end = futureEnd(start);
 
-    const result = await createBookingCore(
-      { repo: makeRepo() },
-      {
-        userId: refuseUserId,
-        serviceSlug: "walk",
-        startsAt: start,
-        endsAt: end,
-        quantities: { hours: 1, dogs: 1 },
-        recurringRule: null,
-      },
-    );
+    const result = await createBookingCore(deps(), {
+      userId: refuseUserId,
+      serviceSlug: "walk",
+      startsAt: start,
+      endsAt: end,
+      quantities: { hours: 1, dogs: 1 },
+      recurringRule: null,
+    });
 
     expect(result.kind).toBe("refuse");
 
@@ -246,37 +255,42 @@ describe("createBookingCore", () => {
     expect(rows).toHaveLength(0);
   });
 
-  it("same-class overlap: second booking returns slot_taken (23P01 path)", async () => {
+  it("overlapping exclusive bookings (different services, same concurrency class): second returns slot_taken (23P01), no second row persisted", async () => {
+    // Both `walk` and `check-in` are concurrency='exclusive'. The exclusion
+    // constraint keys on the concurrency class, so an overlapping pair conflicts
+    // even though they are different services.
     const start = futureStart(8);
     const end = futureEnd(start);
 
     // First booking — exclusive walk service.
-    const first = await createBookingCore(
-      { repo: makeRepo() },
-      {
-        userId: nearUserId,
-        serviceSlug: "walk",
-        startsAt: start,
-        endsAt: end,
-        quantities: { hours: 1, dogs: 1 },
-        recurringRule: null,
-      },
-    );
+    const first = await createBookingCore(deps(), {
+      userId: nearUserId,
+      serviceSlug: "walk",
+      startsAt: start,
+      endsAt: end,
+      quantities: { hours: 1, dogs: 1 },
+      recurringRule: null,
+    });
     expect(first.kind).toBe("success");
 
-    // Second booking — same exclusive class, overlapping time.
-    const second = await createBookingCore(
-      { repo: makeRepo() },
-      {
-        userId: nearUserId,
-        serviceSlug: "check-in", // also exclusive
-        startsAt: start,
-        endsAt: end,
-        quantities: { hours: 1 },
-        recurringRule: null,
-      },
-    );
+    // Second booking — same exclusive class, overlapping time → rejected by constraint.
+    const second = await createBookingCore(deps(), {
+      userId: nearUserId,
+      serviceSlug: "check-in", // also exclusive
+      startsAt: start,
+      endsAt: end,
+      quantities: { hours: 1 },
+      recurringRule: null,
+    });
     expect(second.kind).toBe("slot_taken");
+
+    // Exactly one row persisted at this start time (the second insert produced none).
+    const { data: rows } = await serviceClient
+      .from("bookings")
+      .select("id")
+      .eq("client_id", nearUserId)
+      .eq("starts_at", start.toISOString());
+    expect(rows).toHaveLength(1);
   });
 
   it("cross-class overlap: resident house-sit + exclusive walk both succeed", async () => {
@@ -285,30 +299,24 @@ describe("createBookingCore", () => {
     const hsEnd = new Date(start.getTime() + 2 * 24 * 60 * 60 * 1000); // 2 days
     const walkEnd = futureEnd(start); // 1 hour
 
-    const hsResult = await createBookingCore(
-      { repo: makeRepo() },
-      {
-        userId: nearUserId,
-        serviceSlug: "house-sitting",
-        startsAt: start,
-        endsAt: hsEnd,
-        quantities: { dogs: 1, cats: 0, nights: 2 },
-        recurringRule: null,
-      },
-    );
+    const hsResult = await createBookingCore(deps(), {
+      userId: nearUserId,
+      serviceSlug: "house-sitting",
+      startsAt: start,
+      endsAt: hsEnd,
+      quantities: { dogs: 1, cats: 0, nights: 2 },
+      recurringRule: null,
+    });
     expect(hsResult.kind).toBe("success");
 
-    const walkResult = await createBookingCore(
-      { repo: makeRepo() },
-      {
-        userId: nearUserId,
-        serviceSlug: "walk",
-        startsAt: start,
-        endsAt: walkEnd,
-        quantities: { hours: 1, dogs: 1 },
-        recurringRule: null,
-      },
-    );
+    const walkResult = await createBookingCore(deps(), {
+      userId: nearUserId,
+      serviceSlug: "walk",
+      startsAt: start,
+      endsAt: walkEnd,
+      quantities: { hours: 1, dogs: 1 },
+      recurringRule: null,
+    });
     expect(walkResult.kind).toBe("success");
   });
 
@@ -317,17 +325,14 @@ describe("createBookingCore", () => {
     const start = futureStart(15);
     const end = futureEnd(start);
 
-    const result = await createBookingCore(
-      { repo: makeRepo() },
-      {
-        userId: nearUserId,
-        serviceSlug: "walk",
-        startsAt: start,
-        endsAt: end,
-        quantities: { hours: 1, dogs: 1 },
-        recurringRule: { freq: "weekly", interval: 1, count: 3 },
-      },
-    );
+    const result = await createBookingCore(deps(), {
+      userId: nearUserId,
+      serviceSlug: "walk",
+      startsAt: start,
+      endsAt: end,
+      quantities: { hours: 1, dogs: 1 },
+      recurringRule: { freq: "weekly", interval: 1, count: 3 },
+    });
 
     expect(result.kind).toBe("success");
     if (result.kind !== "success") return;
@@ -370,6 +375,101 @@ describe("createBookingCore", () => {
       expect(r.final_cents).toBe(freshQuote.finalCents);
     });
   });
+  it("invalid quantities (negative hours): validation_error, no row inserted", async () => {
+    const start = futureStart(40);
+    const end = futureEnd(start);
+
+    const before = await countRows(nearUserId);
+    const result = await createBookingCore(deps(), {
+      userId: nearUserId,
+      serviceSlug: "walk",
+      startsAt: start,
+      endsAt: end,
+      quantities: { hours: -1, dogs: 1 }, // negative → rejected before quoting
+      recurringRule: null,
+    });
+
+    expect(result.kind).toBe("validation_error");
+    // Quantities are validated before any insert, so the row count is unchanged.
+    expect(await countRows(nearUserId)).toBe(before);
+  });
+
+  it("non-numeric quantity: validation_error, no row inserted", async () => {
+    const start = futureStart(41);
+    const end = futureEnd(start);
+
+    const before = await countRows(nearUserId);
+    const result = await createBookingCore(deps(), {
+      userId: nearUserId,
+      serviceSlug: "walk",
+      startsAt: start,
+      endsAt: end,
+      quantities: { hours: "two", dogs: 1 }, // string slips past Record<string, unknown>; caught by parseQuantities
+
+      recurringRule: null,
+    });
+
+    expect(result.kind).toBe("validation_error");
+    expect(await countRows(nearUserId)).toBe(before);
+  });
+
+  it("guard: start outside Denver open hours → unavailable, no row", async () => {
+    // 02:00 UTC = 20:00 MDT (hour 20, outside the 08-18 window).
+    const start = futureStart(42);
+    start.setUTCHours(2, 0, 0, 0);
+    const end = futureEnd(start);
+
+    const before = await countRows(nearUserId);
+    const result = await createBookingCore(deps(), {
+      userId: nearUserId,
+      serviceSlug: "walk",
+      startsAt: start,
+      endsAt: end,
+      quantities: { hours: 1, dogs: 1 },
+      recurringRule: null,
+    });
+
+    expect(result.kind).toBe("unavailable");
+    expect(await countRows(nearUserId)).toBe(before);
+  });
+
+  it("guard: start before the min lead time → unavailable, no row", async () => {
+    // 2 hours from now — well under the 24h min_lead_time_hours.
+    const start = new Date(Date.now() + 2 * 60 * 60 * 1000);
+    const end = futureEnd(start);
+
+    const before = await countRows(nearUserId);
+    const result = await createBookingCore(deps(), {
+      userId: nearUserId,
+      serviceSlug: "walk",
+      startsAt: start,
+      endsAt: end,
+      quantities: { hours: 1, dogs: 1 },
+      recurringRule: null,
+    });
+
+    expect(result.kind).toBe("unavailable");
+    expect(await countRows(nearUserId)).toBe(before);
+  });
+
+  it("guard: start beyond max advance days → unavailable, no row", async () => {
+    // 100 days out, exceeding the 90-day max_advance_days (still within open hours).
+    const start = futureStart(100);
+    const end = futureEnd(start);
+
+    const before = await countRows(nearUserId);
+    const result = await createBookingCore(deps(), {
+      userId: nearUserId,
+      serviceSlug: "walk",
+      startsAt: start,
+      endsAt: end,
+      quantities: { hours: 1, dogs: 1 },
+      recurringRule: null,
+    });
+
+    expect(result.kind).toBe("unavailable");
+    expect(await countRows(nearUserId)).toBe(before);
+  });
 });
 
 describe("cancelBookingCore", () => {
@@ -378,26 +478,23 @@ describe("cancelBookingCore", () => {
     const end = futureEnd(start);
 
     // Create a booking first.
-    const created = await createBookingCore(
-      { repo: makeRepo() },
-      {
-        userId: nearUserId,
-        serviceSlug: "walk",
-        startsAt: start,
-        endsAt: end,
-        quantities: { hours: 1, dogs: 1 },
-        recurringRule: null,
-      },
-    );
+    const created = await createBookingCore(deps(), {
+      userId: nearUserId,
+      serviceSlug: "walk",
+      startsAt: start,
+      endsAt: end,
+      quantities: { hours: 1, dogs: 1 },
+      recurringRule: null,
+    });
     expect(created.kind).toBe("success");
     if (created.kind !== "success") return;
 
     const bookingId = created.bookingIds[0];
 
-    const result = await cancelBookingCore(
-      { repo: makeRepo() },
-      { userId: nearUserId, bookingId },
-    );
+    const result = await cancelBookingCore(deps(), {
+      userId: nearUserId,
+      bookingId,
+    });
 
     expect(result.kind).toBe("success");
 
@@ -414,25 +511,22 @@ describe("cancelBookingCore", () => {
     const start = futureStart(25);
     const end = futureEnd(start);
 
-    const created = await createBookingCore(
-      { repo: makeRepo() },
-      {
-        userId: nearUserId,
-        serviceSlug: "walk",
-        startsAt: start,
-        endsAt: end,
-        quantities: { hours: 1, dogs: 1 },
-        recurringRule: null,
-      },
-    );
+    const created = await createBookingCore(deps(), {
+      userId: nearUserId,
+      serviceSlug: "walk",
+      startsAt: start,
+      endsAt: end,
+      quantities: { hours: 1, dogs: 1 },
+      recurringRule: null,
+    });
     expect(created.kind).toBe("success");
     if (created.kind !== "success") return;
 
     // farUser tries to cancel nearUser's booking.
-    const result = await cancelBookingCore(
-      { repo: makeRepo() },
-      { userId: farUserId, bookingId: created.bookingIds[0] },
-    );
+    const result = await cancelBookingCore(deps(), {
+      userId: farUserId,
+      bookingId: created.bookingIds[0],
+    });
 
     expect(result.kind).toBe("forbidden");
   });

@@ -55,7 +55,10 @@ export async function createBooking(
   const serviceClient = createServiceClient();
   const repo = createSupabaseBookingRepository(serviceClient);
 
-  return createBookingCore({ repo }, { ...input, userId: user.id });
+  return createBookingCore(
+    { repo, now: new Date() },
+    { ...input, userId: user.id },
+  );
 }
 
 /**
@@ -98,8 +101,14 @@ export async function cancelBooking(
     if (!booking) {
       return { kind: "not_found" };
     }
-    return cancelBookingCore({ repo }, { ...input, userId: booking.client_id });
+    return cancelBookingCore(
+      { repo, now: new Date() },
+      { ...input, userId: booking.client_id },
+    );
   }
 
-  return cancelBookingCore({ repo }, { ...input, userId: user.id });
+  return cancelBookingCore(
+    { repo, now: new Date() },
+    { ...input, userId: user.id },
+  );
 }

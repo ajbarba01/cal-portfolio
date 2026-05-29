@@ -46,11 +46,15 @@ import {
 import { quote } from "@/features/pricing/quote";
 import { parsePricingConfig } from "@/features/pricing/config-schemas";
 import { expandOccurrences } from "./recurrence";
-import { seriesQualifiesForRecurringDiscount } from "./availability";
+import {
+  seriesQualifiesForRecurringDiscount,
+  passesGuards,
+} from "./availability";
 import { transition } from "./state-machine";
 import type { BookingRepository } from "./booking-repository";
 import type { QuoteInput } from "@/features/pricing/types";
 import type { RecurrenceRule } from "./recurrence";
+import type { BookingRuleSettings } from "./availability";
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Input Zod schemas (validate at the boundary — ENGINEERING #11)
@@ -69,21 +73,25 @@ const recurrenceRuleSchema = z.object({
  * The client supplies ONLY: which service, time window, quantities, and an
  * optional recurrence rule. All money, status, distance, and approval fields
  * are recomputed server-side.
+ *
+ * Quantities are accepted as a loose record here; per-type Zod validation
+ * happens AFTER the service is loaded (so the pricing_type is known), before
+ * any quoting occurs (fix #1).
  */
-const createBookingInputSchema = z.object({
-  userId: z.string().uuid(),
-  serviceSlug: z.string().min(1),
-  startsAt: z.coerce.date(),
-  endsAt: z.coerce.date(),
-  /**
-   * Service-specific quantities. Accepted as a loose record and threaded into
-   * the QuoteInput discriminated union after the service's pricingType is known.
-   * Zod validates the shape after dispatch (via parsePricingConfig + quote).
-   */
-  quantities: z.record(z.string(), z.unknown()),
-  /** Weekly recurrence rule. MVP UI exposes weekly only; daily/monthly accepted for future use. */
-  recurringRule: recurrenceRuleSchema.nullable(),
-});
+const createBookingInputSchema = z
+  .object({
+    userId: z.string().uuid(),
+    serviceSlug: z.string().min(1),
+    startsAt: z.coerce.date(),
+    endsAt: z.coerce.date(),
+    quantities: z.record(z.string(), z.unknown()),
+    /** Weekly recurrence rule. MVP UI exposes weekly only; daily/monthly accepted for future use. */
+    recurringRule: recurrenceRuleSchema.nullable(),
+  })
+  .refine((d) => d.endsAt > d.startsAt, {
+    message: "endsAt must be after startsAt",
+    path: ["endsAt"],
+  });
 
 const cancelBookingInputSchema = z.object({
   userId: z.string().uuid(),
@@ -98,6 +106,7 @@ export type CreateBookingResult =
   | { kind: "success"; bookingIds: string[] }
   | { kind: "refuse"; reason: string }
   | { kind: "slot_taken" }
+  | { kind: "unavailable"; reason: string }
   | { kind: "validation_error"; message: string }
   | { kind: "error"; message: string };
 
@@ -113,6 +122,11 @@ export type CancelBookingResult =
 
 export interface BookingServiceDeps {
   repo: BookingRepository;
+  /**
+   * Current time, injected by the caller so the core stays pure (no clock reads
+   * inside the core — ENGINEERING #5). Pass `new Date()` from the action layer.
+   */
+  now: Date;
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -125,13 +139,22 @@ export type CreateBookingInput = z.input<typeof createBookingInputSchema>;
  * Core booking creation logic (testable via DI, no Next.js machinery).
  *
  * Pipeline:
- *  1. Validate input.
+ *  1. Validate input (schema + endsAt > startsAt).
  *  2. Load service, settings, profile lat/lng from DB.
- *  3. Compute distance + approval decision.
- *  4. Expand occurrences (1 or N for recurring).
- *  5. Quote each occurrence.
- *  6. Derive initial status via state machine.
- *  7. Insert all rows via service role; catch 23P01 → slot_taken.
+ *  3. Validate quantities per pricing_type (money-input integrity).
+ *  4. Compute distance + approval decision.
+ *  5. Enforce booking-rule guards (hours-of-day, lead time, max advance) for
+ *     each occurrence. fitsWindow (availability-window containment) is NOT
+ *     enforced here — see TODO below.
+ *  6. Expand occurrences (1 or N for recurring).
+ *  7. Quote each occurrence.
+ *  8. Derive initial status via state machine.
+ *  9. Insert all rows via service role; catch 23P01 → slot_taken.
+ *
+ * TODO(Phase 9): enforce fitsWindow (availability-window containment) here.
+ * This is intentionally deferred: `availability_windows` is empty until Phase 8
+ * builds the admin CRUD, so enforcing it now would reject every booking.
+ * Once Phase 8 ships, add a fitsWindow check after step 5 and remove this note.
  */
 export async function createBookingCore(
   deps: BookingServiceDeps,
@@ -146,7 +169,7 @@ export async function createBookingCore(
     };
   }
   const input = parseResult.data;
-  const { repo } = deps;
+  const { repo, now } = deps;
 
   // 2. Load from DB
   const [service, settings, profileLatLng] = await Promise.all([
@@ -172,14 +195,30 @@ export async function createBookingCore(
   } catch (e) {
     return {
       kind: "error",
-      message: `Invalid pricing_config for service '${input.serviceSlug}': ${String(e)}`,
+      message: `Invalid pricing_config for service '${input.serviceSlug}': ${e instanceof Error ? e.message : String(e)}`,
     };
   }
 
-  // 3. Distance + approval
+  // 3. Validate quantities per pricing_type (money-input integrity — fix #1).
+  // Parsed after the service is known so the schema is selected by pricing_type.
+  const quantitiesResult = parseQuantities(
+    service.pricing_type,
+    input.quantities,
+  );
+  if (!quantitiesResult.success) {
+    return { kind: "validation_error", message: quantitiesResult.message };
+  }
+  // Narrowed to { success: true } & ParsedQuantities; the extra `success` flag is
+  // structurally assignable to the ParsedQuantities param buildQuoteInput expects.
+  const quantities = quantitiesResult;
+
+  // 4. Distance + approval
   const origin = { lat: settings.origin_lat, lng: settings.origin_lng };
   let distanceMiles: number | null = null;
   let requiresApproval: boolean;
+  // oneWayMin hoisted here so it's computed once and reused for both the
+  // approval decision and roundTripDriveMinutes (eliminates duplicate call).
+  let oneWayMin = 0;
 
   if (profileLatLng.lat === null || profileLatLng.lng === null) {
     // Unknown coordinates → force manual approval (safe default; documented above).
@@ -189,7 +228,7 @@ export async function createBookingCore(
       lat: profileLatLng.lat,
       lng: profileLatLng.lng,
     });
-    const oneWayMin = estimateDrivingMinutes(distanceMiles, {
+    oneWayMin = estimateDrivingMinutes(distanceMiles, {
       roadFactor: settings.road_factor,
       avgSpeedMph: settings.avg_speed_mph,
     });
@@ -205,21 +244,42 @@ export async function createBookingCore(
       };
     }
 
-    requiresApproval =
-      decision === "manual" || service.requires_approval === true;
+    // requiresApproval: true if decision is manual OR the service always requires it.
+    requiresApproval = decision === "manual" || !!service.requires_approval;
   }
 
-  // If the service itself requires approval, ensure it's flagged regardless of distance.
-  if (service.requires_approval) {
-    requiresApproval = true;
-  }
+  // 5. Enforce booking-rule guards server-side for each occurrence.
+  // passesGuards checks hours-of-day (America/Denver), lead time, and max advance.
+  // A UI-bypassing client cannot skip these checks.
+  //
+  // TODO(Phase 9): also enforce fitsWindow here once availability_windows is populated.
+  // Deferred because availability_windows is empty until Phase 8 admin CRUD ships —
+  // enforcing it now would reject every booking. This is intentional sequencing.
+  const ruleSettings: BookingRuleSettings = {
+    bookingOpenHour: settings.booking_open_hour,
+    bookingCloseHour: settings.booking_close_hour,
+    minLeadTimeHours: settings.min_lead_time_hours,
+    maxAdvanceDays: settings.max_advance_days,
+  };
+  const durationMs = input.endsAt.getTime() - input.startsAt.getTime();
 
-  // 4. Recurrence
+  // 6. Recurrence
   const occurrences = input.recurringRule
     ? expandOccurrences(input.startsAt, input.recurringRule as RecurrenceRule)
     : [input.startsAt];
 
-  const durationMs = input.endsAt.getTime() - input.startsAt.getTime();
+  // Guard each occurrence before inserting any rows.
+  for (const occStart of occurrences) {
+    const occEnd = new Date(occStart.getTime() + durationMs);
+    if (
+      !passesGuards({ startsAt: occStart, endsAt: occEnd }, ruleSettings, now)
+    ) {
+      return {
+        kind: "unavailable",
+        reason: `Occurrence at ${occStart.toISOString()} does not meet booking rules (hours-of-day, lead time, or max advance).`,
+      };
+    }
+  }
 
   const seriesId = occurrences.length > 1 ? crypto.randomUUID() : null;
 
@@ -230,22 +290,16 @@ export async function createBookingCore(
     { recurringMinOccurrences: settings.recurring_min_occurrences },
   );
 
-  // 5–6. Quote each occurrence + derive status
+  // 7–8. Quote each occurrence + derive status
   const statResult = transition("draft", "submit", { requiresApproval });
   if ("error" in statResult) {
     return { kind: "error", message: statResult.error };
   }
   const status = statResult.state;
 
-  // Compute round-trip drive minutes for quote (hourly services only;
-  // house_sitting passes 0 — travel is off by default per DESIGN).
-  const oneWayMin =
-    distanceMiles !== null
-      ? estimateDrivingMinutes(distanceMiles, {
-          roadFactor: settings.road_factor,
-          avgSpeedMph: settings.avg_speed_mph,
-        })
-      : 0;
+  // Round-trip drive minutes: hourly services only;
+  // house_sitting passes 0 — travel is off by default per DESIGN.
+  // oneWayMin was computed once in step 4 (no duplicate call).
   const roundTripDriveMinutes =
     service.pricing_type === "house_sitting" ? 0 : 2 * oneWayMin;
 
@@ -255,7 +309,7 @@ export async function createBookingCore(
     const quoteInput = buildQuoteInput({
       pricingType: service.pricing_type,
       pricingConfig,
-      quantities: input.quantities,
+      quantities,
       roundTripDriveMinutes,
       recurringDiscountApplies,
       recurringDiscountPct: settings.recurring_discount_pct,
@@ -272,15 +326,15 @@ export async function createBookingCore(
       status,
       concurrency: service.concurrency,
       distance_miles: distanceMiles,
-      quote_inputs: quoteInput as unknown as Record<string, unknown>,
-      quote_breakdown: breakdown as unknown as Record<string, unknown>,
+      quote_inputs: quoteInput as unknown,
+      quote_breakdown: breakdown as unknown,
       final_cents: breakdown.finalCents,
       requires_approval: requiresApproval,
       discount_cents: 0, // see DISCOUNT_CENTS note in module header
     };
   });
 
-  // 7. Insert — catch exclusion_violation (23P01) → slot_taken
+  // 9. Insert — catch exclusion_violation (23P01) → slot_taken
   try {
     const ids = await repo.insertBookings(insertRows);
     return { kind: "success", bookingIds: ids };
@@ -344,20 +398,93 @@ export async function cancelBookingCore(
 // Internal helpers
 // ──────────────────────────────────────────────────────────────────────────────
 
+// ── Per-type quantity Zod schemas ────────────────────────────────────────────
+// Parsed AFTER the service is loaded (pricing_type known), BEFORE quoting.
+// Constraints: amounts that multiply into money must be non-negative and sane.
+
+const houseSittingQuantitiesSchema = z.object({
+  dogs: z.number().int().min(1),
+  cats: z.number().int().min(0),
+  nights: z.number().positive(),
+  cantBeLeftAloneDays: z.number().int().min(0).optional(),
+  walkMinutesPerDay: z.number().min(0).optional(),
+  holidayDays: z.number().int().min(0).optional(),
+});
+
+const checkInQuantitiesSchema = z.object({
+  hours: z.number().positive(),
+});
+
+const walkQuantitiesSchema = z.object({
+  hours: z.number().positive(),
+  dogs: z.number().int().min(1),
+});
+
+const trainingQuantitiesSchema = z.object({
+  hours: z.number().positive(),
+});
+
+type HouseSittingQty = z.infer<typeof houseSittingQuantitiesSchema>;
+type CheckInQty = z.infer<typeof checkInQuantitiesSchema>;
+type WalkQty = z.infer<typeof walkQuantitiesSchema>;
+type TrainingQty = z.infer<typeof trainingQuantitiesSchema>;
+
+type ParsedQuantities =
+  | { pricingType: "house_sitting"; data: HouseSittingQty }
+  | { pricingType: "check_in"; data: CheckInQty }
+  | { pricingType: "walk"; data: WalkQty }
+  | { pricingType: "training"; data: TrainingQty };
+
+type ParseQuantitiesResult =
+  | ({ success: true } & ParsedQuantities)
+  | { success: false; message: string };
+
+/**
+ * Validates and parses the `quantities` record against the per-type Zod schema.
+ * Called after the service's pricing_type is known, before any quoting.
+ * Returns a typed discriminated result so `buildQuoteInput` receives validated values.
+ */
+function parseQuantities(
+  pricingType: string,
+  raw: Record<string, unknown>,
+): ParseQuantitiesResult {
+  switch (pricingType) {
+    case "house_sitting": {
+      const r = houseSittingQuantitiesSchema.safeParse(raw);
+      if (!r.success) return { success: false, message: r.error.message };
+      return { success: true, pricingType: "house_sitting", data: r.data };
+    }
+    case "check_in": {
+      const r = checkInQuantitiesSchema.safeParse(raw);
+      if (!r.success) return { success: false, message: r.error.message };
+      return { success: true, pricingType: "check_in", data: r.data };
+    }
+    case "walk": {
+      const r = walkQuantitiesSchema.safeParse(raw);
+      if (!r.success) return { success: false, message: r.error.message };
+      return { success: true, pricingType: "walk", data: r.data };
+    }
+    case "training": {
+      const r = trainingQuantitiesSchema.safeParse(raw);
+      if (!r.success) return { success: false, message: r.error.message };
+      return { success: true, pricingType: "training", data: r.data };
+    }
+    default:
+      return { success: false, message: `Unknown pricingType: ${pricingType}` };
+  }
+}
+
 /**
  * Assembles a `QuoteInput` discriminated union from the service's pricing type,
- * validated config, and the quantities supplied in the request.
+ * validated config, and the already-parsed quantities.
  *
- * The `quantities` record is cast into the expected shape per pricingType.
- * Invalid quantities (e.g. missing `hours`) will cause `quote()` to produce
- * a nonsensical result — the action layer is responsible for validating
- * quantities per service before calling `createBookingCore`. A future pass
- * can add per-type Zod schemas here.
+ * `quantities` is typed (output of `parseQuantities`) — no `as number` casts needed.
+ * Guarantee: `final_cents` is always a non-negative integer for valid input.
  */
 function buildQuoteInput(opts: {
   pricingType: string;
   pricingConfig: unknown;
-  quantities: Record<string, unknown>;
+  quantities: ParsedQuantities;
   roundTripDriveMinutes: number;
   recurringDiscountApplies: boolean;
   recurringDiscountPct: number;
@@ -371,17 +498,17 @@ function buildQuoteInput(opts: {
 
   const q = opts.quantities;
 
-  switch (opts.pricingType) {
+  switch (q.pricingType) {
     case "house_sitting":
       return {
         pricingType: "house_sitting",
         pricingConfig: opts.pricingConfig as QuoteInput["pricingConfig"],
-        dogs: (q.dogs as number) ?? 0,
-        cats: (q.cats as number) ?? 0,
-        nights: (q.nights as number) ?? 1,
-        cantBeLeftAloneDays: q.cantBeLeftAloneDays as number | undefined,
-        walkMinutesPerDay: q.walkMinutesPerDay as number | undefined,
-        holidayDays: q.holidayDays as number | undefined,
+        dogs: q.data.dogs,
+        cats: q.data.cats,
+        nights: q.data.nights,
+        cantBeLeftAloneDays: q.data.cantBeLeftAloneDays,
+        walkMinutesPerDay: q.data.walkMinutesPerDay,
+        holidayDays: q.data.holidayDays,
         ...shared,
       } as QuoteInput;
 
@@ -389,7 +516,7 @@ function buildQuoteInput(opts: {
       return {
         pricingType: "check_in",
         pricingConfig: opts.pricingConfig as QuoteInput["pricingConfig"],
-        hours: (q.hours as number) ?? 1,
+        hours: q.data.hours,
         ...shared,
       } as QuoteInput;
 
@@ -397,8 +524,8 @@ function buildQuoteInput(opts: {
       return {
         pricingType: "walk",
         pricingConfig: opts.pricingConfig as QuoteInput["pricingConfig"],
-        hours: (q.hours as number) ?? 1,
-        dogs: (q.dogs as number) ?? 1,
+        hours: q.data.hours,
+        dogs: q.data.dogs,
         ...shared,
       } as QuoteInput;
 
@@ -406,11 +533,14 @@ function buildQuoteInput(opts: {
       return {
         pricingType: "training",
         pricingConfig: opts.pricingConfig as QuoteInput["pricingConfig"],
-        hours: (q.hours as number) ?? 1,
+        hours: q.data.hours,
         ...shared,
       } as QuoteInput;
 
-    default:
-      throw new Error(`Unknown pricingType: ${opts.pricingType}`);
+    default: {
+      // Exhaustiveness check — TypeScript narrows q to never here.
+      const _exhaustive: never = q;
+      throw new Error(`Unknown pricingType: ${String(_exhaustive)}`);
+    }
   }
 }
