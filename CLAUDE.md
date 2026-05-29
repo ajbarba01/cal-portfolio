@@ -1,6 +1,6 @@
 # Cal Portfolio + Booking
 
-> **Tone contract:** communicate token-aware — concise, technical terms exact, no filler/hedging/pleasantries. The maintainer prefers **caveman mode** (default `caveman-lite`): drop filler but keep full sentences. If the `/caveman` skill is available, invoke it at session start and confirm on first read of this file. Drop to normal prose for security warnings, destructive-action confirmations, and multi-step instructions where order matters. Switch level with `/caveman lite|full|ultra`; exit with "stop caveman".
+> **Tone contract:** communicate token-aware — technical terms exact, no filler/hedging/pleasantries. The maintainer prefers **caveman mode** (default `caveman-full`): drop articles (a/an/the), filler, and pleasantries; fragments OK; short synonyms (big not extensive, fix not "implement a solution for"). Code blocks and error strings unchanged. If the `/caveman` skill is available, invoke it at session start and confirm on first read of this file. Drop to normal prose for security warnings, destructive-action confirmations, and multi-step instructions where order matters. Switch level with `/caveman lite|full|ultra`; exit with "stop caveman".
 
 A site at `calbarba.com` — a **portfolio + self-serve booking system** for a dog-walking / house-sitting business. **All project specifics — stack rationale, data model, pages, brand, pricing, scope — live in [docs/DESIGN.md](docs/DESIGN.md).** The other docs are a portable engineering framework and should stay project-agnostic.
 
