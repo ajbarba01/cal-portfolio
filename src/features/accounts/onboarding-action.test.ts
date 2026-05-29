@@ -91,8 +91,7 @@ describe("runOnboarding", () => {
     expect(error).toBeNull();
     expect(rows).toHaveLength(1);
     expect(rows?.[0].data).toMatchObject({
-      contact_name:
-        "Test User".length > 0 ? validInput.emergency.contact_name : "",
+      contact_name: validInput.emergency.contact_name,
     });
   });
 
