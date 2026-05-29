@@ -54,8 +54,13 @@ export interface HouseSittingQuantities {
   nights: number;
   /** Total days the dog cannot be left alone (≥6 h). */
   cantBeLeftAloneDays?: number;
-  /** Total extra 15-min walk blocks per day beyond the included 45 min. */
-  extraWalk15minBlocksPerDay?: number;
+  /**
+   * Requested walk minutes per day for this stay.
+   * 45 min/day is included at no charge; `quote()` computes extra 15-min blocks
+   * above that threshold and prices them accordingly.
+   * Absent or ≤ 45 → no walk add-on line.
+   */
+  walkMinutesPerDay?: number;
   /** Total holiday days falling within the stay. */
   holidayDays?: number;
 }
@@ -88,10 +93,14 @@ interface QuoteInputModifiers {
   /** The recurring discount percentage (e.g. 10 for −10%). From settings. */
   recurringDiscountPct: number;
   /**
-   * Cal-applied Kiche discount percentage (e.g. 25 for −25%). Absent or 0 →
-   * not applied. Applied last, after recurring discount.
+   * Whether Cal has chosen to apply the Kiche discount for this booking.
+   * When true, `quote()` reads `kiche_discount_pct` from the service's
+   * `pricingConfig` and applies it as the final modifier.
+   * Services without `kiche_discount_pct` in their config (check_in, training)
+   * are silently unaffected — no Kiche line is added.
+   * Applied last, after recurring discount.
    */
-  kichePct?: number;
+  applyKiche: boolean;
 }
 
 export type QuoteInput =

@@ -42,7 +42,7 @@ const NO_MODIFIERS = {
   roundTripDriveMinutes: undefined,
   recurringDiscountApplies: false,
   recurringDiscountPct: 10,
-  kichePct: undefined,
+  applyKiche: false,
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -143,8 +143,9 @@ describe("quote house_sitting", () => {
     expect(result.finalCents).toBe(6000);
   });
 
-  it("extraWalk add-on: 1 dog, 1 night, 2 extra-walk-blocks/day × 1 day → 6000 cents", () => {
+  it("extraWalk add-on: 1 dog, 1 night, 75 min/day (2 extra blocks) × 1 day → 6000 cents", () => {
     // base_dog(5000) × 1 night = 5000
+    // walkMinutesPerDay=75: extraBlocks = ceil((75-45)/15) = 2
     // + extra_walk_15min(500) × 2 blocks × 1 day = 1000
     // total = 6000
     const result = quote({
@@ -153,7 +154,54 @@ describe("quote house_sitting", () => {
       dogs: 1,
       cats: 0,
       nights: 1,
-      extraWalk15minBlocksPerDay: 2,
+      walkMinutesPerDay: 75,
+      ...NO_MODIFIERS,
+    });
+    expect(result.finalCents).toBe(6000);
+  });
+
+  it("walkMinutesPerDay <= 45: no walk add-on line (0 extra blocks)", () => {
+    // 45 min/day is the included amount; no extra charge
+    const result = quote({
+      pricingType: "house_sitting",
+      pricingConfig: HS_CFG,
+      dogs: 1,
+      cats: 0,
+      nights: 1,
+      walkMinutesPerDay: 45,
+      ...NO_MODIFIERS,
+    });
+    expect(result.finalCents).toBe(5000); // base only, no walk add-on
+    expect(
+      result.lines.find((l) => l.label.toLowerCase().includes("walk")),
+    ).toBeUndefined();
+  });
+
+  it("walkMinutesPerDay = 60: 1 extra block/day → base + 500 for 1 night", () => {
+    // extraBlocks = ceil((60-45)/15) = ceil(1) = 1
+    // 5000 + 500*1*1 = 5500
+    const result = quote({
+      pricingType: "house_sitting",
+      pricingConfig: HS_CFG,
+      dogs: 1,
+      cats: 0,
+      nights: 1,
+      walkMinutesPerDay: 60,
+      ...NO_MODIFIERS,
+    });
+    expect(result.finalCents).toBe(5500);
+  });
+
+  it("walkMinutesPerDay = 75: 2 extra blocks/day → base + 1000 for 1 night", () => {
+    // extraBlocks = ceil((75-45)/15) = ceil(2) = 2
+    // 5000 + 500*2*1 = 6000
+    const result = quote({
+      pricingType: "house_sitting",
+      pricingConfig: HS_CFG,
+      dogs: 1,
+      cats: 0,
+      nights: 1,
+      walkMinutesPerDay: 75,
       ...NO_MODIFIERS,
     });
     expect(result.finalCents).toBe(6000);
@@ -200,6 +248,7 @@ describe("quote house_sitting", () => {
       roundTripDriveMinutes: 60,
       recurringDiscountApplies: false,
       recurringDiscountPct: 10,
+      applyKiche: false,
     });
     const travelLine = result.lines.find((l) => l.label === "Travel");
     expect(travelLine).toBeUndefined();
@@ -405,6 +454,7 @@ describe("quote modifiers: travel", () => {
       roundTripDriveMinutes: 60,
       recurringDiscountApplies: false,
       recurringDiscountPct: 10,
+      applyKiche: false,
     });
     expect(withTravel.finalCents).toBe(base.finalCents + 3000);
   });
@@ -426,6 +476,7 @@ describe("quote modifiers: travel", () => {
       roundTripDriveMinutes: 30,
       recurringDiscountApplies: false,
       recurringDiscountPct: 10,
+      applyKiche: false,
     });
     expect(withTravel.finalCents).toBe(base.finalCents + 1250);
   });
@@ -445,6 +496,7 @@ describe("quote modifiers: travel", () => {
       roundTripDriveMinutes: 45,
       recurringDiscountApplies: false,
       recurringDiscountPct: 10,
+      applyKiche: false,
     });
     expect(withTravel.finalCents).toBe(base.finalCents + 2625);
   });
@@ -458,6 +510,7 @@ describe("quote modifiers: travel", () => {
       roundTripDriveMinutes: 30,
       recurringDiscountApplies: false,
       recurringDiscountPct: 10,
+      applyKiche: false,
     });
     const travelLine = result.lines.find((l) => l.label === "Travel");
     expect(travelLine).toBeDefined();
@@ -473,6 +526,7 @@ describe("quote modifiers: travel", () => {
       roundTripDriveMinutes: 0,
       recurringDiscountApplies: false,
       recurringDiscountPct: 10,
+      applyKiche: false,
     });
     expect(result.lines.find((l) => l.label === "Travel")).toBeUndefined();
   });
@@ -493,6 +547,7 @@ describe("quote modifiers: recurring discount", () => {
       roundTripDriveMinutes: undefined,
       recurringDiscountApplies: true,
       recurringDiscountPct: 10,
+      applyKiche: false,
     });
     expect(result.finalCents).toBe(3150);
     const discountLine = result.lines.find((l) =>
@@ -510,6 +565,7 @@ describe("quote modifiers: recurring discount", () => {
       roundTripDriveMinutes: undefined,
       recurringDiscountApplies: true,
       recurringDiscountPct: 10,
+      applyKiche: false,
     });
     expect(result.finalCents).toBe(2700);
   });
@@ -522,6 +578,7 @@ describe("quote modifiers: recurring discount", () => {
       roundTripDriveMinutes: undefined,
       recurringDiscountApplies: true,
       recurringDiscountPct: 10,
+      applyKiche: false,
     });
     expect(result.finalCents).toBe(3150);
   });
@@ -545,7 +602,8 @@ describe("quote modifiers: recurring discount", () => {
 // ---------------------------------------------------------------------------
 
 describe("quote modifiers: kiche discount", () => {
-  it("walk: 25% kiche on 1h + 1 dog (3500 base) → 2625", () => {
+  it("walk: applyKiche reads 25% from WALK_CFG on 1h + 1 dog (3500 base) → 2625", () => {
+    // kiche pct comes from WALK_CFG.kiche_discount_pct = 25
     // kiche = round(3500 * 0.25) = 875 → finalCents = 2625
     const result = quote({
       pricingType: "walk",
@@ -555,7 +613,7 @@ describe("quote modifiers: kiche discount", () => {
       roundTripDriveMinutes: undefined,
       recurringDiscountApplies: false,
       recurringDiscountPct: 10,
-      kichePct: 25,
+      applyKiche: true,
     });
     expect(result.finalCents).toBe(2625);
     const kicheLine = result.lines.find((l) =>
@@ -564,7 +622,8 @@ describe("quote modifiers: kiche discount", () => {
     expect(kicheLine?.amountCents).toBe(-875);
   });
 
-  it("house_sitting: 20% kiche on 1 dog + 1 cat, 1 night (6000 base) → 4800", () => {
+  it("house_sitting: applyKiche reads 20% from HS_CFG on 1 dog + 1 cat, 1 night (6000 base) → 4800", () => {
+    // kiche pct comes from HS_CFG.kiche_discount_pct = 20
     // kiche = round(6000 * 0.20) = 1200 → finalCents = 4800
     const result = quote({
       pricingType: "house_sitting",
@@ -575,12 +634,12 @@ describe("quote modifiers: kiche discount", () => {
       roundTripDriveMinutes: undefined,
       recurringDiscountApplies: false,
       recurringDiscountPct: 10,
-      kichePct: 20,
+      applyKiche: true,
     });
     expect(result.finalCents).toBe(4800);
   });
 
-  it("kiche line absent when kichePct is undefined", () => {
+  it("kiche line absent when applyKiche is false", () => {
     const result = quote({
       pricingType: "walk",
       pricingConfig: WALK_CFG,
@@ -593,20 +652,38 @@ describe("quote modifiers: kiche discount", () => {
     ).toBeUndefined();
   });
 
-  it("kiche line absent when kichePct is 0", () => {
+  it("check_in: applyKiche=true applies no kiche line (no kiche_discount_pct in config)", () => {
+    // check_in config has no kiche_discount_pct; applyKiche=true → no kiche line
     const result = quote({
-      pricingType: "walk",
-      pricingConfig: WALK_CFG,
+      pricingType: "check_in",
+      pricingConfig: CI_CFG,
       hours: 1,
-      dogs: 1,
       roundTripDriveMinutes: undefined,
       recurringDiscountApplies: false,
       recurringDiscountPct: 10,
-      kichePct: 0,
+      applyKiche: true,
     });
     expect(
       result.lines.find((l) => l.label.toLowerCase().includes("kiche")),
     ).toBeUndefined();
+    expect(result.finalCents).toBe(3000);
+  });
+
+  it("training: applyKiche=true applies no kiche line (no kiche_discount_pct in config)", () => {
+    // training config has no kiche_discount_pct; applyKiche=true → no kiche line
+    const result = quote({
+      pricingType: "training",
+      pricingConfig: TRAIN_CFG,
+      hours: 1,
+      roundTripDriveMinutes: undefined,
+      recurringDiscountApplies: false,
+      recurringDiscountPct: 10,
+      applyKiche: true,
+    });
+    expect(
+      result.lines.find((l) => l.label.toLowerCase().includes("kiche")),
+    ).toBeUndefined();
+    expect(result.finalCents).toBe(3500);
   });
 });
 
@@ -620,7 +697,7 @@ describe("quote modifiers: computation order", () => {
     // base = 2500 + 1000 = 3500
     // travel: 60 min round-trip → round(60/60 * 2500) = 2500; subtotal = 6000
     // recurring −10%: round(6000 * 0.10) = 600; subtotal = 5400
-    // kiche −25%: round(5400 * 0.25) = 1350; finalCents = 4050
+    // kiche −25% (from WALK_CFG.kiche_discount_pct): round(5400 * 0.25) = 1350; finalCents = 4050
     const result = quote({
       pricingType: "walk",
       pricingConfig: WALK_CFG,
@@ -629,7 +706,7 @@ describe("quote modifiers: computation order", () => {
       roundTripDriveMinutes: 60,
       recurringDiscountApplies: true,
       recurringDiscountPct: 10,
-      kichePct: 25,
+      applyKiche: true,
     });
     expect(result.finalCents).toBe(4050);
 
@@ -652,7 +729,7 @@ describe("quote modifiers: computation order", () => {
     // base = 3000
     // travel = round(30/60 * 3000) = 1500; subtotal = 4500
     // recurring −10%: round(4500 * 0.10) = 450; subtotal = 4050
-    // no kiche
+    // no kiche (check_in has no kiche_discount_pct)
     const result = quote({
       pricingType: "check_in",
       pricingConfig: CI_CFG,
@@ -660,6 +737,7 @@ describe("quote modifiers: computation order", () => {
       roundTripDriveMinutes: 30,
       recurringDiscountApplies: true,
       recurringDiscountPct: 10,
+      applyKiche: false,
     });
     expect(result.finalCents).toBe(4050);
   });
@@ -673,7 +751,7 @@ describe("quote modifiers: computation order", () => {
       roundTripDriveMinutes: 60,
       recurringDiscountApplies: true,
       recurringDiscountPct: 10,
-      kichePct: 25,
+      applyKiche: true,
     });
     const summed = result.lines.reduce((acc, l) => acc + l.amountCents, 0);
     expect(result.finalCents).toBe(summed);

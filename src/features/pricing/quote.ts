@@ -52,7 +52,8 @@ function applyModifiers(
     travelCents: number; // 0 = no travel line
     recurringDiscountApplies: boolean;
     recurringDiscountPct: number;
-    kichePct: number | undefined;
+    /** Resolved Kiche percentage (0 = not applied / service has no Kiche rate). */
+    kichePct: number;
   },
 ): QuoteLine[] {
   const result = [...lines];
@@ -83,7 +84,7 @@ function applyModifiers(
   );
 
   // 3. Kiche discount
-  if (opts.kichePct !== undefined && opts.kichePct > 0) {
+  if (opts.kichePct > 0) {
     const kicheCents = roundCents(
       (subtotalAfterRecurring * opts.kichePct) / 100,
     );
@@ -122,8 +123,18 @@ function quoteHouseSitting(
   const cfg = input.pricingConfig;
   const { dogs, cats, nights } = input;
   const cantBeLeftAloneDays = input.cantBeLeftAloneDays ?? 0;
-  const extraWalk15minBlocksPerDay = input.extraWalk15minBlocksPerDay ?? 0;
+  const walkMinutesPerDay = input.walkMinutesPerDay ?? 0;
   const holidayDays = input.holidayDays ?? 0;
+
+  // Billable extra 15-min walk blocks per day: requested minutes beyond the
+  // included 45 min/day, divided into 15-min blocks (rounded up). This domain
+  // rule lives here in the pure core, not in the caller (ENGINEERING #5).
+  const extraWalk15minBlocksPerDay = Math.max(
+    0,
+    Math.ceil(
+      (walkMinutesPerDay - INCLUDED_WALK_MINUTES_PER_DAY) / WALK_BLOCK_MINUTES,
+    ),
+  );
 
   const lines: QuoteLine[] = [];
 
@@ -181,18 +192,10 @@ function quoteHouseSitting(
     });
   }
 
-  // Extra walk blocks per day × days (per-day charge)
-  // Each `extraWalk15minBlocksPerDay` is already extra blocks per day;
-  // cantBeLeftAloneDays is separate. Walk add-on uses explicit
-  // `extraWalk15minBlocksPerDay` × days input to stay testable.
-  // "days" here is the caller-supplied cantBeLeftAloneDays / holidayDays;
-  // the walk add-on rate is per-day, but the caller provides
-  // blocks-per-day, not a total days count — so we need an explicit day count.
-  // Per the spec, day-based add-ons use explicit input day counts. For walks
-  // the day count is implicitly `Math.ceil(nights)` unless a separate field is
-  // provided. We accept `extraWalk15minBlocksPerDay` as blocks-per-day and
-  // multiply by `Math.ceil(nights)` as the number of full/partial days in the
-  // stay. This is consistent with how holidayDays is an explicit total.
+  // Extra walk blocks are charged per day across the stay. The walk add-on rate
+  // is per-day; the number of days is derived as Math.ceil(nights) (a fractional
+  // final night still counts as a walk day). Flagged to Cal as a tuning detail —
+  // partial-day walk proration is deferred.
   const walkDays = Math.ceil(nights);
   if (extraWalk15minBlocksPerDay > 0 && walkDays > 0) {
     lines.push({
@@ -218,7 +221,8 @@ function quoteHouseSitting(
     travelCents: 0, // house_sitting travel is off by default (open Cal Q)
     recurringDiscountApplies: input.recurringDiscountApplies,
     recurringDiscountPct: input.recurringDiscountPct,
-    kichePct: input.kichePct,
+    // Kiche pct read from the service config (DESIGN: percentages live in pricing_config).
+    kichePct: input.applyKiche ? cfg.kiche_discount_pct : 0,
   });
 
   return {
@@ -256,7 +260,8 @@ function quoteCheckIn(
     travelCents,
     recurringDiscountApplies: input.recurringDiscountApplies,
     recurringDiscountPct: input.recurringDiscountPct,
-    kichePct: input.kichePct,
+    // check_in has no Kiche rate in its config — Kiche never applies (DESIGN).
+    kichePct: 0,
   });
 
   return {
@@ -295,7 +300,8 @@ function quoteWalk(
     travelCents,
     recurringDiscountApplies: input.recurringDiscountApplies,
     recurringDiscountPct: input.recurringDiscountPct,
-    kichePct: input.kichePct,
+    // Kiche pct read from the service config (DESIGN: percentages live in pricing_config).
+    kichePct: input.applyKiche ? cfg.kiche_discount_pct : 0,
   });
 
   return {
@@ -329,7 +335,8 @@ function quoteTraining(
     travelCents,
     recurringDiscountApplies: input.recurringDiscountApplies,
     recurringDiscountPct: input.recurringDiscountPct,
-    kichePct: input.kichePct,
+    // training has no Kiche rate in its config — Kiche never applies (DESIGN).
+    kichePct: 0,
   });
 
   return {
