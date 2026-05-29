@@ -13,6 +13,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { createClient } from "@supabase/supabase-js";
 import { runOnboarding } from "./onboarding-action";
+import type { Geocoder } from "@/features/pricing/geocoding/geocoder";
 
 const url = process.env.SUPABASE_TEST_URL!;
 const serviceKey = process.env.SUPABASE_TEST_SERVICE_ROLE_KEY!;
@@ -52,6 +53,14 @@ afterAll(async () => {
   await serviceClient.auth.admin.deleteUser(testUserId);
 });
 
+/** Stub geocoder — returns a fixed centroid for 80301 so tests are deterministic. */
+const stubGeocoder: Geocoder = {
+  geocode: async (zip: string) => {
+    if (zip === "80301") return { lat: 40.0481, lng: -105.2527 };
+    return null;
+  },
+};
+
 describe("runOnboarding", () => {
   const validInput = {
     profile: {
@@ -70,7 +79,10 @@ describe("runOnboarding", () => {
   };
 
   it("flips onboarding_complete to true", async () => {
-    await runOnboarding({ serviceClient, userId: testUserId }, validInput);
+    await runOnboarding(
+      { serviceClient, userId: testUserId, geocoder: stubGeocoder },
+      validInput,
+    );
 
     const { data: profile } = await serviceClient
       .from("profiles")
@@ -95,10 +107,10 @@ describe("runOnboarding", () => {
     });
   });
 
-  it("writes the profile fields", async () => {
+  it("writes the profile fields including geocoded lat/lng", async () => {
     const { data: profile } = await serviceClient
       .from("profiles")
-      .select("full_name, phone, address, zip")
+      .select("full_name, phone, address, zip, lat, lng")
       .eq("id", testUserId)
       .single();
 
@@ -108,12 +120,15 @@ describe("runOnboarding", () => {
       address: "123 Main St",
       zip: "80301",
     });
+    // Stub geocoder returns known centroid for 80301
+    expect(profile?.lat).toBeCloseTo(40.0481, 2);
+    expect(profile?.lng).toBeCloseTo(-105.2527, 2);
   });
 
   it("rejects invalid input with a Zod error (profile missing zip)", async () => {
     await expect(
       runOnboarding(
-        { serviceClient, userId: testUserId },
+        { serviceClient, userId: testUserId, geocoder: stubGeocoder },
         {
           ...validInput,
           profile: { ...validInput.profile, zip: "" },
@@ -144,6 +159,7 @@ describe("runOnboarding", () => {
       });
 
       // The second user should see 0 rows from the first user's form_responses.
+      // (runOnboarding was called for the first user only, via stubGeocoder above.)
       const { data: rows, error } = await secondClient
         .from("form_responses")
         .select("id")

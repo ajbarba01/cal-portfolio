@@ -9,6 +9,8 @@ import {
   type EmergencyInput,
 } from "@/features/forms/emergency-schema";
 import { type SupabaseClient } from "@supabase/supabase-js";
+import { defaultGeocoder } from "@/features/pricing/geocoding/zip-centroid-geocoder";
+import { type Geocoder } from "@/features/pricing/geocoding/geocoder";
 
 export interface OnboardingInput {
   profile: ProfileInput;
@@ -20,6 +22,8 @@ export interface OnboardingDeps {
   serviceClient: SupabaseClient;
   /** The authenticated user's ID. Must be verified from a real session before calling. */
   userId: string;
+  /** Geocoder used to resolve the client's ZIP to lat/lng at signup. Defaults to the bundled offline geocoder. */
+  geocoder?: Geocoder;
 }
 
 /**
@@ -40,7 +44,12 @@ export async function runOnboarding(
   const profile = profileSchema.parse(input.profile);
   const emergency = emergencySchema.parse(input.emergency);
 
-  const { serviceClient, userId } = deps;
+  const { serviceClient, userId, geocoder = defaultGeocoder } = deps;
+
+  // Geocode the client's ZIP once at signup. Returns null for unknown ZIPs —
+  // a far or unrecognised ZIP must not block onboarding; the distance gate
+  // handles refusals at booking time.
+  const latLng = await geocoder.geocode(profile.zip);
 
   // 1. Update profile fields (service role bypasses the column-level grant on role/lat/lng/etc.)
   const { error: profileError } = await serviceClient
@@ -50,7 +59,8 @@ export async function runOnboarding(
       phone: profile.phone,
       address: profile.address,
       zip: profile.zip,
-      // lat/lng geocoding wired in Phase 3 (features/pricing/geocoding)
+      lat: latLng?.lat ?? null,
+      lng: latLng?.lng ?? null,
     })
     .eq("id", userId);
 
@@ -101,7 +111,10 @@ export async function completeOnboarding(
 
   const serviceClient = createServiceClient();
 
-  await runOnboarding({ serviceClient, userId: user.id }, input);
+  await runOnboarding(
+    { serviceClient, userId: user.id, geocoder: defaultGeocoder },
+    input,
+  );
 
   redirect("/account");
 }
