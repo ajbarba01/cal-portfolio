@@ -169,8 +169,11 @@ export async function runReminderCron(
         .eq("id", row.id);
 
       if (stampErr) {
+        // Email already went out but the idempotency stamp failed — the next
+        // run will see reminder_sent_at IS NULL and send a DUPLICATE. Logged
+        // distinctly so this is visible in case it recurs.
         console.error(
-          `reminder-cron: failed to stamp reminder_sent_at for ${row.id}: ${stampErr.message}`,
+          `reminder-cron: WARNING email sent but reminder_sent_at stamp FAILED for ${row.id} (may double-send next run): ${stampErr.message}`,
         );
       } else {
         sent++;

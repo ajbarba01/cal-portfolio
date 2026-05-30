@@ -24,15 +24,23 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 
-  const serviceClient = createServiceClient();
-  const mailer = new ResendMailer();
-  const now = new Date();
+  // Construct the mailer/service client inside try/catch — ResendMailer throws
+  // if RESEND_API_KEY/EMAIL_FROM are unset; surface that as a 500, never an
+  // unhandled exception.
+  try {
+    const serviceClient = createServiceClient();
+    const mailer = new ResendMailer();
+    const now = new Date();
 
-  const result = await runReminderCron({ serviceClient, mailer, now });
+    const result = await runReminderCron({ serviceClient, mailer, now });
 
-  if (!result.ok) {
-    return NextResponse.json(result, { status: 500 });
+    if (!result.ok) {
+      return NextResponse.json(result, { status: 500 });
+    }
+
+    return NextResponse.json(result);
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : "Unknown error";
+    return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
-
-  return NextResponse.json(result);
 }

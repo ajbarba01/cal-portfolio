@@ -18,6 +18,7 @@
  * the core's ownership check.
  */
 
+import { z } from "zod";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
@@ -31,6 +32,14 @@ import type {
   CreateBookingInput,
   CancelBookingInput,
 } from "./booking-service";
+
+/** Shape of the booking row read back for the confirmation email (DB edge). */
+const confirmationRowSchema = z.object({
+  starts_at: z.string(),
+  ends_at: z.string(),
+  final_cents: z.number(),
+  services: z.object({ name: z.string() }).nullable(),
+});
 
 // Re-export result types for consumers.
 export type { CreateBookingResult, CancelBookingResult };
@@ -75,17 +84,17 @@ export async function createBooking(
           .eq("id", firstBookingId)
           .single();
 
-        if (bookingRow) {
-          const serviceName =
-            (bookingRow.services as { name?: string } | null)?.name ??
-            "Booking";
+        const parsed = confirmationRowSchema.safeParse(bookingRow);
+        if (parsed.success) {
+          const row = parsed.data;
+          const serviceName = row.services?.name ?? "Booking";
           const mailer = new ResendMailer();
           const sendResult = await sendBookingConfirmation(mailer, {
             to: user.email,
             serviceName,
-            startsAt: new Date(bookingRow.starts_at),
-            endsAt: new Date(bookingRow.ends_at),
-            finalCents: bookingRow.final_cents,
+            startsAt: new Date(row.starts_at),
+            endsAt: new Date(row.ends_at),
+            finalCents: row.final_cents,
           });
           if (!sendResult.ok) {
             console.error(

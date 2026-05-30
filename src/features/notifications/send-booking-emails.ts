@@ -2,7 +2,7 @@
  * Helper that wires the pure email builder to the Mailer interface.
  *
  * Returns SendResult — never throws. Callers wrap in try/catch for
- * best-effort best-effort logging if even this returns ok:false.
+ * best-effort logging if even this returns ok:false.
  */
 
 import { buildBookingConfirmationEmail } from "./emails";

@@ -46,6 +46,15 @@ const pendingBookingRowSchema = z.object({
   service_id: z.string(),
 });
 
+/** Shape of the booking row read back for the approval confirmation email. */
+const approvalConfirmationRowSchema = z.object({
+  starts_at: z.string(),
+  ends_at: z.string(),
+  final_cents: z.number(),
+  profiles: z.object({ email: z.string() }).nullable(),
+  services: z.object({ name: z.string() }).nullable(),
+});
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Result types
 // ──────────────────────────────────────────────────────────────────────────────
@@ -200,19 +209,19 @@ export async function approveBooking(
         .eq("id", bookingId)
         .single();
 
-      if (bookingRow) {
-        const clientEmail = (bookingRow.profiles as { email?: string } | null)
-          ?.email;
-        const serviceName =
-          (bookingRow.services as { name?: string } | null)?.name ?? "Booking";
+      const parsed = approvalConfirmationRowSchema.safeParse(bookingRow);
+      if (parsed.success) {
+        const row = parsed.data;
+        const clientEmail = row.profiles?.email;
+        const serviceName = row.services?.name ?? "Booking";
         if (clientEmail) {
           const mailer = new ResendMailer();
           const sendResult = await sendBookingConfirmation(mailer, {
             to: clientEmail,
             serviceName,
-            startsAt: new Date(bookingRow.starts_at),
-            endsAt: new Date(bookingRow.ends_at),
-            finalCents: bookingRow.final_cents,
+            startsAt: new Date(row.starts_at),
+            endsAt: new Date(row.ends_at),
+            finalCents: row.final_cents,
           });
           if (!sendResult.ok) {
             console.error(

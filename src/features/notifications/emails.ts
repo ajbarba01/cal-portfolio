@@ -33,6 +33,16 @@ function formatCents(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
+/** Escape text interpolated into email HTML (serviceName is admin-controlled). */
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Booking confirmation
 // ──────────────────────────────────────────────────────────────────────────────
@@ -54,6 +64,8 @@ export function buildBookingConfirmationEmail(
   const priceStr = formatCents(finalCents);
 
   const subject = `Booking confirmed: ${serviceName}`;
+  const serviceHtml = escapeHtml(serviceName);
+  const subjectHtml = escapeHtml(subject);
 
   const text = [
     `Your booking is confirmed!`,
@@ -71,11 +83,11 @@ export function buildBookingConfirmationEmail(
   const html = `
 <!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8" /><title>${subject}</title></head>
+<head><meta charset="UTF-8" /><title>${subjectHtml}</title></head>
 <body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#1a1a1a;">
   <h1 style="font-size:1.5rem;margin-bottom:1rem;">Your booking is confirmed!</h1>
   <table style="border-collapse:collapse;width:100%;margin-bottom:1.5rem;">
-    <tr><th style="text-align:left;padding:8px 0;border-bottom:1px solid #e5e5e5;">Service</th><td style="padding:8px 0;border-bottom:1px solid #e5e5e5;">${serviceName}</td></tr>
+    <tr><th style="text-align:left;padding:8px 0;border-bottom:1px solid #e5e5e5;">Service</th><td style="padding:8px 0;border-bottom:1px solid #e5e5e5;">${serviceHtml}</td></tr>
     <tr><th style="text-align:left;padding:8px 0;border-bottom:1px solid #e5e5e5;">Starts</th><td style="padding:8px 0;border-bottom:1px solid #e5e5e5;">${startStr} (Mountain Time)</td></tr>
     <tr><th style="text-align:left;padding:8px 0;border-bottom:1px solid #e5e5e5;">Ends</th><td style="padding:8px 0;border-bottom:1px solid #e5e5e5;">${endStr} (Mountain Time)</td></tr>
     <tr><th style="text-align:left;padding:8px 0;">Total</th><td style="padding:8px 0;">${priceStr}</td></tr>
@@ -106,6 +118,8 @@ export function buildBookingReminderEmail(
   const startStr = formatDateTime(startsAt);
 
   const subject = `Reminder: ${serviceName} coming up`;
+  const serviceHtml = escapeHtml(serviceName);
+  const subjectHtml = escapeHtml(subject);
 
   const text = [
     `Just a reminder about your upcoming booking.`,
@@ -121,11 +135,11 @@ export function buildBookingReminderEmail(
   const html = `
 <!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8" /><title>${subject}</title></head>
+<head><meta charset="UTF-8" /><title>${subjectHtml}</title></head>
 <body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#1a1a1a;">
   <h1 style="font-size:1.5rem;margin-bottom:1rem;">Upcoming booking reminder</h1>
   <table style="border-collapse:collapse;width:100%;margin-bottom:1.5rem;">
-    <tr><th style="text-align:left;padding:8px 0;border-bottom:1px solid #e5e5e5;">Service</th><td style="padding:8px 0;border-bottom:1px solid #e5e5e5;">${serviceName}</td></tr>
+    <tr><th style="text-align:left;padding:8px 0;border-bottom:1px solid #e5e5e5;">Service</th><td style="padding:8px 0;border-bottom:1px solid #e5e5e5;">${serviceHtml}</td></tr>
     <tr><th style="text-align:left;padding:8px 0;">Starts</th><td style="padding:8px 0;">${startStr} (Mountain Time)</td></tr>
   </table>
   <p style="margin-bottom:0.5rem;">Questions? Reply to this email.</p>
