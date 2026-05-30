@@ -15,7 +15,11 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { createClient } from "@supabase/supabase-js";
 import { transitionBookingByAdminCore } from "./approval-actions";
-import { createWindowCore, deleteWindowCore } from "./availability-actions";
+import {
+  createWindowCore,
+  deleteWindowCore,
+  trimWindowCore,
+} from "./availability-actions";
 import { updateServiceCore, listServicesCore } from "./services-actions";
 import { updateSettingsCore } from "./settings-actions";
 import { moderateReviewCore, listReviewsCore } from "./reviews-actions";
@@ -333,6 +337,74 @@ describe("deleteWindowCore (block-out)", () => {
       .eq("id", bookingId)
       .single();
     expect(booking?.status).toBe("cancelled");
+  });
+});
+
+describe("trimWindowCore (block-out of removed portion)", () => {
+  it("cancels a booking in the trimmed-away slice but not one in the kept slice", async () => {
+    const wStart = futureDate(70);
+    const wEnd = new Date(wStart.getTime() + 4 * 24 * 60 * 60 * 1000); // 4 days
+
+    const createResult = await createWindowCore(adminDeps(), {
+      startsAt: wStart.toISOString(),
+      endsAt: wEnd.toISOString(),
+      note: "test trim window",
+    });
+    expect(createResult.kind).toBe("success");
+
+    const { data: windows } = await serviceClient
+      .from("availability_windows")
+      .select("id")
+      .eq("note", "test trim window")
+      .order("starts_at", { ascending: false })
+      .limit(1);
+    const windowId = windows?.[0]?.id as string;
+    expect(windowId).toBeTruthy();
+    createdWindowIds.push(windowId);
+
+    // Kept booking: 1h into the window (stays inside the kept slice).
+    const keptStart = new Date(wStart.getTime() + 3600 * 1000);
+    const keptEnd = new Date(keptStart.getTime() + 60 * 60 * 1000);
+    const keptId = await createBookingFixture({
+      clientId: clientUserId,
+      startsAt: keptStart,
+      endsAt: keptEnd,
+      status: "confirmed",
+    });
+
+    // Removed booking: on day 3 (falls in the trimmed-away tail). Non-overlapping
+    // with the kept booking so the exclusion constraint is satisfied.
+    const removedStart = new Date(wStart.getTime() + 3 * 24 * 60 * 60 * 1000);
+    const removedEnd = new Date(removedStart.getTime() + 60 * 60 * 1000);
+    const removedId = await createBookingFixture({
+      clientId: clientUserId,
+      startsAt: removedStart,
+      endsAt: removedEnd,
+      status: "confirmed",
+    });
+
+    // Trim the end back to day 2 → removed slice is (wStart+2d, wEnd].
+    const newEnd = new Date(wStart.getTime() + 2 * 24 * 60 * 60 * 1000);
+    const trimResult = await trimWindowCore(
+      { ...adminDeps(), now: new Date() },
+      { windowId, newEndsAt: newEnd.toISOString() },
+    );
+    expect(trimResult.kind).toBe("success");
+
+    // Removed-slice booking cancelled; kept-slice booking untouched.
+    const { data: removed } = await serviceClient
+      .from("bookings")
+      .select("status")
+      .eq("id", removedId)
+      .single();
+    expect(removed?.status).toBe("cancelled");
+
+    const { data: kept } = await serviceClient
+      .from("bookings")
+      .select("status")
+      .eq("id", keptId)
+      .single();
+    expect(kept?.status).toBe("confirmed");
   });
 });
 

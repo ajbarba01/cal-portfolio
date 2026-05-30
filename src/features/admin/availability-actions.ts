@@ -144,8 +144,18 @@ const trimWindowInputSchema = z
     message: "At least one of newStartsAt or newEndsAt must be provided",
   });
 
+/**
+ * Trim (shrink/grow) a window. Trimming is a block-out of the removed portion:
+ * any active booking that falls in the slice no longer covered by the new bounds
+ * is cancelled (same admin-path block-out as deleteWindowCore). Growing a bound
+ * removes nothing.
+ *
+ * Removed slices:
+ *   - start moved later   → [oldStart, newStart)
+ *   - end moved earlier   → (newEnd, oldEnd]
+ */
 export async function trimWindowCore(
-  deps: AvailabilityDeps,
+  deps: AvailabilityDeps & { now: Date },
   rawInput: {
     windowId: string;
     newStartsAt?: string;
@@ -164,6 +174,47 @@ export async function trimWindowCore(
 
   const { data: input } = parsed;
 
+  // Load the window's current (old) bounds.
+  const { data: windowData, error: windowErr } = await deps.serviceClient
+    .from("availability_windows")
+    .select("id, starts_at, ends_at")
+    .eq("id", input.windowId)
+    .single();
+
+  if (windowErr || !windowData) return { kind: "not_found" };
+
+  const oldStart = windowData.starts_at as string;
+  const oldEnd = windowData.ends_at as string;
+  const newStart = input.newStartsAt ?? oldStart;
+  const newEnd = input.newEndsAt ?? oldEnd;
+
+  // A trim must not invert the window.
+  if (new Date(newEnd).getTime() <= new Date(newStart).getTime())
+    return {
+      kind: "validation_error",
+      message: "Trimmed window would have endsAt <= startsAt",
+    };
+
+  // Cancel active bookings in each removed slice (block-out semantics).
+  if (new Date(newStart).getTime() > new Date(oldStart).getTime()) {
+    const err = await cancelActiveBookingsInRange(
+      deps.serviceClient,
+      deps.now,
+      oldStart,
+      newStart,
+    );
+    if (err) return err;
+  }
+  if (new Date(newEnd).getTime() < new Date(oldEnd).getTime()) {
+    const err = await cancelActiveBookingsInRange(
+      deps.serviceClient,
+      deps.now,
+      newEnd,
+      oldEnd,
+    );
+    if (err) return err;
+  }
+
   const update: Record<string, string> = {};
   if (input.newStartsAt) update.starts_at = input.newStartsAt;
   if (input.newEndsAt) update.ends_at = input.newEndsAt;
@@ -178,12 +229,46 @@ export async function trimWindowCore(
 }
 
 /**
+ * Cancels every active (pending_approval | confirmed) booking overlapping the
+ * range [rangeStart, rangeEnd), reusing cancelBookingCore (admin path: the
+ * booking's own client_id is passed as userId to satisfy the ownership check).
+ *
+ * Overlap condition: booking.starts_at < rangeEnd AND booking.ends_at > rangeStart.
+ * Returns an error result on query failure, otherwise null (success).
+ *
+ * Cancellation is sequential and self-excluding: each cancel flips status to
+ * 'cancelled', so a booking is never returned twice across successive calls.
+ */
+async function cancelActiveBookingsInRange(
+  serviceClient: SupabaseClient,
+  now: Date,
+  rangeStart: string,
+  rangeEnd: string,
+): Promise<{ kind: "error"; message: string } | null> {
+  const { data: overlapping, error } = await serviceClient
+    .from("bookings")
+    .select("id, client_id, status")
+    .lt("starts_at", rangeEnd)
+    .gt("ends_at", rangeStart)
+    .in("status", ["pending_approval", "confirmed"]);
+
+  if (error)
+    return { kind: "error", message: `Overlap query failed: ${error.message}` };
+
+  const repo = createSupabaseBookingRepository(serviceClient);
+  for (const booking of overlapping ?? []) {
+    await cancelBookingCore(
+      { repo, now },
+      { userId: booking.client_id as string, bookingId: booking.id as string },
+    );
+  }
+  return null;
+}
+
+/**
  * Block-out: delete window + cancel all active bookings that overlap it.
  *
- * Overlap condition: booking.starts_at < wEnd AND booking.ends_at > wStart
- * AND status IN ('pending_approval', 'confirmed').
- *
- * Reuses cancelBookingCore (admin path: pass booking's actual client_id as userId).
+ * Reuses cancelActiveBookingsInRange (admin path: pass booking's client_id as userId).
  */
 export async function deleteWindowCore(
   deps: AvailabilityDeps & { now: Date },
@@ -210,31 +295,14 @@ export async function deleteWindowCore(
 
   if (windowErr || !windowData) return { kind: "not_found" };
 
-  const wStart = windowData.starts_at as string;
-  const wEnd = windowData.ends_at as string;
-
-  // Find overlapping active bookings.
-  const { data: overlapping, error: overlapErr } = await deps.serviceClient
-    .from("bookings")
-    .select("id, client_id, status")
-    .lt("starts_at", wEnd)
-    .gt("ends_at", wStart)
-    .in("status", ["pending_approval", "confirmed"]);
-
-  if (overlapErr)
-    return {
-      kind: "error",
-      message: `Overlap query failed: ${overlapErr.message}`,
-    };
-
-  // Cancel each overlapping booking via cancelBookingCore (admin path).
-  const repo = createSupabaseBookingRepository(deps.serviceClient);
-  for (const booking of overlapping ?? []) {
-    await cancelBookingCore(
-      { repo, now: deps.now },
-      { userId: booking.client_id as string, bookingId: booking.id as string },
-    );
-  }
+  // Cancel every active booking inside the window being removed.
+  const cancelErr = await cancelActiveBookingsInRange(
+    deps.serviceClient,
+    deps.now,
+    windowData.starts_at as string,
+    windowData.ends_at as string,
+  );
+  if (cancelErr) return cancelErr;
 
   // Delete the window.
   const { error: deleteErr } = await deps.serviceClient
@@ -284,7 +352,10 @@ export async function trimWindow(input: {
 }): Promise<AvailabilityResult> {
   const actorUserId = await getActorOrRedirect();
   const serviceClient = createServiceClient();
-  const result = await trimWindowCore({ serviceClient, actorUserId }, input);
+  const result = await trimWindowCore(
+    { serviceClient, actorUserId, now: new Date() },
+    input,
+  );
   if (result.kind === "success") revalidatePath("/admin/availability");
   return result;
 }
