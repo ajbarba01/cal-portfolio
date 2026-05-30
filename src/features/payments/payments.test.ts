@@ -16,6 +16,7 @@ import { createClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
 import { runCreatePrepayIntent } from "./create-intent";
 import { applyStripeEvent } from "./webhook-core";
+import { amountOwedCents } from "./projection";
 import type { PaymentGateway, CreatedIntent } from "./types";
 
 const url = process.env.SUPABASE_TEST_URL!;
@@ -281,6 +282,21 @@ describe("applyStripeEvent — webhook projection", () => {
     expect(booking?.payment_status).toBe("paid");
     // CRITICAL: bookings.status MUST NOT have changed.
     expect(booking?.status).toBe("confirmed");
+
+    // Amount owed recomputes to 0 once the 8000-cent intent succeeds.
+    const { data: txnRows } = await serviceClient
+      .from("payments")
+      .select("status, amount_cents")
+      .eq("booking_id", bookingId);
+    const txns = (txnRows ?? []).map((t) => ({
+      status: t.status as
+        | "requires_payment"
+        | "succeeded"
+        | "refunded"
+        | "failed",
+      amountCents: t.amount_cents as number,
+    }));
+    expect(amountOwedCents(8000, txns)).toBe(0);
   });
 
   it("re-delivering same event is idempotent (still paid)", async () => {
