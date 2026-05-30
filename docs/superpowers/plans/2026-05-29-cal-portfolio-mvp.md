@@ -309,20 +309,22 @@ The engineering foundation is scaffolded (Next 16, Supabase SSR clients with `sb
 
 ---
 
-## Phase 10 — Account area (wireframe)
+## Phase 10 — Account area (wireframe) — ✅ DONE (`42f4e2b` + token-fix `aa16277`)
 
 **Goal:** Client self-service surfaces wired to RLS-protected data.
-**Systems landed:** profile editor, dogs CRUD, forms (emergency + service-specific via registry), bookings list with amount-owed.
+**Systems landed:** profile editor, dogs CRUD, forms (emergency, registry-driven), bookings list with amount-owed.
 **Deps:** Phases 2, 7. **Wireframe screens:** `/account`, `/account/dogs`, `/account/forms`, `/account/bookings`.
 
-- [ ] **Profile** edits only self-editable columns (column GRANT enforces; UI mirrors).
-- [ ] **Dogs CRUD** (name/breed/optional photo via Supabase Storage/`notes`).
-- [ ] **Forms.** Extend `features/forms/registry.ts` with service-specific schemas; render from registry; submit → `form_responses`.
-- [ ] **Bookings list.** Upcoming/history; amount owed = `final_cents` − succeeded `payments`; pay/prepay button (wires in Phase 12).
-- [ ] **Tests.** RLS: a client sees only own dogs/bookings/forms; attempting to write `role`/`kiche_allowed` is blocked.
-- [ ] **Commit** `feat: add account profile, dogs, forms, and bookings`.
+- [x] **Profile** edits only self-editable columns (column GRANT enforces; UI mirrors).
+- [x] **Dogs CRUD** (name/breed/`notes`; photo DEFERRED — no Storage bucket yet, TODO in code).
+- [x] **Forms.** Render generically from `features/forms/registry.ts` (only `emergency` registered; service-specific schemas are future code per DESIGN); submit → `form_responses` (upsert).
+- [x] **Bookings list.** Upcoming/history split on `ends_at`; amount owed = `final_cents` − succeeded `payments`; prepay button disabled placeholder (wires in Phase 12).
+- [x] **Tests.** RLS: a client sees only own dogs/bookings/forms; attempting to write `role`/`kiche_allowed` via session client is blocked (verified unchanged).
+- [x] **Commit** `feat: add account profile, dogs, forms, and bookings`.
 
 **Verification:** manual `verify` — CRUD round-trips; cross-client isolation holds.
+
+**Phase 10 review outcome (carry forward):** Security model correct — ALL account mutations use the **session client** (`createClient()`), never the service role; identity from `getUser()`; only self-editable profile columns written; the column-guard test proves a session-client `update({role:'admin'})` leaves role unchanged. DI split (`runUpdateProfile`/`runCreateDog`/… + `"use server"` wrappers) tested with an anon-key session client (signInWithPassword) for RLS assertions. Light review (lower-risk RLS-guarded phase) — no spec/quality subagents dispatched; main-thread read + token-violation fix (`text-green-700` → semantic token) only. DEFERRED: avatar/dog photo upload (no Supabase Storage bucket configured — TODO in code); a `services` join returns an array (`{name}[]`) — typed accordingly.
 
 ---
 
