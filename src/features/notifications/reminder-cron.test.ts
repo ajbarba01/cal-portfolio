@@ -298,6 +298,8 @@ describe("runReminderCron integration", () => {
       now,
     });
     expect(result2.ok).toBe(true);
+    // Mailer received nothing on the re-run — already-stamped row is filtered out.
+    expect(fakeMailer.sent).toHaveLength(0);
     // Verify stamp still unchanged after second run.
     const { data: rowAfter2 } = await serviceClient
       .from("bookings")
@@ -312,23 +314,31 @@ describe("runReminderCron integration", () => {
     const startsAt = new Date(FAR_FUTURE.getTime() + 7 * 24 * 3_600_000);
     const endsAt = new Date(startsAt.getTime() + 2 * 3_600_000);
 
-    await insertConfirmedBooking({ startsAt, endsAt });
+    const bookingId = await insertConfirmedBooking({ startsAt, endsAt });
 
     // now is 72 hours before startsAt — beyond the default 24h lead window.
     const isolatedNow = new Date(startsAt.getTime() - 72 * 3_600_000);
 
-    // Check isRemindable directly for this scenario.
-    const leads = 24;
-    const windowEnd = new Date(isolatedNow.getTime() + leads * 3_600_000);
-    expect(startsAt > windowEnd).toBe(true);
+    // Drive the real cron against the DB — it must NOT pick up this booking.
+    const fakeMailer = new FakeMailer();
+    const result = await runReminderCron({
+      serviceClient,
+      mailer: fakeMailer,
+      now: isolatedNow,
+    });
 
-    // The cron query itself uses DB-level filtering, so far-future bookings won't appear.
-    // We can verify the pure predicate catches it.
-    const remindable = isRemindable(
-      { status: "confirmed", startsAt, reminderSentAt: null },
-      isolatedNow,
-      leads,
-    );
-    expect(remindable).toBe(false);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // No other suite booking is within (isolatedNow, +24h], so nothing sends.
+    expect(result.sent).toBe(0);
+    expect(fakeMailer.sent).toHaveLength(0);
+
+    // The far-future booking must remain unstamped (not reminded).
+    const { data: row } = await serviceClient
+      .from("bookings")
+      .select("reminder_sent_at")
+      .eq("id", bookingId)
+      .single();
+    expect(row?.reminder_sent_at).toBeNull();
   });
 });
