@@ -144,9 +144,11 @@ export interface BookingRepository {
 
   /**
    * Fetch all open availability windows (ends_at >= now).
+   * `now` is injected (no clock read inside the repo) for testability and to
+   * match the booking core's "inject now" contract.
    * Returns an empty array when no windows are defined.
    */
-  getOpenWindows(): Promise<{ startsAt: Date; endsAt: Date }[]>;
+  getOpenWindows(now: Date): Promise<{ startsAt: Date; endsAt: Date }[]>;
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -286,12 +288,11 @@ export function createSupabaseBookingRepository(
       }
     },
 
-    async getOpenWindows() {
-      const now = new Date().toISOString();
+    async getOpenWindows(now: Date) {
       const { data, error } = await client
         .from("availability_windows")
         .select("starts_at, ends_at")
-        .gte("ends_at", now);
+        .gte("ends_at", now.toISOString());
 
       if (error) {
         throw new Error(

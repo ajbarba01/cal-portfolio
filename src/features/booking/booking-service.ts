@@ -52,7 +52,11 @@ import {
   fitsWindow,
 } from "./availability";
 import { transition } from "./state-machine";
-import type { BookingRepository } from "./booking-repository";
+import type {
+  BookingRepository,
+  ServiceRow,
+  SettingsRow,
+} from "./booking-repository";
 import type { QuoteInput, QuoteBreakdown } from "@/features/pricing/types";
 import type { RecurrenceRule } from "./recurrence";
 import type { BookingRuleSettings } from "./availability";
@@ -157,34 +161,57 @@ export interface BookingServiceDeps {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// computeBookingQuoteCore
+// computeBookingArtifacts (internal) + computeBookingQuoteCore (public preview)
 // ──────────────────────────────────────────────────────────────────────────────
 
 export type CreateBookingInput = z.input<typeof createBookingInputSchema>;
 
 /**
- * Pure quote/approval computation — no guard enforcement, no DB write.
+ * Everything the quote computation loads/derives from DB-trusted data, returned
+ * as one bundle so BOTH the preview and createBookingCore consume identical
+ * values — no re-loading, no recompute, no drift. The persisted quote_breakdown
+ * is byte-identical to the previewed one because it IS the same object.
  *
- * Performs steps 1–4 + recurring-discount eligibility + quote for the FIRST
- * occurrence. createBookingCore calls this internally so the persisted
- * quote_breakdown is LITERALLY the same value the preview returned (single
- * source of truth — no drift possible).
- *
- * Callers may use this independently for a read-only price preview that is
- * guaranteed to match what createBookingCore will persist.
+ * `quoteInput` / `breakdown` are per-occurrence and identical across a recurring
+ * series (the quote depends only on quantities + config + modifiers, never on
+ * the specific occurrence date), so every inserted row reuses them.
+ */
+interface BookingQuoteArtifacts {
+  service: ServiceRow;
+  settings: SettingsRow;
+  quoteInput: QuoteInput;
+  breakdown: QuoteBreakdown;
+  /** Expanded occurrence start times (1 element when not recurring). */
+  occurrences: Date[];
+  distanceMiles: number | null;
+  requiresApproval: boolean;
+  decision: "auto" | "manual" | "refuse";
+}
+
+type ArtifactsResult =
+  | { kind: "success"; artifacts: BookingQuoteArtifacts }
+  | { kind: "refuse"; reason: string }
+  | { kind: "validation_error"; message: string }
+  | { kind: "error"; message: string };
+
+/**
+ * Pure quote/approval computation — no guard/window enforcement, no DB write.
  *
  * Pipeline:
  *  1. Validate input.
  *  2. Load service, settings, profile lat/lng.
  *  3. Validate quantities per pricing_type.
- *  4. Compute distance + approval decision (refuse → PreviewResult{refuse}).
- *  5. Compute recurring-discount eligibility.
+ *  4. Compute distance + approval decision (refuse → {refuse}).
+ *  5. Expand occurrences + recurring-discount eligibility.
  *  6. Build quoteInput and call quote().
+ *
+ * Returns the full artifact bundle so callers reuse the loaded rows + computed
+ * quote rather than redoing the work.
  */
-export async function computeBookingQuoteCore(
+async function computeBookingArtifacts(
   deps: BookingServiceDeps,
   rawInput: CreateBookingInput,
-): Promise<PreviewResult> {
+): Promise<ArtifactsResult> {
   // 1. Validate
   const parseResult = createBookingInputSchema.safeParse(rawInput);
   if (!parseResult.success) {
@@ -292,6 +319,35 @@ export async function computeBookingQuoteCore(
 
   return {
     kind: "success",
+    artifacts: {
+      service,
+      settings,
+      quoteInput,
+      breakdown,
+      occurrences,
+      distanceMiles,
+      requiresApproval,
+      decision,
+    },
+  };
+}
+
+/**
+ * Read-only price preview. Thin wrapper over computeBookingArtifacts that
+ * projects the artifact bundle to the public {@link BookingQuotePreview}.
+ * Guaranteed to match the breakdown createBookingCore persists for the same
+ * input — they call the same computation.
+ */
+export async function computeBookingQuoteCore(
+  deps: BookingServiceDeps,
+  rawInput: CreateBookingInput,
+): Promise<PreviewResult> {
+  const result = await computeBookingArtifacts(deps, rawInput);
+  if (result.kind !== "success") return result;
+  const { breakdown, distanceMiles, requiresApproval, decision } =
+    result.artifacts;
+  return {
+    kind: "success",
     preview: {
       breakdown,
       finalCents: breakdown.finalCents,
@@ -310,62 +366,48 @@ export async function computeBookingQuoteCore(
  * Core booking creation logic (testable via DI, no Next.js machinery).
  *
  * Pipeline:
- *  1. Validate input (schema + endsAt > startsAt).
- *  2–5. Compute quote/approval via computeBookingQuoteCore (single source of truth).
+ *  1–5. Compute quote/approval + load artifacts via computeBookingArtifacts
+ *       (single source of truth — service/settings/quoteInput/breakdown are the
+ *       SAME objects the preview returned; no re-load, no recompute, no drift).
  *  6. Enforce booking-rule guards (hours-of-day, lead time, max advance) per occurrence.
- *  7. Load availability windows; enforce fitsWindow containment per occurrence.
+ *  7. Enforce fitsWindow (availability-window containment) per occurrence.
  *     BEHAVIOR: a booking only succeeds if it falls inside an admin-defined
  *     availability window. Zero windows → all bookings return unavailable.
  *     This is the design intent: windows define Cal's availability.
- *  8. Expand occurrences, quote each row (same quoteInput computed by step 2–5).
- *  9. Derive initial status via state machine.
- * 10. Insert all rows via service role; catch 23P01 → slot_taken.
- *
- * The persisted quote_breakdown is IDENTICAL to what computeBookingQuoteCore
- * returned — no drift possible because createBookingCore calls it internally.
+ *  8–9. Derive initial status via state machine.
+ * 10. Insert all rows (reusing the one quoteInput/breakdown) via service role;
+ *     catch 23P01 → slot_taken.
  */
 export async function createBookingCore(
   deps: BookingServiceDeps,
   rawInput: CreateBookingInput,
 ): Promise<CreateBookingResult> {
-  // Steps 1–5: delegate to computeBookingQuoteCore for quote/approval.
-  const previewResult = await computeBookingQuoteCore(deps, rawInput);
+  // 1–5. Load artifacts + quote/approval (shared with the preview path).
+  const result = await computeBookingArtifacts(deps, rawInput);
+  if (result.kind === "validation_error") {
+    return { kind: "validation_error", message: result.message };
+  }
+  if (result.kind === "error") {
+    return { kind: "error", message: result.message };
+  }
+  if (result.kind === "refuse") {
+    return { kind: "refuse", reason: result.reason };
+  }
 
-  if (previewResult.kind === "validation_error") {
-    return { kind: "validation_error", message: previewResult.message };
-  }
-  if (previewResult.kind === "error") {
-    return { kind: "error", message: previewResult.message };
-  }
-  if (previewResult.kind === "refuse") {
-    return { kind: "refuse", reason: previewResult.reason };
-  }
-
-  // Re-parse input (already validated inside computeBookingQuoteCore; safe).
-  const input = createBookingInputSchema.parse(rawInput);
   const { repo, now } = deps;
-  const { preview } = previewResult;
-
-  // 6. Enforce booking-rule guards per occurrence.
-  const [service, settings] = await Promise.all([
-    repo.getServiceBySlug(input.serviceSlug),
-    repo.getSettings(),
-  ]);
-
-  // Service and settings are guaranteed to exist (computeBookingQuoteCore succeeded).
-  // Non-null assertion is safe: a missing service would have returned error above.
-  const ruleSettings: BookingRuleSettings = {
-    bookingOpenHour: settings!.booking_open_hour,
-    bookingCloseHour: settings!.booking_close_hour,
-    minLeadTimeHours: settings!.min_lead_time_hours,
-    maxAdvanceDays: settings!.max_advance_days,
-  };
+  const { service, settings, quoteInput, breakdown, occurrences } =
+    result.artifacts;
+  // userId / startsAt / endsAt come from the (already-validated) parsed input.
+  const input = createBookingInputSchema.parse(rawInput);
   const durationMs = input.endsAt.getTime() - input.startsAt.getTime();
 
-  const occurrences = input.recurringRule
-    ? expandOccurrences(input.startsAt, input.recurringRule as RecurrenceRule)
-    : [input.startsAt];
-
+  // 6. Enforce booking-rule guards per occurrence (no DB re-load: artifacts.settings).
+  const ruleSettings: BookingRuleSettings = {
+    bookingOpenHour: settings.booking_open_hour,
+    bookingCloseHour: settings.booking_close_hour,
+    minLeadTimeHours: settings.min_lead_time_hours,
+    maxAdvanceDays: settings.max_advance_days,
+  };
   for (const occStart of occurrences) {
     const occEnd = new Date(occStart.getTime() + durationMs);
     if (
@@ -383,7 +425,7 @@ export async function createBookingCore(
   // A booking is only accepted if EVERY occurrence falls fully inside at least
   // one open window. Zero windows → all bookings are unavailable (correct:
   // Cal has not published any open slots yet).
-  const openWindows = await repo.getOpenWindows();
+  const openWindows = await repo.getOpenWindows(now);
   for (const occStart of occurrences) {
     const occEnd = new Date(occStart.getTime() + durationMs);
     if (!fitsWindow({ startsAt: occStart, endsAt: occEnd }, openWindows)) {
@@ -394,85 +436,40 @@ export async function createBookingCore(
     }
   }
 
-  const seriesId = occurrences.length > 1 ? crypto.randomUUID() : null;
-
-  // 8–9. Quote each occurrence (same quoteInput = same breakdown as preview).
+  // 8–9. Derive initial status.
   const statResult = transition("draft", "submit", {
-    requiresApproval: preview.requiresApproval,
+    requiresApproval: result.artifacts.requiresApproval,
   });
   if ("error" in statResult) {
     return { kind: "error", message: statResult.error };
   }
   const status = statResult.state;
 
-  // Re-derive the inputs needed for buildQuoteInput (all already computed inside
-  // computeBookingQuoteCore — we reconstruct them here to keep createBookingCore
-  // self-contained for the per-row insert loop).
-  const pricingConfig = parsePricingConfig(
-    service!.pricing_type,
-    service!.pricing_config,
-  );
-  const quantitiesResult = parseQuantities(
-    service!.pricing_type,
-    input.quantities,
-  );
-  // quantitiesResult.success is guaranteed (computeBookingQuoteCore succeeded).
-  const quantities = quantitiesResult as Extract<
-    typeof quantitiesResult,
-    { success: true }
-  >;
+  const seriesId = occurrences.length > 1 ? crypto.randomUUID() : null;
 
-  // Recurring discount eligibility (same logic as in computeBookingQuoteCore).
-  const recurringDiscountApplies = seriesQualifiesForRecurringDiscount(
-    occurrences,
-    service!.pricing_type,
-    { recurringMinOccurrences: settings!.recurring_min_occurrences },
-  );
-
-  // oneWayMin is not directly stored on preview; derive from distanceMiles.
-  const oneWayMin =
-    preview.distanceMiles !== null
-      ? estimateDrivingMinutes(preview.distanceMiles, {
-          roadFactor: settings!.road_factor,
-          avgSpeedMph: settings!.avg_speed_mph,
-        })
-      : 0;
-
-  const roundTripDriveMinutes =
-    service!.pricing_type === "house_sitting" ? 0 : 2 * oneWayMin;
-
+  // 10. Build insert rows. The quote is identical for every occurrence (it
+  // depends only on quantities/config/modifiers, never on the date), so all
+  // rows reuse the single quoteInput + breakdown computed above.
   const insertRows = occurrences.map((occStart) => {
     const occEnd = new Date(occStart.getTime() + durationMs);
-
-    const quoteInput = buildQuoteInput({
-      pricingType: service!.pricing_type,
-      pricingConfig,
-      quantities,
-      roundTripDriveMinutes,
-      recurringDiscountApplies,
-      recurringDiscountPct: settings!.recurring_discount_pct,
-    });
-
-    const breakdown = quote(quoteInput);
-
     return {
       client_id: input.userId,
-      service_id: service!.id,
+      service_id: service.id,
       starts_at: occStart.toISOString(),
       ends_at: occEnd.toISOString(),
       series_id: seriesId,
       status,
-      concurrency: service!.concurrency,
-      distance_miles: preview.distanceMiles,
+      concurrency: service.concurrency,
+      distance_miles: result.artifacts.distanceMiles,
       quote_inputs: quoteInput as unknown,
       quote_breakdown: breakdown as unknown,
       final_cents: breakdown.finalCents,
-      requires_approval: preview.requiresApproval,
+      requires_approval: result.artifacts.requiresApproval,
       discount_cents: 0, // see DISCOUNT_CENTS note in module header
     };
   });
 
-  // 10. Insert — catch exclusion_violation (23P01) → slot_taken
+  // Insert — catch exclusion_violation (23P01) → slot_taken.
   try {
     const ids = await repo.insertBookings(insertRows);
     return { kind: "success", bookingIds: ids };
