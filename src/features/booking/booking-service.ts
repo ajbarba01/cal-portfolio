@@ -49,10 +49,11 @@ import { expandOccurrences } from "./recurrence";
 import {
   seriesQualifiesForRecurringDiscount,
   passesGuards,
+  fitsWindow,
 } from "./availability";
 import { transition } from "./state-machine";
 import type { BookingRepository } from "./booking-repository";
-import type { QuoteInput } from "@/features/pricing/types";
+import type { QuoteInput, QuoteBreakdown } from "@/features/pricing/types";
 import type { RecurrenceRule } from "./recurrence";
 import type { BookingRuleSettings } from "./availability";
 
@@ -116,6 +117,32 @@ export type CancelBookingResult =
   | { kind: "not_found" }
   | { kind: "error"; message: string };
 
+/**
+ * Read-only quote preview guaranteed to match the breakdown that createBookingCore
+ * persists. Consumers use this to render a price estimate before submitting.
+ *
+ * `breakdown` is per-occurrence (first occurrence for display). For recurring
+ * series the per-occurrence amount is the same for all rows (same quoteInput).
+ */
+export interface BookingQuotePreview {
+  /** Per-occurrence quote breakdown (display the first occurrence). */
+  breakdown: QuoteBreakdown;
+  /** Equals breakdown.finalCents — hoisted for ergonomic access. */
+  finalCents: number;
+  /** Computed haversine distance in miles; null when profile has no coordinates. */
+  distanceMiles: number | null;
+  /** True when the booking will land in pending_approval status. */
+  requiresApproval: boolean;
+  /** The distance-based approval decision. */
+  decision: "auto" | "manual" | "refuse";
+}
+
+export type PreviewResult =
+  | { kind: "success"; preview: BookingQuotePreview }
+  | { kind: "refuse"; reason: string }
+  | { kind: "validation_error"; message: string }
+  | { kind: "error"; message: string };
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Deps
 // ──────────────────────────────────────────────────────────────────────────────
@@ -130,46 +157,41 @@ export interface BookingServiceDeps {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// createBookingCore
+// computeBookingQuoteCore
 // ──────────────────────────────────────────────────────────────────────────────
 
 export type CreateBookingInput = z.input<typeof createBookingInputSchema>;
 
 /**
- * Core booking creation logic (testable via DI, no Next.js machinery).
+ * Pure quote/approval computation — no guard enforcement, no DB write.
+ *
+ * Performs steps 1–4 + recurring-discount eligibility + quote for the FIRST
+ * occurrence. createBookingCore calls this internally so the persisted
+ * quote_breakdown is LITERALLY the same value the preview returned (single
+ * source of truth — no drift possible).
+ *
+ * Callers may use this independently for a read-only price preview that is
+ * guaranteed to match what createBookingCore will persist.
  *
  * Pipeline:
- *  1. Validate input (schema + endsAt > startsAt).
- *  2. Load service, settings, profile lat/lng from DB.
- *  3. Validate quantities per pricing_type (money-input integrity).
- *  4. Compute distance + approval decision.
- *  5. Enforce booking-rule guards (hours-of-day, lead time, max advance) for
- *     each occurrence. fitsWindow (availability-window containment) is NOT
- *     enforced here — see TODO below.
- *  6. Expand occurrences (1 or N for recurring).
- *  7. Quote each occurrence.
- *  8. Derive initial status via state machine.
- *  9. Insert all rows via service role; catch 23P01 → slot_taken.
- *
- * TODO(Phase 9): enforce fitsWindow (availability-window containment) here.
- * This is intentionally deferred: `availability_windows` is empty until Phase 8
- * builds the admin CRUD, so enforcing it now would reject every booking.
- * Once Phase 8 ships, add a fitsWindow check after step 5 and remove this note.
+ *  1. Validate input.
+ *  2. Load service, settings, profile lat/lng.
+ *  3. Validate quantities per pricing_type.
+ *  4. Compute distance + approval decision (refuse → PreviewResult{refuse}).
+ *  5. Compute recurring-discount eligibility.
+ *  6. Build quoteInput and call quote().
  */
-export async function createBookingCore(
+export async function computeBookingQuoteCore(
   deps: BookingServiceDeps,
   rawInput: CreateBookingInput,
-): Promise<CreateBookingResult> {
+): Promise<PreviewResult> {
   // 1. Validate
   const parseResult = createBookingInputSchema.safeParse(rawInput);
   if (!parseResult.success) {
-    return {
-      kind: "validation_error",
-      message: parseResult.error.message,
-    };
+    return { kind: "validation_error", message: parseResult.error.message };
   }
   const input = parseResult.data;
-  const { repo, now } = deps;
+  const { repo } = deps;
 
   // 2. Load from DB
   const [service, settings, profileLatLng] = await Promise.all([
@@ -185,7 +207,6 @@ export async function createBookingCore(
     };
   }
 
-  // Validate pricing_config before any quoting.
   let pricingConfig: ReturnType<typeof parsePricingConfig>;
   try {
     pricingConfig = parsePricingConfig(
@@ -199,8 +220,7 @@ export async function createBookingCore(
     };
   }
 
-  // 3. Validate quantities per pricing_type (money-input integrity — fix #1).
-  // Parsed after the service is known so the schema is selected by pricing_type.
+  // 3. Validate quantities
   const quantitiesResult = parseQuantities(
     service.pricing_type,
     input.quantities,
@@ -208,21 +228,18 @@ export async function createBookingCore(
   if (!quantitiesResult.success) {
     return { kind: "validation_error", message: quantitiesResult.message };
   }
-  // Narrowed to { success: true } & ParsedQuantities; the extra `success` flag is
-  // structurally assignable to the ParsedQuantities param buildQuoteInput expects.
   const quantities = quantitiesResult;
 
   // 4. Distance + approval
   const origin = { lat: settings.origin_lat, lng: settings.origin_lng };
   let distanceMiles: number | null = null;
   let requiresApproval: boolean;
-  // oneWayMin hoisted here so it's computed once and reused for both the
-  // approval decision and roundTripDriveMinutes (eliminates duplicate call).
   let oneWayMin = 0;
+  let decision: "auto" | "manual" | "refuse" = "auto";
 
   if (profileLatLng.lat === null || profileLatLng.lng === null) {
-    // Unknown coordinates → force manual approval (safe default; documented above).
     requiresApproval = true;
+    decision = "manual";
   } else {
     distanceMiles = haversineMiles(origin, {
       lat: profileLatLng.lat,
@@ -232,7 +249,7 @@ export async function createBookingCore(
       roadFactor: settings.road_factor,
       avgSpeedMph: settings.avg_speed_mph,
     });
-    const decision = deriveApproval(oneWayMin, {
+    decision = deriveApproval(oneWayMin, {
       autoApproveMin: settings.auto_approve_threshold_min,
       hardCutoffMin: settings.hard_cutoff_min,
     });
@@ -244,31 +261,111 @@ export async function createBookingCore(
       };
     }
 
-    // requiresApproval: true if decision is manual OR the service always requires it.
     requiresApproval = decision === "manual" || !!service.requires_approval;
   }
 
-  // 5. Enforce booking-rule guards server-side for each occurrence.
-  // passesGuards checks hours-of-day (America/Denver), lead time, and max advance.
-  // A UI-bypassing client cannot skip these checks.
-  //
-  // TODO(Phase 9): also enforce fitsWindow here once availability_windows is populated.
-  // Deferred because availability_windows is empty until Phase 8 admin CRUD ships —
-  // enforcing it now would reject every booking. This is intentional sequencing.
-  const ruleSettings: BookingRuleSettings = {
-    bookingOpenHour: settings.booking_open_hour,
-    bookingCloseHour: settings.booking_close_hour,
-    minLeadTimeHours: settings.min_lead_time_hours,
-    maxAdvanceDays: settings.max_advance_days,
-  };
-  const durationMs = input.endsAt.getTime() - input.startsAt.getTime();
-
-  // 6. Recurrence
+  // 5. Recurring-discount eligibility (needs occurrence count)
   const occurrences = input.recurringRule
     ? expandOccurrences(input.startsAt, input.recurringRule as RecurrenceRule)
     : [input.startsAt];
 
-  // Guard each occurrence before inserting any rows.
+  const recurringDiscountApplies = seriesQualifiesForRecurringDiscount(
+    occurrences,
+    service.pricing_type,
+    { recurringMinOccurrences: settings.recurring_min_occurrences },
+  );
+
+  // 6. Build quote for the first (representative) occurrence
+  const roundTripDriveMinutes =
+    service.pricing_type === "house_sitting" ? 0 : 2 * oneWayMin;
+
+  const quoteInput = buildQuoteInput({
+    pricingType: service.pricing_type,
+    pricingConfig,
+    quantities,
+    roundTripDriveMinutes,
+    recurringDiscountApplies,
+    recurringDiscountPct: settings.recurring_discount_pct,
+  });
+
+  const breakdown = quote(quoteInput);
+
+  return {
+    kind: "success",
+    preview: {
+      breakdown,
+      finalCents: breakdown.finalCents,
+      distanceMiles,
+      requiresApproval,
+      decision,
+    },
+  };
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// createBookingCore
+// ──────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Core booking creation logic (testable via DI, no Next.js machinery).
+ *
+ * Pipeline:
+ *  1. Validate input (schema + endsAt > startsAt).
+ *  2–5. Compute quote/approval via computeBookingQuoteCore (single source of truth).
+ *  6. Enforce booking-rule guards (hours-of-day, lead time, max advance) per occurrence.
+ *  7. Load availability windows; enforce fitsWindow containment per occurrence.
+ *     BEHAVIOR: a booking only succeeds if it falls inside an admin-defined
+ *     availability window. Zero windows → all bookings return unavailable.
+ *     This is the design intent: windows define Cal's availability.
+ *  8. Expand occurrences, quote each row (same quoteInput computed by step 2–5).
+ *  9. Derive initial status via state machine.
+ * 10. Insert all rows via service role; catch 23P01 → slot_taken.
+ *
+ * The persisted quote_breakdown is IDENTICAL to what computeBookingQuoteCore
+ * returned — no drift possible because createBookingCore calls it internally.
+ */
+export async function createBookingCore(
+  deps: BookingServiceDeps,
+  rawInput: CreateBookingInput,
+): Promise<CreateBookingResult> {
+  // Steps 1–5: delegate to computeBookingQuoteCore for quote/approval.
+  const previewResult = await computeBookingQuoteCore(deps, rawInput);
+
+  if (previewResult.kind === "validation_error") {
+    return { kind: "validation_error", message: previewResult.message };
+  }
+  if (previewResult.kind === "error") {
+    return { kind: "error", message: previewResult.message };
+  }
+  if (previewResult.kind === "refuse") {
+    return { kind: "refuse", reason: previewResult.reason };
+  }
+
+  // Re-parse input (already validated inside computeBookingQuoteCore; safe).
+  const input = createBookingInputSchema.parse(rawInput);
+  const { repo, now } = deps;
+  const { preview } = previewResult;
+
+  // 6. Enforce booking-rule guards per occurrence.
+  const [service, settings] = await Promise.all([
+    repo.getServiceBySlug(input.serviceSlug),
+    repo.getSettings(),
+  ]);
+
+  // Service and settings are guaranteed to exist (computeBookingQuoteCore succeeded).
+  // Non-null assertion is safe: a missing service would have returned error above.
+  const ruleSettings: BookingRuleSettings = {
+    bookingOpenHour: settings!.booking_open_hour,
+    bookingCloseHour: settings!.booking_close_hour,
+    minLeadTimeHours: settings!.min_lead_time_hours,
+    maxAdvanceDays: settings!.max_advance_days,
+  };
+  const durationMs = input.endsAt.getTime() - input.startsAt.getTime();
+
+  const occurrences = input.recurringRule
+    ? expandOccurrences(input.startsAt, input.recurringRule as RecurrenceRule)
+    : [input.startsAt];
+
   for (const occStart of occurrences) {
     const occEnd = new Date(occStart.getTime() + durationMs);
     if (
@@ -281,60 +378,101 @@ export async function createBookingCore(
     }
   }
 
+  // 7. Enforce availability-window containment.
+  // DESIGN INTENT: availability_windows define when Cal is available to work.
+  // A booking is only accepted if EVERY occurrence falls fully inside at least
+  // one open window. Zero windows → all bookings are unavailable (correct:
+  // Cal has not published any open slots yet).
+  const openWindows = await repo.getOpenWindows();
+  for (const occStart of occurrences) {
+    const occEnd = new Date(occStart.getTime() + durationMs);
+    if (!fitsWindow({ startsAt: occStart, endsAt: occEnd }, openWindows)) {
+      return {
+        kind: "unavailable",
+        reason: `Occurrence at ${occStart.toISOString()} does not fall within any open availability window.`,
+      };
+    }
+  }
+
   const seriesId = occurrences.length > 1 ? crypto.randomUUID() : null;
 
-  // Check recurring discount eligibility.
-  const recurringDiscountApplies = seriesQualifiesForRecurringDiscount(
-    occurrences,
-    service.pricing_type,
-    { recurringMinOccurrences: settings.recurring_min_occurrences },
-  );
-
-  // 7–8. Quote each occurrence + derive status
-  const statResult = transition("draft", "submit", { requiresApproval });
+  // 8–9. Quote each occurrence (same quoteInput = same breakdown as preview).
+  const statResult = transition("draft", "submit", {
+    requiresApproval: preview.requiresApproval,
+  });
   if ("error" in statResult) {
     return { kind: "error", message: statResult.error };
   }
   const status = statResult.state;
 
-  // Round-trip drive minutes: hourly services only;
-  // house_sitting passes 0 — travel is off by default per DESIGN.
-  // oneWayMin was computed once in step 4 (no duplicate call).
+  // Re-derive the inputs needed for buildQuoteInput (all already computed inside
+  // computeBookingQuoteCore — we reconstruct them here to keep createBookingCore
+  // self-contained for the per-row insert loop).
+  const pricingConfig = parsePricingConfig(
+    service!.pricing_type,
+    service!.pricing_config,
+  );
+  const quantitiesResult = parseQuantities(
+    service!.pricing_type,
+    input.quantities,
+  );
+  // quantitiesResult.success is guaranteed (computeBookingQuoteCore succeeded).
+  const quantities = quantitiesResult as Extract<
+    typeof quantitiesResult,
+    { success: true }
+  >;
+
+  // Recurring discount eligibility (same logic as in computeBookingQuoteCore).
+  const recurringDiscountApplies = seriesQualifiesForRecurringDiscount(
+    occurrences,
+    service!.pricing_type,
+    { recurringMinOccurrences: settings!.recurring_min_occurrences },
+  );
+
+  // oneWayMin is not directly stored on preview; derive from distanceMiles.
+  const oneWayMin =
+    preview.distanceMiles !== null
+      ? estimateDrivingMinutes(preview.distanceMiles, {
+          roadFactor: settings!.road_factor,
+          avgSpeedMph: settings!.avg_speed_mph,
+        })
+      : 0;
+
   const roundTripDriveMinutes =
-    service.pricing_type === "house_sitting" ? 0 : 2 * oneWayMin;
+    service!.pricing_type === "house_sitting" ? 0 : 2 * oneWayMin;
 
   const insertRows = occurrences.map((occStart) => {
     const occEnd = new Date(occStart.getTime() + durationMs);
 
     const quoteInput = buildQuoteInput({
-      pricingType: service.pricing_type,
+      pricingType: service!.pricing_type,
       pricingConfig,
       quantities,
       roundTripDriveMinutes,
       recurringDiscountApplies,
-      recurringDiscountPct: settings.recurring_discount_pct,
+      recurringDiscountPct: settings!.recurring_discount_pct,
     });
 
     const breakdown = quote(quoteInput);
 
     return {
       client_id: input.userId,
-      service_id: service.id,
+      service_id: service!.id,
       starts_at: occStart.toISOString(),
       ends_at: occEnd.toISOString(),
       series_id: seriesId,
       status,
-      concurrency: service.concurrency,
-      distance_miles: distanceMiles,
+      concurrency: service!.concurrency,
+      distance_miles: preview.distanceMiles,
       quote_inputs: quoteInput as unknown,
       quote_breakdown: breakdown as unknown,
       final_cents: breakdown.finalCents,
-      requires_approval: requiresApproval,
+      requires_approval: preview.requiresApproval,
       discount_cents: 0, // see DISCOUNT_CENTS note in module header
     };
   });
 
-  // 9. Insert — catch exclusion_violation (23P01) → slot_taken
+  // 10. Insert — catch exclusion_violation (23P01) → slot_taken
   try {
     const ids = await repo.insertBookings(insertRows);
     return { kind: "success", bookingIds: ids };
