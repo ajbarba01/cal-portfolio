@@ -11,11 +11,10 @@
  */
 
 import { z } from "zod";
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { assertActorIsAdmin } from "./admin-guard";
+import { getActorOrRedirect } from "./admin-session";
 import { cancelBookingCore } from "@/features/booking/booking-service";
 import { createSupabaseBookingRepository } from "@/features/booking/booking-repository";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -83,14 +82,16 @@ export async function listWindowsCore(
 
   if (error) return { kind: "error", message: error.message };
 
-  const windows = (data ?? []).map((row) => {
+  const windows: AvailabilityWindow[] = [];
+  for (const row of data ?? []) {
     const parsed = availabilityWindowSchema.safeParse(row);
     if (!parsed.success)
-      throw new Error(
-        `Unexpected availability_window shape: ${parsed.error.message}`,
-      );
-    return parsed.data;
-  });
+      return {
+        kind: "error",
+        message: `Unexpected availability_window shape: ${parsed.error.message}`,
+      };
+    windows.push(parsed.data);
+  }
 
   return { kind: "success", windows };
 }
@@ -257,10 +258,19 @@ async function cancelActiveBookingsInRange(
 
   const repo = createSupabaseBookingRepository(serviceClient);
   for (const booking of overlapping ?? []) {
-    await cancelBookingCore(
+    const result = await cancelBookingCore(
       { repo, now },
       { userId: booking.client_id as string, bookingId: booking.id as string },
     );
+    // Abort the block-out if any cancellation fails — leaving the window
+    // removed while a booking inside it stays active is a consistency bug.
+    if (result.kind === "error" || result.kind === "forbidden")
+      return {
+        kind: "error",
+        message: `Failed to cancel booking ${booking.id} inside removed window: ${
+          result.kind === "error" ? result.message : "forbidden"
+        }`,
+      };
   }
   return null;
 }
@@ -317,15 +327,6 @@ export async function deleteWindowCore(
 // ──────────────────────────────────────────────────────────────────────────────
 // "use server" wrappers
 // ──────────────────────────────────────────────────────────────────────────────
-
-async function getActorOrRedirect() {
-  const authClient = await createClient();
-  const {
-    data: { user },
-  } = await authClient.auth.getUser();
-  if (!user) redirect("/login");
-  return user.id;
-}
 
 export async function listWindows(): Promise<ListWindowsResult> {
   const actorUserId = await getActorOrRedirect();

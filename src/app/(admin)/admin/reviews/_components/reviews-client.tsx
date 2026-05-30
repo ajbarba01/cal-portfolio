@@ -57,7 +57,7 @@ export function ReviewsClient({
                   <span
                     className={
                       r.status === "published"
-                        ? "text-green-700"
+                        ? "text-foreground font-medium"
                         : r.status === "rejected"
                           ? "text-destructive"
                           : "text-muted-foreground"

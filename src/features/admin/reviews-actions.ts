@@ -8,11 +8,10 @@
  */
 
 import { z } from "zod";
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { assertActorIsAdmin } from "./admin-guard";
+import { getActorOrRedirect } from "./admin-session";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -30,6 +29,17 @@ export interface ReviewRow {
   status: ReviewStatus;
   created_at: string;
 }
+
+/** Parse review rows at the DB edge (ENGINEERING #11). */
+const reviewRowSchema = z.object({
+  id: z.string(),
+  client_id: z.string(),
+  author_name: z.string(),
+  rating: z.number(),
+  body: z.string(),
+  status: z.enum(["pending", "published", "rejected"]),
+  created_at: z.string(),
+});
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Result types
@@ -76,7 +86,18 @@ export async function listReviewsCore(
 
   if (error) return { kind: "error", message: error.message };
 
-  return { kind: "success", reviews: (data ?? []) as ReviewRow[] };
+  const reviews: ReviewRow[] = [];
+  for (const row of data ?? []) {
+    const parsed = reviewRowSchema.safeParse(row);
+    if (!parsed.success)
+      return {
+        kind: "error",
+        message: `Unexpected review row shape: ${parsed.error.message}`,
+      };
+    reviews.push(parsed.data);
+  }
+
+  return { kind: "success", reviews };
 }
 
 const moderateInputSchema = z.object({
@@ -124,15 +145,6 @@ export async function moderateReviewCore(
 // ──────────────────────────────────────────────────────────────────────────────
 // "use server" wrappers
 // ──────────────────────────────────────────────────────────────────────────────
-
-async function getActorOrRedirect() {
-  const authClient = await createClient();
-  const {
-    data: { user },
-  } = await authClient.auth.getUser();
-  if (!user) redirect("/login");
-  return user.id;
-}
 
 export async function listReviews(): Promise<ListReviewsResult> {
   const actorUserId = await getActorOrRedirect();

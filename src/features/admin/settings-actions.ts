@@ -7,11 +7,11 @@
  * The settings table has a single row; we update it by selecting limit(1).
  */
 
-import { redirect } from "next/navigation";
+import { z } from "zod";
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { assertActorIsAdmin } from "./admin-guard";
+import { getActorOrRedirect } from "./admin-session";
 import { settingsUpdateSchema } from "./settings-schema";
 import type { SettingsUpdate } from "./settings-schema";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -20,24 +20,27 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 // Row shape (full settings row for the editor)
 // ──────────────────────────────────────────────────────────────────────────────
 
-export interface SettingsRow {
-  id: string;
-  origin_label: string;
-  origin_lat: number;
-  origin_lng: number;
-  road_factor: number;
-  avg_speed_mph: number;
-  auto_approve_threshold_min: number;
-  hard_cutoff_min: number;
-  booking_open_hour: number;
-  booking_close_hour: number;
-  min_lead_time_hours: number;
-  max_advance_days: number;
-  recurring_discount_pct: number;
-  recurring_min_occurrences: number;
-  holiday_surcharge_cents: number;
-  holiday_dates: string[];
-}
+/** Full settings row for the editor, parsed at the DB edge (ENGINEERING #11). */
+const settingsRowSchema = z.object({
+  id: z.string(),
+  origin_label: z.string(),
+  origin_lat: z.number(),
+  origin_lng: z.number(),
+  road_factor: z.number(),
+  avg_speed_mph: z.number(),
+  auto_approve_threshold_min: z.number(),
+  hard_cutoff_min: z.number(),
+  booking_open_hour: z.number(),
+  booking_close_hour: z.number(),
+  min_lead_time_hours: z.number(),
+  max_advance_days: z.number(),
+  recurring_discount_pct: z.number(),
+  recurring_min_occurrences: z.number(),
+  holiday_surcharge_cents: z.number(),
+  holiday_dates: z.array(z.string()),
+});
+
+export type SettingsRow = z.infer<typeof settingsRowSchema>;
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Result types
@@ -91,7 +94,14 @@ export async function getSettingsCore(
 
   if (error) return { kind: "error", message: error.message };
 
-  return { kind: "success", settings: data as unknown as SettingsRow };
+  const parsed = settingsRowSchema.safeParse(data);
+  if (!parsed.success)
+    return {
+      kind: "error",
+      message: `Unexpected settings row shape: ${parsed.error.message}`,
+    };
+
+  return { kind: "success", settings: parsed.data };
 }
 
 /**
@@ -139,15 +149,6 @@ export async function updateSettingsCore(
 // ──────────────────────────────────────────────────────────────────────────────
 // "use server" wrappers
 // ──────────────────────────────────────────────────────────────────────────────
-
-async function getActorOrRedirect() {
-  const authClient = await createClient();
-  const {
-    data: { user },
-  } = await authClient.auth.getUser();
-  if (!user) redirect("/login");
-  return user.id;
-}
 
 export async function getSettings(): Promise<GetSettingsResult> {
   const actorUserId = await getActorOrRedirect();

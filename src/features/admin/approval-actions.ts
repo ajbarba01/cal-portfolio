@@ -8,14 +8,16 @@
  */
 
 import { z } from "zod";
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { assertActorIsAdmin } from "./admin-guard";
+import { getActorOrRedirect } from "./admin-session";
 import { transition } from "@/features/booking/state-machine";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { BookingEvent } from "@/features/booking/state-machine";
+import type {
+  BookingEvent,
+  BookingStatus,
+} from "@/features/booking/state-machine";
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Row shape
@@ -31,12 +33,23 @@ export interface PendingBookingRow {
   service_id: string;
 }
 
+/** Parse pending-booking rows at the DB edge (ENGINEERING #11). */
+const pendingBookingRowSchema = z.object({
+  id: z.string(),
+  client_id: z.string(),
+  status: z.literal("pending_approval"),
+  starts_at: z.string(),
+  ends_at: z.string(),
+  final_cents: z.number(),
+  service_id: z.string(),
+});
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Result types
 // ──────────────────────────────────────────────────────────────────────────────
 
 export type ApprovalResult =
-  | { kind: "success"; newStatus: string }
+  | { kind: "success"; newStatus: BookingStatus }
   | { kind: "forbidden" }
   | { kind: "not_found" }
   | { kind: "validation_error"; message: string }
@@ -79,10 +92,18 @@ export async function listPendingBookingsCore(
 
   if (error) return { kind: "error", message: error.message };
 
-  return {
-    kind: "success",
-    bookings: (data ?? []) as PendingBookingRow[],
-  };
+  const bookings: PendingBookingRow[] = [];
+  for (const row of data ?? []) {
+    const parsed = pendingBookingRowSchema.safeParse(row);
+    if (!parsed.success)
+      return {
+        kind: "error",
+        message: `Unexpected booking row shape: ${parsed.error.message}`,
+      };
+    bookings.push(parsed.data);
+  }
+
+  return { kind: "success", bookings };
 }
 
 const transitionInputSchema = z.object({
@@ -116,16 +137,18 @@ export async function transitionBookingByAdminCore(
 
   const { bookingId, event } = parsed.data;
 
-  // Load current booking status.
+  // Load the booking, scoped to pending_approval — approve/decline only apply
+  // there. A booking in any other status returns not_found (cannot be moderated).
   const { data: booking, error: bookingErr } = await deps.serviceClient
     .from("bookings")
     .select("id, status")
     .eq("id", bookingId)
+    .eq("status", "pending_approval")
     .single();
 
   if (bookingErr || !booking) return { kind: "not_found" };
 
-  const result = transition(booking.status as "pending_approval", event, {
+  const result = transition(booking.status as BookingStatus, event, {
     requiresApproval: true,
   });
 
@@ -145,15 +168,6 @@ export async function transitionBookingByAdminCore(
 // ──────────────────────────────────────────────────────────────────────────────
 // "use server" wrappers
 // ──────────────────────────────────────────────────────────────────────────────
-
-async function getActorOrRedirect() {
-  const authClient = await createClient();
-  const {
-    data: { user },
-  } = await authClient.auth.getUser();
-  if (!user) redirect("/login");
-  return user.id;
-}
 
 export async function listPendingBookings(): Promise<ListPendingResult> {
   const actorUserId = await getActorOrRedirect();

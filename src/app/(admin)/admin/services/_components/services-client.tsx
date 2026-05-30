@@ -150,7 +150,7 @@ export function ServicesClient({ services }: { services: ServiceAdminRow[] }) {
                   <p className="text-muted-foreground">{svc.description}</p>
                 )}
                 {successId === svc.id && (
-                  <p className="text-sm text-green-700">Saved!</p>
+                  <p className="text-muted-foreground text-sm">Saved!</p>
                 )}
               </div>
               <Button

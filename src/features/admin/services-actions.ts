@@ -8,11 +8,10 @@
  */
 
 import { z } from "zod";
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { assertActorIsAdmin } from "./admin-guard";
+import { getActorOrRedirect } from "./admin-session";
 import { parsePricingConfig } from "@/features/pricing/config-schemas";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { PricingType } from "@/features/pricing/types";
@@ -21,21 +20,29 @@ import type { PricingType } from "@/features/pricing/types";
 // Row shape
 // ──────────────────────────────────────────────────────────────────────────────
 
-export interface ServiceAdminRow {
-  id: string;
-  slug: string;
-  name: string;
-  description: string | null;
-  pricing_type: PricingType;
-  pricing_config: unknown;
-  default_duration_min: number;
-  max_pets: number;
-  concurrency: string;
-  form_key: string;
-  requires_approval: boolean;
-  active: boolean;
-  sort_order: number;
-}
+/**
+ * Service row shape for the admin editor, parsed at the DB edge (ENGINEERING #11).
+ * Nullable columns reflect the migration: default_duration_min, max_pets, and
+ * form_key are nullable. pricing_config is opaque json validated per-type by
+ * parsePricingConfig only when it is being written.
+ */
+const serviceAdminRowSchema = z.object({
+  id: z.string(),
+  slug: z.string(),
+  name: z.string(),
+  description: z.string().nullable(),
+  pricing_type: z.enum(["house_sitting", "check_in", "walk", "training"]),
+  pricing_config: z.unknown(),
+  default_duration_min: z.number().nullable(),
+  max_pets: z.number().nullable(),
+  concurrency: z.enum(["exclusive", "resident"]),
+  form_key: z.string().nullable(),
+  requires_approval: z.boolean(),
+  active: z.boolean(),
+  sort_order: z.number(),
+});
+
+export type ServiceAdminRow = z.infer<typeof serviceAdminRowSchema>;
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Result types
@@ -86,10 +93,18 @@ export async function listServicesCore(
 
   if (error) return { kind: "error", message: error.message };
 
-  return {
-    kind: "success",
-    services: (data ?? []) as unknown as ServiceAdminRow[],
-  };
+  const services: ServiceAdminRow[] = [];
+  for (const row of data ?? []) {
+    const parsed = serviceAdminRowSchema.safeParse(row);
+    if (!parsed.success)
+      return {
+        kind: "error",
+        message: `Unexpected service row shape: ${parsed.error.message}`,
+      };
+    services.push(parsed.data);
+  }
+
+  return { kind: "success", services };
 }
 
 const updateServiceInputSchema = z.object({
@@ -176,15 +191,6 @@ export async function updateServiceCore(
 // ──────────────────────────────────────────────────────────────────────────────
 // "use server" wrappers
 // ──────────────────────────────────────────────────────────────────────────────
-
-async function getActorOrRedirect() {
-  const authClient = await createClient();
-  const {
-    data: { user },
-  } = await authClient.auth.getUser();
-  if (!user) redirect("/login");
-  return user.id;
-}
 
 export async function listServices(): Promise<ListServicesResult> {
   const actorUserId = await getActorOrRedirect();

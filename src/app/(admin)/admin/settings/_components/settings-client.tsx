@@ -213,7 +213,7 @@ export function SettingsClient({
         </p>
       )}
       {success && (
-        <p role="status" className="text-sm text-green-700">
+        <p role="status" className="text-muted-foreground text-sm">
           Settings saved.
         </p>
       )}
