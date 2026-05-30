@@ -283,20 +283,29 @@ The engineering foundation is scaffolded (Next 16, Supabase SSR clients with `sb
 
 ---
 
-## Phase 9 — `/book` client flow (wireframe)
+## Phase 9 — `/book` client flow (wireframe) — ✅ DONE (9a `b01dc3d`+`f3c9b58`, 9b `4eb9fe7`+`0098914`)
 
 **Goal:** Calendly-style availability + booking submit wired to real systems.
-**Systems landed:** availability calendar (realtime), service picker, weekly-recurring toggle, live quote preview, submit → `createBooking`.
+**Systems landed:** availability calendar (realtime), service picker, weekly-recurring toggle, live quote preview, submit → `createBooking`; **fitsWindow server-side enforcement now wired into `createBookingCore` (Phase-7 TODO removed)**.
 **Deps:** Phases 7, 8. **Wireframe screens:** `/book`.
 
-- [ ] **Public availability view** using `use-availability` (auth required only to submit).
-- [ ] **Quote preview** calls a read-only quote server action (reuses pure `quote()`); shows itemized `quote_breakdown` before submit.
-- [ ] **Weekly recurring option** (engine general; UI weekly only) → passes a weekly rule to `createBooking`.
-- [ ] **Submit** → `createBooking`; surface approval-needed vs confirmed; surface "slot taken".
-- [ ] **Tests.** Component/integration: unauth user prompted to log in on submit; quote preview matches persisted breakdown.
-- [ ] **Commit** `feat: add /book availability and booking flow`.
+- [x] **Public availability view** using `use-availability` (auth required only to submit).
+- [x] **Quote preview** calls a read-only quote server action (reuses pure `quote()`); shows itemized `quote_breakdown` before submit.
+- [x] **Weekly recurring option** (engine general; UI weekly only) → passes a weekly rule to `createBooking`.
+- [x] **Submit** → `createBooking`; surface approval-needed vs confirmed; surface "slot taken".
+- [x] **Tests.** Component/integration: unauth user prompted to log in on submit; quote preview matches persisted breakdown.
+- [x] **Commit** `feat: add /book availability and booking flow`.
 
 **Verification:** manual `verify` end-to-end booking on local stack.
+
+**Phase 9 review outcome (carry forward):**
+
+- **Split into 9a (backend, full review) + 9b (UI, light review).** 9a: extracted `computeBookingArtifacts` (internal) so the read-only `previewQuote` action and `createBookingCore` share ONE computation — persisted `quote_breakdown` is byte-identical to the preview (drift-proof; asserted by a test). Wired `fitsWindow` enforcement + `repo.getOpenWindows(now)`; **removed** the Phase-7 `TODO(Phase 9)`. Code-quality review (needs-changes) → `f3c9b58`: artifacts threaded out of the compute fn to kill a double DB round-trip, 7 `!` non-null assertions, and a float `oneWayMin` re-derivation that could have silently broken the preview==persisted guarantee; `getOpenWindows` now takes injected `now`.
+- 9b: `/book` under `(marketing)`; server component reads settings rule fields + active services via **service-role** (anon can't read `settings` under RLS) and passes `rules`/`services` as props. Pure `messages.ts` (result→message) is the unit-tested seam. Review fix `0098914`: removed `dangerouslySetInnerHTML` + stringly-typed `text.includes("Log in")` branching; login CTA is now a structured `action:"login"` flag rendered as a real element.
+
+**BEHAVIOR CHANGE — flag to Cal (operational):** with `fitsWindow` enforcement live, a booking only succeeds if every occurrence falls inside an admin-defined `availability_windows` row. **Zero windows → every booking is `unavailable`.** Cal MUST publish availability windows (Phase-8 `/admin/availability`) before any booking can be accepted.
+
+**KNOWN LIMITATION (carry forward):** `use-availability` reads `bookings` via the RLS-scoped browser client, so the public `/book` view only sees the VIEWER's own bookings — it cannot subtract other clients' busy slots from the displayed open slots. The DB exclusion constraint is the real arbiter at submit (→ `slot_taken`). Accurate public busy-slot display needs a service-role "busy ranges" endpoint/RPC — deferred (out of MVP scope).
 
 ---
 
