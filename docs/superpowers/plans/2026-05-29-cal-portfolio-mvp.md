@@ -328,20 +328,22 @@ The engineering foundation is scaffolded (Next 16, Supabase SSR clients with `sb
 
 ---
 
-## Phase 11 — Portfolio marketing pages (wireframe)
+## Phase 11 — Portfolio marketing pages (wireframe) ✅ DONE (573ec3c)
 
 **Goal:** Public portfolio half (SSR/SEO), wireframe fidelity.
 **Systems landed:** Home/About/Services(+sliding-scale CTA)/Gallery/Reviews(submit + published)/Resources.
 **Deps:** Phases 1 (services/reviews read), 2. **Wireframe screens:** `/`, `/about`, `/services`, `/gallery`, `/reviews`, `/resources`.
 
-- [ ] **Services page** renders active services + rates from DB + the sliding-scale CTA (DESIGN: a CTA, not a feature).
-- [ ] **Gallery** uses `next/image`, defined aspect ratios, lazy loading (FRONTEND baseline).
-- [ ] **Reviews** lists `published`; authed clients submit (status forced `pending`).
-- [ ] **Static-ish pages** Home/About/Resources (semantic HTML; reference portfolio content).
-- [ ] **Tests.** Reviews submit forces `pending`; only published render publicly.
-- [ ] **Commit** `feat: add portfolio marketing pages`.
+- [x] **Services page** renders active services + rates from DB + the sliding-scale CTA (DESIGN: a CTA, not a feature).
+- [x] **Gallery** uses `next/image`, defined aspect ratios, lazy loading (FRONTEND baseline).
+- [x] **Reviews** lists `published`; authed clients submit (status forced `pending`).
+- [x] **Static-ish pages** Home/About/Resources (semantic HTML; reference portfolio content).
+- [x] **Tests.** Reviews submit forces `pending`; only published render publicly.
+- [x] **Commit** `feat: add portfolio marketing pages`.
 
 **Verification:** manual `verify` — pages render, review submit→moderation→publish loop works.
+
+**Phase 11 review outcome (carry forward):** Light review (lower-risk: public reads + one client write) — main-thread security/correctness read, no spec/quality subagents. Security correct: reviews submit uses **session client** (`createClient()`) via DI core `runSubmitReview` + `"use server"` wrapper (`src/features/reviews/`), identity from `getUser()`, `status` hardcoded `'pending'` (RLS `with check (client_id = auth.uid() and status = 'pending')` also forces it); never service role. Public reads anon-allowed via session/anon client (`listActiveServices`, `listPublishedReviews` scoped to `status='published'`). 266 tests green (was 259; +7: pricing `display.test.ts` unit + `reviews-action.test.ts` integration asserting forced-pending + anon/published visibility). Home moved into `(marketing)` group: new `(marketing)/page.tsx`, deleted root `src/app/page.tsx`; `(marketing)/layout.tsx` now a real session-aware shell (header/nav/footer, `getUser()` → Account vs Sign-in). New pricing display helper `features/pricing/display.ts` (`formatCents` + exhaustive `headlineRate`, pure+tested). **services-repo was found mid-flight written against a NON-EXISTENT schema** (`base_rate_cents`/`rate_unit`/`concurrency_class`) — rewritten to the real `services` columns (`pricing_type`/`pricing_config` jsonb/`concurrency`), parsing `pricing_config` via `parsePricingConfig` (skip-on-invalid). No hardcoded colors (all semantic tokens). DEFERRED (flag to Cal): gallery uses `picsum.photos` placeholders (`images.remotePatterns` in `next.config.ts`) + Home/About/Resources/sliding-scale copy is wireframe placeholder prose — both need real portfolio photos/copy before launch. NOTE: `runSubmitReview` falls back to `user.email` as `author_name` when no profile `full_name` — admin moderates before publish, acceptable for MVP.
 
 ---
 
