@@ -117,14 +117,19 @@ afterAll(async () => {
 async function seedBooking(
   clientId: string,
   finalCents: number,
+  startOffsetDays = 1,
 ): Promise<string> {
   const { data, error } = await serviceClient
     .from("bookings")
     .insert({
       client_id: clientId,
       service_id: serviceId,
-      starts_at: new Date(Date.now() + 86400_000).toISOString(),
-      ends_at: new Date(Date.now() + 86400_000 * 2).toISOString(),
+      starts_at: new Date(
+        Date.now() + 86400_000 * startOffsetDays,
+      ).toISOString(),
+      ends_at: new Date(
+        Date.now() + 86400_000 * (startOffsetDays + 1),
+      ).toISOString(),
       concurrency: "exclusive",
       final_cents: finalCents,
       status: "confirmed",
@@ -339,6 +344,64 @@ describe("applyStripeEvent — webhook projection", () => {
     expect(booking?.payment_status).toBe("refunded");
     // CRITICAL: bookings.status MUST NOT have changed.
     expect(booking?.status).toBe("confirmed");
+  });
+
+  it("forward-only: a re-delivered succeeded after refund does NOT flip back to paid", async () => {
+    // Row is currently 'refunded' from the previous test.
+    const result = await applyStripeEvent(serviceClient, {
+      type: "payment_intent.succeeded",
+      data: { object: { id: intentId } },
+    });
+    expect(result.ok).toBe(true);
+
+    const { data: payment } = await serviceClient
+      .from("payments")
+      .select("status")
+      .eq("stripe_payment_intent_id", intentId)
+      .single();
+    // Refund is terminal — status stays refunded, not succeeded.
+    expect(payment?.status).toBe("refunded");
+
+    const { data: booking } = await serviceClient
+      .from("bookings")
+      .select("payment_status")
+      .eq("id", bookingId)
+      .single();
+    expect(booking?.payment_status).toBe("refunded");
+  });
+
+  it("charge.refunded accepts an expanded payment_intent object", async () => {
+    const expandedIntentId = `pi_expanded_${ts}`;
+    // Far-future window to avoid the no_same_class_overlap exclusion constraint.
+    const expandedBooking = await seedBooking(userId1, 4000, 30);
+    await seedPayment(
+      expandedBooking,
+      userId1,
+      expandedIntentId,
+      4000,
+      "succeeded",
+    );
+
+    const result = await applyStripeEvent(serviceClient, {
+      type: "charge.refunded",
+      data: { object: { payment_intent: { id: expandedIntentId } } },
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.handled).toBe(true);
+
+    const { data: payment } = await serviceClient
+      .from("payments")
+      .select("status")
+      .eq("stripe_payment_intent_id", expandedIntentId)
+      .single();
+    expect(payment?.status).toBe("refunded");
+
+    await serviceClient
+      .from("payments")
+      .delete()
+      .eq("booking_id", expandedBooking);
+    await serviceClient.from("bookings").delete().eq("id", expandedBooking);
   });
 
   it("unknown intent id → ok:true, handled:false (no crash)", async () => {

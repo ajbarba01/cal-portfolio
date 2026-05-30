@@ -29,9 +29,15 @@ export class StripeGateway implements PaymentGateway {
       },
     });
 
+    if (!pi.client_secret) {
+      throw new Error(
+        `Stripe PaymentIntent ${pi.id} returned no client_secret`,
+      );
+    }
+
     return {
       paymentIntentId: pi.id,
-      clientSecret: pi.client_secret!,
+      clientSecret: pi.client_secret,
     };
   }
 }

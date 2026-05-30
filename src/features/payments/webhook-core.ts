@@ -33,10 +33,21 @@ const paymentIntentObjectSchema = z.object({
   id: z.string(),
 });
 
-/** Extracts `payment_intent` from a charge object. */
-const chargeObjectSchema = z.object({
-  payment_intent: z.string(),
-});
+/**
+ * Extracts the payment_intent id from a charge object. Stripe sends this as a
+ * bare string when unexpanded, but as a nested `{ id }` object if the endpoint
+ * or create call expands it — accept both and normalise to the id string.
+ */
+const chargeObjectSchema = z
+  .object({
+    payment_intent: z.union([z.string(), z.object({ id: z.string() })]),
+  })
+  .transform((c) => ({
+    payment_intent:
+      typeof c.payment_intent === "string"
+        ? c.payment_intent
+        : c.payment_intent.id,
+  }));
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -107,7 +118,7 @@ async function applyPaymentIntentStatus(
   // Fetch the payments row.
   const { data: payment, error: fetchError } = await serviceClient
     .from("payments")
-    .select("id, booking_id")
+    .select("id, booking_id, status")
     .eq("stripe_payment_intent_id", intentId)
     .maybeSingle();
 
@@ -117,6 +128,17 @@ async function applyPaymentIntentStatus(
   if (!payment) {
     // Unknown intent — could be out-of-band; don't crash.
     return { ok: true, handled: false };
+  }
+
+  // Forward-only guard: a refund is terminal. Refuse to let a re-delivered or
+  // out-of-order 'succeeded'/'failed' event overwrite a 'refunded' row (which
+  // would wrongly flip the booking back to 'paid'). Re-project anyway to
+  // converge, but leave the payment status untouched.
+  if (payment.status === "refunded" && newStatus !== "refunded") {
+    return projectBookingPaymentStatus(
+      serviceClient,
+      payment.booking_id as string,
+    );
   }
 
   const { error: updateError } = await serviceClient

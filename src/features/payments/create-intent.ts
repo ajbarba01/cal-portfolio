@@ -69,6 +69,13 @@ export async function runCreatePrepayIntent(
     return { ok: false, error: "Booking not found." };
   }
 
+  // Guard against a non-numeric final_cents before any money math (defends
+  // against a NaN amount reaching the gateway). DB column is NOT NULL, but
+  // never trust the shape of an untyped client response.
+  if (!Number.isFinite(booking.final_cents)) {
+    return { ok: false, error: "Booking total is unavailable." };
+  }
+
   // 3. Derive amount server-side. Map DB row → PaymentTxn (snake_case → camelCase).
   const txns = booking.payments.map((p) => ({
     status: p.status,
