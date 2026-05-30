@@ -1,0 +1,65 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { changePassword } from "@/features/accounts/account-actions";
+
+export function PasswordForm() {
+  const [newPassword, setNewPassword] = useState("");
+  const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
+  const [message, setMessage] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setStatus("idle");
+    setMessage(null);
+
+    startTransition(async () => {
+      const result = await changePassword(newPassword);
+      if (result.kind === "success") {
+        setStatus("success");
+        setMessage("Password updated.");
+        setNewPassword("");
+      } else {
+        setStatus("error");
+        setMessage(result.message);
+      }
+    });
+  }
+
+  return (
+    <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="new_password">New password</Label>
+        <Input
+          id="new_password"
+          name="new_password"
+          type="password"
+          autoComplete="new-password"
+          value={newPassword}
+          onChange={(e) => setNewPassword(e.target.value)}
+          minLength={8}
+          required
+        />
+      </div>
+
+      {status === "success" && message && (
+        <p role="status" className="text-sm text-green-700 dark:text-green-400">
+          {message}
+        </p>
+      )}
+      {status === "error" && message && (
+        <p role="alert" className="text-destructive text-sm">
+          {message}
+        </p>
+      )}
+
+      <Button type="submit" disabled={isPending} className="self-start">
+        {isPending ? "Updating…" : "Update password"}
+      </Button>
+    </form>
+  );
+}

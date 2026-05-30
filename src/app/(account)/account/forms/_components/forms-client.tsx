@@ -1,0 +1,231 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { submitForm } from "@/features/accounts/account-actions";
+import type { FormKey } from "@/features/forms/registry";
+import type { FormResponseRow } from "../page";
+
+// ─── Form labels ──────────────────────────────────────────────────────────────
+
+const FORM_LABELS: Record<FormKey, string> = {
+  emergency: "Emergency contact & vet info",
+};
+
+// ─── Emergency form fields ────────────────────────────────────────────────────
+// Rendered explicitly to match the emergencySchema shape.
+// Future forms added to the registry get their own field sets here;
+// the FormsClient below iterates formKeys generically.
+
+interface EmergencyFormValues {
+  contact_name: string;
+  contact_phone: string;
+  contact_relationship: string;
+  vet_name: string;
+  vet_phone: string;
+}
+
+function EmergencyFields({
+  values,
+  onChange,
+}: {
+  values: EmergencyFormValues;
+  onChange: (name: string, value: string) => void;
+}) {
+  function handle(e: React.ChangeEvent<HTMLInputElement>) {
+    onChange(e.target.name, e.target.value);
+  }
+
+  return (
+    <>
+      <fieldset className="flex flex-col gap-4">
+        <legend className="text-foreground text-sm font-medium">
+          Emergency contact
+        </legend>
+
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="contact_name">Contact name</Label>
+          <Input
+            id="contact_name"
+            name="contact_name"
+            type="text"
+            value={values.contact_name}
+            onChange={handle}
+            required
+          />
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="contact_phone">Contact phone</Label>
+          <Input
+            id="contact_phone"
+            name="contact_phone"
+            type="tel"
+            value={values.contact_phone}
+            onChange={handle}
+            required
+          />
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="contact_relationship">Relationship</Label>
+          <Input
+            id="contact_relationship"
+            name="contact_relationship"
+            type="text"
+            placeholder="e.g. Parent, Spouse, Friend"
+            value={values.contact_relationship}
+            onChange={handle}
+            required
+          />
+        </div>
+      </fieldset>
+
+      <fieldset className="flex flex-col gap-4">
+        <legend className="text-foreground text-sm font-medium">
+          Veterinarian
+        </legend>
+
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="vet_name">Vet name or clinic</Label>
+          <Input
+            id="vet_name"
+            name="vet_name"
+            type="text"
+            value={values.vet_name}
+            onChange={handle}
+            required
+          />
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="vet_phone">Vet phone</Label>
+          <Input
+            id="vet_phone"
+            name="vet_phone"
+            type="tel"
+            value={values.vet_phone}
+            onChange={handle}
+            required
+          />
+        </div>
+      </fieldset>
+    </>
+  );
+}
+
+// ─── Single form card ─────────────────────────────────────────────────────────
+
+interface FormCardProps {
+  formKey: FormKey;
+  existing: FormResponseRow | undefined;
+}
+
+function FormCard({ formKey, existing }: FormCardProps) {
+  const [open, setOpen] = useState(!existing);
+  const [submitted, setSubmitted] = useState(existing !== undefined);
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  // Prefill from existing response if present.
+  const prefill = existing?.data as Partial<EmergencyFormValues> | undefined;
+  const [values, setValues] = useState<EmergencyFormValues>({
+    contact_name: prefill?.contact_name ?? "",
+    contact_phone: prefill?.contact_phone ?? "",
+    contact_relationship: prefill?.contact_relationship ?? "",
+    vet_name: prefill?.vet_name ?? "",
+    vet_phone: prefill?.vet_phone ?? "",
+  });
+
+  function handleChange(name: string, value: string) {
+    setValues((prev) => ({ ...prev, [name]: value }));
+  }
+
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError(null);
+
+    startTransition(async () => {
+      const result = await submitForm(formKey, values);
+      if (result.kind === "success") {
+        setSubmitted(true);
+        setOpen(false);
+      } else {
+        setError(result.message);
+      }
+    });
+  }
+
+  const label = FORM_LABELS[formKey];
+
+  return (
+    <div className="rounded-md border">
+      <div className="flex items-center justify-between px-4 py-3">
+        <div>
+          <p className="text-foreground text-sm font-medium">{label}</p>
+          <p className="text-muted-foreground text-xs">
+            {submitted ? "Completed" : "Not started"}
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+        >
+          {open ? "Close" : submitted ? "Edit" : "Start"}
+        </Button>
+      </div>
+
+      {open && (
+        <form
+          onSubmit={handleSubmit}
+          noValidate
+          className="flex flex-col gap-6 border-t px-4 py-4"
+        >
+          {formKey === "emergency" && (
+            <EmergencyFields values={values} onChange={handleChange} />
+          )}
+
+          {error && (
+            <p role="alert" className="text-destructive text-sm">
+              {error}
+            </p>
+          )}
+
+          <Button type="submit" disabled={isPending} className="self-start">
+            {isPending ? "Saving…" : submitted ? "Update" : "Submit"}
+          </Button>
+        </form>
+      )}
+    </div>
+  );
+}
+
+// ─── Forms list ───────────────────────────────────────────────────────────────
+
+interface FormsClientProps {
+  formKeys: FormKey[];
+  /** Map of form_key → existing response (undefined = not submitted yet). */
+  initialResponses: Record<string, FormResponseRow>;
+}
+
+export function FormsClient({ formKeys, initialResponses }: FormsClientProps) {
+  if (formKeys.length === 0) {
+    return (
+      <p className="text-muted-foreground text-sm">
+        No forms required at this time.
+      </p>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      {formKeys.map((key) => (
+        <FormCard key={key} formKey={key} existing={initialResponses[key]} />
+      ))}
+    </div>
+  );
+}
