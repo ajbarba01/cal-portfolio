@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 /**
  * Refreshes the Supabase auth session and syncs auth cookies onto the response.
- * Called from the root proxy on every matched request so Server Components always
+ * Called from `src/middleware.ts` on every matched request so Server Components always
  * see a fresh session. Keep the `getClaims()` call immediately after client creation —
  * inserting logic between them risks logging users out at random.
  *

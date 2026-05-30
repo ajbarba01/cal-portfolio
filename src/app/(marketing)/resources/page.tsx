@@ -5,18 +5,18 @@
 
 const localResources = [
   {
-    title: "Boulder County Humane Society",
-    description: "Adoptions, lost & found pets, and community programs.",
-    href: "https://www.boulderhumane.org",
+    title: "[[Resource 1: name]]",
+    description: "[[Resource 1: one-line description]]",
+    href: "#",
   },
   {
-    title: "Boulder Dog Park — Howard Heuston",
-    description: "Off-leash area at 35th & Arapahoe.",
-    href: "https://bouldercolorado.gov/parks-recreation",
+    title: "[[Resource 2: name]]",
+    description: "[[Resource 2: one-line description]]",
+    href: "#",
   },
   {
     title: "Animal Emergency & Referral Center of Northern Colorado",
-    description: "24/7 emergency veterinary care in Fort Collins.",
+    description: "24/7 emergency veterinary care in Colorado.",
     href: "https://aercnc.com",
   },
   {
@@ -27,40 +27,19 @@ const localResources = [
 ];
 
 const faqItems = [
-  {
-    question: "How far in advance should I book?",
-    answer:
-      "For house sits, at least 1–2 weeks is ideal. Walk slots can often be filled with a few days notice. The sooner the better — spot availability is limited.",
-  },
-  {
-    question: "Do you care for cats?",
-    answer:
-      "Yes — house sitting services include cat care. Drop-in visits for cats are available too. See the Services page for details.",
-  },
-  {
-    question: "What happens during a house sit?",
-    answer:
-      "I stay at your home overnight, maintaining your pet's normal feeding and walk schedule, and send you daily updates with photos. The goal is minimal disruption for your pet.",
-  },
-  {
-    question: "Is there a meet-and-greet before the first booking?",
-    answer:
-      "Yes, always. I do a no-charge introductory meet at your home before any booking so your dog can get comfortable with me first.",
-  },
-  {
-    question: "What if my dog has special needs?",
-    answer:
-      "Reach out before booking so we can talk through your pet's needs. I'm experienced with medications, anxiety, and behavioral quirks.",
-  },
+  { question: "[[FAQ 1: question]]", answer: "[[FAQ 1: answer]]" },
+  { question: "[[FAQ 2: question]]", answer: "[[FAQ 2: answer]]" },
+  { question: "[[FAQ 3: question]]", answer: "[[FAQ 3: answer]]" },
+  { question: "[[FAQ 4: question]]", answer: "[[FAQ 4: answer]]" },
+  { question: "[[FAQ 5: question]]", answer: "[[FAQ 5: answer]]" },
 ];
 
 export default function ResourcesPage() {
   return (
     <div className="mx-auto max-w-2xl px-6 py-16">
-      <h1 className="text-foreground mb-10 text-3xl font-bold tracking-tight">
+      <h1 className="text-foreground mb-5 text-3xl font-bold tracking-tight">
         Resources
       </h1>
-
       {/* Local resources */}
       <section aria-labelledby="local-resources-heading" className="mb-12">
         <h2

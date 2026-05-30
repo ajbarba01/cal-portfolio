@@ -13,11 +13,13 @@ function requireEnv(name: string): string {
   return value;
 }
 
-const stripe = new Stripe(requireEnv("STRIPE_SECRET_KEY"), {
-  apiVersion: "2026-05-27.dahlia",
-});
-
 export async function POST(request: NextRequest) {
+  // Instantiate Stripe lazily inside the handler — reading env at module load
+  // breaks `next build` page-data collection when the key isn't present.
+  const stripe = new Stripe(requireEnv("STRIPE_SECRET_KEY"), {
+    apiVersion: "2026-05-27.dahlia",
+  });
+
   // Raw body MUST be read as text for signature verification — never request.json().
   const body = await request.text();
   const sig = request.headers.get("stripe-signature");

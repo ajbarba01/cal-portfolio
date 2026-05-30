@@ -78,8 +78,8 @@ export default async function MarketingLayout({
         <div className="mx-auto max-w-5xl px-6 py-8">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-muted-foreground text-sm">
-              © {new Date().getFullYear()} Cal Barba — Dog Walking &amp; House
-              Sitting · Boulder, CO
+              ©&nbsp;{new Date().getFullYear()}&nbsp;Cal Barba — [[Pet care
+              tagline]] · Colorado
             </p>
             <nav aria-label="Footer navigation">
               <ul className="flex gap-4 text-sm">

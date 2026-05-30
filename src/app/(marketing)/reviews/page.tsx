@@ -61,7 +61,7 @@ export default async function ReviewsPage() {
           Reviews
         </h1>
         <p className="text-muted-foreground mt-2 leading-relaxed">
-          What clients say about working with Cal.
+          [[BODY: reviews section purpose]]
         </p>
       </header>
 

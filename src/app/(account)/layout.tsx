@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/server";
  *   1. Unauthenticated → /login
  *   2. onboarding_complete=false AND not already on /onboarding → /onboarding
  *
- * Path detection: middleware (proxy.ts) forwards the current pathname as the
+ * Path detection: src/middleware.ts forwards the current pathname as the
  * `x-pathname` request header, which Server Components read via next/headers.
  * This avoids client-side redirects and keeps the guard entirely server-side.
  */

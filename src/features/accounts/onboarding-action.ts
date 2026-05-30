@@ -52,7 +52,10 @@ export async function runOnboarding(
   const latLng = await geocoder.geocode(profile.zip);
 
   // 1. Update profile fields (service role bypasses the column-level grant on role/lat/lng/etc.)
-  const { error: profileError } = await serviceClient
+  // .select() returns affected rows; a missing profile (handle_new_user trigger didn't fire,
+  // or user predates the trigger migration) returns [] with no error — catch it here so
+  // step 2's FK insert doesn't fail with a confusing constraint message.
+  const { data: updated, error: profileError } = await serviceClient
     .from("profiles")
     .update({
       full_name: profile.full_name,
@@ -62,10 +65,17 @@ export async function runOnboarding(
       lat: latLng?.lat ?? null,
       lng: latLng?.lng ?? null,
     })
-    .eq("id", userId);
+    .eq("id", userId)
+    .select("id");
 
   if (profileError) {
     throw new Error(`Profile update failed: ${profileError.message}`);
+  }
+
+  if (!updated || updated.length === 0) {
+    throw new Error(
+      `No profile row for user ${userId}. The handle_new_user trigger may not have fired — backfill the profile row before retrying.`,
+    );
   }
 
   // 2. Insert emergency form response

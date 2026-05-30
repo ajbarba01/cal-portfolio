@@ -13,6 +13,8 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { assertActorIsAdmin } from "./admin-guard";
 import { getActorOrRedirect } from "./admin-session";
 import { transition } from "@/features/booking/state-machine";
+import { ResendMailer } from "@/features/notifications/resend-mailer";
+import { sendBookingConfirmation } from "@/features/notifications/send-booking-emails";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
   BookingEvent,
@@ -42,6 +44,15 @@ const pendingBookingRowSchema = z.object({
   ends_at: z.string(),
   final_cents: z.number(),
   service_id: z.string(),
+});
+
+/** Shape of the booking row read back for the approval confirmation email. */
+const approvalConfirmationRowSchema = z.object({
+  starts_at: z.string(),
+  ends_at: z.string(),
+  final_cents: z.number(),
+  profiles: z.object({ email: z.string() }).nullable(),
+  services: z.object({ name: z.string() }).nullable(),
 });
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -184,7 +195,47 @@ export async function approveBooking(
     { serviceClient, actorUserId },
     { bookingId, event: "approve" },
   );
-  if (result.kind === "success") revalidatePath("/admin/bookings");
+
+  if (result.kind === "success") {
+    revalidatePath("/admin/bookings");
+
+    // Best-effort confirmation email — a failed send NEVER alters the result.
+    try {
+      const { data: bookingRow } = await serviceClient
+        .from("bookings")
+        .select(
+          "starts_at, ends_at, final_cents, profiles(email), services(name)",
+        )
+        .eq("id", bookingId)
+        .single();
+
+      const parsed = approvalConfirmationRowSchema.safeParse(bookingRow);
+      if (parsed.success) {
+        const row = parsed.data;
+        const clientEmail = row.profiles?.email;
+        const serviceName = row.services?.name ?? "Booking";
+        if (clientEmail) {
+          const mailer = new ResendMailer();
+          const sendResult = await sendBookingConfirmation(mailer, {
+            to: clientEmail,
+            serviceName,
+            startsAt: new Date(row.starts_at),
+            endsAt: new Date(row.ends_at),
+            finalCents: row.final_cents,
+          });
+          if (!sendResult.ok) {
+            console.error(
+              "approveBooking: confirmation email failed:",
+              sendResult.error,
+            );
+          }
+        }
+      }
+    } catch (e: unknown) {
+      console.error("approveBooking: error sending confirmation email:", e);
+    }
+  }
+
   return result;
 }
 

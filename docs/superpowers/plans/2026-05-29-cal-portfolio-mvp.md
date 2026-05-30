@@ -366,21 +366,23 @@ The engineering foundation is scaffolded (Next 16, Supabase SSR clients with `sb
 
 ---
 
-## Phase 13 — Resend reminders + scheduled completion (Vercel cron)
+## Phase 13 — Resend reminders + scheduled completion (Vercel cron) ✅ DONE (d956197 + 16134ab + 1565ae3)
 
 **Goal:** Confirmation/reminder email side-effects + automatic `completed` transition.
 **Systems landed:** `features/notifications/` Resend adapter, reminder cron, completion cron.
 **Deps:** Phases 1, 5, 7, 12. **Wireframe screens:** none.
 
-- [ ] **Add deps.** `npm i resend`.
-- [ ] **Adapter.** `interface Mailer { send(...) }` → `features/notifications/resend-mailer.ts` (#4).
-- [ ] **Confirmation email** fired from `createBooking`/approve.
-- [ ] **Reminder cron.** Vercel cron route → finds `confirmed` bookings N hours out with null `reminder_sent_at` → sends → stamps `reminder_sent_at` (side-effect, not a state; SMS deferred). N from `settings` (Cal-tunable).
-- [ ] **Completion cron.** Vercel cron → `confirmed` past `ends_at` → `transition('complete')` → `completed`.
-- [ ] **Tests.** Reminder fires once (idempotent via `reminder_sent_at`); completion flips only past-end confirmed bookings.
-- [ ] **Commit** `feat: add Resend reminders and scheduled completion`.
+- [x] **Add deps.** `resend`.
+- [x] **Adapter.** `Mailer` interface (`features/notifications/types.ts`) → `ResendMailer` (`resend-mailer.ts`); only the adapter imports `resend` (#4).
+- [x] **Confirmation email** fired (best-effort) from `createBooking` + `approveBooking`; failed send never alters the booking result.
+- [x] **Reminder cron.** `GET /api/cron/reminders` (CRON_SECRET bearer) → `runReminderCron` finds `confirmed` bookings within `reminder_lead_hours` with null `reminder_sent_at` → sends → stamps `reminder_sent_at` only on success. N from `settings.reminder_lead_hours` (new column, Cal-tunable via /admin/settings).
+- [x] **Completion cron.** `GET /api/cron/complete` (CRON_SECRET bearer) → `runCompletionCron` → `confirmed` past `ends_at` → `transition('complete')` → `completed` (only `status`, never `payment_status`).
+- [x] **Tests.** 36 notification tests (327 total): email builders (Denver TZ, dollars, html+text), `isRemindable`/`isCompletable` predicates, reminder fires once + idempotent re-run (mailer asserted 0), far-future excluded (real cron call), completion flips only past-end confirmed.
+- [x] **Commit** `feat: add Resend reminders and scheduled completion`.
 
 **Verification:** trigger cron routes locally; assert email payload (mock Mailer) + status flips.
+
+**Phase 13 review outcome (carry forward):** FULL two-stage review + main-thread sensitive read. **BUILD FIX (c050bad):** Phase 12's Stripe webhook route instantiated `new Stripe(requireEnv(...))` at MODULE TOP LEVEL → `next build` page-data collection threw on missing `STRIPE_SECRET_KEY` → build failed. Fixed by lazy-init inside the POST handler (cron routes already lazy). Spec reviewer: 1 minor test gap (far-future "integration" test only checked the predicate) → fixed (16134ab) to drive the real cron + assert no send/stamp. Code-quality reviewer: applied (1565ae3) — (C1) wrapped reminder-route `new ResendMailer()` in try/catch (constructor throws on missing env → now a structured 500, not an unhandled throw); (I2) distinct WARNING log when email sends but stamp fails (double-send risk visible); (I3) Zod-validate the nested `profiles(email)`/`services(name)` join rows in both action email blocks (was unchecked `as` casts); (N1) `escapeHtml` the admin-controlled `serviceName` in email HTML; (N2) comment typo. **Deliberately NOT changed (with rationale):** empty-string `CRON_SECRET` rejecting all is fail-CLOSED = the safe behavior (keep); timing-safe bearer compare negligible for an HTTPS cron secret; reminder `reminder_lead_hours` already has a `typeof===number?:24` runtime guard; `parseInt('')→NaN` in settings UI is pre-existing across ALL numeric fields (out of Phase 13 scope, save fails safely). **Security verified:** cron routes fail-closed 401 without correct bearer; completion never touches `payment_status`; reminder idempotent via success-only stamp; emails best-effort (cannot fail a booking); only the adapter imports `resend`. **SCOPE BOUNDARY (flag Cal):** email copy/branding is wireframe placeholder (TODO in `emails.ts`) — needs real copy before launch. Env placeholders (`RESEND_API_KEY`, `EMAIL_FROM`, `CRON_SECRET`) in `.env.example`; real values needed in Vercel for crons/emails to run. SMS reminders deferred (DESIGN out-of-scope).
 
 ---
 
