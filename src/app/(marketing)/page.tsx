@@ -21,12 +21,10 @@ export default function HomePage() {
             id="hero-heading"
             className="text-foreground mb-4 text-4xl font-bold tracking-tight sm:text-5xl"
           >
-            Your dog deserves someone who actually loves dogs.
+            [[HEADER: hero hook]]
           </h1>
           <p className="text-muted-foreground mb-8 text-lg leading-relaxed">
-            Professional dog walking and house sitting in Boulder, CO — tailored
-            care, flexible scheduling, and a sitter who treats your pet like
-            family.
+            [[BODY: services overview and key differentiators]]
           </p>
           <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
             <Link href="/book" className={cn(buttonVariants({ size: "lg" }))}>
@@ -47,34 +45,31 @@ export default function HomePage() {
         <div className="mx-auto max-w-4xl">
           <h2 className="text-foreground mb-10 text-center text-2xl font-semibold">
             {/* TODO: real copy before launch */}
-            Why pet owners in Boulder trust Cal
+            Why choose Cal?
           </h2>
           <ul className="grid gap-8 sm:grid-cols-3">
             <li className="flex flex-col gap-2 text-center">
               <span className="text-foreground font-semibold">
-                Personal &amp; flexible
+                [[HEADER: trust point 1]]
               </span>
               <p className="text-muted-foreground text-sm leading-relaxed">
-                Small client roster means your pet gets full attention, not a
-                revolving door of strangers.
+                [[BODY: trust point 1 detail]]
               </p>
             </li>
             <li className="flex flex-col gap-2 text-center">
               <span className="text-foreground font-semibold">
-                Transparent pricing
+                [[HEADER: trust point 2]]
               </span>
               <p className="text-muted-foreground text-sm leading-relaxed">
-                Clear rates with no hidden fees. Sliding-scale options available
-                — just ask.
+                [[BODY: trust point 2 detail]]
               </p>
             </li>
             <li className="flex flex-col gap-2 text-center">
               <span className="text-foreground font-semibold">
-                Boulder-based
+                [[HEADER: trust point 3]]
               </span>
               <p className="text-muted-foreground text-sm leading-relaxed">
-                Local, reliable, and familiar with the trails, vets, and dog
-                parks in your neighborhood.
+                [[BODY: trust point 3 detail]]
               </p>
             </li>
           </ul>
@@ -89,14 +84,14 @@ export default function HomePage() {
         <div className="mx-auto max-w-xl">
           {/* TODO: real copy before launch */}
           <h2 className="text-foreground mb-3 text-2xl font-semibold">
-            Ready to book?
+            Looking to book?
           </h2>
           <p className="text-muted-foreground mb-6 text-sm leading-relaxed">
             Create a free account, fill in your dog&apos;s details, and request
-            a service in minutes.
+            a service.
           </p>
           <Link href="/book" className={cn(buttonVariants())}>
-            Get started
+            Booking
           </Link>
         </div>
       </section>

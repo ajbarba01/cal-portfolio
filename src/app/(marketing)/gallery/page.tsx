@@ -6,7 +6,7 @@
 import Image from "next/image";
 
 const photos = [
-  { seed: 1, alt: "Dog on a trail walk in Boulder" },
+  { seed: 1, alt: "Dog on a trail walk in Colorado" },
   { seed: 2, alt: "Golden retriever enjoying outdoor time" },
   { seed: 3, alt: "Happy dog running in an open field" },
   { seed: 4, alt: "Dog resting comfortably during a house sit" },
@@ -24,9 +24,7 @@ export default function GalleryPage() {
         <h1 className="text-foreground text-3xl font-bold tracking-tight">
           Gallery
         </h1>
-        <p className="text-muted-foreground mt-2 leading-relaxed">
-          A look at some of the dogs I&apos;ve had the pleasure of caring for.
-        </p>
+        <p className="text-muted-foreground mt-2 leading-relaxed"></p>
       </header>
 
       <ul

@@ -65,8 +65,7 @@ export default async function ServicesPage() {
           Services
         </h1>
         <p className="text-muted-foreground mt-2 leading-relaxed">
-          Every service is personal and flexible — drop-in, daily walks, or full
-          house sits while you&apos;re away.
+          [[BODY: services overview]]
         </p>
       </header>
 
@@ -93,13 +92,10 @@ export default async function ServicesPage() {
           id="sliding-scale-heading"
           className="text-foreground mb-2 text-lg font-semibold"
         >
-          Pricing flexibility matters to me.
+          [[HEADER: pricing flexibility section]]
         </h2>
         <p className="text-muted-foreground mb-6 text-sm leading-relaxed">
-          {/* TODO: real copy before launch */}
-          If cost is a barrier, reach out. I offer a sliding scale for clients
-          who need it — I&apos;d rather work something out than have a great dog
-          go without good care.
+          [[BODY: pricing accessibility statement]]
         </p>
         <Link href="/book" className={cn(buttonVariants())}>
           Book a service

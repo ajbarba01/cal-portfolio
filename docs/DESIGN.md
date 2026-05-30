@@ -179,6 +179,22 @@ Running list, updated as Cal answers. Most are **tunable config**, not blockers 
 
 **Assumption to confirm:** forms stay developer-edited (typed Zod) at launch — Cal doesn't get a self-serve form builder yet (storage is already future-proof for one).
 
+## Copy placeholders
+
+Marketing copy that Cal must write is stubbed with double-square-bracket markers. Keep the structure in code; Cal owns the voice and substantive claims.
+
+- **Marker:** `[[ ... ]]`. Grep with `rg "\[\["`.
+- **Forms:**
+  - `[[HEADER: purpose]]` — section/card/page header
+  - `[[BODY: what this paragraph should cover]]` — paragraph copy
+  - `[[Item N: what it is]]` — list/card/FAQ/resource stub
+- **Header rules:** basic, descriptive noun phrases. No first-person, no quirky/pushy phrasing. ✗ "Pricing flexibility matters to me." → ✓ "Sliding cost scale". If unsure, write `[[HEADER: purpose]]`.
+- **Body rules:** describe purpose only. No invented service claims, philosophy, or biographical detail — Cal supplies all of that.
+- **Example items:** for resource/FAQ/testimonial arrays, always use stubs (`[[Resource 1: name]]`); never invent examples.
+- **Locations:** Colorado only. No towns/cities/neighborhoods in copy, alt text, or addresses.
+- **Don't assume Cal's services or audience-facing voice** — overnight stays, meet-and-greets, cat care, medication handling, sliding-scale philosophy, background, etc. all get placeholdered until Cal confirms.
+- **Public emergency resources** (ASPCA poison line, 24/7 vet ER) are OK as real entries — verifiable, not a claim about Cal. **Generic local resources** (humane society, dog park) → stub.
+
 ---
 
-_Last reviewed: 2026-05-29_
+_Last reviewed: 2026-05-30_
