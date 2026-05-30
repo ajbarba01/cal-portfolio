@@ -347,20 +347,22 @@ The engineering foundation is scaffolded (Next 16, Supabase SSR clients with `sb
 
 ---
 
-## Phase 12 — Stripe adapter + webhook (prepay)
+## Phase 12 — Stripe adapter + webhook (prepay) ✅ DONE (28dc7c2 + 19e13ce + 5716b30)
 
 **Goal:** Optional full prepay; `payment_status` written **only** by the webhook (single writer), deposit-ready schema unchanged.
 **Systems landed:** `features/payments/` Stripe adapter (typed interface), PaymentIntent creation, `/api/webhooks/stripe` route handler (service role).
 **Deps:** Phases 1, 7, 10. **Wireframe screens:** pay buttons on `/account/bookings`, `/book`.
 
-- [ ] **Add deps.** `npm i stripe`.
-- [ ] **Adapter.** `interface PaymentGateway { createIntent(...); }` behind `features/payments/stripe-gateway.ts`; app depends on the interface (#4).
-- [ ] **Create intent** server action → inserts a `payments` row (`requires_payment`) + returns client secret.
-- [ ] **Webhook** (`createServiceClient`, RLS-bypass) verifies signature → updates the `payments` row status → recomputes `bookings.payment_status` as the **derived projection** (sole writer; never touches `status`) (DESIGN state machine).
-- [ ] **Tests.** Webhook on `payment_intent.succeeded` flips `payments`→`succeeded` and projects `payment_status`→`paid`; amount-owed recomputes; clients cannot write `payment_status` by SQL (RLS/grant).
-- [ ] **Commit** `feat: add Stripe prepay and webhook payment projection`.
+- [x] **Add deps.** `stripe@22.2.0`.
+- [x] **Adapter.** `PaymentGateway` interface (`features/payments/types.ts`) + `StripeGateway` (`stripe-gateway.ts`); app/core depend on the interface (#4).
+- [x] **Create intent** server action `runCreatePrepayIntent` (DI core) + `createPrepayIntent` wrapper → server-derived amount → inserts `payments` row (`requires_payment`) via service role → returns client secret.
+- [x] **Webhook** (`createServiceClient`, RLS-bypass) verifies signature → updates `payments` row status → recomputes `bookings.payment_status` as the **derived projection** (sole writer; never touches `status`).
+- [x] **Tests.** 26 payments tests (294 total): succeeded→paid + amount-owed recompute, idempotent re-delivery, refund, forward-only refund guard, expanded `payment_intent`, signature verify, RLS (clients can't write `payments`/`payment_status`), create-intent owner/already-paid.
+- [x] **Commit** `feat: add Stripe prepay and webhook payment projection`.
 
 **Verification:** Stripe CLI `stripe listen` → trigger `payment_intent.succeeded` → `payment_status` flips; manual `verify` prepay on a booking.
+
+**Phase 12 review outcome (carry forward):** FULL two-stage review (money phase) + main-thread sensitive read. Spec reviewer: 1 gap (integration test didn't assert amount-owed recompute) → fixed (19e13ce). Code-quality reviewer: 3 blocking → fixed (5716b30): (1) forward-only guard so a re-delivered/out-of-order `succeeded`/`failed` can't overwrite a terminal `refunded` row (would wrongly flip booking back to `paid`); (2) `chargeObjectSchema` now accepts both string and expanded `{id}` `payment_intent` (else `charge.refunded` could 500-loop); (3) finite-number guard on `final_cents` before money math; also throw on null `client_secret`. **Security verified:** webhook writes ONLY `payments.status` + `bookings.payment_status`, never `bookings.status`; signature verified before any DB write (raw `request.text()` body); service role used only post-verify / after `getUser()`+ownership in create-intent; amount always server-derived from `final_cents`; clients can't write payments/payment_status (RLS-tested). `apiVersion` pinned `2026-05-27.dahlia`. **DEFERRED non-blocking (revisit in Elements phase):** double-submit of create-intent can create duplicate `requires_payment` rows / PaymentIntents — needs a DB unique constraint or idempotency key; not money-incorrect today (only `succeeded` counts) and intents can't yet be confirmed. **SCOPE BOUNDARY — flag to Cal:** Stripe **Elements card-entry UI is NOT built** — `/account/bookings` Prepay button creates the intent + returns clientSecret but shows "card entry coming soon"; `/book` pay button still a stub. Finishing needs `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` + Cal's live Stripe account (`STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET`). Env placeholders added to `.env.example`; `.env.test` got a local `STRIPE_WEBHOOK_SECRET` (gitignored).
 
 ---
 
