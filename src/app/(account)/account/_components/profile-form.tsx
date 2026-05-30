@@ -95,7 +95,7 @@ export function ProfileForm({ initialValues }: ProfileFormProps) {
       </div>
 
       {status === "success" && message && (
-        <p role="status" className="text-sm text-green-700 dark:text-green-400">
+        <p role="status" className="text-muted-foreground text-sm">
           {message}
         </p>
       )}
