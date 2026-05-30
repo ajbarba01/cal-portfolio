@@ -89,6 +89,9 @@ describe("previewResultMessage", () => {
     if (out.kind === "message") {
       expect(out.message.tone).toBe("info");
       expect(out.message.text).toMatch(/log in/i);
+      // Login CTA is a structured flag, not embedded HTML in the text.
+      expect(out.message.action).toBe("login");
+      expect(out.message.text).not.toMatch(/</);
     }
   });
 

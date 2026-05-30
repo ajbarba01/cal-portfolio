@@ -15,7 +15,13 @@ export type MessageTone = "success" | "error" | "info";
 
 export interface UserMessage {
   tone: MessageTone;
+  /** Plain text only — never HTML. The renderer escapes it. */
   text: string;
+  /**
+   * Optional structured call-to-action the renderer turns into a real element
+   * (e.g. a `/login` link), so message text stays plain and injection-free.
+   */
+  action?: "login";
 }
 
 // ── createBooking result ──────────────────────────────────────────────────────
@@ -82,7 +88,8 @@ export function previewResultMessage(
         kind: "message",
         message: {
           tone: "info",
-          text: 'Please log in to get a quote. <a href="/login">Log in</a>',
+          text: "Please log in to get a quote.",
+          action: "login",
         },
       };
 

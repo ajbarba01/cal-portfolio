@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createResultMessage, previewResultMessage } from "./messages";
+import type { UserMessage, MessageTone } from "./messages";
 import type { ServiceOption } from "../page";
 import type { BookingRuleSettings } from "@/features/booking/availability";
 import type { BookingQuotePreview } from "@/features/booking/booking-service";
@@ -287,25 +288,30 @@ function SimpleHoursForm({
 
 // ── Message banner ─────────────────────────────────────────────────────────────
 
-function MessageBanner({
-  tone,
-  text,
-}: {
-  tone: "success" | "error" | "info";
-  text: string;
-}) {
+function MessageBanner({ message }: { message: UserMessage }) {
   const base = "rounded-lg border px-4 py-3 text-sm";
-  const classes: Record<typeof tone, string> = {
+  const classes: Record<MessageTone, string> = {
     success: `${base} border-border bg-muted text-foreground`,
     error: `${base} border-destructive/40 bg-destructive/10 text-destructive`,
     info: `${base} border-border bg-muted text-muted-foreground`,
   };
 
-  // The text may contain a literal anchor tag (login prompt). Use dangerouslySetInnerHTML
-  // only for the controlled strings produced by messages.ts — never from user input.
+  // Text is rendered as plain text (auto-escaped by React). Structured actions
+  // (e.g. the login CTA) become real elements — no HTML is ever injected.
   return (
-    <div role="alert" className={classes[tone]}>
-      <span dangerouslySetInnerHTML={{ __html: text }} />
+    <div role="alert" className={classes[message.tone]}>
+      {message.text}
+      {message.action === "login" && (
+        <>
+          {" "}
+          <a
+            href="/login"
+            className="text-foreground underline underline-offset-2"
+          >
+            Log in
+          </a>
+        </>
+      )}
     </div>
   );
 }
@@ -577,7 +583,9 @@ export function BookClient({ services, rules }: BookClientProps) {
         {slotsLoading && (
           <p className="text-muted-foreground text-sm">Loading availability…</p>
         )}
-        {slotsError && <MessageBanner tone="error" text={slotsError} />}
+        {slotsError && (
+          <MessageBanner message={{ tone: "error", text: slotsError }} />
+        )}
         {!slotsLoading && !slotsError && openSlots.length === 0 && (
           <p className="text-muted-foreground text-sm">
             No open slots right now. Check back later or contact Cal directly.
@@ -677,24 +685,7 @@ export function BookClient({ services, rules }: BookClientProps) {
 
         {previewMsg && (
           <div className="mt-4">
-            {previewMsg.tone === "info" &&
-            previewMsg.text.includes("Log in") ? (
-              <div
-                role="alert"
-                className="border-border bg-muted text-muted-foreground rounded-lg border px-4 py-3 text-sm"
-              >
-                Please{" "}
-                <a
-                  href="/login"
-                  className="text-foreground underline underline-offset-2"
-                >
-                  log in
-                </a>{" "}
-                to get a quote.
-              </div>
-            ) : (
-              <MessageBanner tone={previewMsg.tone} text={previewMsg.text} />
-            )}
+            <MessageBanner message={previewMsg} />
           </div>
         )}
 
@@ -728,20 +719,7 @@ export function BookClient({ services, rules }: BookClientProps) {
       {/* ── Submit result ──────────────────────────────────────────────────── */}
       {submitMsg && (
         <div role="status" aria-live="polite">
-          {submitMsg.tone === "info" && submitMsg.text.includes("log in") ? (
-            <div className="border-border bg-muted text-muted-foreground rounded-lg border px-4 py-3 text-sm">
-              Please{" "}
-              <a
-                href="/login"
-                className="text-foreground underline underline-offset-2"
-              >
-                log in
-              </a>{" "}
-              to book.
-            </div>
-          ) : (
-            <MessageBanner tone={submitMsg.tone} text={submitMsg.text} />
-          )}
+          <MessageBanner message={submitMsg} />
         </div>
       )}
     </div>
