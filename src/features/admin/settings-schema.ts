@@ -34,6 +34,7 @@ export const settingsUpdateSchema = z.object({
   recurring_min_occurrences: nonNegIntSchema.optional(),
   holiday_surcharge_cents: nonNegIntSchema.optional(),
   holiday_dates: z.array(isoDateSchema).optional(),
+  reminder_lead_hours: nonNegIntSchema.optional(),
 });
 
 export type SettingsUpdate = z.input<typeof settingsUpdateSchema>;

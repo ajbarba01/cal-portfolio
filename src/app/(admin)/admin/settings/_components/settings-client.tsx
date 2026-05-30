@@ -38,6 +38,9 @@ export function SettingsClient({
   const [holidayDates, setHolidayDates] = useState(
     (s.holiday_dates ?? []).join("\n"),
   );
+  const [reminderLeadHours, setReminderLeadHours] = useState(
+    String(s.reminder_lead_hours),
+  );
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -66,6 +69,7 @@ export function SettingsClient({
           .split("\n")
           .map((d) => d.trim())
           .filter(Boolean),
+        reminder_lead_hours: parseInt(reminderLeadHours, 10),
       });
       if (result.kind === "success") {
         setSuccess(true);
@@ -180,6 +184,17 @@ export function SettingsClient({
           "Min Occurrences",
           discountMin,
           setDiscountMin,
+          "number",
+        )}
+      </fieldset>
+
+      <fieldset className="space-y-4">
+        <legend className="text-base font-medium">Email Reminders</legend>
+        {field(
+          "reminder-lead-hours",
+          "Reminder Lead Time (hours)",
+          reminderLeadHours,
+          setReminderLeadHours,
           "number",
         )}
       </fieldset>

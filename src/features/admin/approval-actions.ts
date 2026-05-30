@@ -13,6 +13,8 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { assertActorIsAdmin } from "./admin-guard";
 import { getActorOrRedirect } from "./admin-session";
 import { transition } from "@/features/booking/state-machine";
+import { ResendMailer } from "@/features/notifications/resend-mailer";
+import { sendBookingConfirmation } from "@/features/notifications/send-booking-emails";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
   BookingEvent,
@@ -184,7 +186,47 @@ export async function approveBooking(
     { serviceClient, actorUserId },
     { bookingId, event: "approve" },
   );
-  if (result.kind === "success") revalidatePath("/admin/bookings");
+
+  if (result.kind === "success") {
+    revalidatePath("/admin/bookings");
+
+    // Best-effort confirmation email — a failed send NEVER alters the result.
+    try {
+      const { data: bookingRow } = await serviceClient
+        .from("bookings")
+        .select(
+          "starts_at, ends_at, final_cents, profiles(email), services(name)",
+        )
+        .eq("id", bookingId)
+        .single();
+
+      if (bookingRow) {
+        const clientEmail = (bookingRow.profiles as { email?: string } | null)
+          ?.email;
+        const serviceName =
+          (bookingRow.services as { name?: string } | null)?.name ?? "Booking";
+        if (clientEmail) {
+          const mailer = new ResendMailer();
+          const sendResult = await sendBookingConfirmation(mailer, {
+            to: clientEmail,
+            serviceName,
+            startsAt: new Date(bookingRow.starts_at),
+            endsAt: new Date(bookingRow.ends_at),
+            finalCents: bookingRow.final_cents,
+          });
+          if (!sendResult.ok) {
+            console.error(
+              "approveBooking: confirmation email failed:",
+              sendResult.error,
+            );
+          }
+        }
+      }
+    } catch (e: unknown) {
+      console.error("approveBooking: error sending confirmation email:", e);
+    }
+  }
+
   return result;
 }
 

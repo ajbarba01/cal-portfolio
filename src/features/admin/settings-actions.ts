@@ -38,6 +38,7 @@ const settingsRowSchema = z.object({
   recurring_min_occurrences: z.number(),
   holiday_surcharge_cents: z.number(),
   holiday_dates: z.array(z.string()),
+  reminder_lead_hours: z.number(),
 });
 
 export type SettingsRow = z.infer<typeof settingsRowSchema>;
@@ -87,7 +88,7 @@ export async function getSettingsCore(
         "auto_approve_threshold_min, hard_cutoff_min, booking_open_hour, " +
         "booking_close_hour, min_lead_time_hours, max_advance_days, " +
         "recurring_discount_pct, recurring_min_occurrences, " +
-        "holiday_surcharge_cents, holiday_dates",
+        "holiday_surcharge_cents, holiday_dates, reminder_lead_hours",
     )
     .limit(1)
     .single();
