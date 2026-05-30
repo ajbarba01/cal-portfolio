@@ -103,6 +103,12 @@ const serviceRowSchema = z.object({
   requires_approval: z.boolean(),
 });
 
+/** Parsed and validated availability_windows row. */
+const availabilityWindowRowSchema = z.object({
+  starts_at: z.string().datetime({ offset: true }),
+  ends_at: z.string().datetime({ offset: true }),
+});
+
 export interface BookingRow {
   id: string;
   client_id: string;
@@ -135,6 +141,14 @@ export interface BookingRepository {
 
   /** Update a booking's status. */
   updateBookingStatus(id: string, status: BookingStatusDb): Promise<void>;
+
+  /**
+   * Fetch all open availability windows (ends_at >= now).
+   * `now` is injected (no clock read inside the repo) for testability and to
+   * match the booking core's "inject now" contract.
+   * Returns an empty array when no windows are defined.
+   */
+  getOpenWindows(now: Date): Promise<{ startsAt: Date; endsAt: Date }[]>;
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -272,6 +286,34 @@ export function createSupabaseBookingRepository(
           `Failed to update booking '${id}' status to '${status}': ${error.message}`,
         );
       }
+    },
+
+    async getOpenWindows(now: Date) {
+      const { data, error } = await client
+        .from("availability_windows")
+        .select("starts_at, ends_at")
+        .gte("ends_at", now.toISOString());
+
+      if (error) {
+        throw new Error(
+          `Failed to load availability windows: ${error.message}`,
+        );
+      }
+
+      if (!data) return [];
+
+      return data.map((row: unknown) => {
+        const parsed = availabilityWindowRowSchema.safeParse(row);
+        if (!parsed.success) {
+          throw new Error(
+            `availability_windows row has unexpected DB shape: ${parsed.error.message}`,
+          );
+        }
+        return {
+          startsAt: new Date(parsed.data.starts_at),
+          endsAt: new Date(parsed.data.ends_at),
+        };
+      });
     },
   };
 }

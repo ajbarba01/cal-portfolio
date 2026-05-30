@@ -22,7 +22,11 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { createClient } from "@supabase/supabase-js";
-import { createBookingCore, cancelBookingCore } from "./booking-service";
+import {
+  createBookingCore,
+  cancelBookingCore,
+  computeBookingQuoteCore,
+} from "./booking-service";
 import { createSupabaseBookingRepository } from "./booking-repository";
 import { quote } from "@/features/pricing/quote";
 import type { WalkConfig } from "@/features/pricing/types";
@@ -58,6 +62,7 @@ const ts = Date.now();
 let nearUserId: string;
 let farUserId: string;
 let refuseUserId: string;
+let coveringWindowId: string;
 
 // A future start time well within the booking window. We offset a fixed number
 // of days from now so the lead-time guard (24h) is always met, and pin the
@@ -125,6 +130,34 @@ beforeAll(async () => {
       `Seeded services not found: ${error?.message ?? "missing rows"}`,
     );
   }
+
+  // Insert a wide availability window covering all test booking times.
+  // futureStart(offsetDays) at 17:00 UTC; tests use offsets 5–100.
+  // Window: now+1d .. now+95d (wider than max offset=90, narrower than 100d
+  // so the "max advance" test still returns unavailable before fitsWindow runs).
+  const windowStart = new Date();
+  windowStart.setUTCDate(windowStart.getUTCDate() + 1);
+  windowStart.setUTCHours(0, 0, 0, 0);
+
+  const windowEnd = new Date();
+  windowEnd.setUTCDate(windowEnd.getUTCDate() + 95);
+  windowEnd.setUTCHours(23, 59, 59, 999);
+
+  const { data: windowData, error: windowErr } = await serviceClient
+    .from("availability_windows")
+    .insert({
+      starts_at: windowStart.toISOString(),
+      ends_at: windowEnd.toISOString(),
+    })
+    .select("id")
+    .single();
+
+  if (windowErr || !windowData) {
+    throw new Error(
+      `Failed to insert covering availability window: ${windowErr?.message ?? "no data"}`,
+    );
+  }
+  coveringWindowId = windowData.id as string;
 });
 
 afterAll(async () => {
@@ -140,6 +173,14 @@ afterAll(async () => {
       .filter(Boolean)
       .map((id) => serviceClient.auth.admin.deleteUser(id)),
   );
+
+  // Clean up the covering availability window.
+  if (coveringWindowId) {
+    await serviceClient
+      .from("availability_windows")
+      .delete()
+      .eq("id", coveringWindowId);
+  }
 });
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -529,5 +570,195 @@ describe("cancelBookingCore", () => {
     });
 
     expect(result.kind).toBe("forbidden");
+  });
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
+// computeBookingQuoteCore
+// ──────────────────────────────────────────────────────────────────────────────
+
+describe("computeBookingQuoteCore", () => {
+  it("preview breakdown matches persisted quote_breakdown for same input", async () => {
+    // Create a booking and compare its persisted quote_breakdown to the preview.
+    // This is the key guarantee: preview === what createBookingCore persists.
+    const start = futureStart(55);
+    const end = futureEnd(start);
+
+    const input = {
+      userId: nearUserId,
+      serviceSlug: "walk",
+      startsAt: start,
+      endsAt: end,
+      quantities: { hours: 1, dogs: 1 },
+      recurringRule: null,
+    };
+
+    // Preview first.
+    const previewResult = await computeBookingQuoteCore(deps(), input);
+    expect(previewResult.kind).toBe("success");
+    if (previewResult.kind !== "success") return;
+
+    // Create (persists the booking).
+    const createResult = await createBookingCore(deps(), input);
+    expect(createResult.kind).toBe("success");
+    if (createResult.kind !== "success") return;
+
+    // Read the persisted quote_breakdown.
+    const { data: booking } = await serviceClient
+      .from("bookings")
+      .select("quote_breakdown, final_cents")
+      .eq("id", createResult.bookingIds[0])
+      .single();
+
+    expect(booking).toBeTruthy();
+    // The persisted breakdown must equal the preview breakdown (single source of truth).
+    expect(booking?.quote_breakdown).toEqual(previewResult.preview.breakdown);
+    expect(booking?.final_cents).toBe(previewResult.preview.finalCents);
+  });
+
+  it("refuse client returns refuse from preview (no DB required)", async () => {
+    const start = futureStart(56);
+    const end = futureEnd(start);
+
+    const result = await computeBookingQuoteCore(deps(), {
+      userId: refuseUserId,
+      serviceSlug: "walk",
+      startsAt: start,
+      endsAt: end,
+      quantities: { hours: 1, dogs: 1 },
+      recurringRule: null,
+    });
+
+    expect(result.kind).toBe("refuse");
+  });
+
+  it("preview does NOT enforce fitsWindow (returns success even outside any window)", async () => {
+    // Use offset=100 which exceeds max_advance_days (90) → passesGuards fails.
+    // But computeBookingQuoteCore does NOT enforce guards or fitsWindow — it
+    // should still return a price (kind=success) regardless.
+    const start = futureStart(100);
+    const end = futureEnd(start);
+
+    const result = await computeBookingQuoteCore(deps(), {
+      userId: nearUserId,
+      serviceSlug: "walk",
+      startsAt: start,
+      endsAt: end,
+      quantities: { hours: 1, dogs: 1 },
+      recurringRule: null,
+    });
+
+    // Preview always succeeds for a near client regardless of guard/window state.
+    expect(result.kind).toBe("success");
+    if (result.kind !== "success") return;
+    expect(result.preview.finalCents).toBeGreaterThan(0);
+  });
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
+// fitsWindow enforcement
+// ──────────────────────────────────────────────────────────────────────────────
+
+describe("createBookingCore — fitsWindow enforcement", () => {
+  it("booking inside covering window → success", async () => {
+    // The covering window spans now+1d .. now+95d; offset=57 is inside.
+    const start = futureStart(57);
+    const end = futureEnd(start);
+
+    const result = await createBookingCore(deps(), {
+      userId: nearUserId,
+      serviceSlug: "walk",
+      startsAt: start,
+      endsAt: end,
+      quantities: { hours: 1, dogs: 1 },
+      recurringRule: null,
+    });
+
+    expect(result.kind).toBe("success");
+  });
+
+  it("booking outside all windows → unavailable, no row inserted", async () => {
+    // Delete the covering window temporarily and insert a narrow past window,
+    // then verify the booking is rejected.
+    // Strategy: insert a separate narrow future window that does NOT cover the
+    // test booking time, then test with a time outside it.
+
+    // Insert a narrow window 2h wide starting 60 days out at 10:00 UTC.
+    const narrowStart = new Date();
+    narrowStart.setUTCDate(narrowStart.getUTCDate() + 60);
+    narrowStart.setUTCHours(10, 0, 0, 0);
+    const narrowEnd = new Date(narrowStart.getTime() + 2 * 60 * 60 * 1000); // +2h
+
+    const { data: narrowWin, error: narrowErr } = await serviceClient
+      .from("availability_windows")
+      .insert({
+        starts_at: narrowStart.toISOString(),
+        ends_at: narrowEnd.toISOString(),
+      })
+      .select("id")
+      .single();
+
+    if (narrowErr || !narrowWin) {
+      throw new Error(
+        `Failed to insert narrow window: ${narrowErr?.message ?? "no data"}`,
+      );
+    }
+    const narrowWinId = narrowWin.id as string;
+
+    try {
+      // Delete the wide covering window so only the narrow one exists.
+      await serviceClient
+        .from("availability_windows")
+        .delete()
+        .eq("id", coveringWindowId);
+
+      // Booking at offset=58 (17:00 UTC) is OUTSIDE the narrow window (10:00–12:00 UTC at day+60).
+      const start = futureStart(58); // day+58 at 17:00 UTC → not inside day+60 narrow window
+      const end = futureEnd(start);
+
+      const before = await countRows(nearUserId);
+      const result = await createBookingCore(deps(), {
+        userId: nearUserId,
+        serviceSlug: "walk",
+        startsAt: start,
+        endsAt: end,
+        quantities: { hours: 1, dogs: 1 },
+        recurringRule: null,
+      });
+
+      expect(result.kind).toBe("unavailable");
+      expect(await countRows(nearUserId)).toBe(before);
+    } finally {
+      // Restore the covering window so subsequent tests pass.
+      const windowStart = new Date();
+      windowStart.setUTCDate(windowStart.getUTCDate() + 1);
+      windowStart.setUTCHours(0, 0, 0, 0);
+      const windowEnd = new Date();
+      windowEnd.setUTCDate(windowEnd.getUTCDate() + 95);
+      windowEnd.setUTCHours(23, 59, 59, 999);
+
+      const { data: restored, error: restoreErr } = await serviceClient
+        .from("availability_windows")
+        .insert({
+          starts_at: windowStart.toISOString(),
+          ends_at: windowEnd.toISOString(),
+        })
+        .select("id")
+        .single();
+
+      if (restoreErr || !restored) {
+        throw new Error(
+          `Failed to restore covering window: ${restoreErr?.message ?? "no data"}`,
+        );
+      }
+      // Update the module-level id so afterAll cleans up the right row.
+      coveringWindowId = restored.id as string;
+
+      // Clean up the narrow window.
+      await serviceClient
+        .from("availability_windows")
+        .delete()
+        .eq("id", narrowWinId);
+    }
   });
 });
