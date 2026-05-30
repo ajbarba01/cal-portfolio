@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import { PrepayButton } from "./_components/prepay-button";
 
 /** Money: integer cents → dollars string (e.g. 4500 → "$45.00"). */
 function formatDollars(cents: number): string {
@@ -163,15 +163,7 @@ function BookingList({
                 </div>
 
                 {showPayButton && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled
-                    title="Prepay coming soon"
-                    aria-label="Prepay — coming soon"
-                  >
-                    Prepay
-                  </Button>
+                  <PrepayButton bookingId={b.id} owedCents={owed} />
                 )}
               </div>
             </div>
