@@ -78,10 +78,10 @@ export default async function BookingsPage() {
           Profile
         </a>
         <a
-          href="/account/dogs"
+          href="/account/pets"
           className="text-muted-foreground hover:text-foreground"
         >
-          Dogs
+          Pets
         </a>
         <a
           href="/account/forms"

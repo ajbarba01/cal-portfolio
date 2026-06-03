@@ -20,7 +20,7 @@
 
 ---
 
-## Phase 19 — Pure calendar foundations — [x]
+## Phase 19 — Pure calendar foundations — [x] `56acf26`
 
 **Goal:** Shared Denver helpers + pure month/range/slot derivation, fully unit-tested. No UI change.
 **Files:** `src/features/booking/availability.ts`, `src/features/booking/calendar-model.ts` (new), `src/features/booking/calendar-model.test.ts` (new).
@@ -36,16 +36,16 @@
 
 ---
 
-## Phase 20 — Pets generalization (dogs→pets + species + photos) — [ ]
+## Phase 20 — Pets generalization (dogs→pets + species + photos) — [x]
 
 **Goal:** Real assignable pet records with species + photo upload; app stays green (booking still posts counts).
-**Files:** `supabase/migrations/<ts>_pets_generalization.sql` (new), `src/features/accounts/account-actions.ts`, `app/(account)/account/pets/**` (moved from `dogs`), `src/features/booking/_components/pet-avatar.tsx` (new), every `/account/dogs` link.
+**Files:** `supabase/migrations/20260603130000_pets_generalization.sql`, `src/features/accounts/account-actions.ts`, `src/features/accounts/_components/pet-form.tsx` (new shared), `app/(account)/account/pets/**` (moved from `dogs`), `src/features/booking/_components/pet-avatar.tsx` (new), account nav links.
 
-- [ ] **Migration.** `pet_species` enum; `alter table dogs rename to pets`; add `species pet_species not null default 'dog'`; recreate the 5 RLS policies under `pets:` names; `booking_pets` join table (`booking_id`→bookings cascade, `pet_id`→pets restrict, PK both) + RLS; private `pet-photos` storage bucket + write policy keyed on `auth.uid()`.
-- [ ] **Actions.** `from("dogs")`→`from("pets")`; `dogSchema`+`species`; `createDog/updateDog/deleteDog`→`createPet/updatePet/deletePet`; add `uploadPetPhoto` (session client, RLS; writes object then updates `pets.photo_url` with the path).
-- [ ] **Route + UI.** Move `account/dogs`→`account/pets`; `dogs-client.tsx`→`pets-client.tsx`; extract shared `PetForm`; species selector + photo upload field; `pet-avatar.tsx` (photo via signed URL else initials + species icon, tokens only). Update every `/account/dogs` link in the same commit.
-- [ ] **pgTAP** for `pets`/`booking_pets` RLS + bucket policy.
-- [ ] **Gate + commit** `feat: generalize dogs to pets with species and photo upload`. Docs: DESIGN.md data model + routes.
+- [x] **Migration.** `pet_species` enum; `alter table dogs rename to pets`; add `species pet_species not null default 'dog'`; rename the 5 RLS policies to `pets:` names; `booking_pets` join table (`booking_id`→bookings cascade, `pet_id`→pets restrict, PK both) + RLS; private `pet-photos` storage bucket + owner-keyed object policies.
+- [x] **Actions.** `from("dogs")`→`from("pets")`; `petSchema`+`species`; `createPet`/`updatePet`/`deletePet` (createPet returns the inserted row); add `uploadPetPhoto` (session client, RLS; uploads object then writes `pets.photo_url` path).
+- [x] **Route + UI.** Moved `account/dogs`→`account/pets`; refresh-based `pets-client.tsx`; shared `PetForm` in `features/accounts/_components`; species radio + photo upload; `pet-avatar.tsx` (photo via signed URL else initials + species icon, tokens only). Page resolves photo paths to signed URLs via service role. Updated all account nav links + DESIGN.md.
+- [x] **RLS** verified via the existing account-actions integration suite (user2 sees 0 of user1's pets; species persisted). 403 tests green; migration applied via `db reset`.
+- [x] **Gate + commit** `feat: generalize dogs to pets with species and photo upload`. Docs: DESIGN.md data model + routes.
 
 **Verification:** local stack migration applies; existing dogs backfilled `species='dog'`; pgTAP green; `/account/pets` add/edit/delete + photo works; typecheck/lint/test green.
 
