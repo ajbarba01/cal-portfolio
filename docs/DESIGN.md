@@ -41,7 +41,7 @@ Distance feeds **two** things: an approval gate and a driving-time cost.
 - Cal's **origin is a configurable setting** (Boulder / Springs / etc) — a row Cal edits.
 - **Geocode each client once** at signup: ZIP → lat/lng from a free bundled US ZIP-centroid dataset (NBER / zipcodeR, offline) or one free geocode call. Store `lat`/`lng`. Geocoding is a **vendor adapter** in `features/pricing/`, swappable for a real geocoder later (ENGINEERING #4).
 - **Pipeline:** pure `lib/haversine.ts` (miles, math only — ENGINEERING #2) → × `road_factor` → ÷ `avg_speed_mph` → **estimated one-way driving minutes**. All three constants Cal-tunable; the whole estimate is one module, swappable for Mapbox drive-time later. No per-booking API call, no recurring cost.
-- **Approval gate:** est. driving time > `auto_approve_threshold_min` (Cal: ~1 h) → manual approval; > `hard_cutoff_min` → refuse.
+- **Approval gate (miles, not minutes).** The gate is **distance-based**, the way Cal reasons about it: straight-line haversine `miles` > `auto_approve_threshold_miles` (Cal: ~8 mi) → manual approval; > `hard_cutoff_miles` (Cal: ~50 mi) → refuse. A `gate_use_road_miles` flag (default off) switches the gate to `miles × road_factor` (real driving distance) if Cal ever wants that — no rewrite. **Gate uses miles; travel cost uses minutes** — two separate concerns sharing one distance input. Both thresholds are Cal-tunable values, not code.
 - **Cost — driving time is billed.** Round-trip driving time × the service's hourly rate, added for hourly services (a check-in = `(on-site + round-trip drive) × $30/h`, per Cal's "including driving time"). House-sitting travel cost is an open Cal Q (flat trip fee vs none).
 
 ## Brand / visual direction
@@ -50,9 +50,11 @@ Cal's stated intent: **"simple and straightforward."** No brand assets yet (no l
 
 **Starting brief for that session:** warm, trustworthy, approachable-but-professional, with an outdoorsy hint (dog-walking / house-sitting). Photography-forward (Gallery, About). Not flashy. Mobile-first.
 
+**Cal's design study references** (to **study, not fork**, in that session): `about.readthedocs.com`, `gwern.net`, `write.as`. Common thread — content-first, strongly typographic, low-chrome, document-like reading surfaces. Signals a restrained, text-forward aesthetic over a flashy marketing look; reconcile with the photography-forward Gallery/About when concrete type + palette are set.
+
 ## Route map
 
-Next.js App Router, three route groups. Auth-session refresh lives in `src/proxy.ts`; session + `role` guards sit at the group layouts. Architecture rules in [ENGINEERING.md](ENGINEERING.md).
+Next.js App Router, three route groups. Auth-session refresh lives in `src/middleware.ts` (delegates to `src/lib/supabase/proxy.ts`); session + `role` guards sit at the group layouts. Architecture rules in [ENGINEERING.md](ENGINEERING.md).
 
 | Route                                 | Group     | Access                        | Notes                                                     |
 | ------------------------------------- | --------- | ----------------------------- | --------------------------------------------------------- |
@@ -85,18 +87,21 @@ Supabase Postgres. Auth via Supabase `auth.users` (username / password are **not
 **Tables** (column → purpose):
 
 - **`profiles`** (1:1 `auth.users`) — `id` (=auth.uid) · `full_name` · `email` · `phone` · `avatar_url` (single now; gallery later) · `address`, `zip` · `lat`, `lng` (geocoded once at signup) · `kiche_allowed` (set at first booking → discount) · `onboarding_complete` (booking gate — single setter: flips true when the onboarding flow finishes; criteria = required profile fields + emergency form present) · `role` ('client' \| 'admin') · `created_at`.
-- **`dogs`** — `id` · `client_id`→profiles · `name` · `breed` · `photo_url` (optional) · `notes` (extra per-dog fields — see Cal Q8) · `created_at`.
+- **`dogs`** — `id` · `client_id`→profiles · `name` · `breed` · `photo_url` (optional) · `notes` (extra per-dog fields — vet / meds / feeding; structured fields planned, see Open questions + Forms) · `created_at`.
 - **`services`** — `id` · `slug` · `name` · `description` · `pricing_type` ('house_sitting' \| 'check_in' \| 'walk' \| 'training') · `pricing_config` (jsonb — Cal-editable rates/surcharges, validated by a per-type Zod schema) · `default_duration_min` · `max_pets` (capacity; training = 1) · `concurrency` ('exclusive' \| 'resident' — house-sitting = resident) · `form_key` (nullable → service-specific form) · `requires_approval` (force manual review) · `active` · `sort_order`. See **Pricing model** below.
-- **`availability_windows`** — `id` · `starts_at` · `ends_at` · `note`. **Sole source of truth for when Cal is bookable** (#10); default world is **closed**, Cal adds open windows. A booking must fall inside an open window _and_ within `settings.booking_open_hour..close_hour` (hard hours-of-day guard) and respect `min_lead_time_hours` / `max_advance_days`. Block-out = delete/trim a window (confirm + cancel any booking inside). `/book` reflects live state via **Supabase Realtime** (events over polling, ENGINEERING #12). Window recurrence deferred — one-off windows for MVP.
-- **`settings`** (single config row Cal edits) — `origin_label` · `origin_lat`, `origin_lng` (current base; swappable Boulder / Springs) · `road_factor` (~1.3), `avg_speed_mph` (miles → driving-minutes) · `auto_approve_threshold_min` (~60), `hard_cutoff_min` (refuse beyond) · `booking_open_hour`, `booking_close_hour` (hard hours-of-day guard on booking start — see `availability_windows`) · `min_lead_time_hours` · `max_advance_days` · `recurring_discount_pct`, `recurring_min_occurrences` · `holiday_surcharge_cents`, `holiday_dates` (Cal-managed list). Everything here is Cal-tunable — values, not code.
-- **`bookings`** — `id` · `client_id` · `service_id` · `starts_at`, `ends_at` · `series_id` (nullable; groups a recurring set) · `comments` · `status` (state machine, below) · `payment_status` ('unpaid' \| 'paid' \| 'refunded') · `distance_miles` (snapshot at quote) · `quote_inputs` (jsonb — pet counts, nights/partial, add-ons, holiday days captured at quote time) · `quote_breakdown` (jsonb — itemized result) · `discount_cents` (Kiche + recurring; Cal-adjustable) · `final_cents` · `requires_approval` (derived) · `reminder_sent_at` (nullable) · `created_at`, `updated_at`. Amount owed = `final_cents` − succeeded `payments`. `payment_status` is a **derived projection** of `payments` (single writer = Stripe webhook), never written independently (#10). No two **same-concurrency-class** bookings (`services.concurrency`) may overlap while active — enforced by a **Postgres exclusion constraint** (btree_gist over `tstzrange`, partitioned by class), not app code (ENGINEERING #11); cross-class (house-sit + short service) may overlap. Recurrence engine is general (Google-Calendar-style); MVP exposes **weekly** only.
+- **`availability_windows`** — `id` · `starts_at` · `ends_at` · `note`. **Sole source of truth for when Cal is bookable** (#10); default world is **closed**, Cal adds open windows. A booking must fall inside an open window _and_ within `settings.booking_open_minute..close_minute` (hard hours-of-day guard, **start and end**) and respect `min_lead_time_hours`; advance beyond `auto_confirm_horizon_days` is **pending, not refused** (only `hard_max_advance_days` refuses — see Booking state machine / Recurrence). Block-out = delete/trim a window (confirm + cancel any booking inside). `/book` reflects live state via **Supabase Realtime** (events over polling, ENGINEERING #12). Window recurrence deferred — one-off windows for MVP.
+- **`settings`** (single config row Cal edits) — `origin_label` · `origin_lat`, `origin_lng` (current base; swappable Boulder / Springs) · `road_factor` (~1.3), `avg_speed_mph` (miles → driving-minutes; **travel-cost only**) · `auto_approve_threshold_miles` (~8), `hard_cutoff_miles` (~50, refuse beyond), `gate_use_road_miles` (bool, default false — gate on `miles × road_factor` instead of straight-line) — **distance approval gate, see Distance pricing** · `booking_open_minute`, `booking_close_minute` (minutes-since-midnight, hard hours-of-day guard; 390 = 6:30am, 1320 = 10:00pm; bounds **both** booking start ≥ open and end ≤ close — see `availability_windows`) · `min_lead_time_hours` · `auto_confirm_horizon_days` (~30 — within → auto-confirm; beyond → `pending_approval`), `hard_max_advance_days` (~365 — sanity outer cap, refuse beyond) · `recurrence_generation_horizon_days` (~42 — how far ahead open-ended series rows are materialized) · `recurring_discount_pct`, `recurring_min_occurrences` · `holiday_surcharge_cents`, `holiday_dates` (Cal-managed list) · `reminder_lead_hours` (~24 — email fires this long before a confirmed start) · `cancellation_full_refund_hours` (~48), `late_cancel_refund_pct` (~50), `no_show_charge_pct` (~100) — **cancellation/refund policy, see Booking state machine**. Everything here is Cal-tunable — values, not code. _(Supersedes the earlier minutes-based gate columns `auto_approve_threshold_min` / `hard_cutoff_min` and the integer `booking_open_hour` / `booking_close_hour` / `max_advance_days`.)_
+- **`bookings`** — `id` · `client_id` · `service_id` · `starts_at`, `ends_at` · `series_id` (nullable FK → `booking_series`; groups a recurring set) · `comments` · `status` (state machine, below) · `payment_status` ('unpaid' \| 'paid' \| 'refunded') · `distance_miles` (snapshot at quote) · `quote_inputs` (jsonb — pet counts, nights/partial, add-ons, holiday days captured at quote time) · `quote_breakdown` (jsonb — itemized result) · `discount_cents` (Kiche + recurring; Cal-adjustable) · `final_cents` · `requires_approval` (derived) · `reminder_sent_at` (nullable) · `created_at`, `updated_at`. Amount owed = `final_cents` − succeeded `payments`. `payment_status` is a **derived projection** of `payments` (single writer = Stripe webhook), never written independently (#10). No two **same-concurrency-class** bookings (`services.concurrency`) may overlap while active — enforced by a **Postgres exclusion constraint** (btree_gist over `tstzrange`, partitioned by class), not app code (ENGINEERING #11); cross-class (house-sit + short service) may overlap. Recurrence engine is general (Google-Calendar-style); MVP exposes **weekly** only.
 - **`form_responses`** — `id` · `client_id` · `form_key` ('emergency' \| service slug) · `booking_id` (nullable; emergency form isn't booking-tied) · `data` (jsonb) · `submitted_at`. Forms are expected to change over time. For MVP, definitions live in a `features/forms/` registry of typed **Zod schemas in code** validating `data` at the edge (YAGNI / rule-of-three, [ENGINEERING.md](ENGINEERING.md) #9). The `data` jsonb already accommodates a future Cal-editable form builder with **no storage change** — only the definition source (code → DB) would move. _Assumption: Cal doesn't need self-serve form editing at launch; flag if wrong._
 - **`payments`** — `id` · `booking_id` · `client_id` · `stripe_payment_intent_id` · `amount_cents` · `currency` · `status` ('requires_payment' \| 'succeeded' \| 'refunded' \| 'failed') · `created_at`. Stripe behind `features/payments/` adapter.
 - **`reviews`** — `id` · `client_id` · `author_name` (snapshot) · `rating` (1–5) · `body` · `status` ('pending' \| 'published' \| 'rejected') · `created_at`. Client-submitted, Cal-moderated.
+- **`booking_series`** — durable rule for a weekly recurrence (so open-ended "no end" series can be materialized forward by a cron instead of inserting infinite rows up front). `id` · `client_id` · `service_id` · `freq` ('weekly') · `interval` · `count` (nullable) · `until` (nullable) · `open_ended` (bool — true ⇒ neither `count` nor `until`) · `template_starts_at` · `duration_min` · `quote_inputs` (jsonb — **frozen** at submit so every occurrence re-quotes identically) · `active` · `created_at`. `bookings.series_id` FKs here. See **Recurrence** below.
+- **`client_debits`** — outstanding balances that gate re-booking. `id` · `client_id` · `booking_id` · `amount_cents` · `reason` ('late_cancel' \| 'no_show') · `settled_at` (nullable) · `created_at`. Outstanding balance = Σ `amount_cents` where `settled_at is null`; a positive balance **blocks new bookings** (see Booking state machine, cancellation/refund). **System/admin-set, never client-writable** (same column-guard rule as `bookings.status`).
 
 **RLS approach (deny-by-default):**
 
 - Per-client tables (`profiles`, `dogs`, `bookings`, `form_responses`, `payments`): row readable/writable only when `client_id = auth.uid()`.
+- `booking_series`: client reads own; series rows created/updated by server actions + the series-roll cron under the service role (clients never write the rule directly). `client_debits`: client reads own; **admin/system write only** (debits and settlements move via admin actions, never client SQL).
 - Public-read tables (`services`, `availability_windows`): anon read, admin-only write. `reviews`: anon read where `status='published'`; clients insert their own (status forced `pending`); admin updates status.
 - `settings`: authed read, admin write.
 - Admin (`role='admin'`) override expressed in each policy.
@@ -140,16 +145,33 @@ submit ─┬ requires_approval? yes ─▶ pending_approval
 pending_approval ── approve ──▶ confirmed
 pending_approval ── decline ──▶ declined            (terminal)
 confirmed ── end time reached ─▶ completed           (terminal, auto)
-pending_approval | confirmed ── cancel ─▶ cancelled  (terminal; manual refund if paid)
+confirmed ── no-show (Cal marks) ─▶ no_show          (terminal; writes a client_debits row)
+pending_approval | confirmed ── cancel ─▶ cancelled  (terminal; refund per policy below)
 ```
 
-- `requires_approval` is derived: `distance_miles > settings.auto_approve_threshold_miles` **or** the service is flagged.
+- `requires_approval` is **derived as the OR of three signals**: (1) the **distance** gate decision is manual (miles > `auto_approve_threshold_miles`); (2) the **time** gate decision is pending (`starts_at` is beyond `auto_confirm_horizon_days` from now); (3) the service is flagged (`requires_approval`). A **refuse** from either gate (miles > `hard_cutoff_miles`, or beyond `hard_max_advance_days`) short-circuits the submit. Derivation is **per-occurrence** — a recurring series can straddle the time horizon (near occurrences auto-confirm, far ones pend; see Recurrence).
 - **Slot is held from submit onward** through any non-terminal state — no TTL, no expiry. Releases only on `declined` / `cancelled`.
 - `completed` is automatic once end time passes (scheduled job).
 - Stripe webhook is the **sole writer** of `payment_status` (a projection of `payments`); it never changes `status`.
 - **Kiche discount** is applied by Cal (admin) → reduces `final_cents`; partial refund if already prepaid.
-- **Client-initiated cancel** is allowed; refund is issued **manually by Cal via admin** for MVP (auto-refund + cancellation-fee a later addition).
-- Payment model is **deposit-ready**: a future mandatory-deposit + forfeit-on-late-cancel slots in via partial `payments` rows — no schema rework. MVP = prepay optional, full amount.
+- **Client-initiated cancel** is allowed and governed by the **cancellation / refund policy** below.
+- Payment model is **deposit-ready**: a future mandatory-deposit + forfeit-on-late-cancel slots in via partial `payments` rows — no schema rework. MVP = prepay optional, full amount, **pay-later default**.
+
+**Cancellation / refund policy** (all values Cal-tunable in `settings`):
+
+- **Cutoff = `cancellation_full_refund_hours` (~48 h) before start.** Cancel **at or before** the cutoff → **full** refund of whatever was paid (auto). Cancel **inside** the cutoff → **`late_cancel_refund_pct`** (~50%) refund by default, **flagged for Cal** to optionally grant the remaining (full) refund via an admin action.
+- **Refund issuance keeps the single-writer rule.** The cancel path **initiates** the refund through the `payments` adapter (`StripeGateway.refund`); the **Stripe webhook stays the sole writer of `payment_status`** (re-projects to `refunded` on `charge.refunded`). The cancel path never writes `payment_status` directly (#10).
+- **No partial-payment edge case:** prepay is full-amount-or-nothing, so paid = `final_cents` or 0; "50% of paid" = "50% of `final_cents`".
+- **Debt gate.** Cancelling **unpaid inside the cutoff** (or a Cal-marked **no-show**) writes a `client_debits` row for what's owed (`late_cancel_refund_pct` / `no_show_charge_pct` of `final_cents`). An unpaid cancel **at/before** the cutoff owes nothing — free cancellation is honored regardless of prepay. Any **unsettled** balance **blocks new bookings** until cleared (Cal marks settled offline, or the client pays); the gate is checked **server-side** in the shared booking-artifacts path, so both the quote preview and the create call block. The series-roll cron also stops promoting a debtor's future occurrences.
+- **No-show is a Cal admin action**, not automatic — the completion cron can't tell "no-showed" from "served, will pay later." `confirmed → no_show` (terminal) writes the debit.
+
+## Recurrence
+
+Engine is general (Google-Calendar-style); **MVP exposes weekly only**, with either a **fixed number of weeks** (`count`) or **open-ended** ("no end", `open_ended`). The booking system **never officially books past ~1 month** out:
+
+- At submit, a `booking_series` row is written (rule + frozen `quote_inputs`) and occurrences are materialized only up to `recurrence_generation_horizon_days` (~42). Each occurrence's status is derived per-occurrence (see Booking state machine): within `auto_confirm_horizon_days` → `confirmed`; beyond → `pending_approval`.
+- A daily **series-roll cron** (sibling of the reminder / completion crons) does two jobs: **promote** `pending_approval` occurrences to `confirmed` as they cross into the confirm horizon (re-checking availability + the no-overlap constraint; a now-conflicting slot stays pending and is flagged for Cal, never silently dropped), and **extend** open-ended series by materializing newly-in-horizon occurrences. It skips a debtor's occurrences (see cancellation/refund debt gate).
+- This single horizon mechanism also covers **far one-off bookings**: a booking beyond the confirm horizon sits `pending_approval` and auto-confirms when it enters the horizon (Cal can decline during the window).
 
 ## Open questions for Cal
 
@@ -160,24 +182,46 @@ Running list, updated as Cal answers. Most are **tunable config**, not blockers 
 - **Services + rates** — house-sitting / check-ins / walks / training seed rates (Pricing model).
 - **House-sitting base** — single base rate by pet priority (dog > cat); other pets are surcharges (dog + cat = $60/night).
 - **Discounts** — Kiche 25% walks / 20% house-sitting, Cal-applied surprise; recurring −10% for ≥3 bookings (house-sitting: 3+ distinct stays), series-based at MVP.
-- **Distance** — driving-time billed at the service hourly rate; approval gate ~1 h away, refusal past a hard cutoff (values tunable).
+- **Distance** — gate on **miles** (~8 mi → ask Cal, ~50 mi → refuse; straight-line for now, switchable to road distance); driving-**time** billed at the service hourly rate. Values tunable (Distance pricing).
 - **Concurrency** — house-sit may overlap short services; same class never overlaps (exclusion constraint).
 - **Booking flow** — one booking per submit at MVP (no multi-item cart).
-- **Per-dog fields** — `notes` covers vet / meds / feeding for now; house-sitting form asks special-needs (frequent meds). Tunable.
+- **Booking rules** — hours 6:30am–10:00pm (start & end within), min lead time unchanged, advance → soft `auto_confirm_horizon_days` (~1 month; beyond → pending, not refused) with a `hard_max_advance_days` sanity cap. Tunable.
+- **Reminder timing** — 24 h before a confirmed start (`reminder_lead_hours`). Tunable.
+- **Prepay** — full amount, **pay-later default**, prepay optional.
+- **Cancellation / refund** — full refund ≥48 h out; <48 h → 50% (Cal may grant full); unpaid late cancel / no-show → debt that blocks re-booking until settled. Values tunable (Booking state machine).
+- **Recurrence breadth** — weekly only at MVP; fixed week-count **or** open-ended via the rolling ~1-month materialization horizon (Recurrence). General engine retained underneath.
+- **Per-dog fields** — `notes` covers vet / meds / feeding for now; structured fields planned (below). Tunable.
 
-**Still open (mostly tuning — answer fills a config value):**
+**Still open (Cal working on it):**
 
-1. **Threshold values** — `auto_approve_threshold_min` (~60?), `hard_cutoff_min`, `road_factor`, `avg_speed_mph`. Cal-settable.
-2. **House-sitting travel** — does a house-sit add a travel cost (flat trip fee?) or none? Driving-time billing is defined for hourly services only.
-3. **Booking rules** — allowed hours, min lead time, max advance. Cal-settable.
-4. **Reminder timing** — how long before a booking the email fires. Cal-settable.
+1. **House-sitting travel** — does a house-sit add a travel cost (flat trip fee?) or none? Driving-time billing is defined for hourly services only.
+2. **Form fields** — initial set received (Forms below); rest still coming. Per-dog vs per-property/booking field split to confirm once the set firms up.
+3. **Structured per-dog fields** — Cal drafting vaccination, meds, vet contact, feeding; `dogs.notes` jsonb absorbs them now, structured columns once finalized.
+4. **Threshold tuning** — `road_factor`, `avg_speed_mph`, exact miles/horizon/refund values. Cal-settable; defaults seeded.
 
-**Two genuinely open design questions (per Alex):**
+**Genuinely open design question (per Alex):**
 
-- **Deposit / prepay system** — MVP = optional full prepay. Future likely: mandatory deposit as a security + cancellation-fee mechanism (forfeit deposit on late cancel). Payment model is built deposit-ready; the _policy_ is undecided.
-- **Recurrence breadth** — goal is a general engine (Google-Calendar-style, any pattern); MVP restricts to **weekly** until requirements firm up. Scheduling system should carry most of this.
+- **Deposit / prepay system** — MVP = optional full prepay + the cancellation/refund policy above. Future likely: mandatory deposit as a security + forfeit-on-late-cancel mechanism. Payment model is built deposit-ready; the _policy_ beyond MVP is undecided.
 
 **Assumption to confirm:** forms stay developer-edited (typed Zod) at launch — Cal doesn't get a self-serve form builder yet (storage is already future-proof for one).
+
+### Forms (draft — Cal supplying incrementally)
+
+Cal has begun sending form fields; the set is **incomplete and subject to change**. Recorded here so nothing's lost. Each maps to the existing `form_responses` + `features/forms/` typed-Zod registry — **no storage change**; a registry schema is added per form once Cal finalizes (implementation deferred). The **emergency** form already exists.
+
+- **Home / property access** (entry info, reused across services needing access):
+  - Address — _already on `profiles.address` / `zip`; reuse, don't duplicate._
+  - How should I enter the home? (when client not home at service time)
+- **Walk service form** (`form_key` = walk service slug):
+  - Typical route(s)
+  - Typical distance or time
+  - Off-leash permitted? Off-leash tag?
+  - Leash or harness? Where located?
+  - Allowed to greet other dogs? Allowed to greet strangers?
+  - Comments
+  - Okay to drive to hike location? If yes: seatbelt / vehicle-restraint location; instructions for securing pet in vehicle
+
+Some fields are **per-dog** (leash/harness, greeting behavior, restraint) vs **per-property/booking** (entry, route) — the split decides whether a field lives on the `dogs` record or the service-form response; confirm with Cal when the set firms up.
 
 ## Copy placeholders
 
@@ -197,4 +241,4 @@ Marketing copy that Cal must write is stubbed with double-square-bracket markers
 
 ---
 
-_Last reviewed: 2026-05-30_
+_Last reviewed: 2026-06-03_
