@@ -66,17 +66,17 @@
 
 ---
 
-## Phase 22 — Calendar component + customer flow — [ ]
+## Phase 22 — Calendar component + customer flow — [x] `099ae43`
 
 **Goal:** Calendar-first per-service booking; service chooser; deferred-auth gate.
 **Files:** `components/ui/calendar.tsx` (new), `src/features/booking/_components/booking-calendar.tsx` + `week-grid.tsx` + `month-grid.tsx` (new), `app/(marketing)/book/page.tsx`, `app/(marketing)/book/[serviceSlug]/**` (new), delete `book-client.tsx`; `package.json` (+ `react-day-picker`, `date-fns`).
 
-- [ ] **Deps + primitive.** Add `react-day-picker@9` + `date-fns`; hand-author `components/ui/calendar.tsx` (rdp wrapper, tokens only).
-- [ ] **BookingCalendar.** Mode-discriminated presentational component: `week-slots` (feeds `deriveOpenSlots` + `markSlotsBusy`), `month-range` (wraps calendar primitive + `deriveBookableDays`/`validateStayRange`). Busy blocks show pet thumbnails (no name).
-- [ ] **Chooser + per-service route.** `/book` → service cards → `/book/[serviceSlug]`. New `[serviceSlug]/page.tsx` server loads service + settings + initial public busy + `authState`. Decompose into `service-booking-client.tsx` (mode by `pricing_type`), `pet-assignment.tsx` (real pets filtered by species + inline add via shared `PetForm` dialog), relocated `quote-panel.tsx`/`recurring-controls.tsx`/`quantity-forms.tsx`.
-- [ ] **Deferred-auth gate.** Book action: `guest`→`/login?returnTo=…`, `needs-onboarding`→`/onboarding?returnTo=…`, `ready`→`createBooking`. `returnTo` encodes selection, validated same-origin under `/book/`; rehydrate on return; honored by `/login` + `/onboarding`.
-- [ ] **Delete** old `book-client.tsx`.
-- [ ] **Gate + commit** `feat: calendar-first per-service booking flow with deferred-auth gate`. Docs: DESIGN.md routes + gate; FRONTEND.md calendar primitive + wireframe note.
+- [x] **Deps + primitive.** `react-day-picker@9` + `date-fns` added; hand-authored `components/ui/calendar.tsx` (rdp v9 wrapper, tokens + lucide chevron, no shadcn CLI). Added DST-correct `denverMidnight(dayKey)` (inverse of `denverDayKey`) + tests — the bridge from calendar days to Denver-midnight instants.
+- [x] **BookingCalendar.** Mode-discriminated presentational component (`week-slots` | `month-range`) + `week-grid.tsx` / `month-grid.tsx` / shared `busy-pets.tsx`. week-slots groups `markSlotsBusy(deriveOpenSlots)` by Denver day; month-range wraps the primitive + `deriveBookableDays`/`validateStayRange`. Busy blocks show pet thumbnails, no name. New `use-busy-ranges.ts` (mount + realtime ping + interval + manual `refresh()`); `use-availability.ts` no longer queries `bookings`.
+- [x] **Chooser + per-service route.** `/book` → service cards → `/book/[serviceSlug]`. `[serviceSlug]/page.tsx` loads service + settings + initial public busy + `authState` (+ pets when ready). Decomposed into `service-booking-client.tsx` (mode by `pricing_type`), `pet-assignment.tsx` (real pets by species + inline `PetForm` add), relocated `quote-panel.tsx`/`recurring-controls.tsx`/`quantity-forms.tsx` (dropped dog/cat count inputs — derived from assignment). Always sends `petIds` for pet-aware services.
+- [x] **Deferred-auth gate.** Book action: `guest`→`/login?returnTo=…`, `needs-onboarding`→`/onboarding?returnTo=…`, `ready`→`createBooking`. Pure `return-to.ts` (`buildReturnTo`/`safeReturnTo`, open-redirect guard) + tests; rehydrated from query on the page; honored by `/login` + `completeOnboarding`. createBooking keeps its `redirect("/login")` backstop.
+- [x] **Delete** old `book-client.tsx`.
+- [x] **Gate + commit** `feat: calendar-first per-service booking flow with deferred-auth gate`. Docs: DESIGN.md routes + gate; FRONTEND.md calendar primitive + wireframe note. 419 tests green; typecheck + lint clean.
 
 **Verification:** manual — `/book` cards → walk week grid + house-sitting month range; assign pets + inline add; logged-out Book → login → onboarding → returns to selection → books; typecheck/lint/test green.
 
