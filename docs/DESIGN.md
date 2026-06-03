@@ -64,7 +64,8 @@ Next.js App Router, three route groups. Auth-session refresh lives in `src/middl
 | `/gallery`                            | marketing | public                        | Photo grid (`next/image`)                                 |
 | `/reviews`                            | marketing | public                        | Published reviews only                                    |
 | `/resources`                          | marketing | public                        | Info + links                                              |
-| `/book`                               | marketing | public view, **auth to book** | Calendly-style availability; core scheduling flow         |
+| `/book`                               | marketing | public                        | Service chooser — cards linking to each service's flow    |
+| `/book/[serviceSlug]`                 | marketing | public view, **auth to book** | Calendar-first per-service booking; deferred-auth gate    |
 | `/login`, `/signup`, `/auth/callback` | auth      | public                        | Supabase Auth                                             |
 | `/onboarding`                         | account   | client                        | First-time gate: profile + emergency form before booking  |
 | `/account`                            | account   | client                        | Profile (name / email / phone / avatar / password)        |
@@ -79,6 +80,8 @@ Next.js App Router, three route groups. Auth-session refresh lives in `src/middl
 | `/admin/clients`                      | admin     | admin                         | (optional) Client list                                    |
 
 Full in-app admin so Cal never touches the Supabase dashboard.
+
+**Booking flow + deferred-auth gate.** `/book` is a public service chooser; each card opens `/book/[serviceSlug]`, where one generalizable calendar drives selection — **month-range** (check-in/out dates) for house-sitting, **week-slots** (times) for the hourly services. Anyone may browse and pick; sign-in is deferred to the **Book action**. A guest who clicks Book is sent to `/login?returnTo=…`, a signed-in-but-un-onboarded user to `/onboarding?returnTo=…`; on success they land back on their exact selection. `returnTo` encodes the selection (slug in the path; resolved start/end ISO + assigned pet ids in the query) and is validated by a same-origin open-redirect guard (relative, must start `/book/`). `createBooking` keeps its own server-side `redirect("/login")` backstop. Pet-aware services (house-sitting, walk) assign **real pets** from the profile; dog/cat counts are derived server-side from the assignment, never typed in.
 
 ## Data model
 

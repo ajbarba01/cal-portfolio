@@ -1,43 +1,31 @@
 /**
- * /book — public-facing booking page (server component).
+ * /book — service chooser (server component).
  *
- * Loads active services and booking-rule settings server-side via the service
- * role client (anon cannot read `settings` via RLS). Passes both as props to
- * the client component so the browser never makes raw DB calls for this data.
+ * Lists active services as cards linking to the per-service booking flow at
+ * /book/[serviceSlug]. Loaded via the service role (anon cannot read settings,
+ * and we keep one load path). The calendar + booking UX lives on the per-service
+ * route.
  */
 
+import Link from "next/link";
 import { createServiceClient } from "@/lib/supabase/service";
-import { BookClient } from "./_components/book-client";
-import type { BookingRuleSettings } from "@/features/booking/availability";
-import type { PricingType } from "@/features/pricing/types";
 
-// ── Service shape passed to the client ────────────────────────────────────────
-
-export interface ServiceOption {
+interface ServiceCard {
   slug: string;
   name: string;
-  pricing_type: PricingType;
-  /** Minutes. Null means the service has no fixed default (e.g. house_sitting). */
-  default_duration_min: number | null;
-  max_pets: number | null;
   description: string | null;
 }
-
-// ── Page ──────────────────────────────────────────────────────────────────────
 
 export default async function BookPage() {
   const svc = createServiceClient();
 
-  // Load active services (filter active=true, order by sort_order).
-  const { data: servicesData, error: servicesError } = await svc
+  const { data, error } = await svc
     .from("services")
-    .select(
-      "slug, name, pricing_type, default_duration_min, max_pets, description",
-    )
+    .select("slug, name, description")
     .eq("active", true)
     .order("sort_order");
 
-  if (servicesError) {
+  if (error) {
     return (
       <main className="mx-auto max-w-2xl px-4 py-12">
         <p className="text-destructive">
@@ -47,48 +35,44 @@ export default async function BookPage() {
     );
   }
 
-  const services: ServiceOption[] = (servicesData ?? []).map((row) => ({
+  const services: ServiceCard[] = (data ?? []).map((row) => ({
     slug: row.slug as string,
     name: row.name as string,
-    pricing_type: row.pricing_type as PricingType,
-    default_duration_min:
-      typeof row.default_duration_min === "number"
-        ? row.default_duration_min
-        : null,
-    max_pets: typeof row.max_pets === "number" ? row.max_pets : null,
     description: typeof row.description === "string" ? row.description : null,
   }));
 
-  // Load booking-rule settings (anon cannot read via RLS → must use service role).
-  const { data: settingsData, error: settingsError } = await svc
-    .from("settings")
-    .select(
-      "booking_open_minute, booking_close_minute, min_lead_time_hours, hard_max_advance_days",
-    )
-    .limit(1)
-    .single();
-
-  if (settingsError || !settingsData) {
-    return (
-      <main className="mx-auto max-w-2xl px-4 py-12">
-        <p className="text-destructive">
-          Could not load booking settings. Please try again later.
-        </p>
-      </main>
-    );
-  }
-
-  const rules: BookingRuleSettings = {
-    bookingOpenMinute: settingsData.booking_open_minute as number,
-    bookingCloseMinute: settingsData.booking_close_minute as number,
-    minLeadTimeHours: settingsData.min_lead_time_hours as number,
-    hardMaxAdvanceDays: settingsData.hard_max_advance_days as number,
-  };
-
   return (
     <main className="mx-auto max-w-2xl px-4 py-12">
-      <h1 className="mb-8 text-2xl font-semibold">Book a service</h1>
-      <BookClient services={services} rules={rules} />
+      <h1 className="mb-2 text-2xl font-semibold">Book a service</h1>
+      <p className="text-muted-foreground mb-8 text-sm">
+        Choose a service to see Cal&apos;s availability and book.
+      </p>
+
+      {services.length === 0 ? (
+        <p className="text-muted-foreground">
+          No services are currently available. Check back soon.
+        </p>
+      ) : (
+        <ul className="grid gap-3 sm:grid-cols-2">
+          {services.map((s) => (
+            <li key={s.slug}>
+              <Link
+                href={`/book/${s.slug}`}
+                className="border-border bg-card text-card-foreground hover:border-foreground focus-visible:border-ring focus-visible:ring-ring/50 block h-full rounded-lg border p-4 transition-colors outline-none focus-visible:ring-3"
+              >
+                <span className="text-foreground block font-medium">
+                  {s.name}
+                </span>
+                {s.description && (
+                  <span className="text-muted-foreground mt-1 block text-sm">
+                    {s.description}
+                  </span>
+                )}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
     </main>
   );
 }

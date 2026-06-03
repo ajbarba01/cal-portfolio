@@ -4,6 +4,7 @@ import {
   passesGuards,
   seriesQualifiesForRecurringDiscount,
   denverDayKey,
+  denverMidnight,
 } from "./availability";
 import type { TimeRange, BookingRuleSettings } from "./availability";
 
@@ -213,6 +214,35 @@ describe("denverDayKey", () => {
     // Denver-midnight MST (07:00Z) and just before next Denver-midnight.
     expect(denverDayKey(new Date("2025-01-15T07:00:00Z"))).toBe("2025-01-15");
     expect(denverDayKey(new Date("2025-01-16T06:59:00Z"))).toBe("2025-01-15");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// denverMidnight
+// ---------------------------------------------------------------------------
+
+describe("denverMidnight", () => {
+  it("resolves a summer (MDT, UTC-6) day to 06:00Z", () => {
+    expect(denverMidnight("2025-07-15").toISOString()).toBe(
+      "2025-07-15T06:00:00.000Z",
+    );
+  });
+
+  it("resolves a winter (MST, UTC-7) day to 07:00Z", () => {
+    expect(denverMidnight("2025-01-15").toISOString()).toBe(
+      "2025-01-15T07:00:00.000Z",
+    );
+  });
+
+  it("round-trips with denverDayKey across the DST boundary", () => {
+    for (const key of [
+      "2025-01-15",
+      "2025-03-09",
+      "2025-07-15",
+      "2025-11-02",
+    ]) {
+      expect(denverDayKey(denverMidnight(key))).toBe(key);
+    }
   });
 });
 

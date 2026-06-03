@@ -1,0 +1,510 @@
+"use client";
+
+/**
+ * ServiceBookingClient — the interactive per-service booking flow.
+ *
+ * Picks the calendar mode from the service's pricing_type:
+ *   house_sitting → month-range (check-in/out dates); else → week-slots (times).
+ *
+ * Owns all booking business state; the BookingCalendar + leaf components are
+ * presentational. Busy availability comes from the service-role `useBusyRanges`
+ * source (identity-free); open windows from `useAvailability`. Pet-aware services
+ * (house_sitting, walk) assign real pets — the server derives dog/cat counts.
+ *
+ * DEFERRED-AUTH GATE: a guest / not-yet-onboarded user who clicks Book is bounced
+ * to /login or /onboarding with a `returnTo` encoding their selection, then
+ * returned here (rehydrated from the URL) to finish. createBooking keeps its own
+ * server-side redirect("/login") backstop.
+ */
+
+import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { useAvailability } from "@/features/booking/use-availability";
+import { useBusyRanges } from "@/features/booking/use-busy-ranges";
+import {
+  markSlotsBusy,
+  deriveBookableDays,
+  validateStayRange,
+} from "@/features/booking/calendar-model";
+import { denverMidnight, denverDayKey } from "@/features/booking/availability";
+import { buildReturnTo } from "@/features/booking/return-to";
+import { previewQuote } from "@/features/booking/quote-action";
+import { createBooking } from "@/features/booking/actions";
+import { BookingCalendar } from "@/features/booking/_components/booking-calendar";
+import { PetAssignment, type AssignablePet } from "./pet-assignment";
+import {
+  QuantityForm,
+  defaultQuantities,
+  quantitiesToRecord,
+  type QuantityState,
+} from "./quantity-forms";
+import { QuotePanel } from "./quote-panel";
+import { RecurringControls } from "./recurring-controls";
+import { Button } from "@/components/ui/button";
+import {
+  createResultMessage,
+  previewResultMessage,
+} from "../../_components/messages";
+import type { UserMessage, MessageTone } from "../../_components/messages";
+import type { DateRange } from "@/components/ui/calendar";
+import type { PricingType } from "@/features/pricing/types";
+import type {
+  TimeRange,
+  BookingRuleSettings,
+} from "@/features/booking/availability";
+import type { PublicBusyRange } from "@/features/booking/busy-ranges";
+import type { BookingQuotePreview } from "@/features/booking/booking-service";
+import type { Pet } from "@/features/accounts/account-actions";
+import type { PetSpecies } from "@/features/booking/_components/pet-avatar";
+
+// ── Props ─────────────────────────────────────────────────────────────────────
+
+export type AuthState = "guest" | "needs-onboarding" | "ready";
+
+export interface ServiceDetail {
+  slug: string;
+  name: string;
+  description: string | null;
+  pricingType: PricingType;
+  defaultDurationMin: number | null;
+}
+
+export interface InitialSelection {
+  start: string | null;
+  end: string | null;
+  petIds: string[];
+}
+
+interface ServiceBookingClientProps {
+  service: ServiceDetail;
+  rules: BookingRuleSettings;
+  initialBusy: PublicBusyRange[];
+  authState: AuthState;
+  pets: AssignablePet[];
+  initialSelection: InitialSelection;
+}
+
+// ── Local date helpers (browser-local calendar keys; layout, not business rules) ──
+
+function pad(n: number): string {
+  return String(n).padStart(2, "0");
+}
+function localDayKey(d: Date): string {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+function localDateFromKey(key: string): Date {
+  const [y, m, d] = key.split("-").map((n) => parseInt(n, 10));
+  return new Date(y, m - 1, d);
+}
+function monthDayKeys(month: Date): string[] {
+  const y = month.getFullYear();
+  const m = month.getMonth();
+  const last = new Date(y, m + 1, 0).getDate();
+  const keys: string[] = [];
+  for (let d = 1; d <= last; d++) keys.push(`${y}-${pad(m + 1)}-${pad(d)}`);
+  return keys;
+}
+
+// ── Message banner ─────────────────────────────────────────────────────────────
+
+function MessageBanner({ message }: { message: UserMessage }) {
+  const base = "rounded-lg border px-4 py-3 text-sm";
+  const classes: Record<MessageTone, string> = {
+    success: `${base} border-border bg-muted text-foreground`,
+    error: `${base} border-destructive/40 bg-destructive/10 text-destructive`,
+    info: `${base} border-border bg-muted text-muted-foreground`,
+  };
+  return (
+    <div role="alert" className={classes[message.tone]}>
+      {message.text}
+      {message.action === "login" && (
+        <>
+          {" "}
+          <a
+            href="/login"
+            className="text-foreground underline underline-offset-2"
+          >
+            Log in
+          </a>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── Main ────────────────────────────────────────────────────────────────────────
+
+export function ServiceBookingClient({
+  service,
+  rules,
+  initialBusy,
+  authState,
+  pets,
+  initialSelection,
+}: ServiceBookingClientProps) {
+  const router = useRouter();
+
+  const mode: "week-slots" | "month-range" =
+    service.pricingType === "house_sitting" ? "month-range" : "week-slots";
+  const petAware =
+    service.pricingType === "house_sitting" || service.pricingType === "walk";
+  const allowedSpecies: PetSpecies[] =
+    service.pricingType === "house_sitting" ? ["dog", "cat"] : ["dog"];
+  const supportsRecurring = mode === "week-slots";
+  const durationMs = (service.defaultDurationMin ?? 60) * 60 * 1000;
+
+  // Stable "now" for the component lifetime (page reload re-mounts).
+  const now = useMemo(() => new Date(), []);
+
+  // ── State (selection rehydrated from returnTo round-trip) ──────────────────
+  const [quantities, setQuantities] = useState<QuantityState>(() =>
+    defaultQuantities(service.pricingType),
+  );
+  const [selectedPetIds, setSelectedPetIds] = useState<string[]>(
+    initialSelection.petIds,
+  );
+  const [recurringOn, setRecurringOn] = useState(false);
+  const [occurrenceCount, setOccurrenceCount] = useState(4);
+
+  const [selectedSlot, setSelectedSlot] = useState<TimeRange | null>(() =>
+    mode === "week-slots" && initialSelection.start && initialSelection.end
+      ? {
+          startsAt: new Date(initialSelection.start),
+          endsAt: new Date(initialSelection.end),
+        }
+      : null,
+  );
+  const [range, setRange] = useState<DateRange | undefined>(() =>
+    mode === "month-range" && initialSelection.start && initialSelection.end
+      ? {
+          from: localDateFromKey(
+            denverDayKey(new Date(initialSelection.start)),
+          ),
+          to: localDateFromKey(denverDayKey(new Date(initialSelection.end))),
+        }
+      : undefined,
+  );
+  const [month, setMonth] = useState<Date>(() =>
+    initialSelection.start
+      ? localDateFromKey(denverDayKey(new Date(initialSelection.start)))
+      : new Date(),
+  );
+
+  const [quote, setQuote] = useState<BookingQuotePreview | null>(null);
+  const [previewMsg, setPreviewMsg] = useState<UserMessage | null>(null);
+  const [submitMsg, setSubmitMsg] = useState<UserMessage | null>(null);
+  const [submitDone, setSubmitDone] = useState(false);
+
+  const [isPreviewing, startPreviewing] = useTransition();
+  const [isSubmitting, startSubmitting] = useTransition();
+
+  // ── Availability + busy sources ────────────────────────────────────────────
+  const {
+    openWindows,
+    openSlots,
+    loading: windowsLoading,
+    error: windowsError,
+  } = useAvailability({ durationMs, rules });
+  const { busy, refresh: refreshBusy } = useBusyRanges(
+    service.slug,
+    initialBusy,
+  );
+
+  const busyRanges = useMemo<TimeRange[]>(
+    () =>
+      busy.map((b) => ({
+        startsAt: new Date(b.startsAt),
+        endsAt: new Date(b.endsAt),
+      })),
+    [busy],
+  );
+
+  const markedSlots = useMemo(
+    () => markSlotsBusy(openSlots, busyRanges),
+    [openSlots, busyRanges],
+  );
+
+  const days = useMemo(
+    () =>
+      mode === "month-range"
+        ? deriveBookableDays({
+            days: monthDayKeys(month).map(denverMidnight),
+            windows: openWindows,
+            busyResident: busyRanges,
+            rules,
+            now,
+          })
+        : [],
+    [mode, month, openWindows, busyRanges, rules, now],
+  );
+
+  const stay = useMemo(() => {
+    if (mode !== "month-range" || !range?.from || !range?.to) return null;
+    return validateStayRange({
+      checkIn: denverMidnight(localDayKey(range.from)),
+      checkOut: denverMidnight(localDayKey(range.to)),
+      windows: openWindows,
+      busyResident: busyRanges,
+      rules,
+      now,
+    });
+  }, [mode, range, openWindows, busyRanges, rules, now]);
+
+  // ── Derived booking time ─────────────────────────────────────────────────────
+  let startsAt: Date | null = null;
+  let endsAt: Date | null = null;
+  let nights: number | null = null;
+  if (mode === "week-slots") {
+    if (selectedSlot) {
+      startsAt = selectedSlot.startsAt;
+      endsAt = selectedSlot.endsAt;
+    }
+  } else if (stay?.ok) {
+    startsAt = stay.range.startsAt;
+    endsAt = stay.range.endsAt;
+    nights = stay.nights;
+  }
+
+  const hasSelection = startsAt !== null && endsAt !== null;
+  const petsOk = !petAware || selectedPetIds.length > 0;
+
+  // ── Mutators that invalidate a stale quote ──────────────────────────────────
+  function clearQuote() {
+    setQuote(null);
+    setPreviewMsg(null);
+  }
+
+  function buildInput() {
+    return {
+      serviceSlug: service.slug,
+      startsAt: startsAt!,
+      endsAt: endsAt!,
+      quantities: quantitiesToRecord(quantities, nights),
+      petIds: petAware ? selectedPetIds : undefined,
+      recurringRule:
+        supportsRecurring && recurringOn
+          ? { freq: "weekly" as const, interval: 1, count: occurrenceCount }
+          : null,
+    };
+  }
+
+  function handleGetQuote() {
+    if (!hasSelection || !petsOk) return;
+    startPreviewing(async () => {
+      const result = await previewQuote(buildInput());
+      const out = previewResultMessage(result);
+      if (out.kind === "quote") {
+        setQuote(out.preview);
+        setPreviewMsg(null);
+      } else {
+        setQuote(null);
+        setPreviewMsg(out.message);
+      }
+    });
+  }
+
+  function handleBook() {
+    if (!startsAt || !endsAt || !petsOk) return;
+
+    // Deferred-auth gate: bounce guests / un-onboarded users with a returnTo.
+    if (authState !== "ready") {
+      const returnTo = buildReturnTo({
+        serviceSlug: service.slug,
+        start: startsAt.toISOString(),
+        end: endsAt.toISOString(),
+        petIds: petAware ? selectedPetIds : undefined,
+      });
+      const dest = authState === "guest" ? "/login" : "/onboarding";
+      router.push(`${dest}?returnTo=${encodeURIComponent(returnTo)}`);
+      return;
+    }
+
+    startSubmitting(async () => {
+      const result = await createBooking(buildInput());
+      setSubmitMsg(
+        createResultMessage(result, quote?.requiresApproval ?? true),
+      );
+      if (result.kind === "success") {
+        setSubmitDone(true);
+      }
+      // Either way, refresh busy so the calendar reflects the latest state.
+      void refreshBusy();
+    });
+  }
+
+  function handlePetAdded(pet: Pet) {
+    setSelectedPetIds((prev) => [...prev, pet.id]);
+    clearQuote();
+    // Reload server data (fresh pet list + signed photo URLs); client state persists.
+    router.refresh();
+  }
+
+  // ── Render ─────────────────────────────────────────────────────────────────
+  const bookEnabled =
+    hasSelection &&
+    petsOk &&
+    !isSubmitting &&
+    !isPreviewing &&
+    !submitDone &&
+    (authState !== "ready" || quote !== null);
+
+  return (
+    <div className="flex flex-col gap-8">
+      {/* 1. Calendar */}
+      <section aria-labelledby="cal-heading">
+        <h2 id="cal-heading" className="mb-3 text-sm font-semibold">
+          1. {mode === "month-range" ? "Pick your dates" : "Pick a time"}
+        </h2>
+        {windowsError && (
+          <MessageBanner message={{ tone: "error", text: windowsError }} />
+        )}
+        {windowsLoading && (
+          <p className="text-muted-foreground text-sm">Loading availability…</p>
+        )}
+        {!windowsLoading && !windowsError && mode === "week-slots" && (
+          <BookingCalendar
+            mode="week-slots"
+            slots={markedSlots}
+            busy={busy}
+            selectedStart={selectedSlot?.startsAt.getTime() ?? null}
+            onSelectSlot={(slot) => {
+              setSelectedSlot(slot);
+              clearQuote();
+            }}
+          />
+        )}
+        {!windowsLoading && !windowsError && mode === "month-range" && (
+          <>
+            <BookingCalendar
+              mode="month-range"
+              days={days}
+              busy={busy}
+              range={range}
+              onRangeChange={(r) => {
+                setRange(r);
+                clearQuote();
+              }}
+              month={month}
+              onMonthChange={setMonth}
+            />
+            {range?.from && range?.to && stay && !stay.ok && (
+              <p className="text-destructive mt-2 text-sm">{stay.reason}</p>
+            )}
+            {stay?.ok && (
+              <p className="text-muted-foreground mt-2 text-sm">
+                {stay.nights} night{stay.nights === 1 ? "" : "s"} selected.
+              </p>
+            )}
+          </>
+        )}
+      </section>
+
+      {/* 2. Pet assignment (pet-aware services) */}
+      {petAware && (
+        <section aria-labelledby="pets-heading">
+          <h2 id="pets-heading" className="mb-3 text-sm font-semibold">
+            2. Which pets?
+          </h2>
+          {authState === "ready" ? (
+            <PetAssignment
+              pets={pets}
+              allowedSpecies={allowedSpecies}
+              selected={selectedPetIds}
+              onChange={(ids) => {
+                setSelectedPetIds(ids);
+                clearQuote();
+              }}
+              onPetAdded={handlePetAdded}
+            />
+          ) : (
+            <p className="text-muted-foreground text-sm">
+              You&apos;ll assign your pets after signing in.
+            </p>
+          )}
+        </section>
+      )}
+
+      {/* 3. Quantities */}
+      <section aria-labelledby="qty-heading">
+        <h2 id="qty-heading" className="mb-3 text-sm font-semibold">
+          {petAware ? "3" : "2"}. Details
+        </h2>
+        <QuantityForm
+          state={quantities}
+          onChange={(s) => {
+            setQuantities(s);
+            clearQuote();
+          }}
+        />
+      </section>
+
+      {/* 4. Recurring (time-bounded services only) */}
+      {supportsRecurring && (
+        <section aria-labelledby="recur-heading">
+          <h2 id="recur-heading" className="mb-3 text-sm font-semibold">
+            {petAware ? "4" : "3"}. Recurring (optional)
+          </h2>
+          <RecurringControls
+            enabled={recurringOn}
+            count={occurrenceCount}
+            onEnabledChange={(on) => {
+              setRecurringOn(on);
+              clearQuote();
+            }}
+            onCountChange={(n) => {
+              setOccurrenceCount(n);
+              clearQuote();
+            }}
+          />
+        </section>
+      )}
+
+      {/* 5. Quote */}
+      <section aria-labelledby="quote-heading">
+        <h2 id="quote-heading" className="mb-3 text-sm font-semibold">
+          Get a price estimate
+        </h2>
+        <Button
+          variant="outline"
+          onClick={handleGetQuote}
+          disabled={!hasSelection || !petsOk || isPreviewing || isSubmitting}
+        >
+          {isPreviewing ? "Loading…" : "Get quote"}
+        </Button>
+        {previewMsg && (
+          <div className="mt-4">
+            <MessageBanner message={previewMsg} />
+          </div>
+        )}
+        {quote && (
+          <div className="mt-4">
+            <QuotePanel preview={quote} />
+          </div>
+        )}
+      </section>
+
+      {/* 6. Book */}
+      {!submitDone && (
+        <section aria-labelledby="book-heading">
+          <h2 id="book-heading" className="mb-3 text-sm font-semibold">
+            Confirm booking
+          </h2>
+          <Button onClick={handleBook} disabled={!bookEnabled}>
+            {isSubmitting ? "Submitting…" : "Book now"}
+          </Button>
+          {authState === "ready" && !quote && (
+            <p className="text-muted-foreground mt-2 text-xs">
+              Get a quote first to enable booking.
+            </p>
+          )}
+        </section>
+      )}
+
+      {submitMsg && (
+        <div role="status" aria-live="polite">
+          <MessageBanner message={submitMsg} />
+        </div>
+      )}
+    </div>
+  );
+}

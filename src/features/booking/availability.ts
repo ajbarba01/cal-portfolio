@@ -137,6 +137,57 @@ export function denverDayKey(date: Date): string {
   return fmt.format(date);
 }
 
+/**
+ * America/Denver UTC offset in minutes east of UTC for the given instant
+ * (negative: -420 in MST, -360 in MDT). Derived from `Intl` — DST-correct, no
+ * hardcoded offsets.
+ */
+function denverOffsetMinutes(date: Date): number {
+  const fmt = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Denver",
+    hour12: false,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+  const parts = fmt.formatToParts(date);
+  const get = (t: string) =>
+    parseInt(parts.find((p) => p.type === t)!.value, 10);
+  const asUtc = Date.UTC(
+    get("year"),
+    get("month") - 1,
+    get("day"),
+    get("hour") % 24,
+    get("minute"),
+    get("second"),
+  );
+  return (asUtc - date.getTime()) / 60000;
+}
+
+/**
+ * Inverse of {@link denverDayKey}: returns the UTC instant of 00:00 America/Denver
+ * for the calendar day "YYYY-MM-DD". DST-correct (probes the offset at local
+ * midday, after any 2am transition). Pure — no clock read.
+ *
+ * Calendar grids (month-range mode) select whole calendar days; the booking core
+ * works in concrete instants. This bridges the two so `deriveBookableDays` /
+ * `validateStayRange` receive true Denver-midnight instants.
+ */
+export function denverMidnight(dayKey: string): Date {
+  const [y, m, d] = dayKey.split("-").map((n) => parseInt(n, 10));
+  const utc = Date.UTC(y, m - 1, d, 0, 0, 0);
+  // Two-step solve: the offset at the first candidate can differ from the offset
+  // at the UTC anchor across a DST transition (spring-forward midnight is still
+  // standard time). Re-probe at the candidate and adopt that offset if it moved.
+  const off1 = denverOffsetMinutes(new Date(utc));
+  const candidate = utc - off1 * 60000;
+  const off2 = denverOffsetMinutes(new Date(candidate));
+  return new Date(off2 === off1 ? candidate : utc - off2 * 60000);
+}
+
 // ---------------------------------------------------------------------------
 // passesGuards
 // ---------------------------------------------------------------------------

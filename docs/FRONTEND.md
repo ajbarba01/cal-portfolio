@@ -54,6 +54,10 @@ Tokens live in two files: **`src/app/globals.css`** owns color + radius as two-l
 - **Accessibility floor** — semantic HTML, sufficient color contrast, visible focus states, full keyboard navigation.
 - **Imagery** — `next/image`, defined aspect ratios, lazy loading.
 
+**Calendar primitive** — `src/components/ui/calendar.tsx` is a **hand-authored** thin wrapper over `react-day-picker` v9 (NOT the shadcn CLI, which scaffolds Radix; this project layers shadcn-style components on `@base-ui/react`). It only restyles rdp's headless day-grid with semantic token classes + a lucide nav chevron. The booking domain consumes it through `features/booking/_components/booking-calendar.tsx`, a mode-discriminated presentational surface (`week-slots` | `month-range`, with `manage-windows` for admin) — the component renders, the caller owns selection/business state. `date-fns` is layout-only inside the grid components, never for booking rules.
+
+> **Wireframe stage.** The calendar-first booking + admin surfaces are built as functional wireframes: full UX/behavior, tokens-only minimal styling, no visual polish. A later overhaul (Claude Design pipeline above) sets the concrete look.
+
 ---
 
 _Last reviewed: 2026-05-29_

@@ -1,11 +1,17 @@
 "use client";
 
 /**
- * useAvailability — client realtime hook.
+ * useAvailability — client realtime hook for OPEN WINDOWS only.
  *
- * Subscribes to Supabase Realtime changes on `availability_windows` and
- * `bookings`, then derives open/available slots using the pure availability
- * functions (fitsWindow, passesGuards) — no business logic is duplicated here.
+ * Subscribes to Supabase Realtime changes on `availability_windows`, then derives
+ * candidate open slots via the pure `deriveOpenSlots` (fitsWindow + passesGuards)
+ * — no business logic is duplicated here.
+ *
+ * BUSY DATA LIVES ELSEWHERE: this hook no longer reads `bookings`. The old direct
+ * query saw only the viewer's OWN bookings (RLS), so it could not subtract other
+ * clients' busy slots. Busy ranges now come from the service-role
+ * `useBusyRanges` hook (identity-free public source); the caller marks slots busy
+ * via `markSlotsBusy`. The DB exclusion constraint remains the submit-time arbiter.
  *
  * WHY NO INTEGRATION TEST FOR THIS HOOK
  * --------------------------------------
@@ -20,8 +26,8 @@
  * USAGE
  * -----
  * ```tsx
- * const { openWindows, bookedRanges, openSlots, loading, error } =
- *   useAvailability({ durationMs: 60 * 60 * 1000 });
+ * const { openWindows, openSlots, loading, error } =
+ *   useAvailability({ durationMs: 60 * 60 * 1000, rules });
  * ```
  */
 
@@ -54,7 +60,6 @@ export interface UseAvailabilityOptions {
 
 export interface UseAvailabilityResult {
   openWindows: TimeRange[];
-  bookedRanges: TimeRange[];
   /** Derived open slots: candidates that fit a window AND pass guards. */
   openSlots: AvailableSlot[];
   loading: boolean;
@@ -118,37 +123,24 @@ export function useAvailability({
   slotStepMs = DEFAULT_SLOT_STEP_MS,
 }: UseAvailabilityOptions): UseAvailabilityResult {
   const [openWindows, setOpenWindows] = useState<TimeRange[]>([]);
-  const [bookedRanges, setBookedRanges] = useState<TimeRange[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   /**
-   * Fetches fresh data and batches all setState calls inside startTransition
+   * Fetches fresh windows and batches all setState calls inside startTransition
    * to avoid cascading renders (satisfies react-hooks/set-state-in-effect).
    */
   const fetchAndApply = useCallback(async () => {
     const supabase = createClient();
 
-    const [windowsRes, bookingsRes] = await Promise.all([
-      supabase
-        .from("availability_windows")
-        .select("starts_at, ends_at")
-        .gte("ends_at", new Date().toISOString()),
-      supabase
-        .from("bookings")
-        .select("starts_at, ends_at, status")
-        .in("status", ["pending_approval", "confirmed"]),
-    ]);
+    const windowsRes = await supabase
+      .from("availability_windows")
+      .select("starts_at, ends_at")
+      .gte("ends_at", new Date().toISOString());
 
     if (windowsRes.error) {
       startTransition(() => {
         setError(`Failed to load availability: ${windowsRes.error.message}`);
-      });
-      return;
-    }
-    if (bookingsRes.error) {
-      startTransition(() => {
-        setError(`Failed to load bookings: ${bookingsRes.error.message}`);
       });
       return;
     }
@@ -157,14 +149,9 @@ export function useAvailability({
       startsAt: new Date(r.starts_at),
       endsAt: new Date(r.ends_at),
     }));
-    const ranges = (bookingsRes.data ?? []).map((r) => ({
-      startsAt: new Date(r.starts_at),
-      endsAt: new Date(r.ends_at),
-    }));
 
     startTransition(() => {
       setOpenWindows(windows);
-      setBookedRanges(ranges);
       setLoading(false);
     });
   }, []);
@@ -174,19 +161,13 @@ export function useAvailability({
 
     const supabase = createClient();
 
-    // Subscribe to realtime changes on both tables.
+    // Subscribe to realtime changes on availability_windows. Busy bookings are
+    // tracked separately by useBusyRanges (service-role source).
     const channel = supabase
       .channel("availability-realtime")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "availability_windows" },
-        () => {
-          void fetchAndApply();
-        },
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "bookings" },
         () => {
           void fetchAndApply();
         },
@@ -207,5 +188,5 @@ export function useAvailability({
     slotStepMs,
   );
 
-  return { openWindows, bookedRanges, openSlots, loading, error };
+  return { openWindows, openSlots, loading, error };
 }
