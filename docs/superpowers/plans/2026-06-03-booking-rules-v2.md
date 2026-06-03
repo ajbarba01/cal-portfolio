@@ -27,7 +27,7 @@ The MVP (Phases 0–13) shipped with a **driving-minutes** approval gate, intege
 
 ---
 
-## Phase 14 — Distance gate in miles — [x]
+## Phase 14 — Distance gate in miles — [x] `3da4885`
 
 **Goal:** Approval gate reasons in miles (Cal's mental model); driving-minutes kept only for the travel-cost line.
 **Systems landed:** miles-based `deriveApproval`; settings re-pointed. **Deps:** none.
@@ -45,18 +45,18 @@ The MVP (Phases 0–13) shipped with a **driving-minutes** approval gate, intege
 
 ---
 
-## Phase 15 — Booking hours: half-hour granularity + end-bound
+## Phase 15 — Booking hours: half-hour granularity + end-bound — [x]
 
 **Goal:** 6:30am–10:00pm windows; a booking must **start ≥ open AND end ≤ close**.
 **Systems landed:** minute-based hours guard. **Deps:** 14 (settings-edge habit).
 
 **Files:** `src/features/booking/availability.ts`, `booking-service.ts`, `booking-repository.ts`, `supabase/migrations/<ts>_booking_minute_hours.sql` (+ seed), `availability.test.ts`.
 
-- [ ] **Settings.** Replace `booking_open_hour` / `booking_close_hour` with `booking_open_minute` (390) / `booking_close_minute` (1320). Optional CHECK `0..1440` and `open < close`.
-- [ ] **Guard.** Add pure `denverMinutesSinceMidnight(date)` (extend the existing `Intl.DateTimeFormat` tz approach with `minute`). `passesGuards` bounds **start ≥ open** and **end ≤ close**. Update `BookingRuleSettings` + the BOUNDARY-SEMANTICS doc comment.
-- [ ] **Wire.** `booking-service.ts` reads the new columns; repo edge updated.
-- [ ] **Tests.** 6:30am start allowed, 6:29 rejected; a service ending 10:30pm rejected; DST day correct (tz handled by IANA). Update fixtures.
-- [ ] **Gate + commit** `feat: half-hour booking hours bounded at start and end`.
+- [x] **Settings.** Replace `booking_open_hour` / `booking_close_hour` with `booking_open_minute` (390) / `booking_close_minute` (1320). CHECK `0..1440` and `open < close` added.
+- [x] **Guard.** Add pure `denverMinutesSinceMidnight(date)` (extends the `Intl.DateTimeFormat` tz approach with `minute`). `passesGuards` bounds **start ≥ open** and **end ≤ close**. Updated `BookingRuleSettings` + the BOUNDARY-SEMANTICS doc comment.
+- [x] **Wire.** `booking-service.ts` reads the new columns; repo + admin + `/book` settings edges updated.
+- [x] **Tests.** 6:30am start allowed, 6:29 rejected; a service ending 10:30pm rejected; DST day correct (tz handled by IANA). Fixtures updated (availability, use-availability, booking-service integration, admin).
+- [x] **Gate + commit** `feat: half-hour booking hours bounded at start and end`.
 
 **Verification:** `availability.test.ts` green; manual — a 9:30pm walk that runs past 10pm is rejected.
 

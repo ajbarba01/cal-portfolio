@@ -7,17 +7,20 @@
  * TIMEZONE NOTE
  * -------------
  * The hours-of-day check uses America/Denver (single-timezone app). The Denver
- * hour is derived PURELY from the passed `Date` via `Intl.DateTimeFormat` with
- * the IANA timezone identifier. This reads no system clock and is deterministic.
- * MST/MDT transitions are handled automatically by the IANA tz database built
- * into the JS runtime — no manual offset arithmetic is required.
+ * minutes-since-midnight are derived PURELY from the passed `Date` via
+ * `Intl.DateTimeFormat` with the IANA timezone identifier. This reads no system
+ * clock and is deterministic. MST/MDT transitions are handled automatically by
+ * the IANA tz database built into the JS runtime — no manual offset arithmetic.
  *
  * BOUNDARY SEMANTICS
  * ------------------
  * - `fitsWindow`:      window.startsAt <= candidate.startsAt && candidate.endsAt <= window.endsAt  (both inclusive)
  * - `passesGuards` lead time:    candidate.startsAt - now >= minLeadTimeHours  (inclusive, i.e. exactly min is OK)
  * - `passesGuards` max advance:  candidate.startsAt - now <= maxAdvanceDays    (inclusive, i.e. exactly max is OK)
- * - `passesGuards` hour-of-day:  start hour in [bookingOpenHour, bookingCloseHour)  (open inclusive, close exclusive)
+ * - `passesGuards` hours-of-day: start minute >= bookingOpenMinute AND end minute <= bookingCloseMinute
+ *                                (both inclusive), each evaluated in America/Denver. The end bound uses
+ *                                the end's local time-of-day regardless of date (a multi-day stay still
+ *                                must end at a time-of-day at or before close).
  *
  * RECURRING DISCOUNT — house_sitting nuance
  * ------------------------------------------
@@ -43,13 +46,14 @@ export interface TimeRange {
 
 /**
  * Settings derived from the DB `settings` columns that govern booking
- * eligibility. All hours are America/Denver local hours (0–23).
+ * eligibility. Booking hours are minutes-since-midnight, America/Denver local
+ * (390 = 6:30am, 1320 = 10:00pm).
  */
 export interface BookingRuleSettings {
-  /** Inclusive lower bound on start hour in America/Denver. */
-  bookingOpenHour: number;
-  /** Exclusive upper bound on start hour in America/Denver. */
-  bookingCloseHour: number;
+  /** Inclusive lower bound on start time, minutes-since-midnight (America/Denver). */
+  bookingOpenMinute: number;
+  /** Inclusive upper bound on end time, minutes-since-midnight (America/Denver). */
+  bookingCloseMinute: number;
   /** Minimum hours between now and booking start (inclusive). */
   minLeadTimeHours: number;
   /** Maximum days between now and booking start (inclusive). */
@@ -89,23 +93,27 @@ export function fitsWindow(
 // ---------------------------------------------------------------------------
 
 /**
- * Returns the local hour (0–23) of `date` in America/Denver.
+ * Returns the local time-of-day of `date` as minutes since midnight (0–1439)
+ * in America/Denver.
  *
- * Uses `Intl.DateTimeFormat` with `hour12: false` so the hour is in [0, 23].
- * The IANA tz database in the JS runtime handles MST (UTC-7) and MDT (UTC-6)
- * transparently — no manual offset math.
+ * Uses `Intl.DateTimeFormat` with `hour12: false`. The IANA tz database in the
+ * JS runtime handles MST (UTC-7) and MDT (UTC-6) transparently — no manual
+ * offset math.
  */
-function denverHour(date: Date): number {
+function denverMinutesSinceMidnight(date: Date): number {
   const fmt = new Intl.DateTimeFormat("en-US", {
     timeZone: "America/Denver",
-    hour: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
     hour12: false,
   });
-  // hour12:false with 'numeric' gives "0"–"23"; parseInt handles leading zeros.
-  const raw = fmt.format(date);
-  const h = parseInt(raw, 10);
-  // Intl can return 24 for midnight in some environments; normalise.
-  return h === 24 ? 0 : h;
+  const parts = fmt.formatToParts(date);
+  const hourRaw = parts.find((p) => p.type === "hour")?.value ?? "0";
+  const minuteRaw = parts.find((p) => p.type === "minute")?.value ?? "0";
+  // hour12:false can render midnight as "24" in some environments; normalise.
+  const hour = parseInt(hourRaw, 10) % 24;
+  const minute = parseInt(minuteRaw, 10);
+  return hour * 60 + minute;
 }
 
 // ---------------------------------------------------------------------------
@@ -115,8 +123,9 @@ function denverHour(date: Date): number {
 /**
  * Returns true only when ALL booking eligibility guards pass:
  *
- * 1. **Hours of day** — `candidate.startsAt` falls in [bookingOpenHour, bookingCloseHour)
- *    evaluated in America/Denver local time.
+ * 1. **Hours of day** — `candidate.startsAt` time-of-day >= bookingOpenMinute AND
+ *    `candidate.endsAt` time-of-day <= bookingCloseMinute, evaluated in
+ *    America/Denver local time (both bounds inclusive).
  * 2. **Lead time** — `candidate.startsAt - now >= minLeadTimeHours` (inclusive).
  * 3. **Max advance** — `candidate.startsAt - now <= maxAdvanceDays` (inclusive).
  *
@@ -141,9 +150,15 @@ export function passesGuards(
     return false;
   }
 
-  // Hours of day: start hour in [open, close) in America/Denver
-  const hour = denverHour(candidate.startsAt);
-  if (hour < settings.bookingOpenHour || hour >= settings.bookingCloseHour) {
+  // Hours of day: start >= open AND end <= close, in America/Denver (both inclusive)
+  if (
+    denverMinutesSinceMidnight(candidate.startsAt) < settings.bookingOpenMinute
+  ) {
+    return false;
+  }
+  if (
+    denverMinutesSinceMidnight(candidate.endsAt) > settings.bookingCloseMinute
+  ) {
     return false;
   }
 

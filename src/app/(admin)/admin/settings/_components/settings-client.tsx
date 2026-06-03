@@ -23,8 +23,10 @@ export function SettingsClient({
   );
   const [hardCutoff, setHardCutoff] = useState(String(s.hard_cutoff_miles));
   const [useRoadMiles, setUseRoadMiles] = useState(s.gate_use_road_miles);
-  const [openHour, setOpenHour] = useState(String(s.booking_open_hour));
-  const [closeHour, setCloseHour] = useState(String(s.booking_close_hour));
+  const [openMinute, setOpenMinute] = useState(String(s.booking_open_minute));
+  const [closeMinute, setCloseMinute] = useState(
+    String(s.booking_close_minute),
+  );
   const [minLead, setMinLead] = useState(String(s.min_lead_time_hours));
   const [maxAdvance, setMaxAdvance] = useState(String(s.max_advance_days));
   const [discountPct, setDiscountPct] = useState(
@@ -60,8 +62,8 @@ export function SettingsClient({
         auto_approve_threshold_miles: parseFloat(autoApprove),
         hard_cutoff_miles: parseFloat(hardCutoff),
         gate_use_road_miles: useRoadMiles,
-        booking_open_hour: parseInt(openHour, 10),
-        booking_close_hour: parseInt(closeHour, 10),
+        booking_open_minute: parseInt(openMinute, 10),
+        booking_close_minute: parseInt(closeMinute, 10),
         min_lead_time_hours: parseInt(minLead, 10),
         max_advance_days: parseInt(maxAdvance, 10),
         recurring_discount_pct: parseFloat(discountPct),
@@ -154,17 +156,17 @@ export function SettingsClient({
       <fieldset className="space-y-4">
         <legend className="text-base font-medium">Booking Hours</legend>
         {field(
-          "open-hour",
-          "Open Hour (0–23, Denver)",
-          openHour,
-          setOpenHour,
+          "open-minute",
+          "Open (minutes since midnight, Denver — 390 = 6:30am)",
+          openMinute,
+          setOpenMinute,
           "number",
         )}
         {field(
-          "close-hour",
-          "Close Hour (0–23, Denver)",
-          closeHour,
-          setCloseHour,
+          "close-minute",
+          "Close (minutes since midnight, Denver — 1320 = 10:00pm)",
+          closeMinute,
+          setCloseMinute,
           "number",
         )}
         {field(

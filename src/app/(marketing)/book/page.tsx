@@ -63,7 +63,7 @@ export default async function BookPage() {
   const { data: settingsData, error: settingsError } = await svc
     .from("settings")
     .select(
-      "booking_open_hour, booking_close_hour, min_lead_time_hours, max_advance_days",
+      "booking_open_minute, booking_close_minute, min_lead_time_hours, max_advance_days",
     )
     .limit(1)
     .single();
@@ -79,8 +79,8 @@ export default async function BookPage() {
   }
 
   const rules: BookingRuleSettings = {
-    bookingOpenHour: settingsData.booking_open_hour as number,
-    bookingCloseHour: settingsData.booking_close_hour as number,
+    bookingOpenMinute: settingsData.booking_open_minute as number,
+    bookingCloseMinute: settingsData.booking_close_minute as number,
     minLeadTimeHours: settingsData.min_lead_time_hours as number,
     maxAdvanceDays: settingsData.max_advance_days as number,
   };

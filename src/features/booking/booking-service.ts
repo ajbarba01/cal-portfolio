@@ -407,8 +407,8 @@ export async function createBookingCore(
 
   // 6. Enforce booking-rule guards per occurrence (no DB re-load: artifacts.settings).
   const ruleSettings: BookingRuleSettings = {
-    bookingOpenHour: settings.booking_open_hour,
-    bookingCloseHour: settings.booking_close_hour,
+    bookingOpenMinute: settings.booking_open_minute,
+    bookingCloseMinute: settings.booking_close_minute,
     minLeadTimeHours: settings.min_lead_time_hours,
     maxAdvanceDays: settings.max_advance_days,
   };
