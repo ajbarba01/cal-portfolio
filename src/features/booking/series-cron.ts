@@ -105,6 +105,7 @@ export function nextOccurrencesToMaterialize(
 
 const pendingRowSchema = z.object({
   id: z.string(),
+  client_id: z.string(),
   starts_at: z.string(),
   distance_miles: z.number().nullable(),
   services: z.object({ requires_approval: z.boolean() }).nullable(),
@@ -142,10 +143,23 @@ export async function runSeriesRollCron(
   };
   const origin = { lat: settings.origin_lat, lng: settings.origin_lng };
 
+  // A debtor's occurrences are never promoted or materialized (DESIGN: debt
+  // gate). Cache the lookup per client across both passes.
+  const debtByClient = new Map<string, boolean>();
+  const hasDebt = async (clientId: string): Promise<boolean> => {
+    const cached = debtByClient.get(clientId);
+    if (cached !== undefined) return cached;
+    const debt = (await repo.getOutstandingDebtCents(clientId)) > 0;
+    debtByClient.set(clientId, debt);
+    return debt;
+  };
+
   // ── 1. PROMOTE ────────────────────────────────────────────────────────────
   const { data: pendingRows, error: pendingErr } = await serviceClient
     .from("bookings")
-    .select("id, starts_at, distance_miles, services(requires_approval)")
+    .select(
+      "id, client_id, starts_at, distance_miles, services(requires_approval)",
+    )
     .eq("status", "pending_approval");
 
   if (pendingErr) {
@@ -166,6 +180,9 @@ export async function runSeriesRollCron(
       continue;
     }
     const row = parsed.data;
+
+    // Skip a debtor's occurrences until their balance is settled.
+    if (await hasDebt(row.client_id)) continue;
 
     const baseRequiresApproval =
       row.distance_miles === null
@@ -214,6 +231,9 @@ export async function runSeriesRollCron(
 
   const series = await repo.getActiveSeries();
   for (const s of series) {
+    // Skip a debtor's series until their balance is settled.
+    if (await hasDebt(s.client_id)) continue;
+
     const existing = await repo.getMaterializedOccurrenceStarts(s.id);
     const newStarts = nextOccurrencesToMaterialize(
       {

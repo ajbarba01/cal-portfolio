@@ -23,7 +23,14 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { createSupabaseBookingRepository } from "./booking-repository";
-import { createBookingCore, cancelBookingCore } from "./booking-service";
+import {
+  createBookingCore,
+  cancelBookingCore,
+  grantFullRefundCore,
+  markNoShowCore,
+  settleDebtCore,
+} from "./booking-service";
+import { StripeGateway } from "@/features/payments/stripe-gateway";
 import { ResendMailer } from "@/features/notifications/resend-mailer";
 import { sendBookingConfirmation } from "@/features/notifications/send-booking-emails";
 import type {
@@ -31,6 +38,7 @@ import type {
   CancelBookingResult,
   CreateBookingInput,
   CancelBookingInput,
+  AdminBookingResult,
 } from "./booking-service";
 
 /** Shape of the booking row read back for the confirmation email (DB edge). */
@@ -133,6 +141,7 @@ export async function cancelBooking(
 
   const serviceClient = createServiceClient();
   const repo = createSupabaseBookingRepository(serviceClient);
+  const gateway = new StripeGateway();
 
   // Admin bypass: load the caller's role from the profile.
   // Service role bypasses RLS so this read is always authoritative.
@@ -153,13 +162,74 @@ export async function cancelBooking(
       return { kind: "not_found" };
     }
     return cancelBookingCore(
-      { repo, now: new Date() },
+      { repo, now: new Date(), gateway },
       { ...input, userId: booking.client_id },
     );
   }
 
   return cancelBookingCore(
-    { repo, now: new Date() },
+    { repo, now: new Date(), gateway },
     { ...input, userId: user.id },
   );
+}
+
+/**
+ * Admin-only: load the caller and assert the admin role. Returns the
+ * service-role repo + gateway, or a forbidden/redirect result.
+ */
+async function requireAdminDeps(): Promise<
+  | {
+      ok: true;
+      repo: ReturnType<typeof createSupabaseBookingRepository>;
+      gateway: StripeGateway;
+    }
+  | { ok: false }
+> {
+  const authClient = await createClient();
+  const {
+    data: { user },
+  } = await authClient.auth.getUser();
+  if (!user) redirect("/login");
+
+  const serviceClient = createServiceClient();
+  const { data: profile } = await serviceClient
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+  if (profile?.role !== "admin") return { ok: false };
+
+  return {
+    ok: true,
+    repo: createSupabaseBookingRepository(serviceClient),
+    gateway: new StripeGateway(),
+  };
+}
+
+/** Admin: grant the remaining (full) refund beyond the default late tier. */
+export async function grantFullRefund(
+  bookingId: string,
+): Promise<AdminBookingResult> {
+  const admin = await requireAdminDeps();
+  if (!admin.ok) return { kind: "error", message: "Forbidden" };
+  return grantFullRefundCore(
+    { repo: admin.repo, now: new Date(), gateway: admin.gateway },
+    bookingId,
+  );
+}
+
+/** Admin: mark a confirmed booking a no-show (writes a debit). */
+export async function markNoShow(
+  bookingId: string,
+): Promise<AdminBookingResult> {
+  const admin = await requireAdminDeps();
+  if (!admin.ok) return { kind: "error", message: "Forbidden" };
+  return markNoShowCore({ repo: admin.repo, now: new Date() }, bookingId);
+}
+
+/** Admin: mark a client debit settled. */
+export async function settleDebt(debitId: string): Promise<AdminBookingResult> {
+  const admin = await requireAdminDeps();
+  if (!admin.ok) return { kind: "error", message: "Forbidden" };
+  return settleDebtCore({ repo: admin.repo, now: new Date() }, debitId);
 }

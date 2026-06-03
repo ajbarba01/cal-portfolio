@@ -18,6 +18,7 @@ import { getActorOrRedirect } from "./admin-session";
 import { cancelBookingCore } from "@/features/booking/booking-service";
 import { createSupabaseBookingRepository } from "@/features/booking/booking-repository";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { PaymentGateway } from "@/features/payments/types";
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Row shape
@@ -156,7 +157,7 @@ const trimWindowInputSchema = z
  *   - end moved earlier   → (newEnd, oldEnd]
  */
 export async function trimWindowCore(
-  deps: AvailabilityDeps & { now: Date },
+  deps: AvailabilityDeps & { now: Date; gateway: PaymentGateway },
   rawInput: {
     windowId: string;
     newStartsAt?: string;
@@ -201,6 +202,7 @@ export async function trimWindowCore(
     const err = await cancelActiveBookingsInRange(
       deps.serviceClient,
       deps.now,
+      deps.gateway,
       oldStart,
       newStart,
     );
@@ -210,6 +212,7 @@ export async function trimWindowCore(
     const err = await cancelActiveBookingsInRange(
       deps.serviceClient,
       deps.now,
+      deps.gateway,
       newEnd,
       oldEnd,
     );
@@ -243,6 +246,7 @@ export async function trimWindowCore(
 async function cancelActiveBookingsInRange(
   serviceClient: SupabaseClient,
   now: Date,
+  gateway: PaymentGateway,
   rangeStart: string,
   rangeEnd: string,
 ): Promise<{ kind: "error"; message: string } | null> {
@@ -259,7 +263,7 @@ async function cancelActiveBookingsInRange(
   const repo = createSupabaseBookingRepository(serviceClient);
   for (const booking of overlapping ?? []) {
     const result = await cancelBookingCore(
-      { repo, now },
+      { repo, now, gateway },
       { userId: booking.client_id as string, bookingId: booking.id as string },
     );
     // Abort the block-out if any cancellation fails — leaving the window
@@ -281,7 +285,7 @@ async function cancelActiveBookingsInRange(
  * Reuses cancelActiveBookingsInRange (admin path: pass booking's client_id as userId).
  */
 export async function deleteWindowCore(
-  deps: AvailabilityDeps & { now: Date },
+  deps: AvailabilityDeps & { now: Date; gateway: PaymentGateway },
   rawInput: { windowId: string },
 ): Promise<AvailabilityResult> {
   const isAdmin = await assertActorIsAdmin(
@@ -309,6 +313,7 @@ export async function deleteWindowCore(
   const cancelErr = await cancelActiveBookingsInRange(
     deps.serviceClient,
     deps.now,
+    deps.gateway,
     windowData.starts_at as string,
     windowData.ends_at as string,
   );
@@ -353,8 +358,14 @@ export async function trimWindow(input: {
 }): Promise<AvailabilityResult> {
   const actorUserId = await getActorOrRedirect();
   const serviceClient = createServiceClient();
+  const { StripeGateway } = await import("@/features/payments/stripe-gateway");
   const result = await trimWindowCore(
-    { serviceClient, actorUserId, now: new Date() },
+    {
+      serviceClient,
+      actorUserId,
+      now: new Date(),
+      gateway: new StripeGateway(),
+    },
     input,
   );
   if (result.kind === "success") revalidatePath("/admin/availability");
@@ -366,8 +377,14 @@ export async function deleteWindow(input: {
 }): Promise<AvailabilityResult> {
   const actorUserId = await getActorOrRedirect();
   const serviceClient = createServiceClient();
+  const { StripeGateway } = await import("@/features/payments/stripe-gateway");
   const result = await deleteWindowCore(
-    { serviceClient, actorUserId, now: new Date() },
+    {
+      serviceClient,
+      actorUserId,
+      now: new Date(),
+      gateway: new StripeGateway(),
+    },
     input,
   );
   if (result.kind === "success") revalidatePath("/admin/availability");

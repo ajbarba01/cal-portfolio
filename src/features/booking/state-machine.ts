@@ -35,7 +35,8 @@
  *   pending_approval + cancel   → cancelled   (terminal)
  *   confirmed + complete        → completed   (terminal)
  *   confirmed + cancel          → cancelled   (terminal)
- *   completed | declined | cancelled + any    → {error}
+ *   confirmed + no_show         → no_show     (terminal; writes a client_debits row)
+ *   completed | declined | cancelled | no_show + any → {error}
  */
 
 // ---------------------------------------------------------------------------
@@ -51,7 +52,8 @@ export type BookingStatus =
   | "confirmed"
   | "completed"
   | "declined"
-  | "cancelled";
+  | "cancelled"
+  | "no_show";
 
 /**
  * In-memory pre-insert sentinel prepended to the DB status union.
@@ -66,7 +68,8 @@ export type BookingEvent =
   | "approve"
   | "decline"
   | "complete"
-  | "cancel";
+  | "cancel"
+  | "no_show";
 
 /**
  * Context passed to every `transition` call.
@@ -98,7 +101,7 @@ export type TransitionResult = { state: BookingStatus } | { error: string };
  * further transitions are valid.
  */
 export const TERMINAL_STATUSES: ReadonlySet<BookingStatus> =
-  new Set<BookingStatus>(["completed", "declined", "cancelled"]);
+  new Set<BookingStatus>(["completed", "declined", "cancelled", "no_show"]);
 
 // ---------------------------------------------------------------------------
 // State machine
@@ -161,9 +164,11 @@ export function transition(
           return { state: "completed" };
         case "cancel":
           return { state: "cancelled" };
+        case "no_show":
+          return { state: "no_show" };
         default:
           return {
-            error: `Event '${event}' is not valid from state 'confirmed'; allowed: complete, cancel.`,
+            error: `Event '${event}' is not valid from state 'confirmed'; allowed: complete, cancel, no_show.`,
           };
       }
     }
@@ -173,6 +178,7 @@ export function transition(
     case "completed":
     case "declined":
     case "cancelled":
+    case "no_show":
       // Unreachable at runtime — the terminal guard returns early.
       return {
         error: `Booking is in terminal state '${state}'; '${event}' is not allowed.`,

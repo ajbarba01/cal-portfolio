@@ -65,6 +65,10 @@ class FakeGateway implements PaymentGateway {
       clientSecret: FAKE_SECRET,
     };
   }
+
+  async refund(): Promise<void> {
+    // no-op for this suite (refund behavior is exercised in the booking tests)
+  }
 }
 
 // ─── Global setup ─────────────────────────────────────────────────────────────
