@@ -82,14 +82,14 @@
 
 ---
 
-## Phase 23 — Admin calendar + booking management — [ ]
+## Phase 23 — Admin calendar + booking management — [x] `73f75f3`
 
 **Goal:** Cal manages availability AND bookings on the shared calendar.
-**Files:** `app/(admin)/admin/availability/page.tsx`, `_components/availability-client.tsx` (rebuild), `busy-side-panel.tsx` (new).
+**Files:** `app/(admin)/admin/availability/page.tsx`, `_components/availability-client.tsx` (rebuild), `_components/busy-side-panel.tsx` (new), `src/features/booking/_components/manage-windows-grid.tsx` (new), `booking-calendar.tsx` (third union arm).
 
-- [ ] **Manage-windows calendar.** Replace datetime-local form with `BookingCalendar mode="manage-windows"`: drag-create → `createWindow`; resize → `trimWindow`; delete → `deleteWindow` (block-out preserved; keep confirm UX).
-- [ ] **Booking overlay + actions.** Enriched busy from `getAdminBusyRanges`; select a booking → `busy-side-panel.tsx` (client + pet photos + actions: cancel `cancelBooking`; approve/decline `approveBookingCore`/`declineBookingCore` when pending; mark no-show via state-machine transition). Reuse existing cores.
-- [ ] **Refresh.** Page server-loads windows + enriched busy; `router.refresh()` after mutations (replace `window.location.reload()`).
-- [ ] **Gate + commit** `feat: admin availability and booking management on shared calendar`. Docs: DESIGN.md admin.
+- [x] **Manage-windows calendar.** `BookingCalendar mode="manage-windows"` (new `manage-windows-grid.tsx`, presentational; caller owns server data + wires cores). Wireframe interaction: pick a day → inline Denver wall-time inputs → `createWindow`; per-window Resize → `trimWindow`; Block out → `deleteWindow` (confirm UX kept). Days with a window/booking are marked on the rdp month grid.
+- [x] **Booking overlay + actions.** Enriched busy from `getAdminBusyRanges` (server-loaded); each day lists its bookings; selecting one opens `busy-side-panel.tsx` (client name + pet photos + status-gated actions: cancel `cancelBooking`; approve/decline `approveBooking`/`declineBooking` when `pending_approval`; `markNoShow` when `confirmed`). All reuse existing actions/cores.
+- [x] **Refresh.** `page.tsx` server-loads windows (`listWindowsCore`) + enriched busy (`getAdminBusyRanges`) in parallel; client dispatches via `useTransition` and `router.refresh()` on success (no more `window.location.reload()`).
+- [x] **Gate + commit** `feat: admin availability and booking management on shared calendar`. 418 tests green (UI wiring; cores already covered Phases 19–21), typecheck + lint clean. Docs: DESIGN.md admin route + notes.
 
 **Verification:** manual — drag-create window; select a booking → cancel/approve/no-show; block-out on delete still cancels overlapping bookings; typecheck/lint/test green.
