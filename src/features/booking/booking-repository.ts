@@ -222,6 +222,81 @@ export interface ClientDebitInsert {
   reason: DebitReason;
 }
 
+export type PetSpeciesDb = "dog" | "cat";
+
+/** A pet owned by the caller, used to derive server-trusted booking counts. */
+export interface PetRef {
+  id: string;
+  species: PetSpeciesDb;
+}
+
+/**
+ * Identity-free busy range for the PUBLIC calendar. Carries pet thumbnails
+ * (species + storage path) but NEVER an owner name or id — privacy by
+ * construction (the projection cannot select identity columns).
+ */
+export interface BusyRange {
+  startsAt: Date;
+  endsAt: Date;
+  pets: { species: PetSpeciesDb; photoPath: string | null }[];
+}
+
+/** Enriched busy range for the ADMIN calendar — adds booking id, owner, status. */
+export interface AdminBusyRange {
+  bookingId: string;
+  startsAt: Date;
+  endsAt: Date;
+  status: BookingStatusDb;
+  clientName: string | null;
+  pets: {
+    id: string;
+    name: string;
+    species: PetSpeciesDb;
+    photoPath: string | null;
+  }[];
+}
+
+const publicBusyRowSchema = z.object({
+  starts_at: z.string(),
+  ends_at: z.string(),
+  booking_pets: z
+    .array(
+      z.object({
+        pets: z
+          .object({
+            species: z.enum(["dog", "cat"]),
+            photo_url: z.string().nullable(),
+          })
+          .nullable(),
+      }),
+    )
+    .nullable(),
+});
+
+const adminBusyRowSchema = z.object({
+  id: z.string(),
+  starts_at: z.string(),
+  ends_at: z.string(),
+  status: z.string(),
+  profiles: z.object({ full_name: z.string().nullable() }).nullable(),
+  booking_pets: z
+    .array(
+      z.object({
+        pets: z
+          .object({
+            id: z.string(),
+            name: z.string(),
+            species: z.enum(["dog", "cat"]),
+            photo_url: z.string().nullable(),
+          })
+          .nullable(),
+      }),
+    )
+    .nullable(),
+});
+
+const ACTIVE_BUSY_STATUSES = ["pending_approval", "confirmed"] as const;
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Repository interface
 // ──────────────────────────────────────────────────────────────────────────────
@@ -286,6 +361,28 @@ export interface BookingRepository {
 
   /** Mark a debit settled at `now`. */
   settleDebit(debitId: string, now: Date): Promise<void>;
+
+  /**
+   * Fetch the caller's pets among the given ids (client_id-filtered — never
+   * trusts the payload's ownership claim). Used to derive server-trusted
+   * dog/cat counts. Returns only ids the caller actually owns.
+   */
+  getPetsByIds(userId: string, petIds: string[]): Promise<PetRef[]>;
+
+  /** Attach pets to bookings (cartesian of bookingIds × petIds). */
+  insertBookingPets(bookingIds: string[], petIds: string[]): Promise<void>;
+
+  /**
+   * Active busy ranges for the PUBLIC calendar — identity-free, filtered to the
+   * given concurrency class (null = all classes). Includes pet thumbnails only.
+   */
+  getActiveBusyRanges(
+    now: Date,
+    concurrency: ConcurrencyClass | null,
+  ): Promise<BusyRange[]>;
+
+  /** Active busy ranges for the ADMIN calendar — enriched with owner + status. */
+  getActiveBusyRangesEnriched(now: Date): Promise<AdminBusyRange[]>;
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -621,6 +718,109 @@ export function createSupabaseBookingRepository(
           `Failed to settle debit '${debitId}': ${error.message}`,
         );
       }
+    },
+
+    async getPetsByIds(userId, petIds) {
+      if (petIds.length === 0) return [];
+      const { data, error } = await client
+        .from("pets")
+        .select("id, species")
+        .eq("client_id", userId)
+        .in("id", petIds);
+
+      if (error) {
+        throw new Error(`Failed to load pets: ${error.message}`);
+      }
+      return (data ?? []).map((r: { id: string; species: string }) => ({
+        id: r.id,
+        species: r.species as PetSpeciesDb,
+      }));
+    },
+
+    async insertBookingPets(bookingIds, petIds) {
+      if (bookingIds.length === 0 || petIds.length === 0) return;
+      const rows = bookingIds.flatMap((booking_id) =>
+        petIds.map((pet_id) => ({ booking_id, pet_id })),
+      );
+      const { error } = await client.from("booking_pets").insert(rows);
+      if (error) {
+        throw new Error(`Failed to insert booking_pets: ${error.message}`);
+      }
+    },
+
+    async getActiveBusyRanges(now, concurrency) {
+      let query = client
+        .from("bookings")
+        .select("starts_at, ends_at, booking_pets(pets(species, photo_url))")
+        .in("status", ACTIVE_BUSY_STATUSES)
+        .gte("ends_at", now.toISOString());
+      if (concurrency) query = query.eq("concurrency", concurrency);
+
+      const { data, error } = await query;
+      if (error) {
+        throw new Error(`Failed to load busy ranges: ${error.message}`);
+      }
+
+      return (data ?? []).map((row: unknown) => {
+        const parsed = publicBusyRowSchema.safeParse(row);
+        if (!parsed.success) {
+          throw new Error(
+            `busy-range row has unexpected DB shape: ${parsed.error.message}`,
+          );
+        }
+        const r = parsed.data;
+        return {
+          startsAt: new Date(r.starts_at),
+          endsAt: new Date(r.ends_at),
+          pets: (r.booking_pets ?? [])
+            .map((bp) => bp.pets)
+            .filter((p): p is NonNullable<typeof p> => p !== null)
+            .map((p) => ({ species: p.species, photoPath: p.photo_url })),
+        };
+      });
+    },
+
+    async getActiveBusyRangesEnriched(now) {
+      const { data, error } = await client
+        .from("bookings")
+        .select(
+          "id, starts_at, ends_at, status, profiles(full_name), " +
+            "booking_pets(pets(id, name, species, photo_url))",
+        )
+        .in("status", ACTIVE_BUSY_STATUSES)
+        .gte("ends_at", now.toISOString());
+
+      if (error) {
+        throw new Error(
+          `Failed to load enriched busy ranges: ${error.message}`,
+        );
+      }
+
+      return (data ?? []).map((row: unknown) => {
+        const parsed = adminBusyRowSchema.safeParse(row);
+        if (!parsed.success) {
+          throw new Error(
+            `admin busy-range row has unexpected DB shape: ${parsed.error.message}`,
+          );
+        }
+        const r = parsed.data;
+        return {
+          bookingId: r.id,
+          startsAt: new Date(r.starts_at),
+          endsAt: new Date(r.ends_at),
+          status: r.status as BookingStatusDb,
+          clientName: r.profiles?.full_name ?? null,
+          pets: (r.booking_pets ?? [])
+            .map((bp) => bp.pets)
+            .filter((p): p is NonNullable<typeof p> => p !== null)
+            .map((p) => ({
+              id: p.id,
+              name: p.name,
+              species: p.species,
+              photoPath: p.photo_url,
+            })),
+        };
+      });
     },
   };
 }
