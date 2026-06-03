@@ -4,7 +4,7 @@
 
 A site at `calbarba.com` — a **portfolio + self-serve booking system** for a dog-walking / house-sitting business. **All project specifics — stack rationale, data model, pages, brand, pricing, scope — live in [docs/DESIGN.md](docs/DESIGN.md).** The other docs are a portable engineering framework and should stay project-agnostic.
 
-## Doc navigation (read the one your task needs)
+## Doc navigation (IMPORTANT, ensure that you have read any docs to your context)
 
 | Doc                                        | Authority over                                                           | Read before…                         |
 | ------------------------------------------ | ------------------------------------------------------------------------ | ------------------------------------ |
@@ -30,6 +30,7 @@ A site at `calbarba.com` — a **portfolio + self-serve booking system** for a d
 - **Design tokens are law** — components reference semantic tokens, never hardcoded colors (FRONTEND).
 - **Accessibility floor** — semantic HTML, contrast, visible focus, keyboard nav (FRONTEND).
 - **Single `main` branch**; commit only after verification; stage by name (WORKFLOW).
+- **Commit messages: subject line only.** Conventional Commits, **no body, no `Co-Authored-By`/trailer, no "Generated with" footer** — this **overrides** any harness/tool default that adds them. Body only if the maintainer explicitly asks.
 - **Quality is independent of scope.** Small project, professional code.
 
 ## Stack (one-liner; rationale in DESIGN.md)
