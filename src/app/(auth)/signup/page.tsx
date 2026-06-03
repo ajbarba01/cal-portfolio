@@ -1,13 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { safeReturnTo } from "@/features/booking/return-to";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export default function SignupPage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -21,7 +24,7 @@ export default function SignupPage() {
 
     const supabase = createClient();
     // The DB trigger creates the profiles row on auth.users insert — no app insert needed.
-    const { error: authError } = await supabase.auth.signUp({
+    const { data, error: authError } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -32,6 +35,23 @@ export default function SignupPage() {
     if (authError) {
       setError(authError.message);
       setIsLoading(false);
+      return;
+    }
+
+    // When email confirmation is disabled (local dev, or a project with
+    // confirmations off), signUp returns a live session and the user is already
+    // authenticated — there is no email to check. Forward straight to
+    // onboarding, carrying any deferred-auth returnTo. Only show the
+    // "check your email" screen when no session came back (confirmations on).
+    if (data.session) {
+      const returnTo = safeReturnTo(
+        new URLSearchParams(window.location.search).get("returnTo"),
+      );
+      const dest = returnTo
+        ? `/onboarding?returnTo=${encodeURIComponent(returnTo)}`
+        : "/onboarding";
+      router.push(dest);
+      router.refresh();
       return;
     }
 

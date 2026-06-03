@@ -6,6 +6,7 @@
 import { createServiceClient } from "@/lib/supabase/service";
 import { createClient } from "@/lib/supabase/server";
 import { listWindowsCore } from "@/features/admin/availability-actions";
+import { getAdminBusyRanges } from "@/features/admin/admin-busy";
 import { AvailabilityClient } from "./_components/availability-client";
 
 export default async function AdminAvailabilityPage() {
@@ -16,12 +17,12 @@ export default async function AdminAvailabilityPage() {
 
   // Layout guards the route, so user is always present here.
   const serviceClient = createServiceClient();
-  const result = await listWindowsCore({
-    serviceClient,
-    actorUserId: user!.id,
-  });
+  const [result, busyResult] = await Promise.all([
+    listWindowsCore({ serviceClient, actorUserId: user!.id }),
+    getAdminBusyRanges(),
+  ]);
 
-  if (result.kind === "forbidden") {
+  if (result.kind === "forbidden" || busyResult.kind === "forbidden") {
     return <p className="text-destructive p-8">Access denied.</p>;
   }
 
@@ -34,9 +35,12 @@ export default async function AdminAvailabilityPage() {
   }
 
   return (
-    <main className="mx-auto max-w-3xl p-8">
-      <h1 className="mb-6 text-2xl font-semibold">Availability Windows</h1>
-      <AvailabilityClient initialWindows={result.windows} />
+    <main className="mx-auto max-w-5xl p-8">
+      <h1 className="mb-6 text-2xl font-semibold">Availability & Bookings</h1>
+      <AvailabilityClient
+        initialWindows={result.windows}
+        initialBusy={busyResult.ranges}
+      />
     </main>
   );
 }
