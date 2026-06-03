@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { safeReturnTo } from "@/features/booking/return-to";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -32,7 +33,12 @@ export default function LoginPage() {
       return;
     }
 
-    router.push("/account");
+    // Deferred-auth round-trip: return to the booking selection if a valid
+    // returnTo rode in on the query string, else the account home.
+    const returnTo = safeReturnTo(
+      new URLSearchParams(window.location.search).get("returnTo"),
+    );
+    router.push(returnTo ?? "/account");
     router.refresh();
   }
 

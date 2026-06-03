@@ -11,6 +11,7 @@ import {
 import { type SupabaseClient } from "@supabase/supabase-js";
 import { defaultGeocoder } from "@/features/pricing/geocoding/zip-centroid-geocoder";
 import { type Geocoder } from "@/features/pricing/geocoding/geocoder";
+import { safeReturnTo } from "@/features/booking/return-to";
 
 export interface OnboardingInput {
   profile: ProfileInput;
@@ -106,9 +107,13 @@ export async function runOnboarding(
 /**
  * Server action entry point. Authenticates the caller, then delegates to runOnboarding.
  * Input is expected as a plain object matching OnboardingInput (e.g. from a form).
+ *
+ * `returnTo` (deferred-auth round-trip) is validated against the open-redirect
+ * guard; on success the user lands back on their booking selection, else /account.
  */
 export async function completeOnboarding(
   input: OnboardingInput,
+  returnTo?: string,
 ): Promise<void> {
   const authClient = await createClient();
   const {
@@ -126,5 +131,5 @@ export async function completeOnboarding(
     input,
   );
 
-  redirect("/account");
+  redirect(safeReturnTo(returnTo) ?? "/account");
 }

@@ -16,23 +16,29 @@ export default function OnboardingPage() {
     setIsLoading(true);
 
     const form = new FormData(e.currentTarget);
+    // Deferred-auth round-trip: honor a same-origin returnTo if present.
+    const returnTo =
+      new URLSearchParams(window.location.search).get("returnTo") ?? undefined;
 
     try {
-      await completeOnboarding({
-        profile: {
-          full_name: form.get("full_name") as string,
-          phone: form.get("phone") as string,
-          address: form.get("address") as string,
-          zip: form.get("zip") as string,
+      await completeOnboarding(
+        {
+          profile: {
+            full_name: form.get("full_name") as string,
+            phone: form.get("phone") as string,
+            address: form.get("address") as string,
+            zip: form.get("zip") as string,
+          },
+          emergency: {
+            contact_name: form.get("contact_name") as string,
+            contact_phone: form.get("contact_phone") as string,
+            contact_relationship: form.get("contact_relationship") as string,
+            vet_name: form.get("vet_name") as string,
+            vet_phone: form.get("vet_phone") as string,
+          },
         },
-        emergency: {
-          contact_name: form.get("contact_name") as string,
-          contact_phone: form.get("contact_phone") as string,
-          contact_relationship: form.get("contact_relationship") as string,
-          vet_name: form.get("vet_name") as string,
-          vet_phone: form.get("vet_phone") as string,
-        },
-      });
+        returnTo,
+      );
     } catch (err) {
       // completeOnboarding redirects on success; an error here means a server-side failure.
       setError(
