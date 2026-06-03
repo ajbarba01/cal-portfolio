@@ -13,9 +13,9 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { createClient } from "@supabase/supabase-js";
 import {
   runUpdateProfile,
-  runCreateDog,
-  runUpdateDog,
-  runDeleteDog,
+  runCreatePet,
+  runUpdatePet,
+  runDeletePet,
   runSubmitForm,
 } from "./account-actions";
 
@@ -80,7 +80,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  // Clean up — auth.admin.deleteUser cascades to profiles, dogs, form_responses.
+  // Clean up — auth.admin.deleteUser cascades to profiles, pets, form_responses.
   await serviceClient.auth.admin.deleteUser(userId);
   await serviceClient.auth.admin.deleteUser(userId2);
 });
@@ -174,59 +174,73 @@ describe("column-guard: session client cannot escalate role or kiche_allowed", (
   });
 });
 
-// ─── 3. Dogs CRUD round-trip ──────────────────────────────────────────────────
+// ─── 3. Pets CRUD round-trip ──────────────────────────────────────────────────
 
-describe("dogs CRUD via session client", () => {
-  let createdDogId: string;
+describe("pets CRUD via session client", () => {
+  let createdPetId: string;
 
-  it("creates a dog", async () => {
-    const result = await runCreateDog(sessionClient1, userId, {
+  it("creates a pet and returns the inserted row", async () => {
+    const result = await runCreatePet(sessionClient1, userId, {
       name: "Biscuit",
+      species: "dog",
       breed: "Labrador",
       notes: "Loves fetch",
     });
 
     expect(result.kind).toBe("success");
+    if (result.kind !== "success") return;
+    expect(result.pet.name).toBe("Biscuit");
+    expect(result.pet.species).toBe("dog");
+    createdPetId = result.pet.id;
 
-    const { data: dogs } = await serviceClient
-      .from("dogs")
-      .select("id, name, breed, notes")
+    const { data: pets } = await serviceClient
+      .from("pets")
+      .select("id, name, species")
       .eq("client_id", userId);
-
-    expect(dogs).toHaveLength(1);
-    expect(dogs?.[0].name).toBe("Biscuit");
-    createdDogId = dogs![0].id as string;
+    expect(pets).toHaveLength(1);
   });
 
-  it("updates the dog", async () => {
-    const result = await runUpdateDog(sessionClient1, userId, createdDogId, {
+  it("creates a cat (species persisted)", async () => {
+    const result = await runCreatePet(sessionClient1, userId, {
+      name: "Mittens",
+      species: "cat",
+    });
+    expect(result.kind).toBe("success");
+    if (result.kind !== "success") return;
+    expect(result.pet.species).toBe("cat");
+    await serviceClient.from("pets").delete().eq("id", result.pet.id);
+  });
+
+  it("updates the pet", async () => {
+    const result = await runUpdatePet(sessionClient1, userId, createdPetId, {
       name: "Biscuit Jr.",
+      species: "dog",
       breed: "Labrador Mix",
       notes: "Still loves fetch",
     });
 
     expect(result.kind).toBe("success");
 
-    const { data: dog } = await serviceClient
-      .from("dogs")
+    const { data: pet } = await serviceClient
+      .from("pets")
       .select("name, breed, notes")
-      .eq("id", createdDogId)
+      .eq("id", createdPetId)
       .single();
 
-    expect(dog?.name).toBe("Biscuit Jr.");
-    expect(dog?.breed).toBe("Labrador Mix");
+    expect(pet?.name).toBe("Biscuit Jr.");
+    expect(pet?.breed).toBe("Labrador Mix");
   });
 
-  it("deletes the dog", async () => {
-    const result = await runDeleteDog(sessionClient1, userId, createdDogId);
+  it("deletes the pet", async () => {
+    const result = await runDeletePet(sessionClient1, userId, createdPetId);
     expect(result.kind).toBe("success");
 
-    const { data: dogs } = await serviceClient
-      .from("dogs")
+    const { data: pets } = await serviceClient
+      .from("pets")
       .select("id")
       .eq("client_id", userId);
 
-    expect(dogs).toHaveLength(0);
+    expect(pets).toHaveLength(0);
   });
 });
 
@@ -236,10 +250,15 @@ describe("RLS isolation: user2 cannot see user1's data", () => {
   let dogId: string;
 
   beforeAll(async () => {
-    // Create a dog for user1 via service role.
+    // Create a pet for user1 via service role.
     const { data } = await serviceClient
-      .from("dogs")
-      .insert({ client_id: userId, name: "Shadow", breed: "Husky" })
+      .from("pets")
+      .insert({
+        client_id: userId,
+        name: "Shadow",
+        species: "dog",
+        breed: "Husky",
+      })
       .select("id")
       .single();
     dogId = data!.id as string;
@@ -259,13 +278,13 @@ describe("RLS isolation: user2 cannot see user1's data", () => {
   });
 
   afterAll(async () => {
-    await serviceClient.from("dogs").delete().eq("id", dogId);
+    await serviceClient.from("pets").delete().eq("id", dogId);
     await serviceClient.from("form_responses").delete().eq("client_id", userId);
   });
 
-  it("user2 sees 0 rows of user1's dogs", async () => {
+  it("user2 sees 0 rows of user1's pets", async () => {
     const { data, error } = await sessionClient2
-      .from("dogs")
+      .from("pets")
       .select("id")
       .eq("client_id", userId);
 

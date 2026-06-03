@@ -25,15 +25,31 @@ export type ActionResult =
   | { kind: "validation_error"; message: string }
   | { kind: "error"; message: string };
 
-// ─── Dog schema ──────────────────────────────────────────────────────────────
+// ─── Pet schema ──────────────────────────────────────────────────────────────
 
-const dogSchema = z.object({
-  name: z.string().min(1, "Dog name is required"),
+const petSchema = z.object({
+  name: z.string().min(1, "Pet name is required"),
+  species: z.enum(["dog", "cat"]).default("dog"),
   breed: z.string().optional(),
   notes: z.string().optional(),
 });
 
-export type DogInput = z.infer<typeof dogSchema>;
+export type PetInput = z.infer<typeof petSchema>;
+
+export interface Pet {
+  id: string;
+  name: string;
+  species: "dog" | "cat";
+  breed: string | null;
+  notes: string | null;
+  photo_url: string | null;
+}
+
+/** create returns the inserted row so callers get the server-assigned id. */
+export type CreatePetResult =
+  | { kind: "success"; pet: Pet }
+  | { kind: "validation_error"; message: string }
+  | { kind: "error"; message: string };
 
 // ─── Password schema ──────────────────────────────────────────────────────────
 
@@ -119,18 +135,22 @@ export async function changePassword(
   return { kind: "success" };
 }
 
-// ─── Dogs ─────────────────────────────────────────────────────────────────────
+// ─── Pets ─────────────────────────────────────────────────────────────────────
+
+const PET_COLUMNS = "id, name, species, breed, notes, photo_url";
 
 /**
- * Core: create dog via a session-scoped client.
- * client_id is always the authenticated user's id — never from payload.
+ * Core: create pet via a session-scoped client. Returns the inserted row so the
+ * caller has the server-assigned id (used to attach a photo or auto-select it
+ * in the booking flow). client_id is always the authenticated user — never from
+ * payload.
  */
-export async function runCreateDog(
+export async function runCreatePet(
   sessionClient: SupabaseClient,
   userId: string,
-  input: DogInput,
-): Promise<ActionResult> {
-  const parsed = dogSchema.safeParse(input);
+  input: PetInput,
+): Promise<CreatePetResult> {
+  const parsed = petSchema.safeParse(input);
   if (!parsed.success) {
     return {
       kind: "validation_error",
@@ -138,82 +158,57 @@ export async function runCreateDog(
     };
   }
 
-  const { error } = await sessionClient.from("dogs").insert({
-    client_id: userId,
-    name: parsed.data.name,
-    breed: parsed.data.breed ?? null,
-    notes: parsed.data.notes ?? null,
-    // photo_url: not set — TODO: avatar upload via Supabase Storage (no bucket yet)
-  });
-
-  if (error) {
-    return { kind: "error", message: error.message };
-  }
-
-  return { kind: "success" };
-}
-
-export async function createDog(input: DogInput): Promise<ActionResult> {
-  const sessionClient = await createClient();
-  const userId = await requireUserId(sessionClient);
-  return runCreateDog(sessionClient, userId, input);
-}
-
-/**
- * Core: update dog — ownership enforced by RLS (client_id = auth.uid()).
- */
-export async function runUpdateDog(
-  sessionClient: SupabaseClient,
-  userId: string,
-  dogId: string,
-  input: DogInput,
-): Promise<ActionResult> {
-  const parsed = dogSchema.safeParse(input);
-  if (!parsed.success) {
-    return {
-      kind: "validation_error",
-      message: parsed.error.issues.map((i) => i.message).join("; "),
-    };
-  }
-
-  const { error } = await sessionClient
-    .from("dogs")
-    .update({
+  const { data, error } = await sessionClient
+    .from("pets")
+    .insert({
+      client_id: userId,
       name: parsed.data.name,
+      species: parsed.data.species,
       breed: parsed.data.breed ?? null,
       notes: parsed.data.notes ?? null,
     })
-    .eq("id", dogId)
-    .eq("client_id", userId); // belt-and-suspenders alongside RLS
+    .select(PET_COLUMNS)
+    .single();
 
-  if (error) {
-    return { kind: "error", message: error.message };
+  if (error || !data) {
+    return { kind: "error", message: error?.message ?? "Insert failed." };
   }
 
-  return { kind: "success" };
+  return { kind: "success", pet: data as Pet };
 }
 
-export async function updateDog(
-  dogId: string,
-  input: DogInput,
-): Promise<ActionResult> {
+export async function createPet(input: PetInput): Promise<CreatePetResult> {
   const sessionClient = await createClient();
   const userId = await requireUserId(sessionClient);
-  return runUpdateDog(sessionClient, userId, dogId, input);
+  return runCreatePet(sessionClient, userId, input);
 }
 
 /**
- * Core: delete dog — ownership enforced by RLS.
+ * Core: update pet — ownership enforced by RLS (client_id = auth.uid()).
  */
-export async function runDeleteDog(
+export async function runUpdatePet(
   sessionClient: SupabaseClient,
   userId: string,
-  dogId: string,
+  petId: string,
+  input: PetInput,
 ): Promise<ActionResult> {
+  const parsed = petSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      kind: "validation_error",
+      message: parsed.error.issues.map((i) => i.message).join("; "),
+    };
+  }
+
   const { error } = await sessionClient
-    .from("dogs")
-    .delete()
-    .eq("id", dogId)
+    .from("pets")
+    .update({
+      name: parsed.data.name,
+      species: parsed.data.species,
+      breed: parsed.data.breed ?? null,
+      notes: parsed.data.notes ?? null,
+    })
+    .eq("id", petId)
     .eq("client_id", userId); // belt-and-suspenders alongside RLS
 
   if (error) {
@@ -223,10 +218,83 @@ export async function runDeleteDog(
   return { kind: "success" };
 }
 
-export async function deleteDog(dogId: string): Promise<ActionResult> {
+export async function updatePet(
+  petId: string,
+  input: PetInput,
+): Promise<ActionResult> {
   const sessionClient = await createClient();
   const userId = await requireUserId(sessionClient);
-  return runDeleteDog(sessionClient, userId, dogId);
+  return runUpdatePet(sessionClient, userId, petId, input);
+}
+
+/**
+ * Core: delete pet — ownership enforced by RLS.
+ */
+export async function runDeletePet(
+  sessionClient: SupabaseClient,
+  userId: string,
+  petId: string,
+): Promise<ActionResult> {
+  const { error } = await sessionClient
+    .from("pets")
+    .delete()
+    .eq("id", petId)
+    .eq("client_id", userId); // belt-and-suspenders alongside RLS
+
+  if (error) {
+    return { kind: "error", message: error.message };
+  }
+
+  return { kind: "success" };
+}
+
+export async function deletePet(petId: string): Promise<ActionResult> {
+  const sessionClient = await createClient();
+  const userId = await requireUserId(sessionClient);
+  return runDeletePet(sessionClient, userId, petId);
+}
+
+/**
+ * Upload a pet photo to the private `pet-photos` bucket and record its object
+ * path on the pet. The session client + storage RLS enforce that the upload
+ * path is owned by the caller ({client_id}/...). Stores the PATH (not a URL);
+ * reads are served via short-lived signed URLs generated server-side.
+ */
+export async function uploadPetPhoto(
+  formData: FormData,
+): Promise<ActionResult> {
+  const sessionClient = await createClient();
+  const userId = await requireUserId(sessionClient);
+
+  const petId = formData.get("petId");
+  const file = formData.get("file");
+  if (typeof petId !== "string" || !(file instanceof File) || file.size === 0) {
+    return {
+      kind: "validation_error",
+      message: "A pet and image are required.",
+    };
+  }
+
+  const ext = (file.name.split(".").pop() ?? "bin").toLowerCase();
+  const path = `${userId}/${petId}/photo.${ext}`;
+
+  const { error: uploadError } = await sessionClient.storage
+    .from("pet-photos")
+    .upload(path, file, { upsert: true, contentType: file.type });
+  if (uploadError) {
+    return { kind: "error", message: uploadError.message };
+  }
+
+  const { error: updateError } = await sessionClient
+    .from("pets")
+    .update({ photo_url: path })
+    .eq("id", petId)
+    .eq("client_id", userId);
+  if (updateError) {
+    return { kind: "error", message: updateError.message };
+  }
+
+  return { kind: "success" };
 }
 
 // ─── Forms ────────────────────────────────────────────────────────────────────
