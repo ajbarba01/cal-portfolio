@@ -272,19 +272,23 @@ async function computeBookingArtifacts(
       lat: profileLatLng.lat,
       lng: profileLatLng.lng,
     });
+    // Gate on miles (Cal's mental model). Driving minutes are still computed
+    // below for the travel-cost line, but no longer gate approval.
     oneWayMin = estimateDrivingMinutes(distanceMiles, {
       roadFactor: settings.road_factor,
       avgSpeedMph: settings.avg_speed_mph,
     });
-    decision = deriveApproval(oneWayMin, {
-      autoApproveMin: settings.auto_approve_threshold_min,
-      hardCutoffMin: settings.hard_cutoff_min,
+    decision = deriveApproval(distanceMiles, {
+      autoApproveMiles: settings.auto_approve_threshold_miles,
+      hardCutoffMiles: settings.hard_cutoff_miles,
+      useRoadMiles: settings.gate_use_road_miles,
+      roadFactor: settings.road_factor,
     });
 
     if (decision === "refuse") {
       return {
         kind: "refuse",
-        reason: `Client location is too far (${oneWayMin.toFixed(0)} min one-way). Hard cutoff is ${settings.hard_cutoff_min} min.`,
+        reason: `Client location is too far (${distanceMiles.toFixed(1)} mi). Hard cutoff is ${settings.hard_cutoff_miles} mi.`,
       };
     }
 

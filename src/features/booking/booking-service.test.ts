@@ -11,13 +11,13 @@
  *
  * --- COORDINATE MATH (documented for reproducibility) ---
  * Origin: lat=40.015, lng=-105.27 (Boulder, from seed settings)
- * Pipeline: oneWayMin = (haversineMiles * roadFactor / avgSpeedMph) * 60
- *           = miles * (1.3 / 40) * 60 = miles * 1.95
- * Thresholds: autoApprove ≤ 60 min, hardCutoff ≤ 120 min.
- *   → auto:   miles ≤ 30.77  (use ~10 mi N: lat ≈ 40.160)
- *   → manual: 30.77 < miles ≤ 61.54  (use ~40 mi N: lat ≈ 40.594)
- *   → refuse: miles > 61.54  (use ~70 mi N: lat ≈ 41.029)
- * 1° lat ≈ 69 mi; 1° lng at 40° ≈ 53 mi (unused — only adjusting lat here).
+ * The approval gate reasons in straight-line miles (seed thresholds:
+ * auto ≤ 8 mi, refuse > 50 mi). Driving minutes (road_factor 1.3 / 40 mph)
+ * now feed only the travel-cost line, not the gate.
+ *   → auto:   miles ≤ 8        (use ~5 mi N: lat ≈ 40.087)
+ *   → manual: 8 < miles ≤ 50   (use ~40 mi N: lat ≈ 40.594)
+ *   → refuse: miles > 50       (use ~70 mi N: lat ≈ 41.029)
+ * 1° lat ≈ 69 mi; only latitude is adjusted here (lng fixed at origin).
  */
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
@@ -47,13 +47,13 @@ const serviceClient = createClient(url, serviceKey, {
 // Fixtures
 // ──────────────────────────────────────────────────────────────────────────────
 
-const NEAR_LAT = 40.16; // ~10 mi N of origin → ~19.5 oneWayMin → auto-approve
+const NEAR_LAT = 40.087; // ~5 mi N of origin → under 8 mi auto threshold
 const NEAR_LNG = -105.27;
 
-const FAR_LAT = 40.594; // ~40 mi N of origin → ~78 oneWayMin → manual-approve
+const FAR_LAT = 40.594; // ~40 mi N of origin → 8–50 mi band → manual-approve
 const FAR_LNG = -105.27;
 
-const REFUSE_LAT = 41.029; // ~70 mi N of origin → ~136.5 oneWayMin → refuse
+const REFUSE_LAT = 41.029; // ~70 mi N of origin → beyond 50 mi → refuse
 const REFUSE_LNG = -105.27;
 
 const TEST_PASS = "Test1234!";

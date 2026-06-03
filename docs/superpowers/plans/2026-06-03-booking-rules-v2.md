@@ -27,19 +27,19 @@ The MVP (Phases 0–13) shipped with a **driving-minutes** approval gate, intege
 
 ---
 
-## Phase 14 — Distance gate in miles
+## Phase 14 — Distance gate in miles — [x]
 
 **Goal:** Approval gate reasons in miles (Cal's mental model); driving-minutes kept only for the travel-cost line.
 **Systems landed:** miles-based `deriveApproval`; settings re-pointed. **Deps:** none.
 
 **Files:** `src/features/pricing/distance.ts`, `src/features/booking/booking-service.ts`, `src/features/booking/booking-repository.ts`, `supabase/migrations/<ts>_distance_miles_gate.sql` (+ seed), `distance.test.ts`.
 
-- [ ] **Settings.** Add `auto_approve_threshold_miles` (8), `hard_cutoff_miles` (50), `gate_use_road_miles` (false). Drop `auto_approve_threshold_min` / `hard_cutoff_min` (no longer gate anything; billing uses `road_factor`/`avg_speed_mph` directly).
-- [ ] **`deriveApproval` re-type.** Take `miles` + `{ autoApproveMiles, hardCutoffMiles, useRoadMiles }` → `"auto" | "manual" | "refuse"`. Gate on `haversineMiles` (× `road_factor` only when `useRoadMiles`). Leave `estimateDrivingMinutes` untouched.
-- [ ] **`computeBookingArtifacts`.** Call the miles gate; still compute `oneWayMin` for the round-trip travel-cost line; preserve the null-lat/lng → manual-approval safe default. Refuse message → miles.
-- [ ] **Repo edge.** `SettingsRow` + `settingsRowSchema` + `getSettings` select: add the 3 miles columns, drop the 2 min columns.
-- [ ] **Tests.** `deriveApproval`: <8 → auto, 8–50 → manual, >50 → refuse; `useRoadMiles` multiplies; null-coords → manual. Reuse: `haversineMiles` (`src/lib/haversine.ts`).
-- [ ] **Gate + commit** `feat: gate booking approval on miles, not driving minutes`. Update DESIGN.md only if a column name shifts.
+- [x] **Settings.** Add `auto_approve_threshold_miles` (8), `hard_cutoff_miles` (50), `gate_use_road_miles` (false). Drop `auto_approve_threshold_min` / `hard_cutoff_min` (no longer gate anything; billing uses `road_factor`/`avg_speed_mph` directly).
+- [x] **`deriveApproval` re-type.** Take `miles` + `{ autoApproveMiles, hardCutoffMiles, useRoadMiles }` → `"auto" | "manual" | "refuse"`. Gate on `haversineMiles` (× `road_factor` only when `useRoadMiles`). Leave `estimateDrivingMinutes` untouched. (cfg also carries `roadFactor` so the switch is self-contained.)
+- [x] **`computeBookingArtifacts`.** Call the miles gate; still compute `oneWayMin` for the round-trip travel-cost line; preserve the null-lat/lng → manual-approval safe default. Refuse message → miles.
+- [x] **Repo edge.** `SettingsRow` + `settingsRowSchema` + `getSettings` select: add the 3 miles columns, drop the 2 min columns. (Admin settings edge — `settings-actions.ts`, `settings-schema.ts`, `settings-client.tsx` — re-pointed too.)
+- [x] **Tests.** `deriveApproval`: <8 → auto, 8–50 → manual, >50 → refuse; `useRoadMiles` multiplies; null-coords → manual. Reuse: `haversineMiles` (`src/lib/haversine.ts`). Integration fixtures re-pointed to miles bands.
+- [x] **Gate + commit** `feat: gate booking approval on miles, not driving minutes`. DESIGN.md already documents the miles columns (no shift needed).
 
 **Verification:** unit tests green; a far booking (>50 mi origin→client) refuses; 8–50 mi pends.
 
