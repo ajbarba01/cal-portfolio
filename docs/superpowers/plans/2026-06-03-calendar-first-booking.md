@@ -76,7 +76,7 @@
 - [x] **Chooser + per-service route.** `/book` → service cards → `/book/[serviceSlug]`. `[serviceSlug]/page.tsx` loads service + settings + initial public busy + `authState` (+ pets when ready). Decomposed into `service-booking-client.tsx` (mode by `pricing_type`), `pet-assignment.tsx` (real pets by species + inline `PetForm` add), relocated `quote-panel.tsx`/`recurring-controls.tsx`/`quantity-forms.tsx` (dropped dog/cat count inputs — derived from assignment). Always sends `petIds` for pet-aware services.
 - [x] **Deferred-auth gate.** Book action: `guest`→`/login?returnTo=…`, `needs-onboarding`→`/onboarding?returnTo=…`, `ready`→`createBooking`. Pure `return-to.ts` (`buildReturnTo`/`safeReturnTo`, open-redirect guard) + tests; rehydrated from query on the page; honored by `/login` + `completeOnboarding`. createBooking keeps its `redirect("/login")` backstop.
 - [x] **Delete** old `book-client.tsx`.
-- [x] **Gate + commit** `feat: calendar-first per-service booking flow with deferred-auth gate`. Docs: DESIGN.md routes + gate; FRONTEND.md calendar primitive + wireframe note. 419 tests green; typecheck + lint clean.
+- [x] **Gate + commit** `feat: calendar-first per-service booking flow with deferred-auth gate`. Docs: DESIGN.md routes + gate; FRONTEND.md calendar primitive + wireframe note. 418 tests green; typecheck + lint clean.
 
 **Verification:** manual — `/book` cards → walk week grid + house-sitting month range; assign pets + inline add; logged-out Book → login → onboarding → returns to selection → books; typecheck/lint/test green.
 
