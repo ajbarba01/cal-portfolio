@@ -493,9 +493,37 @@ describe("createBookingCore", () => {
     expect(await countRows(nearUserId)).toBe(before);
   });
 
-  it("guard: start beyond max advance days → unavailable, no row", async () => {
-    // 100 days out, exceeding the 90-day max_advance_days (still within open hours).
-    const start = futureStart(100);
+  it("near client beyond the auto-confirm horizon → pending_approval (not refused)", async () => {
+    // 45 days out: past the 30-day soft horizon, inside the 365-day hard cap and
+    // the covering availability window → created pending_approval.
+    const start = futureStart(45);
+    const end = futureEnd(start);
+
+    const result = await createBookingCore(deps(), {
+      userId: nearUserId,
+      serviceSlug: "walk",
+      startsAt: start,
+      endsAt: end,
+      quantities: { hours: 1, dogs: 1 },
+      recurringRule: null,
+    });
+
+    expect(result.kind).toBe("success");
+    if (result.kind !== "success") return;
+
+    const { data: booking } = await serviceClient
+      .from("bookings")
+      .select("status, requires_approval")
+      .eq("id", result.bookingIds[0])
+      .single();
+
+    expect(booking?.status).toBe("pending_approval");
+    expect(booking?.requires_approval).toBe(true);
+  });
+
+  it("guard: start beyond hard max advance → refused, no row", async () => {
+    // 400 days out, beyond the 365-day hard_max_advance_days → time gate refuses.
+    const start = futureStart(400);
     const end = futureEnd(start);
 
     const before = await countRows(nearUserId);
@@ -508,7 +536,7 @@ describe("createBookingCore", () => {
       recurringRule: null,
     });
 
-    expect(result.kind).toBe("unavailable");
+    expect(result.kind).toBe("refuse");
     expect(await countRows(nearUserId)).toBe(before);
   });
 });
@@ -633,9 +661,9 @@ describe("computeBookingQuoteCore", () => {
   });
 
   it("preview does NOT enforce fitsWindow (returns success even outside any window)", async () => {
-    // Use offset=100 which exceeds max_advance_days (90) → passesGuards fails.
-    // But computeBookingQuoteCore does NOT enforce guards or fitsWindow — it
-    // should still return a price (kind=success) regardless.
+    // offset=100 is outside the covering availability window (now+95d) and past
+    // the soft confirm horizon, but computeBookingQuoteCore does NOT enforce
+    // guards/window — it should still return a price (kind=success).
     const start = futureStart(100);
     const end = futureEnd(start);
 

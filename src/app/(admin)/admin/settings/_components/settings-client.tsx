@@ -28,7 +28,12 @@ export function SettingsClient({
     String(s.booking_close_minute),
   );
   const [minLead, setMinLead] = useState(String(s.min_lead_time_hours));
-  const [maxAdvance, setMaxAdvance] = useState(String(s.max_advance_days));
+  const [autoConfirmHorizon, setAutoConfirmHorizon] = useState(
+    String(s.auto_confirm_horizon_days),
+  );
+  const [hardMaxAdvance, setHardMaxAdvance] = useState(
+    String(s.hard_max_advance_days),
+  );
   const [discountPct, setDiscountPct] = useState(
     String(s.recurring_discount_pct),
   );
@@ -65,7 +70,8 @@ export function SettingsClient({
         booking_open_minute: parseInt(openMinute, 10),
         booking_close_minute: parseInt(closeMinute, 10),
         min_lead_time_hours: parseInt(minLead, 10),
-        max_advance_days: parseInt(maxAdvance, 10),
+        auto_confirm_horizon_days: parseInt(autoConfirmHorizon, 10),
+        hard_max_advance_days: parseInt(hardMaxAdvance, 10),
         recurring_discount_pct: parseFloat(discountPct),
         recurring_min_occurrences: parseInt(discountMin, 10),
         holiday_surcharge_cents: parseInt(holidaySurcharge, 10),
@@ -177,10 +183,17 @@ export function SettingsClient({
           "number",
         )}
         {field(
-          "max-advance",
-          "Max Advance Booking (days)",
-          maxAdvance,
-          setMaxAdvance,
+          "auto-confirm-horizon",
+          "Auto-Confirm Horizon (days — beyond this, bookings pend)",
+          autoConfirmHorizon,
+          setAutoConfirmHorizon,
+          "number",
+        )}
+        {field(
+          "hard-max-advance",
+          "Hard Max Advance (days — beyond this, refused)",
+          hardMaxAdvance,
+          setHardMaxAdvance,
           "number",
         )}
       </fieldset>

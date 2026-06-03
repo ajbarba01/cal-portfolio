@@ -79,7 +79,7 @@ const DEFAULT_SETTINGS: BookingRuleSettings = {
   bookingOpenMinute: 480, // 8:00am
   bookingCloseMinute: 1080, // 6:00pm
   minLeadTimeHours: 24,
-  maxAdvanceDays: 90,
+  hardMaxAdvanceDays: 90,
 };
 
 describe("passesGuards: lead time", () => {
@@ -108,8 +108,8 @@ describe("passesGuards: lead time", () => {
   });
 });
 
-describe("passesGuards: max advance", () => {
-  it("passes when booking is exactly at maxAdvanceDays (inclusive boundary)", () => {
+describe("passesGuards: hard max advance", () => {
+  it("passes when booking is exactly at hardMaxAdvanceDays (inclusive boundary)", () => {
     const now = new Date("2025-03-01T00:00:00Z");
     // 90 days later = 2025-05-29T00:00:00Z; use 8am MST (15:00 UTC)
     const start = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
@@ -128,7 +128,7 @@ describe("passesGuards: max advance", () => {
     expect(passesGuards(candidate, DEFAULT_SETTINGS, now2)).toBe(true);
   });
 
-  it("fails when booking is beyond maxAdvanceDays", () => {
+  it("fails when booking is beyond hardMaxAdvanceDays", () => {
     const now = new Date("2025-03-01T15:00:00Z");
     // 91 days later
     const start = new Date(now.getTime() + 91 * 24 * 60 * 60 * 1000);

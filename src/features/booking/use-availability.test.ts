@@ -29,7 +29,7 @@ const defaultRules: BookingRuleSettings = {
   bookingOpenMinute: 480,
   bookingCloseMinute: 1080,
   minLeadTimeHours: 24,
-  maxAdvanceDays: 90,
+  hardMaxAdvanceDays: 90,
 };
 
 // A "now" at midnight UTC 30 days from a fixed epoch so Denver hour checks are
