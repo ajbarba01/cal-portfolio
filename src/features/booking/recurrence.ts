@@ -14,9 +14,11 @@
  *
  * UNBOUNDED RULE CONTRACT
  * -----------------------
- * A rule with NEITHER `count` NOR `until` is considered unbounded and invalid.
- * `expandOccurrences` throws a descriptive `Error` in that case. Providing
- * BOTH is valid; whichever bound is reached first stops iteration.
+ * A rule with NEITHER `count` NOR `until` is unbounded. `expandOccurrences`
+ * throws a descriptive `Error` in that case UNLESS the caller supplies an
+ * external `materializeUntil` cap (how an open-ended series is expanded safely
+ * up to the generation horizon). Whichever of `count` / `until` /
+ * `materializeUntil` is reached first stops iteration.
  *
  * INTERVAL VALIDATION
  * -------------------
@@ -55,21 +57,33 @@ function addUTCMonths(d: Date, n: number): Date {
  * occurrence start times.
  *
  * @param start - First occurrence start (UTC). Included in the result.
- * @param rule  - Recurrence rule; must have `count` and/or `until`.
+ * @param rule  - Recurrence rule; must have `count` and/or `until`, unless
+ *                `opts.materializeUntil` is supplied as an external cap.
+ * @param opts.materializeUntil - Inclusive external cap (e.g. the generation
+ *                horizon). Bounds an otherwise-unbounded rule so open-ended
+ *                series expand safely.
  * @returns Array of occurrence start `Date`s (UTC), beginning with `start`.
  *
  * @throws `Error` if `interval < 1`.
- * @throws `Error` if neither `count` nor `until` is specified (unbounded).
+ * @throws `Error` if no bound at all (no `count`, no `until`, no `materializeUntil`).
  */
-export function expandOccurrences(start: Date, rule: RecurrenceRule): Date[] {
+export function expandOccurrences(
+  start: Date,
+  rule: RecurrenceRule,
+  opts: { materializeUntil?: Date } = {},
+): Date[] {
   if (rule.interval < 1) {
     throw new Error(
       `RecurrenceRule.interval must be >= 1, got ${rule.interval}.`,
     );
   }
-  if (rule.count === undefined && rule.until === undefined) {
+  if (
+    rule.count === undefined &&
+    rule.until === undefined &&
+    opts.materializeUntil === undefined
+  ) {
     throw new Error(
-      "RecurrenceRule must specify at least one bound: count or until (or both). Unbounded rules are not supported.",
+      "RecurrenceRule must specify at least one bound: count, until, or an external materializeUntil. Unbounded rules are not supported.",
     );
   }
 
@@ -79,6 +93,13 @@ export function expandOccurrences(start: Date, rule: RecurrenceRule): Date[] {
   while (true) {
     // Check until bound (inclusive)
     if (rule.until !== undefined && current.getTime() > rule.until.getTime()) {
+      break;
+    }
+    // Check external materialize cap (inclusive)
+    if (
+      opts.materializeUntil !== undefined &&
+      current.getTime() > opts.materializeUntil.getTime()
+    ) {
       break;
     }
     occurrences.push(new Date(current.getTime()));

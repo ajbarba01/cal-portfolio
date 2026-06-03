@@ -36,6 +36,7 @@ const settingsRowSchema = z.object({
   min_lead_time_hours: z.number(),
   auto_confirm_horizon_days: z.number(),
   hard_max_advance_days: z.number(),
+  recurrence_generation_horizon_days: z.number(),
   recurring_discount_pct: z.number(),
   recurring_min_occurrences: z.number(),
   holiday_surcharge_cents: z.number(),
@@ -90,6 +91,7 @@ export async function getSettingsCore(
         "auto_approve_threshold_miles, hard_cutoff_miles, gate_use_road_miles, " +
         "booking_open_minute, booking_close_minute, min_lead_time_hours, " +
         "auto_confirm_horizon_days, hard_max_advance_days, " +
+        "recurrence_generation_horizon_days, " +
         "recurring_discount_pct, recurring_min_occurrences, " +
         "holiday_surcharge_cents, holiday_dates, reminder_lead_hours",
     )

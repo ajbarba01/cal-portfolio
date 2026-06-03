@@ -48,6 +48,7 @@ export interface SettingsRow {
   min_lead_time_hours: number;
   auto_confirm_horizon_days: number;
   hard_max_advance_days: number;
+  recurrence_generation_horizon_days: number;
   recurring_discount_pct: number;
   recurring_min_occurrences: number;
 }
@@ -75,6 +76,40 @@ export interface BookingInsert {
   discount_cents: number;
 }
 
+/**
+ * A durable weekly-recurrence rule. `step_interval` is the DB column for the
+ * rule's interval (the literal word `interval` is a Postgres type keyword).
+ * `quote_inputs` is frozen at submit so every occurrence re-quotes identically.
+ */
+export interface BookingSeriesRow {
+  id: string;
+  client_id: string;
+  service_id: string;
+  freq: "weekly";
+  step_interval: number;
+  count: number | null;
+  until: string | null; // ISO UTC
+  open_ended: boolean;
+  template_starts_at: string; // ISO UTC
+  duration_min: number;
+  quote_inputs: unknown;
+  active: boolean;
+}
+
+/** Insert shape for a booking_series row (id/active/created_at are DB-defaulted). */
+export interface BookingSeriesInsert {
+  client_id: string;
+  service_id: string;
+  freq: "weekly";
+  step_interval: number;
+  count: number | null;
+  until: string | null;
+  open_ended: boolean;
+  template_starts_at: string;
+  duration_min: number;
+  quote_inputs: unknown;
+}
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Zod schemas for DB rows (parse at the edge — ENGINEERING #11)
 // ──────────────────────────────────────────────────────────────────────────────
@@ -93,6 +128,7 @@ const settingsRowSchema = z.object({
   min_lead_time_hours: z.number(),
   auto_confirm_horizon_days: z.number(),
   hard_max_advance_days: z.number(),
+  recurrence_generation_horizon_days: z.number(),
   recurring_discount_pct: z.number(),
   recurring_min_occurrences: z.number(),
 });
@@ -105,6 +141,22 @@ const serviceRowSchema = z.object({
   pricing_config: z.unknown(),
   concurrency: z.enum(["exclusive", "resident"]),
   requires_approval: z.boolean(),
+});
+
+/** Parsed and validated booking_series row. */
+const bookingSeriesRowSchema = z.object({
+  id: z.string(),
+  client_id: z.string(),
+  service_id: z.string(),
+  freq: z.literal("weekly"),
+  step_interval: z.number(),
+  count: z.number().nullable(),
+  until: z.string().nullable(),
+  open_ended: z.boolean(),
+  template_starts_at: z.string(),
+  duration_min: z.number(),
+  quote_inputs: z.unknown(),
+  active: z.boolean(),
 });
 
 /** Parsed and validated availability_windows row. */
@@ -126,6 +178,9 @@ export interface BookingRow {
 export interface BookingRepository {
   /** Fetch a service by slug. Returns null if not found. */
   getServiceBySlug(slug: string): Promise<ServiceRow | null>;
+
+  /** Fetch a service by id (no active filter — used to materialize an existing series). */
+  getServiceById(id: string): Promise<ServiceRow | null>;
 
   /** Fetch the singleton settings row. Throws if missing. */
   getSettings(): Promise<SettingsRow>;
@@ -153,6 +208,21 @@ export interface BookingRepository {
    * Returns an empty array when no windows are defined.
    */
   getOpenWindows(now: Date): Promise<{ startsAt: Date; endsAt: Date }[]>;
+
+  /** Insert a booking_series rule. Returns the generated id. */
+  insertSeries(row: BookingSeriesInsert): Promise<string>;
+
+  /** Delete a booking_series rule by id (cleanup when the first insert conflicts). */
+  deleteSeries(id: string): Promise<void>;
+
+  /** Fetch all active series rules (the series-roll cron materializes these forward). */
+  getActiveSeries(): Promise<BookingSeriesRow[]>;
+
+  /**
+   * Fetch the already-materialized occurrence start times (epoch ms) for a
+   * series, used to dedupe before materializing newly-in-horizon occurrences.
+   */
+  getMaterializedOccurrenceStarts(seriesId: string): Promise<number[]>;
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -195,6 +265,29 @@ export function createSupabaseBookingRepository(
       return parsed.data;
     },
 
+    async getServiceById(id) {
+      const { data, error } = await client
+        .from("services")
+        .select(
+          "id, slug, pricing_type, pricing_config, concurrency, requires_approval",
+        )
+        .eq("id", id)
+        .single();
+
+      if (error) {
+        if (error.code === "PGRST116") return null;
+        throw new Error(`Failed to load service '${id}': ${error.message}`);
+      }
+
+      const parsed = serviceRowSchema.safeParse(data);
+      if (!parsed.success) {
+        throw new Error(
+          `Service '${id}' has unexpected DB shape: ${parsed.error.message}`,
+        );
+      }
+      return parsed.data;
+    },
+
     async getSettings() {
       const { data, error } = await client
         .from("settings")
@@ -203,6 +296,7 @@ export function createSupabaseBookingRepository(
             "auto_approve_threshold_miles, hard_cutoff_miles, gate_use_road_miles, " +
             "booking_open_minute, booking_close_minute, " +
             "min_lead_time_hours, auto_confirm_horizon_days, hard_max_advance_days, " +
+            "recurrence_generation_horizon_days, " +
             "recurring_discount_pct, recurring_min_occurrences",
         )
         .limit(1)
@@ -318,6 +412,76 @@ export function createSupabaseBookingRepository(
           endsAt: new Date(parsed.data.ends_at),
         };
       });
+    },
+
+    async insertSeries(row) {
+      const { data, error } = await client
+        .from("booking_series")
+        .insert(row)
+        .select("id")
+        .single();
+
+      if (error) {
+        throw new Error(`Failed to insert booking_series: ${error.message}`);
+      }
+      if (!data) throw new Error("booking_series insert returned no data");
+      return data.id as string;
+    },
+
+    async deleteSeries(id) {
+      const { error } = await client
+        .from("booking_series")
+        .delete()
+        .eq("id", id);
+
+      if (error) {
+        throw new Error(
+          `Failed to delete booking_series '${id}': ${error.message}`,
+        );
+      }
+    },
+
+    async getActiveSeries() {
+      const { data, error } = await client
+        .from("booking_series")
+        .select(
+          "id, client_id, service_id, freq, step_interval, count, until, " +
+            "open_ended, template_starts_at, duration_min, quote_inputs, active",
+        )
+        .eq("active", true);
+
+      if (error) {
+        throw new Error(`Failed to load active series: ${error.message}`);
+      }
+      if (!data) return [];
+
+      return data.map((row: unknown) => {
+        const parsed = bookingSeriesRowSchema.safeParse(row);
+        if (!parsed.success) {
+          throw new Error(
+            `booking_series row has unexpected DB shape: ${parsed.error.message}`,
+          );
+        }
+        return parsed.data;
+      });
+    },
+
+    async getMaterializedOccurrenceStarts(seriesId) {
+      const { data, error } = await client
+        .from("bookings")
+        .select("starts_at")
+        .eq("series_id", seriesId);
+
+      if (error) {
+        throw new Error(
+          `Failed to load materialized occurrences for series '${seriesId}': ${error.message}`,
+        );
+      }
+      if (!data) return [];
+
+      return data.map((r: { starts_at: string }) =>
+        new Date(r.starts_at).getTime(),
+      );
     },
   };
 }

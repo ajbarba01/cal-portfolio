@@ -161,11 +161,52 @@ describe("expandOccurrences: monthly", () => {
 // ---------------------------------------------------------------------------
 
 describe("expandOccurrences: unbounded rule", () => {
-  it("throws a clear error when neither count nor until is provided", () => {
+  it("throws a clear error when neither count, until, nor materializeUntil is provided", () => {
     const rule: RecurrenceRule = { freq: "weekly", interval: 1 };
     expect(() => expandOccurrences(BASE, rule)).toThrow(
-      /count.*until|until.*count|unbounded/i,
+      /count.*until|until.*count|unbounded|materializeUntil/i,
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// materializeUntil cap (open-ended series expand safely up to a horizon)
+// ---------------------------------------------------------------------------
+
+describe("expandOccurrences: materializeUntil", () => {
+  it("bounds an otherwise-unbounded rule (acts as an implicit until)", () => {
+    const rule: RecurrenceRule = { freq: "weekly", interval: 1 };
+    // 42-day horizon from BASE → weeks at day 0, 7, 14, 21, 28, 35, 42 = 7 occurrences.
+    const materializeUntil = addDays(BASE, 42);
+    const result = expandOccurrences(BASE, rule, { materializeUntil });
+    expect(result).toHaveLength(7);
+    expect(result[result.length - 1].getTime()).toBe(
+      addDays(BASE, 42).getTime(),
+    );
+  });
+
+  it("is inclusive at the cap boundary", () => {
+    const rule: RecurrenceRule = { freq: "weekly", interval: 1 };
+    const result = expandOccurrences(BASE, rule, {
+      materializeUntil: addDays(BASE, 7),
+    });
+    expect(result).toHaveLength(2); // day 0 and day 7
+  });
+
+  it("stops at count before the cap when count is the tighter bound", () => {
+    const rule: RecurrenceRule = { freq: "weekly", interval: 1, count: 2 };
+    const result = expandOccurrences(BASE, rule, {
+      materializeUntil: addDays(BASE, 365),
+    });
+    expect(result).toHaveLength(2);
+  });
+
+  it("stops at the cap before count when the cap is the tighter bound", () => {
+    const rule: RecurrenceRule = { freq: "weekly", interval: 1, count: 100 };
+    const result = expandOccurrences(BASE, rule, {
+      materializeUntil: addDays(BASE, 14),
+    });
+    expect(result).toHaveLength(3); // day 0, 7, 14
   });
 });
 

@@ -63,6 +63,8 @@ import type { QuoteInput, QuoteBreakdown } from "@/features/pricing/types";
 import type { RecurrenceRule } from "./recurrence";
 import type { BookingRuleSettings } from "./availability";
 
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Input Zod schemas (validate at the boundary — ENGINEERING #11)
 // ──────────────────────────────────────────────────────────────────────────────
@@ -307,9 +309,16 @@ async function computeBookingArtifacts(
     baseRequiresApproval = decision === "manual" || !!service.requires_approval;
   }
 
-  // 5. Recurring-discount eligibility (needs occurrence count)
+  // 5. Expand occurrences, capping at the generation horizon (DESIGN: never
+  // materialize past ~1 month out; the series-roll cron extends the rest). The
+  // materializeUntil cap lets an open-ended rule (no count/until) expand safely.
   const occurrences = input.recurringRule
-    ? expandOccurrences(input.startsAt, input.recurringRule as RecurrenceRule)
+    ? expandOccurrences(input.startsAt, input.recurringRule as RecurrenceRule, {
+        materializeUntil: new Date(
+          deps.now.getTime() +
+            settings.recurrence_generation_horizon_days * MS_PER_DAY,
+        ),
+      })
     : [input.startsAt];
 
   const recurringDiscountApplies = seriesQualifiesForRecurringDiscount(
@@ -494,7 +503,32 @@ export async function createBookingCore(
     statuses.push(statResult.state);
   }
 
-  const seriesId = occurrences.length > 1 ? crypto.randomUUID() : null;
+  // A recurring submit writes a durable booking_series rule (frozen quote_inputs)
+  // so the series-roll cron can materialize occurrences forward. MVP supports
+  // weekly only — the booking_series table enforces it; reject other freqs here.
+  let seriesId: string | null = null;
+  if (input.recurringRule) {
+    if (input.recurringRule.freq !== "weekly") {
+      return {
+        kind: "validation_error",
+        message: "Only weekly recurrence is supported.",
+      };
+    }
+    const rule = input.recurringRule;
+    const openEnded = rule.count === undefined && rule.until === undefined;
+    seriesId = await repo.insertSeries({
+      client_id: input.userId,
+      service_id: service.id,
+      freq: "weekly",
+      step_interval: rule.interval,
+      count: rule.count ?? null,
+      until: rule.until ? new Date(rule.until).toISOString() : null,
+      open_ended: openEnded,
+      template_starts_at: input.startsAt.toISOString(),
+      duration_min: Math.round(durationMs / 60_000),
+      quote_inputs: quoteInput as unknown,
+    });
+  }
 
   // 10. Build insert rows. The quote is identical for every occurrence (it
   // depends only on quantities/config/modifiers, never on the date), so all
@@ -519,15 +553,18 @@ export async function createBookingCore(
     };
   });
 
-  // Insert — catch exclusion_violation (23P01) → slot_taken.
+  // Insert — catch exclusion_violation (23P01) → slot_taken. If a series row was
+  // written, delete it so the conflict doesn't orphan an empty rule.
   try {
     const ids = await repo.insertBookings(insertRows);
     return { kind: "success", bookingIds: ids };
   } catch (e: unknown) {
     const code = (e as { code?: string }).code;
     if (code === "23P01") {
+      if (seriesId) await repo.deleteSeries(seriesId);
       return { kind: "slot_taken" };
     }
+    if (seriesId) await repo.deleteSeries(seriesId);
     throw e;
   }
 }
