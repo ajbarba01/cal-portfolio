@@ -103,7 +103,7 @@ The MVP (Phases 0–13) shipped with a **driving-minutes** approval gate, intege
 
 ---
 
-## Phase 18 — Cancellation / refund policy + debt gate + no-show — [x]
+## Phase 18 — Cancellation / refund policy + debt gate + no-show — [x] `3cd137c`
 
 **Goal:** Self-cancel with a 48h/50% policy (Cal can grant full <48h); unpaid late cancel / no-show → debt that blocks re-booking until settled.
 **Systems landed:** pure `computeRefund`; `StripeGateway.refund`; `client_debits` + gate; `no_show` status. **Deps:** 17 (cron debt skip).
