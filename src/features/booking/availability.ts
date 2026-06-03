@@ -104,7 +104,7 @@ export function fitsWindow(
  * JS runtime handles MST (UTC-7) and MDT (UTC-6) transparently — no manual
  * offset math.
  */
-function denverMinutesSinceMidnight(date: Date): number {
+export function denverMinutesSinceMidnight(date: Date): number {
   const fmt = new Intl.DateTimeFormat("en-US", {
     timeZone: "America/Denver",
     hour: "2-digit",
@@ -118,6 +118,23 @@ function denverMinutesSinceMidnight(date: Date): number {
   const hour = parseInt(hourRaw, 10) % 24;
   const minute = parseInt(minuteRaw, 10);
   return hour * 60 + minute;
+}
+
+/**
+ * Returns the America/Denver calendar day of `date` as an ISO "YYYY-MM-DD"
+ * string. Pure: derived from `Intl.DateTimeFormat` with the IANA tz, no clock
+ * read. Two instants on the same Denver day share a key regardless of UTC
+ * offset (MST/MDT). Useful for grouping/comparing days without offset math.
+ */
+export function denverDayKey(date: Date): string {
+  const fmt = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Denver",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  // en-CA renders ISO-ordered "YYYY-MM-DD".
+  return fmt.format(date);
 }
 
 // ---------------------------------------------------------------------------
