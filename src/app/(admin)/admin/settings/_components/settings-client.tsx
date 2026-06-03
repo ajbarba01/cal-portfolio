@@ -19,9 +19,10 @@ export function SettingsClient({
   const [roadFactor, setRoadFactor] = useState(String(s.road_factor));
   const [avgSpeed, setAvgSpeed] = useState(String(s.avg_speed_mph));
   const [autoApprove, setAutoApprove] = useState(
-    String(s.auto_approve_threshold_min),
+    String(s.auto_approve_threshold_miles),
   );
-  const [hardCutoff, setHardCutoff] = useState(String(s.hard_cutoff_min));
+  const [hardCutoff, setHardCutoff] = useState(String(s.hard_cutoff_miles));
+  const [useRoadMiles, setUseRoadMiles] = useState(s.gate_use_road_miles);
   const [openHour, setOpenHour] = useState(String(s.booking_open_hour));
   const [closeHour, setCloseHour] = useState(String(s.booking_close_hour));
   const [minLead, setMinLead] = useState(String(s.min_lead_time_hours));
@@ -56,8 +57,9 @@ export function SettingsClient({
         origin_lng: parseFloat(originLng),
         road_factor: parseFloat(roadFactor),
         avg_speed_mph: parseFloat(avgSpeed),
-        auto_approve_threshold_min: parseInt(autoApprove, 10),
-        hard_cutoff_min: parseInt(hardCutoff, 10),
+        auto_approve_threshold_miles: parseFloat(autoApprove),
+        hard_cutoff_miles: parseFloat(hardCutoff),
+        gate_use_road_miles: useRoadMiles,
         booking_open_hour: parseInt(openHour, 10),
         booking_close_hour: parseInt(closeHour, 10),
         min_lead_time_hours: parseInt(minLead, 10),
@@ -124,18 +126,29 @@ export function SettingsClient({
         {field("avg-speed", "Avg Speed (mph)", avgSpeed, setAvgSpeed, "number")}
         {field(
           "auto-approve",
-          "Auto-Approve Threshold (min)",
+          "Auto-Approve Threshold (miles)",
           autoApprove,
           setAutoApprove,
           "number",
         )}
         {field(
           "hard-cutoff",
-          "Hard Cutoff (min)",
+          "Hard Cutoff (miles)",
           hardCutoff,
           setHardCutoff,
           "number",
         )}
+        <div className="flex items-center gap-2">
+          <input
+            id="gate-use-road-miles"
+            type="checkbox"
+            checked={useRoadMiles}
+            onChange={(e) => setUseRoadMiles(e.target.checked)}
+          />
+          <Label htmlFor="gate-use-road-miles">
+            Gate on road miles (straight-line × road factor)
+          </Label>
+        </div>
       </fieldset>
 
       <fieldset className="space-y-4">

@@ -7,6 +7,9 @@ export type ApprovalDecision = "auto" | "manual" | "refuse";
  * Applies a road factor (straight-line → road distance multiplier) then
  * divides by average speed. All constants are Cal-tunable via settings.
  *
+ * Used ONLY for the travel-**cost** line (driving time billed at the hourly
+ * rate); the approval gate reasons in miles — see {@link deriveApproval}.
+ *
  * @returns One-way driving minutes (not round-trip).
  */
 export function estimateDrivingMinutes(
@@ -17,20 +20,31 @@ export function estimateDrivingMinutes(
 }
 
 /**
- * Derives whether a booking at a given driving distance requires manual
+ * Derives whether a booking at a given straight-line distance requires manual
  * approval, should be refused outright, or can be auto-approved.
  *
- * Gate logic (strict greater-than so thresholds themselves stay in the
- * lower tier — matching the DESIGN ">" specification):
- *   - oneWayMinutes > hardCutoffMin → refuse
- *   - oneWayMinutes > autoApproveMin → manual
- *   - otherwise → auto
+ * The gate reasons in **miles** (Cal's mental model), distinct from the
+ * driving-minutes travel cost. When `useRoadMiles` is set, straight-line miles
+ * are scaled by `roadFactor` to approximate real driving distance before
+ * gating; otherwise straight-line miles gate directly.
+ *
+ * Gate logic (strict greater-than so thresholds themselves stay in the lower
+ * tier — matching the DESIGN ">" specification):
+ *   - gatedMiles > hardCutoffMiles  → refuse
+ *   - gatedMiles > autoApproveMiles → manual
+ *   - otherwise                     → auto
  */
 export function deriveApproval(
-  oneWayMinutes: number,
-  cfg: { autoApproveMin: number; hardCutoffMin: number },
+  miles: number,
+  cfg: {
+    autoApproveMiles: number;
+    hardCutoffMiles: number;
+    useRoadMiles: boolean;
+    roadFactor: number;
+  },
 ): ApprovalDecision {
-  if (oneWayMinutes > cfg.hardCutoffMin) return "refuse";
-  if (oneWayMinutes > cfg.autoApproveMin) return "manual";
+  const gatedMiles = cfg.useRoadMiles ? miles * cfg.roadFactor : miles;
+  if (gatedMiles > cfg.hardCutoffMiles) return "refuse";
+  if (gatedMiles > cfg.autoApproveMiles) return "manual";
   return "auto";
 }
