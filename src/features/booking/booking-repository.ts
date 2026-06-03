@@ -24,7 +24,8 @@ export type BookingStatusDb =
   | "confirmed"
   | "completed"
   | "declined"
-  | "cancelled";
+  | "cancelled"
+  | "no_show";
 
 export interface ServiceRow {
   id: string;
@@ -51,6 +52,9 @@ export interface SettingsRow {
   recurrence_generation_horizon_days: number;
   recurring_discount_pct: number;
   recurring_min_occurrences: number;
+  cancellation_full_refund_hours: number;
+  late_cancel_refund_pct: number;
+  no_show_charge_pct: number;
 }
 
 export interface ProfileLatLng {
@@ -131,6 +135,9 @@ const settingsRowSchema = z.object({
   recurrence_generation_horizon_days: z.number(),
   recurring_discount_pct: z.number(),
   recurring_min_occurrences: z.number(),
+  cancellation_full_refund_hours: z.number(),
+  late_cancel_refund_pct: z.number(),
+  no_show_charge_pct: z.number(),
 });
 
 /** Parsed and validated service row. pricing_type is the closed enum. */
@@ -169,6 +176,50 @@ export interface BookingRow {
   id: string;
   client_id: string;
   status: BookingStatusDb;
+}
+
+/** A single payment txn attached to a booking (for refund + paid-amount math). */
+export interface BookingPaymentTxn {
+  status: "requires_payment" | "succeeded" | "refunded" | "failed";
+  amountCents: number;
+  paymentIntentId: string;
+}
+
+/** A booking joined with its payments — used by the cancel / refund path. */
+export interface BookingWithPayments {
+  id: string;
+  client_id: string;
+  status: BookingStatusDb;
+  startsAt: Date;
+  finalCents: number;
+  payments: BookingPaymentTxn[];
+}
+
+const bookingWithPaymentsRowSchema = z.object({
+  id: z.string(),
+  client_id: z.string(),
+  status: z.string(),
+  starts_at: z.string(),
+  final_cents: z.number(),
+  payments: z
+    .array(
+      z.object({
+        status: z.enum(["requires_payment", "succeeded", "refunded", "failed"]),
+        amount_cents: z.number(),
+        stripe_payment_intent_id: z.string(),
+      }),
+    )
+    .nullable(),
+});
+
+/** Debit reason, mirrors the client_debits CHECK constraint. */
+export type DebitReason = "late_cancel" | "no_show";
+
+export interface ClientDebitInsert {
+  client_id: string;
+  booking_id: string | null;
+  amount_cents: number;
+  reason: DebitReason;
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -223,6 +274,18 @@ export interface BookingRepository {
    * series, used to dedupe before materializing newly-in-horizon occurrences.
    */
   getMaterializedOccurrenceStarts(seriesId: string): Promise<number[]>;
+
+  /** Fetch a booking joined with its payments. Returns null if not found. */
+  getBookingWithPayments(id: string): Promise<BookingWithPayments | null>;
+
+  /** Sum of unsettled debit amounts (cents) for a user. 0 when none outstanding. */
+  getOutstandingDebtCents(userId: string): Promise<number>;
+
+  /** Insert a client_debits row. */
+  insertDebit(row: ClientDebitInsert): Promise<void>;
+
+  /** Mark a debit settled at `now`. */
+  settleDebit(debitId: string, now: Date): Promise<void>;
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -297,7 +360,8 @@ export function createSupabaseBookingRepository(
             "booking_open_minute, booking_close_minute, " +
             "min_lead_time_hours, auto_confirm_horizon_days, hard_max_advance_days, " +
             "recurrence_generation_horizon_days, " +
-            "recurring_discount_pct, recurring_min_occurrences",
+            "recurring_discount_pct, recurring_min_occurrences, " +
+            "cancellation_full_refund_hours, late_cancel_refund_pct, no_show_charge_pct",
         )
         .limit(1)
         .single();
@@ -482,6 +546,81 @@ export function createSupabaseBookingRepository(
       return data.map((r: { starts_at: string }) =>
         new Date(r.starts_at).getTime(),
       );
+    },
+
+    async getBookingWithPayments(id) {
+      const { data, error } = await client
+        .from("bookings")
+        .select(
+          "id, client_id, status, starts_at, final_cents, " +
+            "payments(status, amount_cents, stripe_payment_intent_id)",
+        )
+        .eq("id", id)
+        .maybeSingle();
+
+      if (error) {
+        throw new Error(
+          `Failed to load booking with payments '${id}': ${error.message}`,
+        );
+      }
+      if (!data) return null;
+
+      const parsed = bookingWithPaymentsRowSchema.safeParse(data);
+      if (!parsed.success) {
+        throw new Error(
+          `booking-with-payments row has unexpected DB shape: ${parsed.error.message}`,
+        );
+      }
+      const row = parsed.data;
+      return {
+        id: row.id,
+        client_id: row.client_id,
+        status: row.status as BookingStatusDb,
+        startsAt: new Date(row.starts_at),
+        finalCents: row.final_cents,
+        payments: (row.payments ?? []).map((p) => ({
+          status: p.status,
+          amountCents: p.amount_cents,
+          paymentIntentId: p.stripe_payment_intent_id,
+        })),
+      };
+    },
+
+    async getOutstandingDebtCents(userId) {
+      const { data, error } = await client
+        .from("client_debits")
+        .select("amount_cents")
+        .eq("client_id", userId)
+        .is("settled_at", null);
+
+      if (error) {
+        throw new Error(
+          `Failed to load outstanding debt for '${userId}': ${error.message}`,
+        );
+      }
+      return (data ?? []).reduce(
+        (sum: number, r: { amount_cents: number }) => sum + r.amount_cents,
+        0,
+      );
+    },
+
+    async insertDebit(row) {
+      const { error } = await client.from("client_debits").insert(row);
+      if (error) {
+        throw new Error(`Failed to insert client_debit: ${error.message}`);
+      }
+    },
+
+    async settleDebit(debitId, now) {
+      const { error } = await client
+        .from("client_debits")
+        .update({ settled_at: now.toISOString() })
+        .eq("id", debitId);
+      if (error) {
+        throw new Error(
+          `Failed to settle debit '${debitId}': ${error.message}`,
+        );
+      }
     },
   };
 }

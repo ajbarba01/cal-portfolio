@@ -147,6 +147,16 @@ function adminDeps() {
   return { serviceClient, actorUserId: adminUserId };
 }
 
+/** Fake payment gateway for block-out cancellation tests (no Stripe calls). */
+const fakeGateway = {
+  async createIntent() {
+    return { paymentIntentId: "pi_fake", clientSecret: "pi_fake_secret" };
+  },
+  async refund() {
+    /* no-op */
+  },
+};
+
 function nonAdminDeps() {
   return { serviceClient, actorUserId: nonAdminUserId };
 }
@@ -317,7 +327,7 @@ describe("deleteWindowCore (block-out)", () => {
 
     // Block out the window.
     const deleteResult = await deleteWindowCore(
-      { ...adminDeps(), now: new Date() },
+      { ...adminDeps(), now: new Date(), gateway: fakeGateway },
       { windowId },
     );
     expect(deleteResult.kind).toBe("success");
@@ -386,7 +396,7 @@ describe("trimWindowCore (block-out of removed portion)", () => {
     // Trim the end back to day 2 → removed slice is (wStart+2d, wEnd].
     const newEnd = new Date(wStart.getTime() + 2 * 24 * 60 * 60 * 1000);
     const trimResult = await trimWindowCore(
-      { ...adminDeps(), now: new Date() },
+      { ...adminDeps(), now: new Date(), gateway: fakeGateway },
       { windowId, newEndsAt: newEnd.toISOString() },
     );
     expect(trimResult.kind).toBe("success");
@@ -489,21 +499,23 @@ describe("updateSettingsCore", () => {
   });
 
   it("valid update persists", async () => {
-    // Set avg_speed_mph to a sentinel value then restore.
+    // Round-trip a logic-inert column (origin_label). The numeric settings
+    // (avg_speed_mph, road_factor, …) feed the booking-quote travel line, which
+    // a parallel test file reads — mutating them here would race that suite.
     const result = await updateSettingsCore(adminDeps(), {
-      avg_speed_mph: 42,
+      origin_label: "Sentinel",
     });
     expect(result.kind).toBe("success");
 
     const { data } = await serviceClient
       .from("settings")
-      .select("avg_speed_mph")
+      .select("origin_label")
       .limit(1)
       .single();
-    expect(data?.avg_speed_mph).toBe(42);
+    expect(data?.origin_label).toBe("Sentinel");
 
     // Restore original value.
-    await updateSettingsCore(adminDeps(), { avg_speed_mph: 40 });
+    await updateSettingsCore(adminDeps(), { origin_label: "Boulder" });
   });
 });
 

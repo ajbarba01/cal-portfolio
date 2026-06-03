@@ -44,6 +44,8 @@ import {
   deriveApproval,
 } from "@/features/pricing/distance";
 import { deriveTimeApproval } from "./time-gate";
+import { computeRefund, computeCancellationDebtCents } from "./cancellation";
+import type { PaymentGateway } from "@/features/payments/types";
 import { quote } from "@/features/pricing/quote";
 import { parsePricingConfig } from "@/features/pricing/config-schemas";
 import { expandOccurrences } from "./recurrence";
@@ -116,6 +118,7 @@ export type CreateBookingResult =
   | { kind: "refuse"; reason: string }
   | { kind: "slot_taken" }
   | { kind: "unavailable"; reason: string }
+  | { kind: "blocked_debt"; owedCents: number }
   | { kind: "validation_error"; message: string }
   | { kind: "error"; message: string };
 
@@ -148,6 +151,7 @@ export interface BookingQuotePreview {
 export type PreviewResult =
   | { kind: "success"; preview: BookingQuotePreview }
   | { kind: "refuse"; reason: string }
+  | { kind: "blocked_debt"; owedCents: number }
   | { kind: "validation_error"; message: string }
   | { kind: "error"; message: string };
 
@@ -202,6 +206,7 @@ interface BookingQuoteArtifacts {
 type ArtifactsResult =
   | { kind: "success"; artifacts: BookingQuoteArtifacts }
   | { kind: "refuse"; reason: string }
+  | { kind: "blocked_debt"; owedCents: number }
   | { kind: "validation_error"; message: string }
   | { kind: "error"; message: string };
 
@@ -232,6 +237,13 @@ async function computeBookingArtifacts(
   }
   const input = parseResult.data;
   const { repo } = deps;
+
+  // Debt gate (DESIGN: cancellation/refund). Any unsettled balance blocks BOTH
+  // the quote preview and the create call — checked here in the shared path.
+  const outstandingDebtCents = await repo.getOutstandingDebtCents(input.userId);
+  if (outstandingDebtCents > 0) {
+    return { kind: "blocked_debt", owedCents: outstandingDebtCents };
+  }
 
   // 2. Load from DB
   const [service, settings, profileLatLng] = await Promise.all([
@@ -440,6 +452,9 @@ export async function createBookingCore(
   if (result.kind === "refuse") {
     return { kind: "refuse", reason: result.reason };
   }
+  if (result.kind === "blocked_debt") {
+    return { kind: "blocked_debt", owedCents: result.owedCents };
+  }
 
   const { repo, now } = deps;
   const {
@@ -575,16 +590,24 @@ export async function createBookingCore(
 
 export type CancelBookingInput = z.input<typeof cancelBookingInputSchema>;
 
+/** Deps for the cancel + refund/no-show paths: a gateway is required to refund. */
+export interface CancelDeps extends BookingServiceDeps {
+  gateway: PaymentGateway;
+}
+
 /**
- * Core booking cancellation logic (testable via DI, no Next.js machinery).
+ * Core booking cancellation (testable via DI, no Next.js machinery).
  *
- * Authenticates ownership (client_id === userId OR admin check in actions.ts).
- * Refunds are MANUAL by Cal — no automatic refund logic here.
+ * Applies the cancellation/refund policy (DESIGN): a refund is INITIATED via the
+ * payment gateway (the Stripe `charge.refunded` webhook stays the sole writer of
+ * `payment_status` — this path never writes it). An unpaid cancel inside the
+ * cutoff writes a `client_debits` row for the forfeited amount.
  *
- * @see actions.ts for admin-override path.
+ * Ownership is checked here; the admin-override path passes the booking's own
+ * client_id (see actions.ts).
  */
 export async function cancelBookingCore(
-  deps: BookingServiceDeps,
+  deps: CancelDeps,
   rawInput: CancelBookingInput,
 ): Promise<CancelBookingResult> {
   const parseResult = cancelBookingInputSchema.safeParse(rawInput);
@@ -592,27 +615,155 @@ export async function cancelBookingCore(
     return { kind: "error", message: parseResult.error.message };
   }
   const input = parseResult.data;
-  const { repo } = deps;
+  const { repo, now, gateway } = deps;
 
-  const booking = await repo.getBookingById(input.bookingId);
+  const booking = await repo.getBookingWithPayments(input.bookingId);
   if (!booking) {
     return { kind: "not_found" };
   }
-
-  // Ownership check. Admin bypass happens in the "use server" action wrapper.
   if (booking.client_id !== input.userId) {
     return { kind: "forbidden" };
   }
 
-  const result = transition(booking.status, "cancel", {
+  const transitionResult = transition(booking.status, "cancel", {
     requiresApproval: false, // context not needed for cancel
   });
-
-  if ("error" in result) {
-    return { kind: "error", message: result.error };
+  if ("error" in transitionResult) {
+    return { kind: "error", message: transitionResult.error };
   }
 
-  await repo.updateBookingStatus(input.bookingId, result.state);
+  const settings = await repo.getSettings();
+  const paidCents = booking.payments
+    .filter((p) => p.status === "succeeded")
+    .reduce((sum, p) => sum + p.amountCents, 0);
+
+  const refund = computeRefund({
+    finalCents: booking.finalCents,
+    paidCents,
+    startsAt: booking.startsAt,
+    now,
+    fullRefundHours: settings.cancellation_full_refund_hours,
+    lateRefundPct: settings.late_cancel_refund_pct,
+  });
+
+  // Initiate the default-tier refund (webhook re-projects payment_status).
+  if (refund.refundCents > 0) {
+    const succeeded = booking.payments.find((p) => p.status === "succeeded");
+    if (succeeded) {
+      await gateway.refund(succeeded.paymentIntentId, refund.refundCents);
+    }
+  }
+
+  // Unpaid late cancel → debt for the forfeited amount.
+  if (refund.tier === "none") {
+    const debtCents = computeCancellationDebtCents({
+      finalCents: booking.finalCents,
+      reason: "late_cancel",
+      lateRefundPct: settings.late_cancel_refund_pct,
+      noShowChargePct: settings.no_show_charge_pct,
+    });
+    if (debtCents > 0) {
+      await repo.insertDebit({
+        client_id: booking.client_id,
+        booking_id: booking.id,
+        amount_cents: debtCents,
+        reason: "late_cancel",
+      });
+    }
+  }
+
+  await repo.updateBookingStatus(input.bookingId, transitionResult.state);
+  return { kind: "success" };
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Admin operations: grant-full-refund, mark-no-show, settle-debt
+// ──────────────────────────────────────────────────────────────────────────────
+
+export type AdminBookingResult =
+  | { kind: "success" }
+  | { kind: "not_found" }
+  | { kind: "invalid_state"; message: string }
+  | { kind: "error"; message: string };
+
+/**
+ * Admin grants the remaining (full) refund beyond the default late-cancel tier:
+ * refunds whatever paid amount has not yet been refunded. Authorization is the
+ * caller's responsibility (admin-gated action wrapper).
+ */
+export async function grantFullRefundCore(
+  deps: CancelDeps,
+  bookingId: string,
+): Promise<AdminBookingResult> {
+  const { repo, gateway } = deps;
+  const booking = await repo.getBookingWithPayments(bookingId);
+  if (!booking) return { kind: "not_found" };
+
+  const paidCents = booking.payments
+    .filter((p) => p.status === "succeeded")
+    .reduce((sum, p) => sum + p.amountCents, 0);
+  const refundedCents = booking.payments
+    .filter((p) => p.status === "refunded")
+    .reduce((sum, p) => sum + p.amountCents, 0);
+  const remaining = paidCents - refundedCents;
+  if (remaining <= 0) return { kind: "success" }; // nothing left to refund
+
+  const intent =
+    booking.payments.find((p) => p.status === "succeeded")?.paymentIntentId ??
+    booking.payments[0]?.paymentIntentId;
+  if (!intent) return { kind: "success" };
+
+  await gateway.refund(intent, remaining);
+  return { kind: "success" };
+}
+
+/**
+ * Admin marks a confirmed booking a no-show: transitions to the terminal
+ * `no_show` state and writes a `client_debits` row for `no_show_charge_pct` of
+ * the final amount. Authorization is the caller's responsibility.
+ */
+export async function markNoShowCore(
+  deps: BookingServiceDeps,
+  bookingId: string,
+): Promise<AdminBookingResult> {
+  const { repo } = deps;
+  const booking = await repo.getBookingWithPayments(bookingId);
+  if (!booking) return { kind: "not_found" };
+
+  const transitionResult = transition(booking.status, "no_show", {
+    requiresApproval: false,
+  });
+  if ("error" in transitionResult) {
+    return { kind: "invalid_state", message: transitionResult.error };
+  }
+
+  await repo.updateBookingStatus(bookingId, transitionResult.state);
+
+  const settings = await repo.getSettings();
+  const debtCents = computeCancellationDebtCents({
+    finalCents: booking.finalCents,
+    reason: "no_show",
+    lateRefundPct: settings.late_cancel_refund_pct,
+    noShowChargePct: settings.no_show_charge_pct,
+  });
+  if (debtCents > 0) {
+    await repo.insertDebit({
+      client_id: booking.client_id,
+      booking_id: booking.id,
+      amount_cents: debtCents,
+      reason: "no_show",
+    });
+  }
+
+  return { kind: "success" };
+}
+
+/** Admin marks a debit settled (Cal collected offline or the client paid). */
+export async function settleDebtCore(
+  deps: BookingServiceDeps,
+  debitId: string,
+): Promise<AdminBookingResult> {
+  await deps.repo.settleDebit(debitId, deps.now);
   return { kind: "success" };
 }
 

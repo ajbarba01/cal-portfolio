@@ -52,6 +52,15 @@ export function SettingsClient({
   const [reminderLeadHours, setReminderLeadHours] = useState(
     String(s.reminder_lead_hours),
   );
+  const [fullRefundHours, setFullRefundHours] = useState(
+    String(s.cancellation_full_refund_hours),
+  );
+  const [lateRefundPct, setLateRefundPct] = useState(
+    String(s.late_cancel_refund_pct),
+  );
+  const [noShowChargePct, setNoShowChargePct] = useState(
+    String(s.no_show_charge_pct),
+  );
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -84,6 +93,9 @@ export function SettingsClient({
           .map((d) => d.trim())
           .filter(Boolean),
         reminder_lead_hours: parseInt(reminderLeadHours, 10),
+        cancellation_full_refund_hours: parseInt(fullRefundHours, 10),
+        late_cancel_refund_pct: parseInt(lateRefundPct, 10),
+        no_show_charge_pct: parseInt(noShowChargePct, 10),
       });
       if (result.kind === "success") {
         setSuccess(true);
@@ -205,6 +217,33 @@ export function SettingsClient({
           "Recurrence Generation Horizon (days — how far ahead series rows are created)",
           recurrenceGenHorizon,
           setRecurrenceGenHorizon,
+          "number",
+        )}
+      </fieldset>
+
+      <fieldset className="space-y-4">
+        <legend className="text-base font-medium">
+          Cancellation & No-Show
+        </legend>
+        {field(
+          "full-refund-hours",
+          "Full-Refund Cutoff (hours before start)",
+          fullRefundHours,
+          setFullRefundHours,
+          "number",
+        )}
+        {field(
+          "late-refund-pct",
+          "Late-Cancel Refund %",
+          lateRefundPct,
+          setLateRefundPct,
+          "number",
+        )}
+        {field(
+          "no-show-charge-pct",
+          "No-Show Charge %",
+          noShowChargePct,
+          setNoShowChargePct,
           "number",
         )}
       </fieldset>

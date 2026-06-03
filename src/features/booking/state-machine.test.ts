@@ -79,6 +79,14 @@ describe("transition: confirmed", () => {
       expect(result.state).toBe("cancelled");
     }
   });
+
+  it("confirmed + no_show → no_show", () => {
+    const result = transition("confirmed", "no_show", AUTO_APPROVE);
+    expect("state" in result).toBe(true);
+    if ("state" in result) {
+      expect(result.state).toBe("no_show");
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -90,6 +98,7 @@ describe("transition: terminal states reject all events", () => {
     "completed",
     "declined",
     "cancelled",
+    "no_show",
   ];
   const ALL_EVENTS: BookingEvent[] = [
     "submit",
@@ -97,6 +106,7 @@ describe("transition: terminal states reject all events", () => {
     "decline",
     "complete",
     "cancel",
+    "no_show",
   ];
 
   for (const state of TERMINAL_STATES) {
@@ -134,6 +144,9 @@ describe("transition: invalid pairs return {error} without throwing", () => {
     // pending_approval: complete and submit are not valid
     ["pending_approval", "complete"],
     ["pending_approval", "submit"],
+    // no_show is only valid from confirmed
+    ["pending_approval", "no_show"],
+    ["draft", "no_show"],
   ];
 
   for (const [state, event] of INVALID_PAIRS) {

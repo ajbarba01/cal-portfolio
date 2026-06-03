@@ -26,6 +26,8 @@ import {
   createBookingCore,
   cancelBookingCore,
   computeBookingQuoteCore,
+  markNoShowCore,
+  settleDebtCore,
 } from "./booking-service";
 import { createSupabaseBookingRepository } from "./booking-repository";
 import { quote } from "@/features/pricing/quote";
@@ -62,6 +64,8 @@ const ts = Date.now();
 let nearUserId: string;
 let farUserId: string;
 let refuseUserId: string;
+let debtorUserId: string;
+let noShowUserId: string;
 let coveringWindowId: string;
 
 // A future start time well within the booking window. We offset a fixed number
@@ -105,20 +109,36 @@ async function createTestUser(
 }
 
 beforeAll(async () => {
-  // Create three users at different distances from origin.
-  [nearUserId, farUserId, refuseUserId] = await Promise.all([
-    createTestUser(
-      `test-booking-near-${ts}@example.invalid`,
-      NEAR_LAT,
-      NEAR_LNG,
-    ),
-    createTestUser(`test-booking-far-${ts}@example.invalid`, FAR_LAT, FAR_LNG),
-    createTestUser(
-      `test-booking-refuse-${ts}@example.invalid`,
-      REFUSE_LAT,
-      REFUSE_LNG,
-    ),
-  ]);
+  // Create users at different distances from origin (+ dedicated debt/no-show
+  // users so cancellation debits never block the shared near/far users).
+  [nearUserId, farUserId, refuseUserId, debtorUserId, noShowUserId] =
+    await Promise.all([
+      createTestUser(
+        `test-booking-near-${ts}@example.invalid`,
+        NEAR_LAT,
+        NEAR_LNG,
+      ),
+      createTestUser(
+        `test-booking-far-${ts}@example.invalid`,
+        FAR_LAT,
+        FAR_LNG,
+      ),
+      createTestUser(
+        `test-booking-refuse-${ts}@example.invalid`,
+        REFUSE_LAT,
+        REFUSE_LNG,
+      ),
+      createTestUser(
+        `test-booking-debtor-${ts}@example.invalid`,
+        NEAR_LAT,
+        NEAR_LNG,
+      ),
+      createTestUser(
+        `test-booking-noshow-${ts}@example.invalid`,
+        NEAR_LAT,
+        NEAR_LNG,
+      ),
+    ]);
 
   // Verify seeded services exist (used via slug in createBookingCore).
   const { data: services, error } = await serviceClient
@@ -163,15 +183,25 @@ beforeAll(async () => {
 afterAll(async () => {
   // Delete bookings first (FK bookings.client_id → profiles cascade restrict,
   // so delete bookings then users; admin.deleteUser cascades auth → profiles).
+  const allUserIds = [
+    nearUserId,
+    farUserId,
+    refuseUserId,
+    debtorUserId,
+    noShowUserId,
+  ].filter(Boolean);
+
+  await serviceClient.from("bookings").delete().in("client_id", allUserIds);
+
+  // Deleting the auth user cascades profiles → client_debits, but delete
+  // explicitly too in case a booking FK held a debit row.
   await serviceClient
-    .from("bookings")
+    .from("client_debits")
     .delete()
-    .in("client_id", [nearUserId, farUserId, refuseUserId].filter(Boolean));
+    .in("client_id", allUserIds);
 
   await Promise.all(
-    [nearUserId, farUserId, refuseUserId]
-      .filter(Boolean)
-      .map((id) => serviceClient.auth.admin.deleteUser(id)),
+    allUserIds.map((id) => serviceClient.auth.admin.deleteUser(id)),
   );
 
   // Clean up the covering availability window.
@@ -198,6 +228,22 @@ function makeRepo() {
  */
 function deps() {
   return { repo: makeRepo(), now: new Date() };
+}
+
+/** Records refund calls so cancellation tests can assert on them without Stripe. */
+class FakeGateway {
+  refunds: Array<{ paymentIntentId: string; amountCents: number }> = [];
+  async createIntent() {
+    return { paymentIntentId: "pi_fake", clientSecret: "pi_fake_secret" };
+  }
+  async refund(paymentIntentId: string, amountCents: number): Promise<void> {
+    this.refunds.push({ paymentIntentId, amountCents });
+  }
+}
+
+/** Cancel/admin deps: adds a fake gateway to the standard deps. */
+function cancelDeps(gateway: FakeGateway = new FakeGateway()) {
+  return { repo: makeRepo(), now: new Date(), gateway };
 }
 
 /** Count persisted bookings for a client (used to assert no-row on rejection). */
@@ -560,7 +606,7 @@ describe("cancelBookingCore", () => {
 
     const bookingId = created.bookingIds[0];
 
-    const result = await cancelBookingCore(deps(), {
+    const result = await cancelBookingCore(cancelDeps(), {
       userId: nearUserId,
       bookingId,
     });
@@ -592,12 +638,152 @@ describe("cancelBookingCore", () => {
     if (created.kind !== "success") return;
 
     // farUser tries to cancel nearUser's booking.
-    const result = await cancelBookingCore(deps(), {
+    const result = await cancelBookingCore(cancelDeps(), {
       userId: farUserId,
       bookingId: created.bookingIds[0],
     });
 
     expect(result.kind).toBe("forbidden");
+  });
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Cancellation / refund policy + debt gate + no-show
+// ──────────────────────────────────────────────────────────────────────────────
+
+/** Insert a booking row directly (controls timing/paid-state without guards). */
+async function insertBookingRow(opts: {
+  clientId: string;
+  startsAt: Date;
+  endsAt: Date;
+  status: string;
+  finalCents: number;
+}): Promise<string> {
+  const { data, error } = await serviceClient
+    .from("bookings")
+    .insert({
+      client_id: opts.clientId,
+      service_id: (
+        await serviceClient
+          .from("services")
+          .select("id")
+          .eq("slug", "walk")
+          .single()
+      ).data!.id,
+      starts_at: opts.startsAt.toISOString(),
+      ends_at: opts.endsAt.toISOString(),
+      status: opts.status,
+      concurrency: "exclusive",
+      distance_miles: 5,
+      requires_approval: false,
+      final_cents: opts.finalCents,
+    })
+    .select("id")
+    .single();
+  if (error || !data)
+    throw new Error(`insertBookingRow failed: ${error?.message}`);
+  return data.id as string;
+}
+
+describe("cancellation + debt gate", () => {
+  it("unpaid late cancel writes a debit, blocks the next booking, and settleDebt clears it", async () => {
+    // Place the booking ~200 days out (a slot no guard-bound suite ever books —
+    // direct insert + cancel ignore guards), then inject a `now` 30h before its
+    // start so the cancel reads as inside the 48h cutoff. (The cutoff math uses
+    // the injected now, not the wall clock.)
+    const start = futureStart(200);
+    start.setUTCMinutes(37, 0, 0);
+    const end = new Date(start.getTime() + 60 * 60 * 1000);
+    const cancelNow = new Date(start.getTime() - 30 * 60 * 60 * 1000); // 30h before → late
+
+    const bookingId = await insertBookingRow({
+      clientId: debtorUserId,
+      startsAt: start,
+      endsAt: end,
+      status: "confirmed",
+      finalCents: 2500,
+    });
+
+    // Unpaid cancel inside the cutoff → no refund, writes a late_cancel debit.
+    const gateway = new FakeGateway();
+    const cancelResult = await cancelBookingCore(
+      { repo: makeRepo(), now: cancelNow, gateway },
+      { userId: debtorUserId, bookingId },
+    );
+    expect(cancelResult.kind).toBe("success");
+    expect(gateway.refunds).toHaveLength(0); // nothing paid → nothing refunded
+
+    // Debit written for the forfeited 50% of $25.00 = $12.50.
+    const repo = makeRepo();
+    expect(await repo.getOutstandingDebtCents(debtorUserId)).toBe(1250);
+
+    // Next booking is blocked by the debt gate (preview AND create).
+    const blockStart = futureStart(13);
+    blockStart.setUTCMinutes(37, 0, 0);
+    const blocked = await createBookingCore(deps(), {
+      userId: debtorUserId,
+      serviceSlug: "walk",
+      startsAt: blockStart,
+      endsAt: futureEnd(blockStart),
+      quantities: { hours: 1, dogs: 1 },
+      recurringRule: null,
+    });
+    expect(blocked.kind).toBe("blocked_debt");
+    if (blocked.kind === "blocked_debt") {
+      expect(blocked.owedCents).toBe(1250);
+    }
+
+    // Settle the debit, then the gate clears.
+    const { data: debit } = await serviceClient
+      .from("client_debits")
+      .select("id")
+      .eq("client_id", debtorUserId)
+      .is("settled_at", null)
+      .single();
+    const settle = await settleDebtCore(deps(), debit!.id as string);
+    expect(settle.kind).toBe("success");
+
+    expect(await repo.getOutstandingDebtCents(debtorUserId)).toBe(0);
+
+    const afterSettle = await createBookingCore(deps(), {
+      userId: debtorUserId,
+      serviceSlug: "walk",
+      startsAt: blockStart,
+      endsAt: futureEnd(blockStart),
+      quantities: { hours: 1, dogs: 1 },
+      recurringRule: null,
+    });
+    expect(afterSettle.kind).not.toBe("blocked_debt");
+  });
+
+  it("markNoShow on a past confirmed booking writes a full-price debit", async () => {
+    const now = new Date();
+    // A confirmed booking far in the past (isolated slot — markNoShow ignores
+    // time; this just avoids colliding with the completion-cron suite).
+    const start = new Date(now.getTime() - 200 * 24 * 60 * 60 * 1000);
+    start.setUTCMinutes(43, 0, 0);
+    const end = new Date(start.getTime() + 60 * 60 * 1000);
+
+    const bookingId = await insertBookingRow({
+      clientId: noShowUserId,
+      startsAt: start,
+      endsAt: end,
+      status: "confirmed",
+      finalCents: 3000,
+    });
+
+    const result = await markNoShowCore(deps(), bookingId);
+    expect(result.kind).toBe("success");
+
+    const { data: booking } = await serviceClient
+      .from("bookings")
+      .select("status")
+      .eq("id", bookingId)
+      .single();
+    expect(booking?.status).toBe("no_show");
+
+    // no_show_charge_pct defaults to 100% → owes the full $30.00.
+    expect(await makeRepo().getOutstandingDebtCents(noShowUserId)).toBe(3000);
   });
 });
 

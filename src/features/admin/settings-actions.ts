@@ -39,6 +39,9 @@ const settingsRowSchema = z.object({
   recurrence_generation_horizon_days: z.number(),
   recurring_discount_pct: z.number(),
   recurring_min_occurrences: z.number(),
+  cancellation_full_refund_hours: z.number(),
+  late_cancel_refund_pct: z.number(),
+  no_show_charge_pct: z.number(),
   holiday_surcharge_cents: z.number(),
   holiday_dates: z.array(z.string()),
   reminder_lead_hours: z.number(),
@@ -93,6 +96,7 @@ export async function getSettingsCore(
         "auto_confirm_horizon_days, hard_max_advance_days, " +
         "recurrence_generation_horizon_days, " +
         "recurring_discount_pct, recurring_min_occurrences, " +
+        "cancellation_full_refund_hours, late_cancel_refund_pct, no_show_charge_pct, " +
         "holiday_surcharge_cents, holiday_dates, reminder_lead_hours",
     )
     .limit(1)

@@ -40,4 +40,12 @@ export class StripeGateway implements PaymentGateway {
       clientSecret: pi.client_secret,
     };
   }
+
+  async refund(paymentIntentId: string, amountCents: number): Promise<void> {
+    await this.stripe.refunds.create({
+      payment_intent: paymentIntentId,
+      amount: amountCents,
+    });
+    // payment_status is re-projected by the charge.refunded webhook — never here.
+  }
 }

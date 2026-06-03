@@ -23,6 +23,13 @@ export interface CreatedIntent {
  */
 export interface PaymentGateway {
   createIntent(args: CreateIntentArgs): Promise<CreatedIntent>;
+
+  /**
+   * Initiate a refund of `amountCents` against a PaymentIntent. The resulting
+   * `charge.refunded` webhook re-projects `payment_status` (the webhook stays
+   * the sole writer of that column) — this call NEVER writes payment_status.
+   */
+  refund(paymentIntentId: string, amountCents: number): Promise<void>;
 }
 
 // ─── Domain types ─────────────────────────────────────────────────────────────

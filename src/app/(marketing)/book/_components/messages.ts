@@ -56,12 +56,23 @@ export function createResultMessage(
     case "refuse":
       return { tone: "error", text: result.reason };
 
+    case "blocked_debt":
+      return {
+        tone: "error",
+        text: `You have an outstanding balance of ${formatCents(result.owedCents)}. Please settle it before booking.`,
+      };
+
     case "validation_error":
       return { tone: "error", text: result.message };
 
     case "error":
       return { tone: "error", text: result.message };
   }
+}
+
+/** Formats integer cents as a USD string (plain text, no locale surprises). */
+function formatCents(cents: number): string {
+  return `$${(cents / 100).toFixed(2)}`;
 }
 
 // ── previewQuote result ───────────────────────────────────────────────────────
@@ -100,6 +111,15 @@ export function previewResultMessage(
       return {
         kind: "message",
         message: { tone: "error", text: result.reason },
+      };
+
+    case "blocked_debt":
+      return {
+        kind: "message",
+        message: {
+          tone: "error",
+          text: `You have an outstanding balance of ${formatCents(result.owedCents)}. Please settle it before booking.`,
+        },
       };
 
     case "validation_error":

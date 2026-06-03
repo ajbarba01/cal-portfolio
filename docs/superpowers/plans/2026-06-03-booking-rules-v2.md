@@ -82,7 +82,7 @@ The MVP (Phases 0–13) shipped with a **driving-minutes** approval gate, intege
 
 ---
 
-## Phase 17 — Open-ended weekly recurrence + rolling series cron — [x]
+## Phase 17 — Open-ended weekly recurrence + rolling series cron — [x] `f77b125`
 
 **Goal:** Weekly series, fixed week-count or "no end"; never officially books past ~1 month; a daily cron promotes pending→confirmed at the horizon and extends open series.
 **Systems landed:** `booking_series` table; bounded recurrence; `series-roll` cron + route. **Deps:** 16.
@@ -93,7 +93,7 @@ The MVP (Phases 0–13) shipped with a **driving-minutes** approval gate, intege
 - [x] **Schema.** `booking_series` table (column `step_interval`, not `interval` — Postgres keyword; DESIGN updated) + `bookings.series_id` FK + RLS (client reads own; service-role writes).
 - [x] **Recurrence bound.** Added optional `opts.materializeUntil` to `expandOccurrences`; **throw kept** when no bound (count/until/materializeUntil) is passed. UNBOUNDED-RULE-CONTRACT doc + tests updated.
 - [x] **Submit.** Accept an open-ended rule (count & until both absent); write a `booking_series` row with **frozen `quote_inputs`**; materialize occurrences only to the generation horizon, status per-occurrence via `deriveTimeApproval`. Weekly-only enforced (table CHECK + service guard). Slot conflict on first insert cleans up the orphan series.
-- [x] **Cron.** `series-cron.ts`: pure `shouldPromote` + `nextOccurrencesToMaterialize`. `runSeriesRollCron({ serviceClient, now })` after `completion-cron.ts`: **promote** time-only pendings (distance/service pendings left for Cal) via `transition('pending_approval','approve')`; **extend** active series, catching 23P01 → conflict count + log, never dropped. (Debtor skip deferred to Phase 18 per dependency order.)
+- [x] **Cron.** `series-cron.ts`: pure `shouldPromote` + `nextOccurrencesToMaterialize`. `runSeriesRollCron({ serviceClient, now })` after `completion-cron.ts`: **promote** time-only pendings (distance/service pendings left for Cal) via `transition('pending_approval','approve')`; **extend** active series, catching 23P01 → conflict count + log, never dropped. (Debtor-skip added in Phase 18 — both passes skip a client with an unsettled balance.)
 - [x] **Route + schedule.** `api/cron/series-roll/route.ts` (clone of `complete/route.ts`, `CRON_SECRET`-gated); daily `vercel.json` entry added.
 - [x] **Repo.** `insertSeries`, `deleteSeries`, `getActiveSeries` (generalized from `getActiveOpenSeries` — handles bounded tails too), `getMaterializedOccurrenceStarts(seriesId)`, `getServiceById`, `BookingSeriesRow`/`BookingSeriesInsert` types + schema.
 - [x] **Tests.** `materializeUntil` bound (implicit until + count interplay); `shouldPromote` boundary; `nextOccurrencesToMaterialize` skips existing/past; cron promotes an in-horizon time-only pending, leaves a distance-manual pending, and leaves a conflicting extend occurrence unmaterialized.
@@ -103,23 +103,25 @@ The MVP (Phases 0–13) shipped with a **driving-minutes** approval gate, intege
 
 ---
 
-## Phase 18 — Cancellation / refund policy + debt gate + no-show
+## Phase 18 — Cancellation / refund policy + debt gate + no-show — [x]
 
 **Goal:** Self-cancel with a 48h/50% policy (Cal can grant full <48h); unpaid late cancel / no-show → debt that blocks re-booking until settled.
 **Systems landed:** pure `computeRefund`; `StripeGateway.refund`; `client_debits` + gate; `no_show` status. **Deps:** 17 (cron debt skip).
 
 **Files:** `state-machine.ts`, `src/features/payments/stripe-gateway.ts` (+ `PaymentGateway` interface), new `src/features/booking/cancellation.ts`, `booking-service.ts`, `actions.ts`, `booking-repository.ts`, `supabase/migrations/<ts>_cancellation_debt.sql` (+ seed), `cancellation.test.ts`, `state-machine.test.ts`.
 
-- [ ] **Settings.** `cancellation_full_refund_hours` (48), `late_cancel_refund_pct` (50), `no_show_charge_pct` (100).
-- [ ] **Schema.** `client_debits` table + RLS (admin/system write only); add `no_show` to the `booking_status` enum.
-- [ ] **State machine.** Add `no_show` terminal status + `confirmed → no_show`; update `TERMINAL_STATUSES` + the diagram doc.
-- [ ] **`computeRefund({ finalCents, paidCents, startsAt, now, fullRefundHours, lateRefundPct })`** → `{ refundCents, tier: "full"|"late"|"none", needsCalReview }`. Pure; reuse `amountOwedCents` (`payments/projection.ts`). (paid = final or 0 — no partial case.)
-- [ ] **Gateway.** Add `refund(paymentIntentId, amountCents)` to `StripeGateway` + the `PaymentGateway` interface. Cancel path **initiates** the refund; the existing `charge.refunded` webhook handler re-projects `payment_status` (sole writer preserved).
-- [ ] **Cancel core + debt gate.** `cancelBookingCore`: compute refund, initiate the default-tier refund, write a `client_debits` row on unpaid late cancel. Add the **debt gate** at the top of `computeBookingArtifacts` (`getOutstandingDebtCents(userId) > 0` → `{ kind: "blocked_debt", owedCents }`) so preview **and** create block.
-- [ ] **Actions.** Wire gateway DI + `now`; add admin `grantFullRefund(bookingId)`, `markNoShow(bookingId)`, `settleDebt(debitId)`.
-- [ ] **Repo.** `getOutstandingDebtCents`, `insertDebit`, `settleDebit`, `getBookingWithPayments`.
-- [ ] **Tests.** `computeRefund` at/before vs inside cutoff, unpaid vs paid; state machine `no_show`; integration — unpaid <48h cancel writes a debit and the next booking is `blocked_debt` until `settleDebt`.
-- [ ] **Gate + commit** `feat: cancellation/refund policy, no-show, and debt-gated re-booking`.
+- [x] **Settings.** `cancellation_full_refund_hours` (48), `late_cancel_refund_pct` (50), `no_show_charge_pct` (100).
+- [x] **Schema.** `client_debits` table + RLS (admin/system write only); added `no_show` to the `booking_status` enum.
+- [x] **State machine.** Added `no_show` terminal status + `confirmed → no_show` (event `no_show`); updated `TERMINAL_STATUSES` + the diagram doc.
+- [x] **`computeRefund`** → `{ refundCents, tier: "full"|"late"|"none", needsCalReview }`, pure; plus `computeCancellationDebtCents` (forfeited portion for unpaid late / no-show). (paid = final or 0.)
+- [x] **Gateway.** Added `refund(paymentIntentId, amountCents)` to `StripeGateway` + `PaymentGateway`. Cancel path **initiates** the refund; `charge.refunded` webhook re-projects `payment_status` (sole writer preserved).
+- [x] **Cancel core + debt gate.** `cancelBookingCore` (now takes `CancelDeps` with a gateway): computes refund, initiates it, writes a `client_debits` row on unpaid late cancel. **Debt gate** at the top of `computeBookingArtifacts` → `{ kind: "blocked_debt", owedCents }` blocks preview **and** create. Block-out (trim/delete window) cancel path threads a gateway too.
+- [x] **Actions.** Wired gateway DI + `now`; added admin `grantFullRefund`, `markNoShow`, `settleDebt` (admin-gated wrappers + `*Core` fns).
+- [x] **Repo.** `getOutstandingDebtCents`, `insertDebit`, `settleDebit`, `getBookingWithPayments`.
+- [x] **Tests.** `computeRefund`/debt math; state-machine `no_show` (incl. terminal matrix); integration — unpaid late cancel writes a debit, next booking is `blocked_debt` until `settleDebt`, and `markNoShow` writes a full-price debit. `/book` messages surface `blocked_debt`.
+- [x] **Gate + commit** `feat: cancellation/refund policy, no-show, and debt-gated re-booking`.
+
+> **Debtor-skip (17↔18):** completed here — `runSeriesRollCron` now skips a debtor's occurrences in BOTH passes (promote + extend), with a per-client debt lookup cached across the run. Tested: a debtor's in-horizon time-only pending is left `pending_approval`.
 
 **Verification:** ≥48h cancel of a prepaid booking refunds full via the webhook projection; <48h unpaid cancel creates a debit and blocks the next booking; Cal `settleDebt` clears the block; `markNoShow` on a past confirmed booking writes the debit.
 

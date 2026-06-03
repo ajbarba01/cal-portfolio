@@ -155,6 +155,7 @@ const NEAR_LNG = -105.27;
 
 let nearUserId: string;
 let blockerUserId: string;
+let debtorUserId: string;
 let walkServiceId: string;
 let walkConcurrency: string;
 const createdSeriesIds: string[] = [];
@@ -207,14 +208,16 @@ beforeAll(async () => {
   walkServiceId = svc.id;
   walkConcurrency = svc.concurrency;
 
-  [nearUserId, blockerUserId] = await Promise.all([
+  [nearUserId, blockerUserId, debtorUserId] = await Promise.all([
     createUser(`series-near-${ts}@example.invalid`, NEAR_LAT, NEAR_LNG),
     createUser(`series-blocker-${ts}@example.invalid`, NEAR_LAT, NEAR_LNG),
+    createUser(`series-debtor-${ts}@example.invalid`, NEAR_LAT, NEAR_LNG),
   ]);
 });
 
 afterAll(async () => {
-  const ids = [nearUserId, blockerUserId].filter(Boolean);
+  const ids = [nearUserId, blockerUserId, debtorUserId].filter(Boolean);
+  await serviceClient.from("client_debits").delete().in("client_id", ids);
   await serviceClient.from("bookings").delete().in("client_id", ids);
   if (createdSeriesIds.length > 0) {
     await serviceClient
@@ -232,6 +235,7 @@ async function insertPending(opts: {
   startsAt: Date;
   durationMs?: number;
   distanceMiles: number | null;
+  clientId?: string;
 }): Promise<string> {
   const end = new Date(
     opts.startsAt.getTime() + (opts.durationMs ?? 60 * 60 * 1000),
@@ -239,7 +243,7 @@ async function insertPending(opts: {
   const { data, error } = await serviceClient
     .from("bookings")
     .insert({
-      client_id: nearUserId,
+      client_id: opts.clientId ?? nearUserId,
       service_id: walkServiceId,
       starts_at: opts.startsAt.toISOString(),
       ends_at: end.toISOString(),
@@ -274,6 +278,24 @@ describe("runSeriesRollCron — promote", () => {
       distanceMiles: 40,
     }); // manual distance
 
+    // A debtor with an unsettled balance: their in-horizon time-only pending
+    // must NOT be auto-promoted while the debt stands.
+    const debtorStart = new Date(now.getTime() + 12 * MS_PER_DAY);
+    debtorStart.setUTCHours(14, 23, 0, 0);
+    const debtorId = await insertPending({
+      startsAt: debtorStart,
+      distanceMiles: 5,
+      clientId: debtorUserId,
+    });
+    const { error: debitErr } = await serviceClient
+      .from("client_debits")
+      .insert({
+        client_id: debtorUserId,
+        amount_cents: 5000,
+        reason: "late_cancel",
+      });
+    if (debitErr) throw new Error(`debit insert failed: ${debitErr.message}`);
+
     const result = await runSeriesRollCron({ serviceClient, now });
     expect(result.ok).toBe(true);
 
@@ -290,6 +312,13 @@ describe("runSeriesRollCron — promote", () => {
       .eq("id", manualId)
       .single();
     expect(manualRow?.status).toBe("pending_approval");
+
+    const { data: debtorRow } = await serviceClient
+      .from("bookings")
+      .select("status")
+      .eq("id", debtorId)
+      .single();
+    expect(debtorRow?.status).toBe("pending_approval"); // debt blocks promotion
   });
 });
 
