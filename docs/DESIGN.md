@@ -54,7 +54,7 @@ Cal's stated intent: **"simple and straightforward."** No brand assets yet (no l
 
 ## Route map
 
-Next.js App Router, three route groups. Auth-session refresh lives in `src/middleware.ts` (delegates to `src/lib/supabase/proxy.ts`); session + `role` guards sit at the group layouts. Architecture rules in [ENGINEERING.md](ENGINEERING.md).
+Next.js App Router, three route groups. Auth-session refresh **and** the auth + onboarding gate live in middleware (`src/proxy.ts` → `src/lib/supabase/proxy.ts`), which reads the canonical pathname and redirects un-onboarded users to /onboarding; group layouts keep only a thin auth backstop. `role` guards sit at the group layouts. Architecture rules in [ENGINEERING.md](ENGINEERING.md).
 
 | Route                                 | Group     | Access                        | Notes                                                             |
 | ------------------------------------- | --------- | ----------------------------- | ----------------------------------------------------------------- |
