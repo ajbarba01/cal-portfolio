@@ -3,6 +3,7 @@ import {
   fitsWindow,
   passesGuards,
   seriesQualifiesForRecurringDiscount,
+  denverDayKey,
 } from "./availability";
 import type { TimeRange, BookingRuleSettings } from "./availability";
 
@@ -185,6 +186,33 @@ describe("passesGuards: hours of day in America/Denver (minute-bounded start & e
     const julyNow = new Date("2025-07-01T00:00:00Z");
     const candidate = makeRange("2025-07-15T12:29:00Z", "2025-07-15T13:29:00Z");
     expect(passesGuards(candidate, settings, julyNow)).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// denverDayKey
+// ---------------------------------------------------------------------------
+
+describe("denverDayKey", () => {
+  it("returns the Denver calendar day, not the UTC day, for a late-evening MST instant", () => {
+    // 2025-03-09T05:00:00Z = 22:00 MST on Mar 8 (UTC-7) → Denver day is Mar 8.
+    expect(denverDayKey(new Date("2025-03-09T05:00:00Z"))).toBe("2025-03-08");
+  });
+
+  it("returns the Denver day for a late-evening MDT instant", () => {
+    // 2025-07-15T03:00:00Z = 21:00 MDT on Jul 14 (UTC-6) → Denver day is Jul 14.
+    expect(denverDayKey(new Date("2025-07-15T03:00:00Z"))).toBe("2025-07-14");
+  });
+
+  it("returns the same day for a midday MDT instant", () => {
+    // 2025-07-15T12:00:00Z = 06:00 MDT on Jul 15.
+    expect(denverDayKey(new Date("2025-07-15T12:00:00Z"))).toBe("2025-07-15");
+  });
+
+  it("two instants on the same Denver day share a key across UTC offset", () => {
+    // Denver-midnight MST (07:00Z) and just before next Denver-midnight.
+    expect(denverDayKey(new Date("2025-01-15T07:00:00Z"))).toBe("2025-01-15");
+    expect(denverDayKey(new Date("2025-01-16T06:59:00Z"))).toBe("2025-01-15");
   });
 });
 
