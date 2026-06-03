@@ -96,3 +96,13 @@ Overall:
 - I want to emphasize that a lot of these are probably just a matter of tuning and assuming we have good design, they can really be configured/changed later by Cal.
 - A lot of this project can be planned out without these specific answers and should be easily able to adapt to specifics when cal responds (i will continue adding answers when cal does respond)
 - I do think the two main big questions that remain really open are the deposit/prepay system: like it might be a security thing to have everyone at least deposit something in the future -- this also allows a cancellation fee where they just lose the deposit if they cancel like the day before, but who knows where this system will go. the other question is
+
+---
+
+Ok I want to refactor the booking page a little. Here's what i want
+
+1. I want the booking page to be almost entirely like calendar based, where a user can see the available booking slots by going maybe week to week or something. this might honestly be the case already
+
+2.
+
+---
