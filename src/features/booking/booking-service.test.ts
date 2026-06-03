@@ -976,3 +976,98 @@ describe("createBookingCore — fitsWindow enforcement", () => {
     }
   });
 });
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Pet assignment (Phase 21): petIds derive server-trusted counts + link rows
+// ──────────────────────────────────────────────────────────────────────────────
+
+describe("createBookingCore: pet assignment", () => {
+  let dog1: string;
+  let dog2: string;
+  let cat1: string;
+
+  beforeAll(async () => {
+    const { data, error } = await serviceClient
+      .from("pets")
+      .insert([
+        { client_id: nearUserId, name: "Rex", species: "dog" },
+        { client_id: nearUserId, name: "Fido", species: "dog" },
+        { client_id: nearUserId, name: "Tom", species: "cat" },
+      ])
+      .select("id, species");
+    if (error || !data)
+      throw new Error(`pet fixture failed: ${error?.message}`);
+    dog1 = data.find((p) => p.species === "dog")!.id as string;
+    dog2 = data.filter((p) => p.species === "dog")[1].id as string;
+    cat1 = data.find((p) => p.species === "cat")!.id as string;
+  });
+
+  it("walk: derives dog count from assigned pets and links booking_pets", async () => {
+    const start = futureStart(11);
+    const result = await createBookingCore(deps(), {
+      userId: nearUserId,
+      serviceSlug: "walk",
+      startsAt: start,
+      endsAt: futureEnd(start),
+      // Client sends a WRONG count; server overrides from the 2 assigned dogs.
+      quantities: { hours: 1, dogs: 99 },
+      petIds: [dog1, dog2],
+      recurringRule: null,
+    });
+
+    expect(result.kind).toBe("success");
+    if (result.kind !== "success") return;
+
+    const { data: booking } = await serviceClient
+      .from("bookings")
+      .select("quote_inputs")
+      .eq("id", result.bookingIds[0])
+      .single();
+    expect((booking?.quote_inputs as { dogs: number }).dogs).toBe(2);
+
+    const { data: links } = await serviceClient
+      .from("booking_pets")
+      .select("pet_id")
+      .eq("booking_id", result.bookingIds[0]);
+    expect(links).toHaveLength(2);
+  });
+
+  it("house-sitting: derives dogs+cats from assigned pets", async () => {
+    const start = futureStart(12);
+    const result = await createBookingCore(deps(), {
+      userId: nearUserId,
+      serviceSlug: "house-sitting",
+      startsAt: start,
+      endsAt: futureEnd(start, 2 * 24 * 60 * 60 * 1000),
+      quantities: { nights: 2 }, // dogs/cats omitted — derived from pets
+      petIds: [dog1, cat1],
+      recurringRule: null,
+    });
+
+    expect(result.kind).toBe("success");
+    if (result.kind !== "success") return;
+
+    const { data: booking } = await serviceClient
+      .from("bookings")
+      .select("quote_inputs")
+      .eq("id", result.bookingIds[0])
+      .single();
+    const qi = booking?.quote_inputs as { dogs: number; cats: number };
+    expect(qi.dogs).toBe(1);
+    expect(qi.cats).toBe(1);
+  });
+
+  it("rejects pet ids the caller does not own", async () => {
+    const start = futureStart(13);
+    const result = await createBookingCore(deps(), {
+      userId: farUserId, // does NOT own nearUser's pets
+      serviceSlug: "walk",
+      startsAt: start,
+      endsAt: futureEnd(start),
+      quantities: { hours: 1, dogs: 1 },
+      petIds: [dog1],
+      recurringRule: null,
+    });
+    expect(result.kind).toBe("validation_error");
+  });
+});

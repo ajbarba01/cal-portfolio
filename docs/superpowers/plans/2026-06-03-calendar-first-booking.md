@@ -36,7 +36,7 @@
 
 ---
 
-## Phase 20 — Pets generalization (dogs→pets + species + photos) — [x]
+## Phase 20 — Pets generalization (dogs→pets + species + photos) — [x] `c9fcc50`
 
 **Goal:** Real assignable pet records with species + photo upload; app stays green (booking still posts counts).
 **Files:** `supabase/migrations/20260603130000_pets_generalization.sql`, `src/features/accounts/account-actions.ts`, `src/features/accounts/_components/pet-form.tsx` (new shared), `app/(account)/account/pets/**` (moved from `dogs`), `src/features/booking/_components/pet-avatar.tsx` (new), account nav links.
@@ -51,20 +51,18 @@
 
 ---
 
-## Phase 21 — Busy data path + pet-assignment wiring — [ ]
+## Phase 21 — Busy data path + pet-assignment wiring — [x]
 
-**Goal:** True availability via service-role busy sources (public opaque + photos, admin enriched); bookings persist real pets.
-**Files:** `src/features/booking/booking-repository.ts`, `src/features/booking/busy-ranges.ts` (new), `src/features/admin/admin-busy.ts` (new), `src/features/booking/use-busy-ranges.ts` (new), `src/features/booking/booking-service.ts`, `actions.ts` schema.
+**Goal:** True availability via service-role busy sources (public identity-free + photos, admin enriched); bookings persist real pets. (Hooks moved to Phase 22, where the calendar consumes them — keeps this phase backend-only and green.)
+**Files:** `src/features/booking/booking-repository.ts`, `src/features/booking/busy-ranges.ts` (new), `src/features/admin/admin-busy.ts` (new), `src/features/booking/booking-service.ts`, `booking-service.test.ts`, `busy-ranges.test.ts` (new).
 
-- [ ] **Repo methods.** `getActiveBusyRanges(now, concurrency)` → identity-free `TimeRange[]` (+ pet thumbnails: species + photo path, NO name/id); `getActiveBusyRangesEnriched(now)` → joined `bookings→profiles→booking_pets→pets` with name/status; `getPetsByIds(userId, petIds)`; `insertBookingPets(bookingIds, petIds)`. Zod-parse at edge.
-- [ ] **Public source.** `getPublicBusyRanges` action + DI core in `busy-ranges.ts`; service role; pet photos via short-lived `createSignedUrl`; result type carries no identity (compile-time).
-- [ ] **Admin source.** `getAdminBusyRanges` action + core in `admin-busy.ts`, guarded by `assertActorIsAdmin`; adds client name + status for the action menu.
-- [ ] **Hook.** `use-busy-ranges.ts`: realtime ping → refetch via action; interval fallback; manual `refresh()`. Refactor `use-availability.ts` to stop querying `bookings` directly (remove limitation comment).
-- [ ] **Pet-count derivation.** Add optional `petIds: string[]` to `createBookingInputSchema`; for pet-aware services derive server-trusted `dogs`/`cats` counts from `getPetsByIds` (override client counts); validate (house_sitting ≥1 pet, walk ≥1 dog); snapshot `petIds` into `quote_inputs`; after `insertBookings` call `insertBookingPets` per occurrence.
-- [ ] **Tests.** Count-derivation via mock repo; `getPublicBusyRangesCore` no-identity-leak regression; concurrency-class filtering.
-- [ ] **Gate + commit** `feat: service-role busy ranges and real pet assignment on bookings`. Docs: DESIGN.md booking-creation + privacy; ENGINEERING.md two-trust busy pattern.
-
-**Verification:** unit tests green incl. leak regression; a second user's booking shows busy to others; typecheck/lint green.
+- [x] **Repo methods.** `getActiveBusyRanges(now, concurrency)` → identity-free `BusyRange[]` (pet species + photo path, NO name/id); `getActiveBusyRangesEnriched(now)` → joined `bookings→profiles→booking_pets→pets` with name/status; `getPetsByIds(userId, petIds)` (client-filtered); `insertBookingPets(bookingIds, petIds)`. Zod-parse at edge.
+- [x] **Public source.** `getPublicBusyRanges` action + DI core in `busy-ranges.ts`; service role; pet photos via short-lived `createSignedUrl`; `PublicBusyRange` type carries no identity (compile-time guarantee).
+- [x] **Admin source.** `getAdminBusyRanges` action + core in `admin-busy.ts`, guarded by `assertActorIsAdmin`; adds client name + status.
+- [x] **Pet-count derivation.** Added optional `petIds` to `createBookingInputSchema`; pet-aware services derive server-trusted `dogs`/`cats` from `getPetsByIds` (override client counts; reject unowned ids); `insertBookingPets` per occurrence after insert. Backward compatible — count-only submits still work. (Skipped snapshotting petIds into `quote_inputs` — booking_pets is the source of truth; avoids polluting the series re-quote path.)
+- [x] **Tests.** `busy-ranges.test.ts` no-identity-leak regression + concurrency passthrough + photo signing; `booking-service.test.ts` pet-assignment (walk derives dog count overriding client; house-sitting derives dogs+cats; unowned ids rejected). 409 tests green.
+- [x] **Hooks deferred to Phase 22.**
+- [x] **Gate + commit** `feat: service-role busy ranges and real pet assignment on bookings`. Docs: DESIGN.md booking privacy.
 
 ---
 

@@ -96,6 +96,13 @@ const createBookingInputSchema = z
     startsAt: z.coerce.date(),
     endsAt: z.coerce.date(),
     quantities: z.record(z.string(), z.unknown()),
+    /**
+     * Assigned pet ids (pet-aware services only). When present, the dog/cat
+     * COUNTS are derived server-side from these (overriding any client-supplied
+     * counts, like money) and the pets are linked via booking_pets. Optional for
+     * backward compatibility — count-only submits still quote correctly.
+     */
+    petIds: z.array(z.string().uuid()).optional(),
     /** Weekly recurrence rule. MVP UI exposes weekly only; daily/monthly accepted for future use. */
     recurringRule: recurrenceRuleSchema.nullable(),
   })
@@ -272,11 +279,31 @@ async function computeBookingArtifacts(
     };
   }
 
-  // 3. Validate quantities
-  const quantitiesResult = parseQuantities(
-    service.pricing_type,
-    input.quantities,
-  );
+  // 3. Derive pet-aware counts from assigned pets (server-trusted, like money),
+  // then validate quantities. When petIds are supplied for a pet-aware service,
+  // the dog/cat counts come from the OWNED pets — never the client payload.
+  // Absent petIds → fall back to the client-supplied counts (legacy path).
+  let quantitiesRaw = input.quantities;
+  const petIds = input.petIds ?? [];
+  const petAware =
+    service.pricing_type === "house_sitting" || service.pricing_type === "walk";
+  if (petAware && petIds.length > 0) {
+    const ownedPets = await repo.getPetsByIds(input.userId, petIds);
+    if (ownedPets.length !== petIds.length) {
+      return {
+        kind: "validation_error",
+        message: "One or more selected pets were not found.",
+      };
+    }
+    const dogs = ownedPets.filter((p) => p.species === "dog").length;
+    const cats = ownedPets.filter((p) => p.species === "cat").length;
+    quantitiesRaw =
+      service.pricing_type === "house_sitting"
+        ? { ...quantitiesRaw, dogs, cats }
+        : { ...quantitiesRaw, dogs };
+  }
+
+  const quantitiesResult = parseQuantities(service.pricing_type, quantitiesRaw);
   if (!quantitiesResult.success) {
     return { kind: "validation_error", message: quantitiesResult.message };
   }
@@ -572,6 +599,11 @@ export async function createBookingCore(
   // written, delete it so the conflict doesn't orphan an empty rule.
   try {
     const ids = await repo.insertBookings(insertRows);
+    // Link assigned pets to every occurrence (pet-aware services only).
+    const petIds = input.petIds ?? [];
+    if (petIds.length > 0) {
+      await repo.insertBookingPets(ids, petIds);
+    }
     return { kind: "success", bookingIds: ids };
   } catch (e: unknown) {
     const code = (e as { code?: string }).code;
