@@ -49,8 +49,10 @@ const confirmationRowSchema = z.object({
   services: z.object({ name: z.string() }).nullable(),
 });
 
-// Re-export result types for consumers.
-export type { CreateBookingResult, CancelBookingResult };
+// NOTE: result types are intentionally NOT re-exported here. A "use server"
+// module may export ONLY async functions; a `export type { … }` re-export is
+// emitted as a runtime action binding and crashes module eval
+// ("X is not defined"). Import these types from ./booking-service (their source).
 
 /**
  * Server action: create a booking.

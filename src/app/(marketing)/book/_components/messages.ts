@@ -5,9 +5,11 @@
  * The client component calls these and renders the returned text + tone.
  */
 
-import type { CreateBookingResult } from "@/features/booking/actions";
 import type { PreviewActionResult } from "@/features/booking/quote-action";
-import type { BookingQuotePreview } from "@/features/booking/booking-service";
+import type {
+  CreateBookingResult,
+  BookingQuotePreview,
+} from "@/features/booking/booking-service";
 
 // ── Tone ─────────────────────────────────────────────────────────────────────
 
