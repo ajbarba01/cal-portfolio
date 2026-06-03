@@ -76,8 +76,8 @@ describe("fitsWindow", () => {
 // ---------------------------------------------------------------------------
 
 const DEFAULT_SETTINGS: BookingRuleSettings = {
-  bookingOpenHour: 8,
-  bookingCloseHour: 18,
+  bookingOpenMinute: 480, // 8:00am
+  bookingCloseMinute: 1080, // 6:00pm
   minLeadTimeHours: 24,
   maxAdvanceDays: 90,
 };
@@ -87,12 +87,8 @@ describe("passesGuards: lead time", () => {
   // candidate starts 2025-03-02T12:00:00Z → exactly 24h lead → should pass
   it("passes when lead time is exactly minLeadTimeHours (inclusive boundary)", () => {
     const now = new Date("2025-03-01T12:00:00Z");
-    // start is exactly at bookingOpenHour=8 in Denver: 2025-03-02T15:00:00Z = 8am MDT+1 (MST=UTC-7, so 8am MST = 15:00 UTC in winter)
-    // Actually use 2025-03-02 in January when MST=UTC-7: 8am MST = 15:00 UTC
-    // But we want exactly 24h lead from now. Let's keep it simple with a Denver-open-hour-compliant time
-    // 2025-03-02T15:00:00Z = 8:00 AM MST (UTC-7, no DST in March 2 before second Sunday)
-    // Wait, DST 2025 starts March 9. So March 2 is still MST (UTC-7). 8am MST = 15:00 UTC.
-    // now=12:00Z, start=15:00Z next day → diff = 27h → passes lead AND hour-of-day
+    // 2025-03-02T15:00:00Z = 8:00am MST (UTC-7; DST starts Mar 9) = open minute 480.
+    // now=12:00Z, start=15:00Z next day → 27h lead → passes lead time AND hours-of-day.
     const candidate = makeRange("2025-03-02T15:00:00Z", "2025-03-02T17:00:00Z");
     expect(passesGuards(candidate, DEFAULT_SETTINGS, now)).toBe(true);
   });
@@ -145,51 +141,50 @@ describe("passesGuards: max advance", () => {
   });
 });
 
-describe("passesGuards: hour of day in America/Denver", () => {
+describe("passesGuards: hours of day in America/Denver (minute-bounded start & end)", () => {
   // Denver is MST (UTC-7) in winter, MDT (UTC-6) in summer.
   // DST 2025: starts March 9, ends Nov 2.
-  // Test in January (MST=UTC-7): 8am MST = 15:00 UTC.
-
-  const now = new Date("2025-01-01T00:00:00Z"); // Jan 1 midnight UTC → plenty of lead time
+  // Seed window: open 390 (6:30am), close 1320 (10:00pm).
+  const now = new Date("2025-01-01T00:00:00Z"); // plenty of lead time, well inside max advance
   const settings: BookingRuleSettings = {
     ...DEFAULT_SETTINGS,
-    bookingOpenHour: 8,
-    bookingCloseHour: 18,
+    bookingOpenMinute: 390, // 6:30am
+    bookingCloseMinute: 1320, // 10:00pm
   };
 
-  it("passes when candidate starts at bookingOpenHour in Denver (8am MST = 15:00 UTC)", () => {
-    // Jan 15 is in MST (UTC-7); 8am MST = 15:00 UTC
-    const candidate = makeRange("2025-01-15T15:00:00Z", "2025-01-15T17:00:00Z");
+  it("passes when start is exactly at open (6:30am MST = 13:30 UTC)", () => {
+    const candidate = makeRange("2025-01-15T13:30:00Z", "2025-01-15T14:30:00Z");
     expect(passesGuards(candidate, settings, now)).toBe(true);
   });
 
-  it("fails when candidate starts before bookingOpenHour in Denver (7:59am MST = 14:59 UTC)", () => {
-    const candidate = makeRange("2025-01-15T14:59:00Z", "2025-01-15T17:00:00Z");
+  it("fails when start is one minute before open (6:29am MST = 13:29 UTC)", () => {
+    const candidate = makeRange("2025-01-15T13:29:00Z", "2025-01-15T14:29:00Z");
     expect(passesGuards(candidate, settings, now)).toBe(false);
   });
 
-  it("fails when candidate starts at bookingCloseHour in Denver (18:00 MST = exclusive upper bound)", () => {
-    // 18:00 MST = 18+7=25:00 UTC = 01:00 UTC next day
-    const candidate = makeRange("2025-01-16T01:00:00Z", "2025-01-16T03:00:00Z");
-    expect(passesGuards(candidate, settings, now)).toBe(false);
-  });
-
-  it("passes when candidate starts just before close hour (17:00 MST = 00:00 UTC next day)", () => {
-    // 17:00 MST = 17+7=24:00 UTC = 00:00 UTC Jan 16
-    const candidate = makeRange("2025-01-16T00:00:00Z", "2025-01-16T01:00:00Z");
+  it("passes when end is exactly at close (ends 10:00pm MST = 05:00 UTC next day)", () => {
+    // start 9:00pm MST (04:00 UTC next day, minute 1260), end 10:00pm MST (minute 1320)
+    const candidate = makeRange("2025-01-16T04:00:00Z", "2025-01-16T05:00:00Z");
     expect(passesGuards(candidate, settings, now)).toBe(true);
   });
 
-  it("exercises Denver tz conversion: UTC 23:00 Jan 14 = 16:00 MST Jan 14 (inside window)", () => {
-    // 23:00 UTC = 16:00 MST (UTC-7) → inside [8, 18)
-    const candidate = makeRange("2025-01-15T23:00:00Z", "2025-01-16T01:00:00Z");
-    expect(passesGuards(candidate, settings, now)).toBe(true);
+  it("fails when end is past close (9:30pm start runs to 10:30pm MST)", () => {
+    // start 9:30pm MST (04:30 UTC next day, minute 1290 >= open),
+    // end 10:30pm MST (05:30 UTC, minute 1350 > 1320 close) → rejected on the end bound
+    const candidate = makeRange("2025-01-16T04:30:00Z", "2025-01-16T05:30:00Z");
+    expect(passesGuards(candidate, settings, now)).toBe(false);
   });
 
-  it("exercises Denver tz conversion: UTC 03:00 Jan 15 = 20:00 MST Jan 14 (outside [8,18))", () => {
-    // 03:00 UTC Jan 15 = 20:00 MST Jan 14 → outside [8, 18)
-    const candidate = makeRange("2025-01-15T03:00:00Z", "2025-01-15T05:00:00Z");
-    expect(passesGuards(candidate, settings, now)).toBe(false);
+  it("DST: 6:30am MDT (12:30 UTC in July) passes — offset handled by IANA tz", () => {
+    const julyNow = new Date("2025-07-01T00:00:00Z");
+    const candidate = makeRange("2025-07-15T12:30:00Z", "2025-07-15T13:30:00Z");
+    expect(passesGuards(candidate, settings, julyNow)).toBe(true);
+  });
+
+  it("DST: 6:29am MDT (12:29 UTC in July) fails — one minute before open", () => {
+    const julyNow = new Date("2025-07-01T00:00:00Z");
+    const candidate = makeRange("2025-07-15T12:29:00Z", "2025-07-15T13:29:00Z");
+    expect(passesGuards(candidate, settings, julyNow)).toBe(false);
   });
 });
 

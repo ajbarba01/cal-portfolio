@@ -24,10 +24,10 @@ import type { TimeRange, BookingRuleSettings } from "./availability";
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
 
-// Rules matching seed settings: 08-18 Denver, 24h lead, 90-day max advance.
+// Rules: 8:00am-6:00pm Denver (minutes-since-midnight), 24h lead, 90-day max advance.
 const defaultRules: BookingRuleSettings = {
-  bookingOpenHour: 8,
-  bookingCloseHour: 18,
+  bookingOpenMinute: 480,
+  bookingCloseMinute: 1080,
   minLeadTimeHours: 24,
   maxAdvanceDays: 90,
 };

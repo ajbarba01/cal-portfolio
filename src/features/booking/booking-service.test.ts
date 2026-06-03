@@ -455,9 +455,9 @@ describe("createBookingCore", () => {
   });
 
   it("guard: start outside Denver open hours → unavailable, no row", async () => {
-    // 02:00 UTC = 20:00 MDT (hour 20, outside the 08-18 window).
+    // 11:00 UTC = 05:00 Denver (MDT or MST) — before the 6:30am open minute.
     const start = futureStart(42);
-    start.setUTCHours(2, 0, 0, 0);
+    start.setUTCHours(11, 0, 0, 0);
     const end = futureEnd(start);
 
     const before = await countRows(nearUserId);

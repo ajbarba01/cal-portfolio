@@ -43,8 +43,8 @@ export interface SettingsRow {
   auto_approve_threshold_miles: number;
   hard_cutoff_miles: number;
   gate_use_road_miles: boolean;
-  booking_open_hour: number;
-  booking_close_hour: number;
+  booking_open_minute: number;
+  booking_close_minute: number;
   min_lead_time_hours: number;
   max_advance_days: number;
   recurring_discount_pct: number;
@@ -87,8 +87,8 @@ const settingsRowSchema = z.object({
   auto_approve_threshold_miles: z.number(),
   hard_cutoff_miles: z.number(),
   gate_use_road_miles: z.boolean(),
-  booking_open_hour: z.number(),
-  booking_close_hour: z.number(),
+  booking_open_minute: z.number(),
+  booking_close_minute: z.number(),
   min_lead_time_hours: z.number(),
   max_advance_days: z.number(),
   recurring_discount_pct: z.number(),
@@ -199,7 +199,7 @@ export function createSupabaseBookingRepository(
         .select(
           "origin_lat, origin_lng, road_factor, avg_speed_mph, " +
             "auto_approve_threshold_miles, hard_cutoff_miles, gate_use_road_miles, " +
-            "booking_open_hour, booking_close_hour, " +
+            "booking_open_minute, booking_close_minute, " +
             "min_lead_time_hours, max_advance_days, " +
             "recurring_discount_pct, recurring_min_occurrences",
         )

@@ -474,9 +474,9 @@ describe("updateSettingsCore", () => {
     expect(result.kind).toBe("forbidden");
   });
 
-  it("invalid value (hour > 23) → validation_error", async () => {
+  it("invalid value (minute > 1440) → validation_error", async () => {
     const result = await updateSettingsCore(adminDeps(), {
-      booking_open_hour: 25, // invalid
+      booking_open_minute: 1500, // invalid (exceeds 1440)
     });
     expect(result.kind).toBe("validation_error");
   });
