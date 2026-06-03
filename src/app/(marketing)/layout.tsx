@@ -5,6 +5,7 @@
 
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { AccountMenu } from "./_components/account-menu";
 
 const navLinks = [
   { href: "/", label: "Home" },
@@ -54,12 +55,7 @@ export default async function MarketingLayout({
 
           <div className="text-sm">
             {user ? (
-              <Link
-                href="/account"
-                className="text-muted-foreground hover:text-foreground focus-visible:text-foreground transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
-              >
-                Account
-              </Link>
+              <AccountMenu />
             ) : (
               <Link
                 href="/login"
