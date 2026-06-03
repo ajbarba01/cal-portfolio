@@ -16,7 +16,7 @@
  * ------------------
  * - `fitsWindow`:      window.startsAt <= candidate.startsAt && candidate.endsAt <= window.endsAt  (both inclusive)
  * - `passesGuards` lead time:    candidate.startsAt - now >= minLeadTimeHours  (inclusive, i.e. exactly min is OK)
- * - `passesGuards` max advance:  candidate.startsAt - now <= maxAdvanceDays    (inclusive, i.e. exactly max is OK)
+ * - `passesGuards` hard max advance:  candidate.startsAt - now <= hardMaxAdvanceDays  (inclusive; outer sanity cap only)
  * - `passesGuards` hours-of-day: start minute >= bookingOpenMinute AND end minute <= bookingCloseMinute
  *                                (both inclusive), each evaluated in America/Denver. The end bound uses
  *                                the end's local time-of-day regardless of date (a multi-day stay still
@@ -56,8 +56,12 @@ export interface BookingRuleSettings {
   bookingCloseMinute: number;
   /** Minimum hours between now and booking start (inclusive). */
   minLeadTimeHours: number;
-  /** Maximum days between now and booking start (inclusive). */
-  maxAdvanceDays: number;
+  /**
+   * Hard outer cap on how far ahead a booking may start, in days (inclusive).
+   * A start beyond this is refused outright. The soft auto-confirm horizon
+   * (pend-not-refuse) lives in the time gate, not here — see time-gate.ts.
+   */
+  hardMaxAdvanceDays: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -127,7 +131,9 @@ function denverMinutesSinceMidnight(date: Date): number {
  *    `candidate.endsAt` time-of-day <= bookingCloseMinute, evaluated in
  *    America/Denver local time (both bounds inclusive).
  * 2. **Lead time** — `candidate.startsAt - now >= minLeadTimeHours` (inclusive).
- * 3. **Max advance** — `candidate.startsAt - now <= maxAdvanceDays` (inclusive).
+ * 3. **Hard max advance** — `candidate.startsAt - now <= hardMaxAdvanceDays` (inclusive).
+ *    This is only the outer sanity cap; the soft pend-not-refuse horizon lives
+ *    in the time gate (see time-gate.ts), not in this guard.
  *
  * @param candidate - The proposed booking time range.
  * @param settings  - Booking rule settings sourced from the DB `settings` row.
@@ -145,8 +151,9 @@ export function passesGuards(
     return false;
   }
 
-  // Max advance: must not be more than maxAdvanceDays in the future (inclusive)
-  if (diffMs > settings.maxAdvanceDays * MS_PER_DAY) {
+  // Hard max advance: must not be more than hardMaxAdvanceDays out (inclusive).
+  // The soft horizon (pend, not refuse) is applied separately by the time gate.
+  if (diffMs > settings.hardMaxAdvanceDays * MS_PER_DAY) {
     return false;
   }
 

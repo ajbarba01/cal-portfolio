@@ -46,7 +46,8 @@ export interface SettingsRow {
   booking_open_minute: number;
   booking_close_minute: number;
   min_lead_time_hours: number;
-  max_advance_days: number;
+  auto_confirm_horizon_days: number;
+  hard_max_advance_days: number;
   recurring_discount_pct: number;
   recurring_min_occurrences: number;
 }
@@ -90,7 +91,8 @@ const settingsRowSchema = z.object({
   booking_open_minute: z.number(),
   booking_close_minute: z.number(),
   min_lead_time_hours: z.number(),
-  max_advance_days: z.number(),
+  auto_confirm_horizon_days: z.number(),
+  hard_max_advance_days: z.number(),
   recurring_discount_pct: z.number(),
   recurring_min_occurrences: z.number(),
 });
@@ -200,7 +202,7 @@ export function createSupabaseBookingRepository(
           "origin_lat, origin_lng, road_factor, avg_speed_mph, " +
             "auto_approve_threshold_miles, hard_cutoff_miles, gate_use_road_miles, " +
             "booking_open_minute, booking_close_minute, " +
-            "min_lead_time_hours, max_advance_days, " +
+            "min_lead_time_hours, auto_confirm_horizon_days, hard_max_advance_days, " +
             "recurring_discount_pct, recurring_min_occurrences",
         )
         .limit(1)

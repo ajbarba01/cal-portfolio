@@ -45,7 +45,7 @@ The MVP (Phases 0–13) shipped with a **driving-minutes** approval gate, intege
 
 ---
 
-## Phase 15 — Booking hours: half-hour granularity + end-bound — [x]
+## Phase 15 — Booking hours: half-hour granularity + end-bound — [x] `dbf4f48`
 
 **Goal:** 6:30am–10:00pm windows; a booking must **start ≥ open AND end ≤ close**.
 **Systems landed:** minute-based hours guard. **Deps:** 14 (settings-edge habit).
@@ -62,19 +62,19 @@ The MVP (Phases 0–13) shipped with a **driving-minutes** approval gate, intege
 
 ---
 
-## Phase 16 — Time horizon: soft approval + auto-confirm
+## Phase 16 — Time horizon: soft approval + auto-confirm — [x]
 
 **Goal:** Within ~1 month → auto-confirm (no conflict); beyond → `pending_approval`, not refused; a generous hard cap stays.
 **Systems landed:** pure `deriveTimeApproval`; `requires_approval` = distance OR time OR service-flag, **per occurrence**. **Deps:** 14, 15.
 
 **Files:** new `src/features/booking/time-gate.ts`, `availability.ts`, `booking-service.ts`, `booking-repository.ts`, `supabase/migrations/<ts>_time_horizon.sql` (+ seed), `time-gate.test.ts`.
 
-- [ ] **Settings.** Add `auto_confirm_horizon_days` (30); rename `max_advance_days` → `hard_max_advance_days` (365).
-- [ ] **`deriveTimeApproval(startsAt, now, { autoConfirmHorizonDays, hardMaxAdvanceDays })`** → `"auto" | "pending" | "refuse"`, parallel to `deriveApproval`.
-- [ ] **`passesGuards`.** Drop the soft `max_advance_days` reject; keep only the hard-cap reject. Update `BookingRuleSettings` + doc comment.
-- [ ] **Compose.** `booking-service.ts` folds the time decision into `requires_approval` (OR with distance + service flag), computed **per occurrence** (a series can straddle the horizon — this is where the MVP "approval identical across occurrences" assumption is revisited).
-- [ ] **Tests.** day 0–30 → auto; day 31–365 → pending; >365 → refuse. Compose with a manual distance decision.
-- [ ] **Gate + commit** `feat: soft time-approval horizon (auto-confirm within ~1 month)`.
+- [x] **Settings.** Add `auto_confirm_horizon_days` (30); rename `max_advance_days` → `hard_max_advance_days` (365).
+- [x] **`deriveTimeApproval(startsAt, now, { autoConfirmHorizonDays, hardMaxAdvanceDays })`** → `"auto" | "pending" | "refuse"`, parallel to `deriveApproval`.
+- [x] **`passesGuards`.** Soft reject dropped; the surviving max-advance reject is the hard cap (`hardMaxAdvanceDays`). Updated `BookingRuleSettings` + doc comments.
+- [x] **Compose.** `computeBookingArtifacts` folds the per-occurrence time decision into `requiresApprovalByOccurrence` (OR with distance + service flag); `createBookingCore` derives status per occurrence. A time refuse short-circuits the submit.
+- [x] **Tests.** `time-gate.test.ts`: day 0–30 → auto, 31–365 → pending, >365 → refuse, past → auto. Integration: 45-day near booking → pending_approval; 400-day → refuse.
+- [x] **Gate + commit** `feat: soft time-approval horizon (auto-confirm within ~1 month)`.
 
 > Far **one-off** bookings sit `pending_approval` and are promoted by Phase 17's cron when they enter the horizon (single mechanism, per the locked decision).
 

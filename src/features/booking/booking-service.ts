@@ -43,6 +43,7 @@ import {
   estimateDrivingMinutes,
   deriveApproval,
 } from "@/features/pricing/distance";
+import { deriveTimeApproval } from "./time-gate";
 import { quote } from "@/features/pricing/quote";
 import { parsePricingConfig } from "@/features/pricing/config-schemas";
 import { expandOccurrences } from "./recurrence";
@@ -54,6 +55,7 @@ import {
 import { transition } from "./state-machine";
 import type {
   BookingRepository,
+  BookingStatusDb,
   ServiceRow,
   SettingsRow,
 } from "./booking-repository";
@@ -184,7 +186,14 @@ interface BookingQuoteArtifacts {
   /** Expanded occurrence start times (1 element when not recurring). */
   occurrences: Date[];
   distanceMiles: number | null;
+  /**
+   * Per-occurrence approval flag, aligned with `occurrences`. Each is the OR of
+   * the distance/service-flag signal and that occurrence's time-gate pend.
+   */
+  requiresApprovalByOccurrence: boolean[];
+  /** Representative flag for the preview (first occurrence). */
   requiresApproval: boolean;
+  /** The distance-based approval decision (for preview display). */
   decision: "auto" | "manual" | "refuse";
 }
 
@@ -201,8 +210,10 @@ type ArtifactsResult =
  *  1. Validate input.
  *  2. Load service, settings, profile lat/lng.
  *  3. Validate quantities per pricing_type.
- *  4. Compute distance + approval decision (refuse → {refuse}).
+ *  4. Compute distance + approval decision (distance refuse → {refuse}).
  *  5. Expand occurrences + recurring-discount eligibility.
+ * 5b. Time-horizon gate per occurrence (time refuse → {refuse}); fold into
+ *     per-occurrence requires_approval.
  *  6. Build quoteInput and call quote().
  *
  * Returns the full artifact bundle so callers reuse the loaded rows + computed
@@ -257,15 +268,16 @@ async function computeBookingArtifacts(
   }
   const quantities = quantitiesResult;
 
-  // 4. Distance + approval
+  // 4. Distance + approval. `baseRequiresApproval` is the distance/service-flag
+  // contribution; the per-occurrence time gate is OR-ed in at step 5b.
   const origin = { lat: settings.origin_lat, lng: settings.origin_lng };
   let distanceMiles: number | null = null;
-  let requiresApproval: boolean;
+  let baseRequiresApproval: boolean;
   let oneWayMin = 0;
   let decision: "auto" | "manual" | "refuse" = "auto";
 
   if (profileLatLng.lat === null || profileLatLng.lng === null) {
-    requiresApproval = true;
+    baseRequiresApproval = true;
     decision = "manual";
   } else {
     distanceMiles = haversineMiles(origin, {
@@ -292,7 +304,7 @@ async function computeBookingArtifacts(
       };
     }
 
-    requiresApproval = decision === "manual" || !!service.requires_approval;
+    baseRequiresApproval = decision === "manual" || !!service.requires_approval;
   }
 
   // 5. Recurring-discount eligibility (needs occurrence count)
@@ -305,6 +317,27 @@ async function computeBookingArtifacts(
     service.pricing_type,
     { recurringMinOccurrences: settings.recurring_min_occurrences },
   );
+
+  // 5b. Time-horizon gate, PER OCCURRENCE. A series can straddle the horizon —
+  // near occurrences auto-confirm, far ones pend. A start beyond the hard cap
+  // refuses the whole submit (single far occurrence short-circuits).
+  const timeCfg = {
+    autoConfirmHorizonDays: settings.auto_confirm_horizon_days,
+    hardMaxAdvanceDays: settings.hard_max_advance_days,
+  };
+  const requiresApprovalByOccurrence: boolean[] = [];
+  for (const occStart of occurrences) {
+    const timeDecision = deriveTimeApproval(occStart, deps.now, timeCfg);
+    if (timeDecision === "refuse") {
+      return {
+        kind: "refuse",
+        reason: `Requested start ${occStart.toISOString()} is beyond the ${settings.hard_max_advance_days}-day booking limit.`,
+      };
+    }
+    requiresApprovalByOccurrence.push(
+      baseRequiresApproval || timeDecision === "pending",
+    );
+  }
 
   // 6. Build quote for the first (representative) occurrence
   const roundTripDriveMinutes =
@@ -330,7 +363,8 @@ async function computeBookingArtifacts(
       breakdown,
       occurrences,
       distanceMiles,
-      requiresApproval,
+      requiresApprovalByOccurrence,
+      requiresApproval: requiresApprovalByOccurrence[0],
       decision,
     },
   };
@@ -399,8 +433,14 @@ export async function createBookingCore(
   }
 
   const { repo, now } = deps;
-  const { service, settings, quoteInput, breakdown, occurrences } =
-    result.artifacts;
+  const {
+    service,
+    settings,
+    quoteInput,
+    breakdown,
+    occurrences,
+    requiresApprovalByOccurrence,
+  } = result.artifacts;
   // userId / startsAt / endsAt come from the (already-validated) parsed input.
   const input = createBookingInputSchema.parse(rawInput);
   const durationMs = input.endsAt.getTime() - input.startsAt.getTime();
@@ -410,7 +450,7 @@ export async function createBookingCore(
     bookingOpenMinute: settings.booking_open_minute,
     bookingCloseMinute: settings.booking_close_minute,
     minLeadTimeHours: settings.min_lead_time_hours,
-    maxAdvanceDays: settings.max_advance_days,
+    hardMaxAdvanceDays: settings.hard_max_advance_days,
   };
   for (const occStart of occurrences) {
     const occEnd = new Date(occStart.getTime() + durationMs);
@@ -440,21 +480,27 @@ export async function createBookingCore(
     }
   }
 
-  // 8–9. Derive initial status.
-  const statResult = transition("draft", "submit", {
-    requiresApproval: result.artifacts.requiresApproval,
-  });
-  if ("error" in statResult) {
-    return { kind: "error", message: statResult.error };
+  // 8–9. Derive initial status PER OCCURRENCE (a series can straddle the time
+  // horizon: near occurrences confirm, far ones pend — requires_approval is
+  // computed per occurrence in computeBookingArtifacts).
+  const statuses: BookingStatusDb[] = [];
+  for (const occRequiresApproval of requiresApprovalByOccurrence) {
+    const statResult = transition("draft", "submit", {
+      requiresApproval: occRequiresApproval,
+    });
+    if ("error" in statResult) {
+      return { kind: "error", message: statResult.error };
+    }
+    statuses.push(statResult.state);
   }
-  const status = statResult.state;
 
   const seriesId = occurrences.length > 1 ? crypto.randomUUID() : null;
 
   // 10. Build insert rows. The quote is identical for every occurrence (it
   // depends only on quantities/config/modifiers, never on the date), so all
-  // rows reuse the single quoteInput + breakdown computed above.
-  const insertRows = occurrences.map((occStart) => {
+  // rows reuse the single quoteInput + breakdown computed above. Status and
+  // requires_approval, however, are per-occurrence (time horizon).
+  const insertRows = occurrences.map((occStart, idx) => {
     const occEnd = new Date(occStart.getTime() + durationMs);
     return {
       client_id: input.userId,
@@ -462,13 +508,13 @@ export async function createBookingCore(
       starts_at: occStart.toISOString(),
       ends_at: occEnd.toISOString(),
       series_id: seriesId,
-      status,
+      status: statuses[idx],
       concurrency: service.concurrency,
       distance_miles: result.artifacts.distanceMiles,
       quote_inputs: quoteInput as unknown,
       quote_breakdown: breakdown as unknown,
       final_cents: breakdown.finalCents,
-      requires_approval: result.artifacts.requiresApproval,
+      requires_approval: requiresApprovalByOccurrence[idx],
       discount_cents: 0, // see DISCOUNT_CENTS note in module header
     };
   });
