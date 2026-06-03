@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { SiteHeader } from "@/components/site-header";
 
 /**
  * Thin server-side backstop for the (account) routes. The real auth + onboarding
@@ -22,5 +23,10 @@ export default async function AccountLayout({
     redirect("/login");
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      <SiteHeader />
+      {children}
+    </>
+  );
 }

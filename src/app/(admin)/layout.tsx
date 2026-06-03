@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { SiteHeader } from "@/components/site-header";
 
 /** Guard for all (admin) routes: unauthenticated or non-admin role → /. */
 export default async function AdminLayout({
@@ -26,5 +27,10 @@ export default async function AdminLayout({
     redirect("/");
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      <SiteHeader />
+      {children}
+    </>
+  );
 }
