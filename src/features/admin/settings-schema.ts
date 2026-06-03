@@ -33,6 +33,7 @@ export const settingsUpdateSchema = z
     min_lead_time_hours: nonNegIntSchema.optional(),
     auto_confirm_horizon_days: nonNegIntSchema.optional(),
     hard_max_advance_days: nonNegIntSchema.optional(),
+    recurrence_generation_horizon_days: nonNegIntSchema.optional(),
     recurring_discount_pct: pct0to100Schema.optional(),
     recurring_min_occurrences: nonNegIntSchema.optional(),
     holiday_surcharge_cents: nonNegIntSchema.optional(),

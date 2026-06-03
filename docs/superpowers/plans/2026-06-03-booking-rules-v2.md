@@ -62,7 +62,7 @@ The MVP (Phases 0–13) shipped with a **driving-minutes** approval gate, intege
 
 ---
 
-## Phase 16 — Time horizon: soft approval + auto-confirm — [x]
+## Phase 16 — Time horizon: soft approval + auto-confirm — [x] `78a1b67`
 
 **Goal:** Within ~1 month → auto-confirm (no conflict); beyond → `pending_approval`, not refused; a generous hard cap stays.
 **Systems landed:** pure `deriveTimeApproval`; `requires_approval` = distance OR time OR service-flag, **per occurrence**. **Deps:** 14, 15.
@@ -82,22 +82,22 @@ The MVP (Phases 0–13) shipped with a **driving-minutes** approval gate, intege
 
 ---
 
-## Phase 17 — Open-ended weekly recurrence + rolling series cron
+## Phase 17 — Open-ended weekly recurrence + rolling series cron — [x]
 
 **Goal:** Weekly series, fixed week-count or "no end"; never officially books past ~1 month; a daily cron promotes pending→confirmed at the horizon and extends open series.
 **Systems landed:** `booking_series` table; bounded recurrence; `series-roll` cron + route. **Deps:** 16.
 
 **Files:** `recurrence.ts`, `booking-service.ts`, `booking-repository.ts`, new `src/features/booking/series-cron.ts`, new `src/app/api/cron/series-roll/route.ts`, `vercel.json`, `supabase/migrations/<ts>_booking_series.sql` (+ seed), `recurrence.test.ts`, `series-cron.test.ts`.
 
-- [ ] **Settings.** Add `recurrence_generation_horizon_days` (42, ≥ confirm horizon + buffer).
-- [ ] **Schema.** `booking_series` table (DESIGN data model) + `bookings.series_id` FK + RLS (client reads own; service-role writes).
-- [ ] **Recurrence bound.** Add an optional `horizonEnd` / `materializeUntil` to `expandOccurrences` so an unbounded weekly rule expands safely; **keep the throw** when no bound is passed. Update UNBOUNDED-RULE-CONTRACT doc + tests.
-- [ ] **Submit.** Accept an open-ended rule (count & until both absent + `open_ended`); write a `booking_series` row with **frozen `quote_inputs`**; materialize occurrences only to the generation horizon, status per-occurrence via `deriveTimeApproval`.
-- [ ] **Cron.** `series-cron.ts`: pure `shouldPromote(occ, now, horizon)` + `nextOccurrencesToMaterialize(series, existingStarts, now, genHorizon)`. `runSeriesRollCron({ serviceClient, now })` shaped after `notifications/completion-cron.ts`: **promote** via `transition('pending_approval','approve')` (re-check availability; catch the 23P01 exclusion conflict → leave pending + flag for admin, never drop); **extend** open series; **skip** a debtor's occurrences (Phase 18 gate).
-- [ ] **Route + schedule.** `api/cron/series-roll/route.ts` (clone of `complete/route.ts`, `CRON_SECRET`-gated); add a daily `vercel.json` entry.
-- [ ] **Repo.** `insertSeries`, `getActiveOpenSeries`, `getMaterializedOccurrenceStarts(seriesId)` (dedupe), `BookingSeriesRow` types/schema.
-- [ ] **Tests.** bounded `expandOccurrences` (horizon acts as implicit `until`); `shouldPromote` boundary; `nextOccurrencesToMaterialize` skips existing starts; cron promotes an in-horizon pending occurrence and leaves a conflicting one pending.
-- [ ] **Gate + commit** `feat: open-ended weekly recurrence with rolling series-roll cron`.
+- [x] **Settings.** Add `recurrence_generation_horizon_days` (42, ≥ confirm horizon + buffer).
+- [x] **Schema.** `booking_series` table (column `step_interval`, not `interval` — Postgres keyword; DESIGN updated) + `bookings.series_id` FK + RLS (client reads own; service-role writes).
+- [x] **Recurrence bound.** Added optional `opts.materializeUntil` to `expandOccurrences`; **throw kept** when no bound (count/until/materializeUntil) is passed. UNBOUNDED-RULE-CONTRACT doc + tests updated.
+- [x] **Submit.** Accept an open-ended rule (count & until both absent); write a `booking_series` row with **frozen `quote_inputs`**; materialize occurrences only to the generation horizon, status per-occurrence via `deriveTimeApproval`. Weekly-only enforced (table CHECK + service guard). Slot conflict on first insert cleans up the orphan series.
+- [x] **Cron.** `series-cron.ts`: pure `shouldPromote` + `nextOccurrencesToMaterialize`. `runSeriesRollCron({ serviceClient, now })` after `completion-cron.ts`: **promote** time-only pendings (distance/service pendings left for Cal) via `transition('pending_approval','approve')`; **extend** active series, catching 23P01 → conflict count + log, never dropped. (Debtor skip deferred to Phase 18 per dependency order.)
+- [x] **Route + schedule.** `api/cron/series-roll/route.ts` (clone of `complete/route.ts`, `CRON_SECRET`-gated); daily `vercel.json` entry added.
+- [x] **Repo.** `insertSeries`, `deleteSeries`, `getActiveSeries` (generalized from `getActiveOpenSeries` — handles bounded tails too), `getMaterializedOccurrenceStarts(seriesId)`, `getServiceById`, `BookingSeriesRow`/`BookingSeriesInsert` types + schema.
+- [x] **Tests.** `materializeUntil` bound (implicit until + count interplay); `shouldPromote` boundary; `nextOccurrencesToMaterialize` skips existing/past; cron promotes an in-horizon time-only pending, leaves a distance-manual pending, and leaves a conflicting extend occurrence unmaterialized.
+- [x] **Gate + commit** `feat: open-ended weekly recurrence with rolling series-roll cron`.
 
 **Verification:** an open-ended weekly series materializes ~6 weeks of rows (near = confirmed, far = pending); running the cron with a future `now` promotes the next occurrence; a manufactured conflict leaves it pending + flagged.
 

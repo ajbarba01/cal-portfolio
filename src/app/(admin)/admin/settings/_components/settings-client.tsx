@@ -34,6 +34,9 @@ export function SettingsClient({
   const [hardMaxAdvance, setHardMaxAdvance] = useState(
     String(s.hard_max_advance_days),
   );
+  const [recurrenceGenHorizon, setRecurrenceGenHorizon] = useState(
+    String(s.recurrence_generation_horizon_days),
+  );
   const [discountPct, setDiscountPct] = useState(
     String(s.recurring_discount_pct),
   );
@@ -72,6 +75,7 @@ export function SettingsClient({
         min_lead_time_hours: parseInt(minLead, 10),
         auto_confirm_horizon_days: parseInt(autoConfirmHorizon, 10),
         hard_max_advance_days: parseInt(hardMaxAdvance, 10),
+        recurrence_generation_horizon_days: parseInt(recurrenceGenHorizon, 10),
         recurring_discount_pct: parseFloat(discountPct),
         recurring_min_occurrences: parseInt(discountMin, 10),
         holiday_surcharge_cents: parseInt(holidaySurcharge, 10),
@@ -194,6 +198,13 @@ export function SettingsClient({
           "Hard Max Advance (days — beyond this, refused)",
           hardMaxAdvance,
           setHardMaxAdvance,
+          "number",
+        )}
+        {field(
+          "recurrence-gen-horizon",
+          "Recurrence Generation Horizon (days — how far ahead series rows are created)",
+          recurrenceGenHorizon,
+          setRecurrenceGenHorizon,
           "number",
         )}
       </fieldset>
