@@ -29,7 +29,9 @@ import { computeBookingQuoteCore } from "./booking-service";
 import type { PreviewResult } from "./booking-service";
 import type { CreateBookingInput } from "./booking-service";
 
-export type { PreviewResult };
+// NOTE: do NOT re-export PreviewResult here — a "use server" module may export
+// only async functions; a `export type { … }` re-export crashes module eval.
+// Import it from ./booking-service directly.
 
 /** Subset of CreateBookingInput the caller supplies (userId comes from session). */
 export type PreviewBookingInput = Omit<CreateBookingInput, "userId">;

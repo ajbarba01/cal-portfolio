@@ -5,7 +5,7 @@
 
 import { describe, it, expect } from "vitest";
 import { createResultMessage, previewResultMessage } from "./messages";
-import type { CreateBookingResult } from "@/features/booking/actions";
+import type { CreateBookingResult } from "@/features/booking/booking-service";
 import type { PreviewActionResult } from "@/features/booking/quote-action";
 
 // ── createResultMessage ───────────────────────────────────────────────────────
