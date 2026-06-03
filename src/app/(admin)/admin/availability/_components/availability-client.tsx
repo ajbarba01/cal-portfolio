@@ -1,195 +1,126 @@
 "use client";
 
+/**
+ * AvailabilityClient — Cal's availability + booking management on the shared
+ * BookingCalendar (mode="manage-windows"). The calendar is presentational; this
+ * client owns the wiring: it dispatches window CRUD (create/trim/delete) and
+ * booking moderation (cancel/approve/decline/no-show) to the existing server
+ * actions, then `router.refresh()` re-loads the server-rendered windows + busy.
+ *
+ * Server data (windows, busy) flows straight from props — refresh re-renders the
+ * page and hands down fresh props, so there is no client copy to drift.
+ */
+
 import { useState, useTransition } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { useRouter } from "next/navigation";
+import { BookingCalendar } from "@/features/booking/_components/booking-calendar";
 import {
   createWindow,
+  trimWindow,
   deleteWindow,
 } from "@/features/admin/availability-actions";
+import {
+  approveBooking,
+  declineBooking,
+} from "@/features/admin/approval-actions";
+import { cancelBooking, markNoShow } from "@/features/booking/actions";
 import type { AvailabilityWindow } from "@/features/admin/availability-actions";
+import type { AdminBusyRangeView } from "@/features/admin/admin-busy";
+import { BusySidePanel } from "./busy-side-panel";
+
+type ActionResult = { kind: string } & Record<string, unknown>;
+
+function resultError(result: ActionResult): string | null {
+  if (result.kind === "success") return null;
+  return typeof result.message === "string"
+    ? result.message
+    : `Action failed: ${result.kind}`;
+}
 
 export function AvailabilityClient({
   initialWindows,
+  initialBusy,
 }: {
   initialWindows: AvailabilityWindow[];
+  initialBusy: AdminBusyRangeView[];
 }) {
-  const [windows, setWindows] = useState(initialWindows);
-  const [startsAt, setStartsAt] = useState("");
-  const [endsAt, setEndsAt] = useState("");
-  const [note, setNote] = useState("");
+  const router = useRouter();
+  const [month, setMonth] = useState<Date>(() => new Date());
+  const [selectedBookingId, setSelectedBookingId] = useState<string | null>(
+    null,
+  );
   const [error, setError] = useState<string | null>(null);
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  async function handleCreate() {
-    setError(null);
-    startTransition(async () => {
-      const result = await createWindow({
-        startsAt: new Date(startsAt).toISOString(),
-        endsAt: new Date(endsAt).toISOString(),
-        note: note || null,
-      });
-      if (result.kind === "success") {
-        setStartsAt("");
-        setEndsAt("");
-        setNote("");
-        // Reload via router refresh; for now show a simple message.
-        window.location.reload();
-      } else {
-        setError(
-          "message" in result
-            ? result.message
-            : `Action failed: ${result.kind}`,
-        );
-      }
-    });
-  }
+  const selectedBooking =
+    initialBusy.find((b) => b.bookingId === selectedBookingId) ?? null;
 
-  async function handleDelete(windowId: string) {
+  /** Run a server action, surface any error, refresh on success. */
+  function run(action: () => Promise<ActionResult>, onSuccess?: () => void) {
     setError(null);
     startTransition(async () => {
-      const result = await deleteWindow({ windowId });
-      if (result.kind === "success") {
-        setWindows((prev) => prev.filter((w) => w.id !== windowId));
-        setConfirmDeleteId(null);
-      } else {
-        setError(
-          "message" in result
-            ? result.message
-            : `Action failed: ${result.kind}`,
-        );
-        setConfirmDeleteId(null);
+      const result = await action();
+      const message = resultError(result);
+      if (message) {
+        setError(message);
+        return;
       }
+      onSuccess?.();
+      router.refresh();
     });
   }
 
   return (
-    <div className="space-y-8">
-      {/* Create form */}
-      <section aria-labelledby="create-heading">
-        <h2 id="create-heading" className="mb-4 text-lg font-medium">
-          Add Availability Window
-        </h2>
-        <div className="space-y-4 rounded-md border p-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1">
-              <Label htmlFor="starts-at">Starts At (local time)</Label>
-              <Input
-                id="starts-at"
-                type="datetime-local"
-                value={startsAt}
-                onChange={(e) => setStartsAt(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="ends-at">Ends At (local time)</Label>
-              <Input
-                id="ends-at"
-                type="datetime-local"
-                value={endsAt}
-                onChange={(e) => setEndsAt(e.target.value)}
-              />
-            </div>
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="note">Note (optional)</Label>
-            <Input
-              id="note"
-              type="text"
-              placeholder="e.g. Spring availability"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-            />
-          </div>
-          {error && (
-            <p role="alert" className="text-destructive text-sm">
-              {error}
-            </p>
-          )}
-          <Button
-            onClick={handleCreate}
-            disabled={isPending || !startsAt || !endsAt}
-          >
-            {isPending ? "Saving…" : "Add Window"}
-          </Button>
-        </div>
-      </section>
+    <div className="flex flex-col gap-6">
+      {error && (
+        <p role="alert" className="text-destructive text-sm">
+          {error}
+        </p>
+      )}
 
-      {/* Existing windows */}
-      <section aria-labelledby="windows-heading">
-        <h2 id="windows-heading" className="mb-4 text-lg font-medium">
-          Current Windows
-        </h2>
-        {windows.length === 0 ? (
-          <p className="text-muted-foreground text-sm">No windows defined.</p>
-        ) : (
-          <ul className="space-y-3">
-            {windows.map((w) => (
-              <li
-                key={w.id}
-                className="flex items-start justify-between gap-4 rounded-md border px-4 py-3"
-              >
-                <div className="text-sm">
-                  <p>
-                    <time dateTime={w.starts_at}>
-                      {new Date(w.starts_at).toLocaleString("en-US", {
-                        timeZone: "America/Denver",
-                      })}
-                    </time>
-                    {" — "}
-                    <time dateTime={w.ends_at}>
-                      {new Date(w.ends_at).toLocaleString("en-US", {
-                        timeZone: "America/Denver",
-                      })}
-                    </time>
-                  </p>
-                  {w.note && <p className="text-muted-foreground">{w.note}</p>}
-                </div>
+      <BookingCalendar
+        mode="manage-windows"
+        windows={initialWindows}
+        busy={initialBusy}
+        month={month}
+        onMonthChange={setMonth}
+        onCreateWindow={(startsAt, endsAt, note) =>
+          run(() => createWindow({ startsAt, endsAt, note }))
+        }
+        onTrimWindow={(windowId, newStartsAt, newEndsAt) =>
+          run(() => trimWindow({ windowId, newStartsAt, newEndsAt }))
+        }
+        onDeleteWindow={(windowId) => run(() => deleteWindow({ windowId }))}
+        onSelectBooking={setSelectedBookingId}
+        pending={isPending}
+      />
 
-                {confirmDeleteId === w.id ? (
-                  <div
-                    className="flex gap-2"
-                    role="group"
-                    aria-label="Confirm delete"
-                  >
-                    <span className="text-destructive text-sm">
-                      This will cancel overlapping bookings. Confirm?
-                    </span>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => handleDelete(w.id)}
-                      disabled={isPending}
-                      autoFocus
-                    >
-                      Yes, delete
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setConfirmDeleteId(null)}
-                      disabled={isPending}
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                ) : (
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => setConfirmDeleteId(w.id)}
-                    disabled={isPending}
-                  >
-                    Block out / Delete
-                  </Button>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      {selectedBooking && (
+        <BusySidePanel
+          booking={selectedBooking}
+          pending={isPending}
+          onClose={() => setSelectedBookingId(null)}
+          onCancel={(id) =>
+            run(
+              () => cancelBooking({ bookingId: id }),
+              () => setSelectedBookingId(null),
+            )
+          }
+          onApprove={(id) => run(() => approveBooking(id))}
+          onDecline={(id) =>
+            run(
+              () => declineBooking(id),
+              () => setSelectedBookingId(null),
+            )
+          }
+          onNoShow={(id) =>
+            run(
+              () => markNoShow(id),
+              () => setSelectedBookingId(null),
+            )
+          }
+        />
+      )}
     </div>
   );
 }

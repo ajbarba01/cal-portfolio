@@ -56,30 +56,30 @@ Cal's stated intent: **"simple and straightforward."** No brand assets yet (no l
 
 Next.js App Router, three route groups. Auth-session refresh lives in `src/middleware.ts` (delegates to `src/lib/supabase/proxy.ts`); session + `role` guards sit at the group layouts. Architecture rules in [ENGINEERING.md](ENGINEERING.md).
 
-| Route                                 | Group     | Access                        | Notes                                                     |
-| ------------------------------------- | --------- | ----------------------------- | --------------------------------------------------------- |
-| `/`                                   | marketing | public                        | Home / landing                                            |
-| `/about`                              | marketing | public                        | Blurb + references                                        |
-| `/services`                           | marketing | public                        | Rates **+ sliding-scale CTA**                             |
-| `/gallery`                            | marketing | public                        | Photo grid (`next/image`)                                 |
-| `/reviews`                            | marketing | public                        | Published reviews only                                    |
-| `/resources`                          | marketing | public                        | Info + links                                              |
-| `/book`                               | marketing | public                        | Service chooser — cards linking to each service's flow    |
-| `/book/[serviceSlug]`                 | marketing | public view, **auth to book** | Calendar-first per-service booking; deferred-auth gate    |
-| `/login`, `/signup`, `/auth/callback` | auth      | public                        | Supabase Auth                                             |
-| `/onboarding`                         | account   | client                        | First-time gate: profile + emergency form before booking  |
-| `/account`                            | account   | client                        | Profile (name / email / phone / avatar / password)        |
-| `/account/pets`                       | account   | client                        | Pets CRUD (species, photo)                                |
-| `/account/forms`                      | account   | client                        | Emergency + service-form status                           |
-| `/account/bookings`                   | account   | client                        | Upcoming, history, amount owed, pay / prepay              |
-| `/admin/availability`                 | admin     | admin                         | Input open windows; block-out with cancel-confirm         |
-| `/admin/bookings`                     | admin     | admin                         | Approve manual-approval requests                          |
-| `/admin/services`                     | admin     | admin                         | Edit services + rates                                     |
-| `/admin/settings`                     | admin     | admin                         | Origin swap, distance threshold, booking hours, lead time |
-| `/admin/reviews`                      | admin     | admin                         | Moderate submissions                                      |
-| `/admin/clients`                      | admin     | admin                         | (optional) Client list                                    |
+| Route                                 | Group     | Access                        | Notes                                                             |
+| ------------------------------------- | --------- | ----------------------------- | ----------------------------------------------------------------- |
+| `/`                                   | marketing | public                        | Home / landing                                                    |
+| `/about`                              | marketing | public                        | Blurb + references                                                |
+| `/services`                           | marketing | public                        | Rates **+ sliding-scale CTA**                                     |
+| `/gallery`                            | marketing | public                        | Photo grid (`next/image`)                                         |
+| `/reviews`                            | marketing | public                        | Published reviews only                                            |
+| `/resources`                          | marketing | public                        | Info + links                                                      |
+| `/book`                               | marketing | public                        | Service chooser — cards linking to each service's flow            |
+| `/book/[serviceSlug]`                 | marketing | public view, **auth to book** | Calendar-first per-service booking; deferred-auth gate            |
+| `/login`, `/signup`, `/auth/callback` | auth      | public                        | Supabase Auth                                                     |
+| `/onboarding`                         | account   | client                        | First-time gate: profile + emergency form before booking          |
+| `/account`                            | account   | client                        | Profile (name / email / phone / avatar / password)                |
+| `/account/pets`                       | account   | client                        | Pets CRUD (species, photo)                                        |
+| `/account/forms`                      | account   | client                        | Emergency + service-form status                                   |
+| `/account/bookings`                   | account   | client                        | Upcoming, history, amount owed, pay / prepay                      |
+| `/admin/availability`                 | admin     | admin                         | Calendar: create/resize/block-out windows + manage day's bookings |
+| `/admin/bookings`                     | admin     | admin                         | Approve manual-approval requests                                  |
+| `/admin/services`                     | admin     | admin                         | Edit services + rates                                             |
+| `/admin/settings`                     | admin     | admin                         | Origin swap, distance threshold, booking hours, lead time         |
+| `/admin/reviews`                      | admin     | admin                         | Moderate submissions                                              |
+| `/admin/clients`                      | admin     | admin                         | (optional) Client list                                            |
 
-Full in-app admin so Cal never touches the Supabase dashboard.
+Full in-app admin so Cal never touches the Supabase dashboard. `/admin/availability` is the same generalizable calendar (mode `manage-windows`): pick a day to create a window (Denver wall-time inputs), resize or block-out existing windows (block-out cancels overlapping bookings, keeping the confirm step), and overlay that day's bookings (enriched busy: client name + pet photos). Selecting a booking opens a side panel to cancel, approve/decline a `pending_approval`, or mark a `confirmed` booking `no_show` — all via the existing booking/approval cores; mutations `router.refresh()` the server-loaded windows + busy.
 
 **Booking flow + deferred-auth gate.** `/book` is a public service chooser; each card opens `/book/[serviceSlug]`, where one generalizable calendar drives selection — **month-range** (check-in/out dates) for house-sitting, **week-slots** (times) for the hourly services. Anyone may browse and pick; sign-in is deferred to the **Book action**. A guest who clicks Book is sent to `/login?returnTo=…`, a signed-in-but-un-onboarded user to `/onboarding?returnTo=…`; on success they land back on their exact selection. `returnTo` encodes the selection (slug in the path; resolved start/end ISO + assigned pet ids in the query) and is validated by a same-origin open-redirect guard (relative, must start `/book/`). `createBooking` keeps its own server-side `redirect("/login")` backstop. Pet-aware services (house-sitting, walk) assign **real pets** from the profile; dog/cat counts are derived server-side from the assignment, never typed in.
 
