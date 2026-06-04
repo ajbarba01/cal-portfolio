@@ -111,7 +111,24 @@ lighter foregrounds (same pattern as today's inlined `.dark` status overrides).
 - **Reading measure:** marketing/reading content capped ~65ch (a `prose`-width token/utility);
   app/admin content wider. (Measure utility defined here; applied to shells in Phase 1.)
 
-### 5. Radius / motion / z-index
+### 5. Spacing & rhythm (consistent whitespace)
+
+Whitespace is a **token, not a per-page choice** — this is the root cause of the audit's 4 padding
+rhythms / 6 container widths. Phase 0 fixes the _scale_; Phase 1 shells apply it.
+
+- **One spacing scale.** Adopt Tailwind's 4px base step as the **only** allowed unit for gaps,
+  padding, and margins. No arbitrary `px-[…]` / magic values anywhere in the site.
+- **Semantic spacing tokens** (named, in `design-tokens.ts`, so intent is explicit and tunable in one
+  place): `space.pageX` (responsive container horizontal padding), `space.sectionY` (vertical gap
+  between page sections), `space.stack` (default gap within a content stack), `space.field` (gap
+  between form controls). Shells + pages reference these, never raw values.
+- **Vertical rhythm.** Section spacing and heading top/bottom margins derive from the type scale, so
+  every page breathes identically. One content measure per zone (the ~65ch reading width above).
+- **Enforcement** lands in Phase 1 (`PageContainer` / `PageHeader` / `Section` primitives consume
+  these tokens), but the scale + token names are **fixed here** so every later phase uses the same
+  steps — uniform whitespace across marketing, account, and admin by construction.
+
+### 6. Radius / motion / z-index
 
 Keep `--radius: 0.625rem` and the derived radius scale; keep `motion` + `zIndex` in
 `design-tokens.ts` unchanged.
@@ -121,7 +138,8 @@ Keep `--radius: 0.625rem` and the derived radius scale; keep `motion` + `zIndex`
 - `src/app/globals.css` — primitive ramp (warm + clay + status), semantic remap, new `--brand*`
   roles, `.dark` rebuild, status reconciliation.
 - `src/app/layout.tsx` — swap Geist → Fraunces + Public Sans; fix font-var wiring.
-- `src/lib/design-tokens.ts` — add `brand`, `brand-foreground`, `brand-strong` to `SEMANTIC_COLORS`.
+- `src/lib/design-tokens.ts` — add `brand`, `brand-foreground`, `brand-strong` to `SEMANTIC_COLORS`;
+  add the named **spacing tokens** (`space.pageX/sectionY/stack/field`) + measure.
 - `docs/DESIGN.md` — fill the **Brand / visual direction** section with the concrete Trail palette +
   Fraunces/Public Sans decision (replaces the "set later in a Claude Design session" placeholder).
 - `docs/FRONTEND.md` — document the brand role + type scale + status-reconciliation note + measure.
@@ -143,7 +161,10 @@ all Phase 1+. Phase 0 introduces tokens the others consume; it does not apply th
    Repeat for `.dark`.
 4. **Type applied** — confirm Fraunces renders on headings and Public Sans on body (no Geist/Inter
    fallback); the old `--font-geist-sans`-only wiring is gone.
-5. **Docs** — DESIGN.md brand section + FRONTEND.md system rules updated in the same commit.
+5. **Docs** — DESIGN.md brand section + FRONTEND.md system rules (incl. spacing scale) updated in
+   the same commit.
+6. **Spacing tokens present** — the named spacing scale + measure exist and are documented; no
+   arbitrary spacing values introduced in this phase (enforcement on pages lands in Phase 1).
 
 ## Risks / notes
 
