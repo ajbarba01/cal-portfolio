@@ -15,7 +15,7 @@
  * logic (Layers 1–2) must never change for that reason.
  */
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import type { ReactNode } from "react";
 import { useScheduleSelection } from "@/features/booking/use-schedule-selection";
 import { SchedulerProvider } from "@/features/booking/scheduler-context";
@@ -26,6 +26,7 @@ import type {
   SchedulerCallbacks,
   SchedulerContextValue,
 } from "@/features/booking/scheduler-context";
+import type { ScheduleSelectionState } from "@/features/booking/schedule-selection";
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Props
@@ -35,6 +36,7 @@ export interface SchedulerProps {
   capabilities: SchedulerCapabilities;
   data: SchedulerData;
   callbacks?: SchedulerCallbacks;
+  onSelectionChange?: (state: ScheduleSelectionState) => void;
   children: ReactNode;
 }
 
@@ -46,11 +48,16 @@ export function Scheduler({
   capabilities,
   data,
   callbacks,
+  onSelectionChange,
   children,
 }: SchedulerProps) {
   const todayKey = denverDayKey(data.now);
 
   const selection = useScheduleSelection({ todayKey });
+
+  useEffect(() => {
+    onSelectionChange?.(selection.state);
+  }, [selection.state, onSelectionChange]);
 
   const value = useMemo<SchedulerContextValue>(
     () => ({
@@ -59,9 +66,10 @@ export function Scheduler({
       data,
       callbacks: callbacks ?? {},
     }),
-    // selection is a stable object from useScheduleSelection (dispatcher refs
-    // are memoized; state identity changes on dispatch). Including the full
-    // object is safe — useMemo checks referential equality.
+    // selection is a memoized object from useScheduleSelection — its identity
+    // changes only when state or derived values change (dispatchers are stable
+    // useCallback refs). This useMemo therefore recomputes only on real
+    // selection changes, not on every render.
     [selection, capabilities, data, callbacks],
   );
 

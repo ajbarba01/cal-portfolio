@@ -498,6 +498,14 @@ export async function createWindowsBatchCore(
  *   left  remainder [ws, R.start)   iff ws < R.start
  *   right remainder [R.end, we)     iff R.end < we
  *   full-cover (W ⊆ R)              → delete, no remainders
+ *
+ * Mutation order (insert-before-delete): for each window, remainders are
+ * inserted BEFORE the original is deleted. availability_windows has no
+ * exclusion constraint, so the brief temporal overlap between the original
+ * and its remainder subsets is safe. This ordering avoids silent availability
+ * loss: if the insert fails we return the error without deleting (window
+ * intact); if the delete fails after a successful insert we return the error
+ * (the duplicate slice is a recoverable over-count, not a data loss).
  */
 export async function setWindowUnavailableCore(
   deps: AvailabilityDeps,
@@ -565,17 +573,6 @@ export async function setWindowUnavailableCore(
     const wId = w.id as string;
     const note = w.note as string | null;
 
-    const { error: delErr } = await deps.serviceClient
-      .from("availability_windows")
-      .delete()
-      .eq("id", wId);
-
-    if (delErr)
-      return {
-        kind: "error",
-        message: `Delete window failed: ${delErr.message}`,
-      };
-
     const remainders: {
       starts_at: string;
       ends_at: string;
@@ -592,6 +589,8 @@ export async function setWindowUnavailableCore(
       remainders.push({ starts_at: rEnd.toISOString(), ends_at: we, note });
     }
 
+    // Insert-before-delete: remainders go in first so a delete failure
+    // cannot leave the surviving slices orphaned.
     if (remainders.length > 0) {
       const { error: insertErr } = await deps.serviceClient
         .from("availability_windows")
@@ -603,6 +602,17 @@ export async function setWindowUnavailableCore(
           message: `Insert remainder failed: ${insertErr.message}`,
         };
     }
+
+    const { error: delErr } = await deps.serviceClient
+      .from("availability_windows")
+      .delete()
+      .eq("id", wId);
+
+    if (delErr)
+      return {
+        kind: "error",
+        message: `Delete window failed: ${delErr.message}`,
+      };
   }
 
   return { kind: "success" };

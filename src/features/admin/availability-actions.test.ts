@@ -311,16 +311,16 @@ describe("setWindowUnavailableCore — middle-split", () => {
     };
 
     // Each .from("availability_windows") call gets its own response in order:
-    // first call = window query (select overlapping), second+ = delete then insert.
-    // The fake client needs separate responses per-call for availability_windows.
+    // first call = window query (select overlapping), second+ = insert then delete
+    // (insert-before-delete ordering — see setWindowUnavailableCore doc comment).
     const client = makeFakeClient({
       bookings: { data: [], error: null },
       // First call to availability_windows = the select (returns our window).
-      // Subsequent calls (delete, insert) get { data: [], error: null }.
+      // Subsequent calls (insert, delete) get { data: null, error: null }.
       availability_windows: [
         { data: [window], error: null },
-        { data: null, error: null }, // delete response
         { data: null, error: null }, // insert response
+        { data: null, error: null }, // delete response
       ],
     });
 
@@ -389,8 +389,8 @@ describe("setWindowUnavailableCore — trim-end", () => {
       bookings: { data: [], error: null },
       availability_windows: [
         { data: [window], error: null },
-        { data: null, error: null }, // delete
         { data: null, error: null }, // insert
+        { data: null, error: null }, // delete
       ],
     });
 
@@ -437,8 +437,8 @@ describe("setWindowUnavailableCore — trim-start", () => {
       bookings: { data: [], error: null },
       availability_windows: [
         { data: [window], error: null },
-        { data: null, error: null }, // delete
         { data: null, error: null }, // insert
+        { data: null, error: null }, // delete
       ],
     });
 

@@ -54,7 +54,15 @@ Tokens live in two files: **`src/app/globals.css`** owns color + radius as two-l
 - **Accessibility floor** — semantic HTML, sufficient color contrast, visible focus states, full keyboard navigation.
 - **Imagery** — `next/image`, defined aspect ratios, lazy loading.
 
-**Calendar primitive** — `src/components/ui/calendar.tsx` is a **hand-authored** thin wrapper over `react-day-picker` v9 (NOT the shadcn CLI, which scaffolds Radix; this project layers shadcn-style components on `@base-ui/react`). It only restyles rdp's headless day-grid with semantic token classes + a lucide nav chevron. The booking domain consumes it through `features/booking/_components/booking-calendar.tsx`, a mode-discriminated presentational surface (`week-slots` | `month-range`, with `manage-windows` for admin) — the component renders, the caller owns selection/business state. `date-fns` is layout-only inside the grid components, never for booking rules.
+**Calendar primitive** — `src/components/ui/calendar.tsx` is a **hand-authored** thin wrapper over `react-day-picker` v9 (NOT the shadcn CLI, which scaffolds Radix; this project layers shadcn-style components on `@base-ui/react`). It only restyles rdp's headless day-grid with semantic token classes + a lucide nav chevron. `date-fns` is layout-only inside the grid components, never for booking rules.
+
+**Scheduler component family** — the booking and admin availability surfaces share a single compound `<Scheduler>` family in `features/booking/_components/scheduler/`. Three-layer split:
+
+- **Layer 1 (data / server)** — RSC / server actions; fetches windows, busy ranges, overnight nights, settings; passes typed data down as props.
+- **Layer 2 (pure model + hook + context)** — `schedule-selection`, `use-schedule-selection`, `scheduler-context`; stateless logic and selection state; no IO.
+- **Layer 3 (compound `<Scheduler.*>` parts)** — presentational wireframe only; wired to context; logic-free. `<Scheduler>` root, `<Scheduler.MonthGrid>`, `<Scheduler.WeekGrid>`, `<Scheduler.DayPanel>`, `<Scheduler.SelectionSummary>`, `<Scheduler.WeekActions>`.
+
+Layer 3 is **wireframe / semantic-token-only** by contract — a design pass later swaps classNames without touching Layers 1–2. `SchedulerCapabilities` is the per-context seam: a plain object (with ADMIN and BOOKING presets) that gates which parts mount and which interactions are enabled, keeping one component tree for both contexts.
 
 > **Wireframe stage.** The calendar-first booking + admin surfaces are built as functional wireframes: full UX/behavior, tokens-only minimal styling, no visual polish. A later overhaul (Claude Design pipeline above) sets the concrete look.
 

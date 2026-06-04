@@ -26,17 +26,26 @@
  * ---------------------------------
  * 1. past      — isPast(dayKey) OR slot start < data.now
  * 2. busy      — any data.busy range overlaps [start, end) via overlapsHalfOpen
- * 3. draft     — cellId ∈ gridDraft ∪ previewCells
- * 4. available — fitsWindow({startsAt, endsAt}, data.windows)
- * 5. empty
+ * 3. draft     — cellId ∈ gridDraft (committed)
+ * 4. preview   — cellId ∈ previewCells (live drag, before commit)
+ * 5. available — fitsWindow({startsAt, endsAt}, data.windows)
+ * 6. empty
  *
  * TOKEN MAP (wireframe — no bespoke colors)
  * -----------------------------------------
  * past      → text-muted-foreground opacity-40
  * busy      → bg-destructive/10 text-destructive
- * draft     → bg-primary text-primary-foreground
- * available → bg-secondary
+ * draft     → bg-primary text-primary-foreground          (committed)
+ * preview   → bg-primary/40 text-primary-foreground       (live drag preview)
+ * available → bg-secondary text-secondary-foreground
  * empty     → bg-muted
+ *
+ * HOVER / INTERACTION AFFORDANCES
+ * --------------------------------
+ * Interactive non-draft cells: hover:ring-2 hover:ring-inset hover:ring-ring
+ * Draft (committed) cells: bg-primary survives hover (hover:bg-primary/80)
+ * Preview cells: bg-primary/40 survives hover
+ * Non-interactive (past/busy): cursor-default, no hover ring
  */
 
 import React, {
@@ -128,7 +137,7 @@ function buildRectangle(
 // Cell classification
 // ---------------------------------------------------------------------------
 
-type CellClass = "past" | "busy" | "draft" | "available" | "empty";
+type CellClass = "past" | "busy" | "draft" | "preview" | "available" | "empty";
 
 interface CellInfo {
   cellId: string;
@@ -184,40 +193,62 @@ function classifyCell(args: {
     return { cls: "busy", interactive: false };
   }
 
-  // 3. draft (committed or live preview)
-  if (gridDraft.has(cellId) || previewCells.has(cellId)) {
+  // 3. draft (committed)
+  if (gridDraft.has(cellId)) {
     const interactive =
       intraday === "fixed-interval" || (intraday === "free-paint" && editable);
     return { cls: "draft", interactive };
   }
 
-  // 4. available
+  // 4. preview (live drag, before commit)
+  if (previewCells.has(cellId)) {
+    const interactive =
+      intraday === "fixed-interval" || (intraday === "free-paint" && editable);
+    return { cls: "preview", interactive };
+  }
+
+  // 5. available
   if (fitsWindow(slotRange, windows)) {
     const interactive =
       intraday === "fixed-interval" || (intraday === "free-paint" && editable);
     return { cls: "available", interactive };
   }
 
-  // 5. empty — free-paint can paint empty cells; fixed-interval cannot
+  // 6. empty — free-paint can paint empty cells; fixed-interval cannot
   const interactive = intraday === "free-paint" && editable;
   // Suppress TS "unused variable" for interval (kept in signature for future)
   void interval;
   return { cls: "empty", interactive };
 }
 
-function cellTokens(cls: CellClass): string {
+function cellTokens(cls: CellClass, interactive: boolean): string {
+  const hoverRing =
+    interactive && cls !== "draft" && cls !== "preview"
+      ? "hover:ring-2 hover:ring-inset hover:ring-ring"
+      : "";
+
   switch (cls) {
     case "past":
       return "text-muted-foreground opacity-40";
     case "busy":
       return "bg-destructive/10 text-destructive";
     case "draft":
-      return "bg-primary text-primary-foreground";
+      // Selected fill survives hover
+      return cn(
+        "bg-primary text-primary-foreground",
+        interactive && "hover:bg-primary/80",
+      );
+    case "preview":
+      // Semi-transparent — visually distinct from committed draft
+      return cn(
+        "bg-primary/40 text-primary-foreground",
+        interactive && "hover:bg-primary/50",
+      );
     case "available":
-      return "bg-secondary";
+      return cn("bg-secondary text-secondary-foreground", hoverRing);
     case "empty":
     default:
-      return "bg-muted";
+      return cn("bg-muted", hoverRing);
   }
 }
 
@@ -430,8 +461,7 @@ function WeekGridInner({ className }: { className?: string }) {
             {/* Day cells */}
             {focusedWeekDays.map((_dayKey, dayIdx) => {
               const cell = cells[dayIdx][slotIdx];
-              // Painted = draft class OR explicitly in gridDraft or preview
-              // (the cls already reflects these; aria-pressed mirrors visual)
+              // aria-pressed: true for committed draft; preview is transient
               const pressed = cell.cls === "draft";
 
               return (
@@ -445,7 +475,7 @@ function WeekGridInner({ className }: { className?: string }) {
                   className={cn(
                     "border-border h-7 w-full border-b text-xs",
                     "focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset",
-                    cellTokens(cell.cls),
+                    cellTokens(cell.cls, cell.interactive),
                     cell.interactive ? "cursor-pointer" : "cursor-default",
                   )}
                   onPointerDown={() => {
