@@ -70,8 +70,10 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
  * Returns active resident bookings that overlap any of the given nights.
  *
  * For each night D, the blocked instant range is [denverMidnight(D), denverMidnight(D) + 24h).
- * Overlap: booking.starts_at < rangeEnd AND booking.ends_at > rangeStart.
- * Uses the union span across all nights for a single query, then returns rows.
+ * Overlap: booking.starts_at < nightEnd AND booking.ends_at > nightStart.
+ * Uses the union span across all nights for a single DB round-trip, then
+ * post-filters to only rows that actually overlap at least one specific night
+ * (guards against false positives in non-contiguous batches).
  *
  * Does NOT mutate anything.
  */
@@ -82,10 +84,15 @@ async function findConflictingResidentBookings(
   | { kind: "success"; bookings: ConflictBooking[] }
   | { kind: "error"; message: string }
 > {
-  // Compute the union span [min(midnight(D)), max(midnight(D)) + 24h).
-  const midnights = nights.map((d) => denverMidnight(d).getTime());
-  const rangeStart = new Date(Math.min(...midnights));
-  const rangeEnd = new Date(Math.max(...midnights) + MS_PER_DAY);
+  // Precompute per-night [start, end) instant ranges.
+  const nightRanges = nights.map((d) => {
+    const start = denverMidnight(d).getTime();
+    return { start, end: start + MS_PER_DAY };
+  });
+
+  // Union span for a single DB query.
+  const rangeStart = new Date(Math.min(...nightRanges.map((r) => r.start)));
+  const rangeEnd = new Date(Math.max(...nightRanges.map((r) => r.end)));
 
   const { data, error } = await serviceClient
     .from("bookings")
@@ -101,11 +108,18 @@ async function findConflictingResidentBookings(
       message: `Conflict query failed: ${error.message}`,
     };
 
-  const bookings: ConflictBooking[] = (data ?? []).map((row) => ({
-    id: row.id as string,
-    startsAt: row.starts_at as string,
-    endsAt: row.ends_at as string,
-  }));
+  // Post-filter: keep only rows that overlap at least one actual night.
+  const bookings: ConflictBooking[] = (data ?? [])
+    .filter((row) => {
+      const bStart = new Date(row.starts_at as string).getTime();
+      const bEnd = new Date(row.ends_at as string).getTime();
+      return nightRanges.some((r) => bStart < r.end && bEnd > r.start);
+    })
+    .map((row) => ({
+      id: row.id as string,
+      startsAt: row.starts_at as string,
+      endsAt: row.ends_at as string,
+    }));
 
   return { kind: "success", bookings };
 }

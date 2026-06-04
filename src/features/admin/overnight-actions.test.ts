@@ -256,7 +256,76 @@ describe("setOvernightNightsBatchCore (on: false, with conflict)", () => {
 });
 
 // ──────────────────────────────────────────────────────────────────────────────
-// 6. Validation
+// 6. Non-contiguous batch: post-filter narrows to actual nights
+// ──────────────────────────────────────────────────────────────────────────────
+
+describe("setOvernightNightsBatchCore (on: false, non-contiguous batch)", () => {
+  it("returns success when conflict booking falls in gap between toggled nights", async () => {
+    mockAssertActorIsAdmin.mockResolvedValue(true);
+
+    // Booking on Jun 5 — sits in the gap between Jun 1 and Jun 10.
+    const gapBooking = {
+      id: "booking-gap",
+      starts_at: "2026-06-05T18:00:00Z",
+      ends_at: "2026-06-06T15:00:00Z",
+      client_id: "client-xyz",
+    };
+
+    const client = makeFakeClient({
+      bookings: { data: [gapBooking], error: null },
+      overnight_nights: { data: [], error: null },
+    });
+
+    const result = await setOvernightNightsBatchCore(
+      { serviceClient: client, actorUserId: ADMIN_ID },
+      { nights: ["2026-06-01", "2026-06-10"], on: false },
+    );
+
+    // Jun-5 booking must NOT block — post-filter should exclude it.
+    expect(result.kind).toBe("success");
+
+    const deleteCalls = client._calls.filter(
+      (c) => c.method === "delete" && c.table === "overnight_nights",
+    );
+    expect(deleteCalls.length).toBeGreaterThan(0);
+  });
+
+  it("returns conflict when booking overlaps one of the toggled nights", async () => {
+    mockAssertActorIsAdmin.mockResolvedValue(true);
+
+    // Booking spans Jun 10 — directly overlaps the second toggled night.
+    const conflictBooking = {
+      id: "booking-jun10",
+      starts_at: "2026-06-10T18:00:00Z",
+      ends_at: "2026-06-11T15:00:00Z",
+      client_id: "client-xyz",
+    };
+
+    const client = makeFakeClient({
+      bookings: { data: [conflictBooking], error: null },
+      overnight_nights: { data: [], error: null },
+    });
+
+    const result = await setOvernightNightsBatchCore(
+      { serviceClient: client, actorUserId: ADMIN_ID },
+      { nights: ["2026-06-01", "2026-06-10"], on: false },
+    );
+
+    expect(result.kind).toBe("conflict");
+    if (result.kind !== "conflict") return;
+    expect(result.bookings).toHaveLength(1);
+    expect(result.bookings[0].id).toBe("booking-jun10");
+
+    // No delete issued.
+    const overnightDeletes = client._calls.filter(
+      (c) => c.method === "delete" && c.table === "overnight_nights",
+    );
+    expect(overnightDeletes).toHaveLength(0);
+  });
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
+// 7. Validation
 // ──────────────────────────────────────────────────────────────────────────────
 
 describe("setOvernightNightsBatchCore validation", () => {
