@@ -32,7 +32,7 @@ import React, {
   useMemo,
   useRef,
   useCallback,
-  type PointerEvent as ReactPointerEvent,
+  useEffect,
 } from "react";
 import { format, getDaysInMonth, startOfMonth } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
@@ -82,7 +82,6 @@ interface DragButtonProps extends DayButtonProps {
   dragRef: React.MutableRefObject<DragState | null>;
   onPointerDragStart: (key: string) => void;
   onPointerDragEnter: (key: string) => void;
-  onPointerDragEnd: (didDrag: boolean) => void;
 }
 
 function DragDayButton({
@@ -96,31 +95,22 @@ function DragDayButton({
   dragRef,
   onPointerDragStart,
   onPointerDragEnter,
-  onPointerDragEnd,
   ...buttonProps
 }: DragButtonProps) {
   const isSelected = modifiers.selected === true;
 
-  const handlePointerDown = useCallback(
-    (e: ReactPointerEvent<HTMLButtonElement>) => {
-      if (isDisabled) return;
-      (e.currentTarget as HTMLButtonElement).setPointerCapture(e.pointerId);
-      onPointerDragStart(dayKey);
-    },
-    [isDisabled, dayKey, onPointerDragStart],
-  );
+  // Do NOT call setPointerCapture — that redirects all pointer events to this
+  // element and prevents onPointerEnter from firing on sibling buttons.
+  const handlePointerDown = useCallback(() => {
+    if (isDisabled) return;
+    onPointerDragStart(dayKey);
+  }, [isDisabled, dayKey, onPointerDragStart]);
 
   const handlePointerEnter = useCallback(() => {
     if (!dragRef.current?.active) return;
     if (isDisabled) return;
     onPointerDragEnter(dayKey);
   }, [isDisabled, dayKey, dragRef, onPointerDragEnter]);
-
-  const handlePointerUp = useCallback(() => {
-    if (!dragRef.current) return;
-    const { didDrag } = dragRef.current;
-    onPointerDragEnd(didDrag);
-  }, [dragRef, onPointerDragEnd]);
 
   return (
     <button
@@ -129,7 +119,6 @@ function DragDayButton({
       style={{ touchAction: "none", userSelect: "none" }}
       onPointerDown={handlePointerDown}
       onPointerEnter={handlePointerEnter}
-      onPointerUp={handlePointerUp}
     />
   );
 }
@@ -271,16 +260,45 @@ export function MonthGrid({ className }: { className?: string }) {
   const dragRef = useRef<DragState | null>(null);
   // Suppresses the click event that fires after pointerUp when drag occurred.
   const suppressNextClick = useRef(false);
+  // Holds the current global end handler so we can remove it on unmount.
+  const dragEndHandlerRef = useRef<(() => void) | null>(null);
 
-  const handlePointerDragStart = useCallback((key: string) => {
-    dragRef.current = {
-      active: true,
-      startKey: key,
-      accumulated: new Set([key]),
-      didDrag: false,
-    };
-    suppressNextClick.current = false;
-  }, []);
+  const handlePointerDragStart = useCallback(
+    (key: string) => {
+      dragRef.current = {
+        active: true,
+        startKey: key,
+        accumulated: new Set([key]),
+        didDrag: false,
+      };
+      suppressNextClick.current = false;
+
+      // Remove any stale listener from a previous drag that didn't fire.
+      if (dragEndHandlerRef.current) {
+        window.removeEventListener("pointerup", dragEndHandlerRef.current);
+        window.removeEventListener("pointercancel", dragEndHandlerRef.current);
+        dragEndHandlerRef.current = null;
+      }
+
+      // One-shot global listener: fires even when pointer is released outside
+      // the grid, which per-button onPointerUp would miss.
+      const endHandler = () => {
+        dragEndHandlerRef.current = null;
+        const drag = dragRef.current;
+        if (!drag) return;
+        if (drag.didDrag) {
+          suppressNextClick.current = true;
+          dragDays([...drag.accumulated]);
+        }
+        dragRef.current = null;
+      };
+
+      dragEndHandlerRef.current = endHandler;
+      window.addEventListener("pointerup", endHandler, { once: true });
+      window.addEventListener("pointercancel", endHandler, { once: true });
+    },
+    [dragDays],
+  );
 
   const handlePointerDragEnter = useCallback((key: string) => {
     const drag = dragRef.current;
@@ -289,18 +307,16 @@ export function MonthGrid({ className }: { className?: string }) {
     drag.didDrag = true;
   }, []);
 
-  const handlePointerDragEnd = useCallback(
-    (didDrag: boolean) => {
-      const drag = dragRef.current;
-      if (!drag) return;
-      if (didDrag) {
-        suppressNextClick.current = true;
-        dragDays([...drag.accumulated]);
+  // Clean up any dangling global listener on unmount.
+  useEffect(() => {
+    return () => {
+      if (dragEndHandlerRef.current) {
+        window.removeEventListener("pointerup", dragEndHandlerRef.current);
+        window.removeEventListener("pointercancel", dragEndHandlerRef.current);
+        dragEndHandlerRef.current = null;
       }
-      dragRef.current = null;
-    },
-    [dragDays],
-  );
+    };
+  }, []);
 
   // Wrap onDayClick to honour the drag-suppress flag.
   const handleDayClickWithDragGuard = useCallback(
@@ -327,16 +343,10 @@ export function MonthGrid({ className }: { className?: string }) {
           dragRef={dragRef}
           onPointerDragStart={handlePointerDragStart}
           onPointerDragEnter={handlePointerDragEnter}
-          onPointerDragEnd={handlePointerDragEnd}
         />
       );
     },
-    [
-      isDisabled,
-      handlePointerDragStart,
-      handlePointerDragEnter,
-      handlePointerDragEnd,
-    ],
+    [isDisabled, handlePointerDragStart, handlePointerDragEnter],
   );
 
   const isDragCapable = capabilities.daySelection === "multi";
