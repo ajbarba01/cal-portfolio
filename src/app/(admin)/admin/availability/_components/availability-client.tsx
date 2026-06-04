@@ -17,9 +17,17 @@
  * moderation still uses run() (fire-and-forget, result surfaced via error state).
  */
 
-import { useState, useTransition, useMemo, useEffect } from "react";
+import {
+  useState,
+  useTransition,
+  useMemo,
+  useEffect,
+  useOptimistic,
+} from "react";
 import { useRouter } from "next/navigation";
 import { useScheduler } from "@/features/booking/scheduler-context";
+import { denverMidnight } from "@/features/booking/availability";
+import type { TimeRange } from "@/features/booking/availability";
 import {
   createWindowsBatch,
   setWindowUnavailable,
@@ -73,6 +81,77 @@ function denverLabel(iso: string): string {
   });
 }
 
+// ──────────────────────────────────────────────────────────────────────────────
+// Optimistic availability windows
+// ──────────────────────────────────────────────────────────────────────────────
+//
+// "Mark available/unavailable" hits the server then router.refresh()es — the
+// grid only repaints once that round-trip lands, so the commit felt laggy. We
+// mirror the mutation onto the local `windows` array via useOptimistic so the
+// WeekGrid fills flip instantly; when the refreshed server data arrives it
+// becomes the new base and the optimistic layer dissolves into it. On failure
+// (e.g. a booking conflict refuses the removal) the transition ends without a
+// refresh, so the optimistic op auto-reverts.
+//
+// Pure helpers (window math is the SAME shape the server returns — no grid-cell
+// coupling): synthesize day windows for "add", interval-subtract a slice for
+// "remove".
+
+const MS_PER_MINUTE = 60_000;
+
+/** A single day's availability window spanning [openMinute, closeMinute) Denver. */
+function dayWindow(
+  dayKey: string,
+  openMinute: number,
+  closeMinute: number,
+): TimeRange {
+  const midnight = denverMidnight(dayKey).getTime();
+  return {
+    startsAt: new Date(midnight + openMinute * MS_PER_MINUTE),
+    endsAt: new Date(midnight + closeMinute * MS_PER_MINUTE),
+  };
+}
+
+/** Remove [sliceStart, sliceEnd) from a window list, splitting straddling windows. */
+function subtractSlice(
+  windows: TimeRange[],
+  sliceStart: number,
+  sliceEnd: number,
+): TimeRange[] {
+  const out: TimeRange[] = [];
+  for (const w of windows) {
+    const ws = w.startsAt.getTime();
+    const we = w.endsAt.getTime();
+    if (we <= sliceStart || ws >= sliceEnd) {
+      out.push(w); // no overlap
+      continue;
+    }
+    if (ws < sliceStart)
+      out.push({ startsAt: w.startsAt, endsAt: new Date(sliceStart) });
+    if (we > sliceEnd)
+      out.push({ startsAt: new Date(sliceEnd), endsAt: w.endsAt });
+    // fully-covered middle is dropped
+  }
+  return out;
+}
+
+type WindowOptimisticAction =
+  | { type: "add"; ranges: TimeRange[] }
+  | { type: "subtract"; dayKey: string; fromMinute: number; toMinute: number };
+
+function applyOptimisticWindows(
+  current: TimeRange[],
+  action: WindowOptimisticAction,
+): TimeRange[] {
+  if (action.type === "add") return [...current, ...action.ranges];
+  const midnight = denverMidnight(action.dayKey).getTime();
+  return subtractSlice(
+    current,
+    midnight + action.fromMinute * MS_PER_MINUTE,
+    midnight + action.toMinute * MS_PER_MINUTE,
+  );
+}
+
 /**
  * InspectBridge — relays the Scheduler's in-context `inspectedBookingId` to the
  * outside `selectedBookingId` state that drives BusySidePanel. Rendered as a
@@ -97,11 +176,20 @@ export function AvailabilityClient({
   initialBusy,
   initialNights,
   rules,
+  nowIso,
 }: {
   initialWindows: AvailabilityWindow[];
   initialBusy: AdminBusyRangeView[];
   initialNights: string[];
   rules: BookingRuleSettings;
+  /**
+   * Server-authoritative "now" (ISO). Computed once on the server and threaded
+   * through so SSR and hydration agree — a client-side `new Date()` here would
+   * differ from the server's render instant and trip a hydration mismatch
+   * (cells/past classification diverge). Static after load is fine for an admin
+   * tool; the page re-fetches on every router.refresh anyway.
+   */
+  nowIso: string;
 }) {
   const router = useRouter();
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(
@@ -112,6 +200,37 @@ export function AvailabilityClient({
 
   const selectedBooking =
     initialBusy.find((b) => b.bookingId === selectedBookingId) ?? null;
+
+  // Server windows as TimeRanges; the optimistic layer flips fills instantly and
+  // dissolves when the refreshed `initialWindows` becomes the new base.
+  const serverWindows = useMemo<TimeRange[]>(
+    () =>
+      initialWindows.map((w) => ({
+        startsAt: new Date(w.starts_at),
+        endsAt: new Date(w.ends_at),
+      })),
+    [initialWindows],
+  );
+  const [optimisticWindows, applyOptimisticWindow] = useOptimistic(
+    serverWindows,
+    applyOptimisticWindows,
+  );
+
+  // Overnight nights drive the MONTH calendar fills (available vs unavailable),
+  // so they get their own optimistic layer — same instant-flip / dissolve-on-
+  // refresh / revert-on-conflict behaviour as the windows above.
+  const serverNights = useMemo(() => new Set(initialNights), [initialNights]);
+  const [optimisticNights, applyOptimisticNights] = useOptimistic(
+    serverNights,
+    (current: Set<string>, action: { nights: string[]; on: boolean }) => {
+      const next = new Set(current);
+      for (const n of action.nights) {
+        if (action.on) next.add(n);
+        else next.delete(n);
+      }
+      return next;
+    },
+  );
 
   /** Run a server action, surface any error, refresh on success. */
   function run(action: () => Promise<ActionResult>, onSuccess?: () => void) {
@@ -130,11 +249,8 @@ export function AvailabilityClient({
 
   const data: SchedulerData = useMemo(
     () => ({
-      overnightNights: new Set(initialNights),
-      windows: initialWindows.map((w) => ({
-        startsAt: new Date(w.starts_at),
-        endsAt: new Date(w.ends_at),
-      })),
+      overnightNights: optimisticNights,
+      windows: optimisticWindows,
       busy: initialBusy.map(toBusyBlock),
       // AdminBusyRangeView has no concurrency class, so we pass all admin busy
       // here too; this slightly over-marks non-resident days in the month
@@ -142,30 +258,48 @@ export function AvailabilityClient({
       // add class to narrow this.
       busyResident: initialBusy.map(toBusyBlock),
       rules,
-      now: new Date(),
+      now: new Date(nowIso),
     }),
-    [initialWindows, initialBusy, initialNights, rules],
+    [optimisticWindows, optimisticNights, initialBusy, rules, nowIso],
   );
 
   const callbacks: SchedulerCallbacks = useMemo(
     () => ({
       createWindowsBatch: async (input) => {
+        // Optimistic add — synthesize the day windows so the grid flips green
+        // before the server round-trip lands. Runs inside WeekActions' transition.
+        applyOptimisticWindow({
+          type: "add",
+          ranges: input.dayKeys.map((k) =>
+            dayWindow(k, input.openMinute, input.closeMinute),
+          ),
+        });
         const r = await createWindowsBatch(input);
         if (r.kind === "success") router.refresh();
         return r;
       },
       setWindowUnavailable: async (input) => {
+        // Optimistic removal — interval-subtract the slice. Reverts if the
+        // server refuses (booking conflict) since no refresh follows.
+        applyOptimisticWindow({
+          type: "subtract",
+          dayKey: input.dayKey,
+          fromMinute: input.fromMinute,
+          toMinute: input.toMinute,
+        });
         const r = await setWindowUnavailable(input);
         if (r.kind === "success") router.refresh();
         return r;
       },
       setOvernightNightsBatch: async (input) => {
+        // Optimistic month-fill flip; reverts if removal hits a booking conflict.
+        applyOptimisticNights({ nights: input.nights, on: input.on });
         const r = await setOvernightNightsBatch(input);
         if (r.kind === "success") router.refresh();
         return r;
       },
     }),
-    [router],
+    [router, applyOptimisticWindow, applyOptimisticNights],
   );
 
   return (

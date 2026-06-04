@@ -77,7 +77,6 @@ import {
   runFillRounding,
   runOutlineClasses,
 } from "@/features/booking/grid-runs";
-import type { RunEdge } from "@/features/booking/grid-runs";
 import type { DayButtonProps } from "react-day-picker";
 
 // ---------------------------------------------------------------------------
@@ -157,8 +156,15 @@ interface SchedulerDayButtonProps extends DayButtonProps {
   /** Classification of this cell for fill + pointer routing. */
   availability: DayAvailability | undefined;
   kind: CellKind;
-  /** Pre-computed composed visual className (fill + booking rounding + outline). */
-  visualClassName: string;
+  /** Status-fill + fill-run rounding, applied to the button itself. */
+  fillClassName: string;
+  /**
+   * Selection / preview OUTLINE, rendered on a separate inset overlay span so it
+   * never shares the button's fill corner-radius. This is what removes the notch
+   * when a selection is a strict subset of a contiguous fill run: fill rounding
+   * (button) and outline rounding (overlay) are now fully independent layers.
+   */
+  outlineClassName: string;
   onCellPointerDown: (
     dayKey: string,
     kind: CellKind,
@@ -181,15 +187,28 @@ function SchedulerDayButton({
   dayKey,
   availability,
   kind,
-  visualClassName,
+  fillClassName,
+  outlineClassName,
   onCellPointerDown,
   onCellPointerEnter,
   onCellPointerLeave,
   className,
+  // `children` is the rdp-rendered day number — pull it out so our explicit JSX
+  // children (the outline overlay) don't clobber it via the spread below.
+  children,
   ...buttonProps
 }: SchedulerDayButtonProps) {
   const isSelected = modifiers.selected === true;
   const bookingId = availability?.bookingId;
+
+  // Hover affordance (selectable cells only): a dotted primary outline signalling
+  // "this will select". Outline (not border) so it never shifts layout or fights
+  // the selection border; inset so it sits inside the cell. Dotted = hover,
+  // dashed = drag-preview, solid = committed — the three-tier outline language.
+  const hoverClass =
+    kind === "selectable"
+      ? "hover:outline-2 hover:outline-dotted hover:outline-primary/50 hover:-outline-offset-2"
+      : "";
 
   // Do NOT call setPointerCapture — that redirects all pointer events to this
   // element and prevents onPointerEnter from firing on sibling buttons.
@@ -208,14 +227,29 @@ function SchedulerDayButton({
   return (
     <button
       {...buttonProps}
-      className={cn(className, visualClassName)}
+      className={cn(className, fillClassName, hoverClass)}
       aria-pressed={kind === "selectable" ? isSelected : undefined}
       title={kind === "booked" ? "Booked" : undefined}
       style={{ touchAction: "none", userSelect: "none" }}
+      // Suppress the browser's native drag (the "moving a picture/file" ghost)
+      // so a pointer-drag selection isn't hijacked into an HTML5 drag op.
+      draggable={false}
+      onDragStart={(e) => e.preventDefault()}
       onPointerDown={handlePointerDown}
       onPointerEnter={handlePointerEnter}
       onPointerLeave={handlePointerLeave}
-    />
+    >
+      {children}
+      {outlineClassName !== "" && (
+        <span
+          aria-hidden="true"
+          className={cn(
+            "pointer-events-none absolute inset-0",
+            outlineClassName,
+          )}
+        />
+      )}
+    </button>
   );
 }
 
@@ -293,39 +327,54 @@ export function MonthGrid({ className }: { className?: string }) {
     return rows;
   }, [userMonth]);
 
-  // ── Per-row run-edge maps (computed once per render, not per-cell) ──────────
-  // Each map combines every visible week row's runEdges into one dayKey→RunEdge
-  // lookup. visualFor reads via map.get(dayKey). Selection + booking maps MUST
-  // NOT depend on previewDays/hoveredBookingId so hover/preview re-renders don't
-  // rebuild them (the drag hot path).
-  const selEdgeMap = useMemo(() => {
-    const map = new Map<string, RunEdge>();
-    for (const row of visibleWeeks) {
-      const e = runEdges(row, (k) =>
-        state.selectedDays.has(k) ? "sel" : null,
-      );
-      for (const [k, v] of e) map.set(k, v);
-    }
-    return map;
-  }, [visibleWeeks, state.selectedDays]);
+  // ── Run-edge maps (computed once per render, not per-cell) ──────────────────
+  // Edges are computed over the WHOLE visible month flattened into calendar
+  // reading order (Sun→Sat, row after row) — NOT per week row. This is what makes
+  // a contiguous selection that wraps across a row boundary round only at its
+  // TRUE ends: the last cell of a row whose run continues onto the next row is
+  // interior (no cap border, no rounding → flat edge), and likewise the first
+  // cell of the continuation. Per-row edges used to round every row's ends,
+  // which read as separate pills. Booking fills get the same treatment.
+  //
+  // Selection + booking maps MUST NOT depend on previewDays/hoveredBookingId so
+  // hover/preview re-renders don't rebuild them (the drag hot path).
+  const orderedDays = useMemo(() => visibleWeeks.flat(), [visibleWeeks]);
 
-  const bookEdgeMap = useMemo(() => {
-    const map = new Map<string, RunEdge>();
-    for (const row of visibleWeeks) {
-      const e = runEdges(row, (k) => byKey.get(k)?.bookingId ?? null);
-      for (const [k, v] of e) map.set(k, v);
-    }
-    return map;
-  }, [visibleWeeks, byKey]);
+  const selEdgeMap = useMemo(
+    () =>
+      runEdges(orderedDays, (k) => (state.selectedDays.has(k) ? "sel" : null)),
+    [orderedDays, state.selectedDays],
+  );
 
-  const previewEdgeMap = useMemo(() => {
-    const map = new Map<string, RunEdge>();
-    for (const row of visibleWeeks) {
-      const e = runEdges(row, (k) => (previewDays.has(k) ? "p" : null));
-      for (const [k, v] of e) map.set(k, v);
-    }
-    return map;
-  }, [visibleWeeks, previewDays]);
+  // Fill runs group by STATUS (not just booking id) so a contiguous block of
+  // available days merges into one rounded pill, an unavailable block into
+  // another, and same-booking busy days into theirs. Adjacent DIFFERENT bookings
+  // stay separate (distinct keys); past cells never merge (null).
+  const fillEdgeMap = useMemo(
+    () =>
+      runEdges(orderedDays, (k) => {
+        const da = byKey.get(k);
+        if (!da) return null;
+        switch (da.state) {
+          case "available":
+            return "available";
+          case "busy":
+            return da.bookingId ? `booking:${da.bookingId}` : "busy";
+          case "out-of-window":
+            return "unavailable";
+          case "past":
+            return null;
+          default:
+            return "unavailable";
+        }
+      }),
+    [orderedDays, byKey],
+  );
+
+  const previewEdgeMap = useMemo(
+    () => runEdges(orderedDays, (k) => (previewDays.has(k) ? "p" : null)),
+    [orderedDays, previewDays],
+  );
 
   // ── Disabled predicate ────────────────────────────────────────────────────
   const isDisabled = useCallback(
@@ -359,14 +408,18 @@ export function MonthGrid({ className }: { className?: string }) {
   );
 
   // ── Per-cell composed visuals ─────────────────────────────────────────────
-  // Computes the state fill + booking-run rounding + selection/preview outline
-  // for a single cell, using its week row for neighbor-aware merging.
-  const visualFor = useCallback(
-    (dayKey: string): string => {
+  // Returns TWO independent layers:
+  //   fill    → status colour + fill-run rounding, applied to the button. Its
+  //             corner radius follows the STATUS run (contiguous available pill…).
+  //   outline → selection / preview border, applied to a separate inset overlay.
+  //             Its corner radius follows the SELECTION run, independent of fill,
+  //             so a subset selection no longer notches the fill underneath.
+  const cellClasses = useCallback(
+    (dayKey: string): { fill: string; outline: string } => {
       const da = byKey.get(dayKey);
-      if (!da) return ""; // no-data cell → rdp defaults (faint/disabled)
+      if (!da) return { fill: "", outline: "" }; // no-data cell → rdp defaults
 
-      // 1. State fill
+      // 1. Status fill colour
       let fill = "";
       switch (da.state) {
         case "available":
@@ -392,51 +445,48 @@ export function MonthGrid({ className }: { className?: string }) {
           fill = "bg-status-unavailable text-status-unavailable-foreground";
       }
 
-      // 2. Booking fill merge (busy days of same bookingId → one rounded pill)
-      let bookingRounding = "";
-      if (da.state === "busy") {
-        const bookEdge = bookEdgeMap.get(dayKey);
-        if (bookEdge) {
-          bookingRounding = runFillRounding(bookEdge, "horizontal");
-        }
-      }
+      // 2. Status fill merge — contiguous same-status days share one rounded pill
+      //    (available block, unavailable block, or same-booking busy run); the
+      //    leading rounded-none also resets the base rounded-lg so interiors are
+      //    square and the fill reads as one continuous shape.
+      const fillEdge = fillEdgeMap.get(dayKey);
+      const fillRounding = fillEdge
+        ? runFillRounding(fillEdge, "horizontal")
+        : "";
 
-      // 3. Selection outline (committed) — merged across adjacent selected days.
-      //    During a REMOVE paint drag, painted-selected cells render a distinct
-      //    "pending removal" treatment (dashed/faded) so removal is visible
-      //    mid-drag instead of only at commit.
-      let selectionOutline = "";
+      // 3. Selection outline (committed) — merged across adjacent selected days,
+      //    width-2. During a REMOVE paint drag, painted-selected cells render a
+      //    distinct "pending removal" treatment (dashed/faded) so removal is
+      //    visible mid-drag instead of only at commit.
+      let outline = "";
       const selEdge = selEdgeMap.get(dayKey);
       const pendingRemove =
         previewMode === "remove" &&
         previewDays.has(dayKey) &&
         state.selectedDays.has(dayKey);
       if (selEdge) {
-        selectionOutline = cn(
-          runOutlineClasses(selEdge, "horizontal"),
+        outline = cn(
+          runOutlineClasses(selEdge, "horizontal", 2),
           pendingRemove ? "border-dashed border-primary/40" : "border-primary",
         );
-      }
-
-      // 4. Live ADD preview outline — dashed/half variant over previewDays for
-      //    cells not yet committed-selected (avoids double border on add).
-      let previewOutline = "";
-      if (previewMode !== "remove" && previewDays.size > 0 && !selEdge) {
+      } else if (previewMode !== "remove" && previewDays.size > 0) {
+        // 4. Live ADD preview outline — dashed/half variant for cells not yet
+        //    committed-selected (only reached when there is no committed outline).
         const prevEdge = previewEdgeMap.get(dayKey);
         if (prevEdge) {
-          previewOutline = cn(
-            runOutlineClasses(prevEdge, "horizontal"),
+          outline = cn(
+            runOutlineClasses(prevEdge, "horizontal", 2),
             "border-dashed border-primary/50",
           );
         }
       }
 
-      return cn(fill, bookingRounding, selectionOutline, previewOutline);
+      return { fill: cn(fill, fillRounding), outline };
     },
     [
       byKey,
       selEdgeMap,
-      bookEdgeMap,
+      fillEdgeMap,
       previewEdgeMap,
       state.selectedDays,
       previewDays,
@@ -469,7 +519,7 @@ export function MonthGrid({ className }: { className?: string }) {
   const dayButtonBase = useMemo(
     () =>
       cn(
-        "inline-flex size-9 items-center justify-center rounded-lg outline-none",
+        "relative inline-flex size-9 items-center justify-center rounded-lg outline-none",
         "focus-visible:ring-ring/50 focus-visible:ring-3",
         "disabled:pointer-events-none disabled:opacity-40 aria-selected:opacity-100",
       ),
@@ -719,7 +769,7 @@ export function MonthGrid({ className }: { className?: string }) {
       const k = format(props.day.date, "yyyy-MM-dd");
       const availability = byKey.get(k);
       const kind = cellKind(k);
-      const visualClassName = visualFor(k);
+      const { fill, outline } = cellClasses(k);
       return (
         <SchedulerDayButton
           {...props}
@@ -727,7 +777,8 @@ export function MonthGrid({ className }: { className?: string }) {
           dayKey={k}
           availability={availability}
           kind={kind}
-          visualClassName={visualClassName}
+          fillClassName={fill}
+          outlineClassName={outline}
           onCellPointerDown={handleCellPointerDown}
           onCellPointerEnter={handleCellPointerEnter}
           onCellPointerLeave={handleCellPointerLeave}
@@ -737,7 +788,7 @@ export function MonthGrid({ className }: { className?: string }) {
     [
       byKey,
       cellKind,
-      visualFor,
+      cellClasses,
       dayButtonBase,
       handleCellPointerDown,
       handleCellPointerEnter,
@@ -747,7 +798,14 @@ export function MonthGrid({ className }: { className?: string }) {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className={cn("flex flex-col gap-4", className)}>
+    <div
+      className={cn("flex flex-col gap-4 select-none", className)}
+      // Subtree-level guard: cancel any native dragstart (the day number text or
+      // the cell) so a pointer-drag selection is never hijacked into an HTML5
+      // image/file drag. The per-button guard misses drags that begin on the
+      // text node itself.
+      onDragStart={(e) => e.preventDefault()}
+    >
       <Calendar
         mode="single"
         month={userMonth}
@@ -758,6 +816,17 @@ export function MonthGrid({ className }: { className?: string }) {
         modifiers={modifiers}
         modifiersClassNames={modifiersClassNames}
         className="border-border rounded-lg border"
+        // Slot overrides:
+        //  selected — neutralize rdp's default bg-primary (solid black on commit);
+        //    our selection is the overlay outline, modifier kept only for aria.
+        //  today    — the primitive's default puts a 1px BORDER on the cell, which
+        //    both shifts that one button ~1px AND reads as a stray outline. Drop
+        //    the box entirely; mark today with a bold number only (no layout cost,
+        //    no stray border).
+        classNames={{
+          selected: "",
+          today: "[&>button]:font-extrabold",
+        }}
         components={{ DayButton: CustomDayButton }}
       />
     </div>

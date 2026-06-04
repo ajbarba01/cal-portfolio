@@ -108,7 +108,15 @@ export function WeekActions({ className }: WeekActionsProps) {
 
   function handleMarkAvailable() {
     setFeedback(null);
+    // Clear the draft outline NOW so it disappears in step with the optimistic
+    // fill flip (the consumer mirrors the window add optimistically). Snapshot it
+    // first so a server refusal can restore it for retry.
+    const snapshot = new Set(selection.state.gridDraft);
+    const restoreDraft = () => selection.paintCells([...snapshot], "add");
     startTransition(async () => {
+      // Clear inside the transition so the outline drops in the SAME commit as
+      // the consumer's optimistic fill (both dispatched in this sync tick).
+      selection.clearGridDraft();
       const groups = groupRangesByTime(ranges);
       const results = await Promise.all(
         groups.map((g) =>
@@ -127,16 +135,14 @@ export function WeekActions({ className }: WeekActionsProps) {
       if (firstProblem === undefined) {
         // Every group returned success (or callback not wired — treat as no-op).
         const anyWired = results.some((r) => r !== undefined);
-        if (anyWired) {
+        if (anyWired)
           setFeedback({ tone: "success", text: "Marked available." });
-          selection.clearGridDraft();
-        }
+        else restoreDraft(); // nothing ran — undo the optimistic clear
         return;
       }
 
-      // firstProblem is AvailabilityResult with kind !== "success", or undefined
-      // (callback not wired). Guard for undefined before exhaustive switch.
-      if (firstProblem === undefined) return;
+      // Server refused — restore the draft so the user can retry.
+      restoreDraft();
 
       switch (firstProblem.kind) {
         case "forbidden":
@@ -159,7 +165,14 @@ export function WeekActions({ className }: WeekActionsProps) {
 
   function handleMarkUnavailable() {
     setFeedback(null);
+    // Optimistically clear the draft outline in step with the fill; restore on
+    // refusal (refuse-not-cancel) so the conflicting blocks stay visible.
+    const snapshot = new Set(selection.state.gridDraft);
+    const restoreDraft = () => selection.paintCells([...snapshot], "add");
     startTransition(async () => {
+      // Clear inside the transition so the outline drops in the SAME commit as
+      // the consumer's optimistic fill.
+      selection.clearGridDraft();
       const results = await Promise.all(
         ranges.map((r) =>
           callbacks.setWindowUnavailable?.({
@@ -198,7 +211,8 @@ export function WeekActions({ className }: WeekActionsProps) {
       }
 
       if (allConflicts.length > 0) {
-        // Refuse-not-cancel: draft NOT cleared on conflict.
+        // Refuse-not-cancel: restore the draft so conflicting blocks stay visible.
+        restoreDraft();
         setFeedback({
           tone: "error",
           text: "Can't remove — active bookings overlap these ranges:",
@@ -208,17 +222,25 @@ export function WeekActions({ className }: WeekActionsProps) {
       }
 
       if (forbidden) {
+        restoreDraft();
         setFeedback({ tone: "error", text: "Not permitted." });
         return;
       }
 
       if (firstError !== null) {
+        restoreDraft();
         setFeedback({ tone: "error", text: firstError });
         return;
       }
 
+      // All-success path: nothing ran when no callback was wired — restore so the
+      // draft isn't silently dropped.
+      if (results.every((r) => r === undefined)) {
+        restoreDraft();
+        return;
+      }
+
       setFeedback({ tone: "success", text: "Marked unavailable." });
-      selection.clearGridDraft();
     });
   }
 
