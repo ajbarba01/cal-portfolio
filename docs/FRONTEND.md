@@ -70,7 +70,9 @@ Dark mode provides desaturated fills with lighter foregrounds. Primitives `--gre
 
 - **Layer 1 (data / server)** — RSC / server actions; fetches windows, busy ranges, overnight nights, settings; passes typed data down as props.
 - **Layer 2 (pure model + hook + context)** — `schedule-selection`, `use-schedule-selection`, `scheduler-context`; stateless logic and selection state; no IO.
-- **Layer 3 (compound `<Scheduler.*>` parts)** — presentational wireframe only; wired to context; logic-free. `<Scheduler>` root, `<Scheduler.MonthGrid>`, `<Scheduler.WeekGrid>`, `<Scheduler.DayPanel>`, `<Scheduler.SelectionSummary>`, `<Scheduler.WeekActions>`.
+- **Layer 3 (compound `<Scheduler.*>` parts)** — presentational wireframe only; wired to context; logic-free. `<Scheduler>` root, `<Scheduler.MonthGrid>`, `<Scheduler.WeekGrid>`, `<Scheduler.DayPanel>`, `<Scheduler.SelectionSummary>`, `<Scheduler.WeekActions>`, `<Scheduler.Legend>`, `<Scheduler.BookingDetailsPanel>`.
+
+**Visual/interaction model.** Cell STATUS is a background fill (available=green, booked=blue, unavailable=neutral — via the status tokens above); SELECTION is a merged OUTLINE overlay (not a fill) composed on top, so a cell can show both at once. Contiguous same-booking cells merge into one rounded fill and contiguous selected cells merge into one outline — run-boundary math is a pure util in `src/features/booking/grid-runs.ts`. Admin paints to select and clicks a booked cell to inspect (opens `Scheduler.BookingDetailsPanel`); status colors are keyed by `Scheduler.Legend`.
 
 Layer 3 is **wireframe / semantic-token-only** by contract — a design pass later swaps classNames without touching Layers 1–2. `SchedulerCapabilities` is the per-context seam: a plain object (with ADMIN and BOOKING presets) that gates which parts mount and which interactions are enabled, keeping one component tree for both contexts.
 

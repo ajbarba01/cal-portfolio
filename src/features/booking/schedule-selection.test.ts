@@ -361,42 +361,6 @@ describe("reducer: setRange", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Reducer: dragDays
-// ---------------------------------------------------------------------------
-
-describe("reducer: dragDays", () => {
-  it("adds all days to selection", () => {
-    const s0 = makeState({ selectedDays: new Set(["2026-06-01"]) });
-    const s1 = scheduleSelectionReducer(s0, {
-      type: "dragDays",
-      days: ["2026-06-10", "2026-06-11"],
-    });
-    expect(s1.selectedDays.has("2026-06-01")).toBe(true);
-    expect(s1.selectedDays.has("2026-06-10")).toBe(true);
-    expect(s1.selectedDays.has("2026-06-11")).toBe(true);
-  });
-
-  it("sets anchorDay to lexically-min of dragged days", () => {
-    const s0 = makeState();
-    const s1 = scheduleSelectionReducer(s0, {
-      type: "dragDays",
-      days: ["2026-06-11", "2026-06-09", "2026-06-10"],
-    });
-    expect(s1.anchorDay).toBe("2026-06-09");
-  });
-
-  it("empty days array: no change to selection or anchor", () => {
-    const s0 = makeState({
-      selectedDays: new Set(["2026-06-01"]),
-      anchorDay: "2026-06-01",
-    });
-    const s1 = scheduleSelectionReducer(s0, { type: "dragDays", days: [] });
-    expect([...s1.selectedDays]).toEqual(["2026-06-01"]);
-    expect(s1.anchorDay).toBe("2026-06-01");
-  });
-});
-
-// ---------------------------------------------------------------------------
 // Reducer: clearDays
 // ---------------------------------------------------------------------------
 
@@ -511,18 +475,6 @@ describe("reducer: gridDraft", () => {
     });
     expect(s1.gridDraft.size).toBe(1);
     expect(s1.gridDraft.has("2026-06-02@540")).toBe(true);
-  });
-
-  it("extendGridDrag adds cellIds to existing gridDraft", () => {
-    const s0 = makeState({ gridDraft: new Set(["2026-06-01@480"]) });
-    const s1 = scheduleSelectionReducer(s0, {
-      type: "extendGridDrag",
-      cellIds: ["2026-06-01@510", "2026-06-01@540"],
-    });
-    expect(s1.gridDraft.size).toBe(3);
-    expect(s1.gridDraft.has("2026-06-01@480")).toBe(true);
-    expect(s1.gridDraft.has("2026-06-01@510")).toBe(true);
-    expect(s1.gridDraft.has("2026-06-01@540")).toBe(true);
   });
 
   it("clearGridDraft empties gridDraft", () => {

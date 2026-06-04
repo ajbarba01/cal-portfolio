@@ -420,6 +420,8 @@ export function ServiceBookingClient({
             onSelectionChange={onSelectionChange}
           >
             <Scheduler.WeekGrid />
+            <Scheduler.Legend />
+            <Scheduler.BookingDetailsPanel />
           </Scheduler>
         )}
         {!windowsLoading && !windowsError && mode === "month-range" && (
@@ -431,6 +433,8 @@ export function ServiceBookingClient({
             >
               <Scheduler.MonthGrid />
               <Scheduler.SelectionSummary />
+              <Scheduler.Legend />
+              <Scheduler.BookingDetailsPanel />
             </Scheduler>
             {range?.from && range?.to && stay && !stay.ok && (
               <p className="text-destructive mt-2 text-sm">{stay.reason}</p>

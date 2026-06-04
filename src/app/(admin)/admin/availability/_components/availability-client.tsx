@@ -17,8 +17,9 @@
  * moderation still uses run() (fire-and-forget, result surfaced via error state).
  */
 
-import { useState, useTransition, useMemo } from "react";
+import { useState, useTransition, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useScheduler } from "@/features/booking/scheduler-context";
 import {
   createWindowsBatch,
   setWindowUnavailable,
@@ -70,6 +71,25 @@ function denverLabel(iso: string): string {
     hour: "numeric",
     minute: "2-digit",
   });
+}
+
+/**
+ * InspectBridge — relays the Scheduler's in-context `inspectedBookingId` to the
+ * outside `selectedBookingId` state that drives BusySidePanel. Rendered as a
+ * child of <Scheduler> so it can read context. Consumes the inspection as a
+ * one-shot pulse (clears it), so re-clicking the same booking re-opens.
+ */
+function InspectBridge({ onInspect }: { onInspect: (id: string) => void }) {
+  const { selection } = useScheduler();
+  const id = selection.inspectedBookingId;
+  const clear = selection.clearInspection;
+  useEffect(() => {
+    if (id) {
+      onInspect(id);
+      clear();
+    }
+  }, [id, onInspect, clear]);
+  return null;
 }
 
 export function AvailabilityClient({
@@ -161,10 +181,12 @@ export function AvailabilityClient({
         data={data}
         callbacks={callbacks}
       >
+        <InspectBridge onInspect={setSelectedBookingId} />
         <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
           <div className="flex flex-col gap-3">
             <Scheduler.MonthGrid />
             <Scheduler.SelectionSummary />
+            <Scheduler.Legend />
           </div>
           <Scheduler.DayPanel />
         </div>
