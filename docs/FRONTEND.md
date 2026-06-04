@@ -54,6 +54,16 @@ Tokens live in two files: **`src/app/globals.css`** owns color + radius as two-l
 - **Accessibility floor** — semantic HTML, sufficient color contrast, visible focus states, full keyboard navigation.
 - **Imagery** — `next/image`, defined aspect ratios, lazy loading.
 
+**Status token group** — three semantic role pairs for scheduler cell states, defined in `globals.css` and listed in `SEMANTIC_COLORS`:
+
+| Role                                 | Meaning                                 | Notes                                                                                                                                                                     |
+| ------------------------------------ | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `status-available` / `-foreground`   | Muted green; day is open for booking    | Low chroma — informative, not urgent                                                                                                                                      |
+| `status-booked` / `-foreground`      | Muted blue; day has a confirmed booking | Distinct from available without shouting                                                                                                                                  |
+| `status-unavailable` / `-foreground` | Neutral gray; day blocked or unset      | **Not red by design** — a blank admin calendar is mostly unavailable; gray reads as quiet/neutral, not alarming. Red is reserved for `--destructive` (conflicts, errors). |
+
+Dark mode provides desaturated fills with lighter foregrounds. Primitives `--green-soft`, `--green-deep`, `--blue-soft`, `--blue-deep` (and their `-dark` counterparts) live in the primitive layer; components reference only the semantic `--status-*` roles.
+
 **Calendar primitive** — `src/components/ui/calendar.tsx` is a **hand-authored** thin wrapper over `react-day-picker` v9 (NOT the shadcn CLI, which scaffolds Radix; this project layers shadcn-style components on `@base-ui/react`). It only restyles rdp's headless day-grid with semantic token classes + a lucide nav chevron. `date-fns` is layout-only inside the grid components, never for booking rules.
 
 **Scheduler component family** — the booking and admin availability surfaces share a single compound `<Scheduler>` family in `features/booking/_components/scheduler/`. Three-layer split:

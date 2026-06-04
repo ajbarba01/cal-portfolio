@@ -23,6 +23,12 @@ export const SEMANTIC_COLORS = [
   "border",
   "input",
   "ring",
+  "status-available",
+  "status-available-foreground",
+  "status-booked",
+  "status-booked-foreground",
+  "status-unavailable",
+  "status-unavailable-foreground",
 ] as const;
 
 export type SemanticColor = (typeof SEMANTIC_COLORS)[number];

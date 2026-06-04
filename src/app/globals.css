@@ -34,6 +34,12 @@
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
+  --color-status-available: var(--status-available);
+  --color-status-available-foreground: var(--status-available-foreground);
+  --color-status-booked: var(--status-booked);
+  --color-status-booked-foreground: var(--status-booked-foreground);
+  --color-status-unavailable: var(--status-unavailable);
+  --color-status-unavailable-foreground: var(--status-unavailable-foreground);
   --color-destructive: var(--destructive);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
@@ -70,6 +76,14 @@
   --neutral-900: oklch(0.205 0 0);
   --neutral-950: oklch(0.145 0 0);
   --danger: oklch(0.577 0.245 27.325);
+  --green-soft: oklch(0.93 0.04 150);
+  --green-deep: oklch(0.45 0.09 150);
+  --green-soft-dark: oklch(0.36 0.05 150);
+  --green-deep-dark: oklch(0.85 0.07 150);
+  --blue-soft: oklch(0.92 0.045 245);
+  --blue-deep: oklch(0.45 0.11 245);
+  --blue-soft-dark: oklch(0.36 0.055 245);
+  --blue-deep-dark: oklch(0.84 0.07 245);
 
   --radius: 0.625rem;
 
@@ -105,6 +119,13 @@
   --sidebar-accent-foreground: var(--neutral-900);
   --sidebar-border: var(--neutral-200);
   --sidebar-ring: var(--neutral-400);
+  /* ── Status roles (scheduler cell states) ───────────────────────── */
+  --status-available: var(--green-soft);
+  --status-available-foreground: var(--green-deep);
+  --status-booked: var(--blue-soft);
+  --status-booked-foreground: var(--blue-deep);
+  --status-unavailable: var(--neutral-100);
+  --status-unavailable-foreground: var(--neutral-500);
 }
 
 .dark {
@@ -139,6 +160,13 @@
   --sidebar-accent-foreground: var(--neutral-50);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: var(--neutral-500);
+  /* ── Status roles (dark overrides) ──────────────────────────────── */
+  --status-available: var(--green-soft-dark);
+  --status-available-foreground: var(--green-deep-dark);
+  --status-booked: var(--blue-soft-dark);
+  --status-booked-foreground: var(--blue-deep-dark);
+  --status-unavailable: var(--neutral-800);
+  --status-unavailable-foreground: var(--neutral-400);
 }
 
 @layer base {
