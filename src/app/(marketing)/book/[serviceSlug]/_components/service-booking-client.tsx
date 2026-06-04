@@ -6,8 +6,8 @@
  * Picks the calendar mode from the service's pricing_type:
  *   house_sitting → month-range (check-in/out dates); else → week-slots (times).
  *
- * Owns all booking business state; the BookingCalendar + leaf components are
- * presentational. Busy availability comes from the service-role `useBusyRanges`
+ * Owns all booking business state; the compound <Scheduler> (and its nested
+ * parts) are presentational. Busy availability comes from the service-role `useBusyRanges`
  * source (identity-free); open windows from `useAvailability`. Pet-aware services
  * (house_sitting, walk) assign real pets — the server derives dog/cat counts.
  *
