@@ -96,6 +96,16 @@ export interface DayAvailability {
   /** The Denver-midnight instant passed in for this day. */
   dayStart: Date;
   state: DayState;
+  /**
+   * Set only when `state === 'busy'` and the overlapping resident booking
+   * carries an id; identifies the owning booking for grouping/inspection.
+   */
+  bookingId?: string;
+}
+
+/** A resident booking that blocks whole days. `id` is optional so plain TimeRange callers still type-check; when present it is surfaced as `DayAvailability.bookingId`. */
+export interface ResidentBusy extends TimeRange {
+  id?: string;
 }
 
 export interface DeriveBookableDaysArgs {
@@ -104,7 +114,7 @@ export interface DeriveBookableDaysArgs {
   /** Set of Denver day-keys ("YYYY-MM-DD") that are overnight-bookable. */
   overnightNights: Set<string>;
   /** Other resident (house_sitting) bookings that block whole days. */
-  busyResident: TimeRange[];
+  busyResident: ResidentBusy[];
   rules: BookingRuleSettings;
   now: Date;
 }
@@ -137,12 +147,21 @@ export function deriveBookableDays(
       rules.hardMaxAdvanceDays
     ) {
       state = "too-far";
-    } else if (busyResident.some((b) => overlapsHalfOpen(daySpan, b))) {
-      state = "busy";
-    } else if (!overnightNights.has(dayKey)) {
-      state = "out-of-window";
     } else {
-      state = "available";
+      const busyMatch = busyResident.find((b) => overlapsHalfOpen(daySpan, b));
+      if (busyMatch !== undefined) {
+        const bookingId = busyMatch.id;
+        return {
+          dayKey,
+          dayStart,
+          state: "busy",
+          ...(bookingId !== undefined ? { bookingId } : {}),
+        };
+      } else if (!overnightNights.has(dayKey)) {
+        state = "out-of-window";
+      } else {
+        state = "available";
+      }
     }
 
     return { dayKey, dayStart, state };
