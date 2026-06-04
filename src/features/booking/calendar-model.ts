@@ -19,9 +19,17 @@
  * both check-in and check-out at `bookingOpenMinute` (Denver). An N-night stay
  * therefore spans exactly N×24h and trivially satisfies the hours-of-day guard
  * (start time-of-day == open >= open; end time-of-day == open <= close).
+ *
+ * OVERNIGHT NIGHTS
+ * ----------------
+ * Overnight (house_sitting) availability is driven by the `overnight_nights`
+ * table — an explicit set of Denver calendar-day keys ("YYYY-MM-DD") on which
+ * Cal is available to start sleeping over. `overnightNights` replaces the old
+ * `windows: TimeRange[]` in both `DeriveBookableDaysArgs` and
+ * `ValidateStayRangeArgs`.
  */
 
-import { fitsWindow, denverDayKey } from "./availability";
+import { denverDayKey, denverMidnight } from "./availability";
 import type { TimeRange, BookingRuleSettings } from "./availability";
 
 // ---------------------------------------------------------------------------
@@ -93,7 +101,8 @@ export interface DayAvailability {
 export interface DeriveBookableDaysArgs {
   /** One Denver-midnight instant per calendar day to classify. */
   days: Date[];
-  windows: TimeRange[];
+  /** Set of Denver day-keys ("YYYY-MM-DD") that are overnight-bookable. */
+  overnightNights: Set<string>;
   /** Other resident (house_sitting) bookings that block whole days. */
   busyResident: TimeRange[];
   rules: BookingRuleSettings;
@@ -103,14 +112,14 @@ export interface DeriveBookableDaysArgs {
 /**
  * Classifies each calendar day for house_sitting check-in/out selection.
  *
- * Precedence: past → too-far → busy → out-of-window → available. A day spans
- * `[dayStart, dayStart + 24h)`; it is in-window if any availability window
- * overlaps that span and busy if any resident booking overlaps it.
+ * Precedence: past → too-far → busy → out-of-window → available. A day is
+ * in-window if its dayKey is present in `overnightNights`; busy if any
+ * resident booking overlaps the day span `[dayStart, dayStart + 24h)`.
  */
 export function deriveBookableDays(
   args: DeriveBookableDaysArgs,
 ): DayAvailability[] {
-  const { days, windows, busyResident, rules, now } = args;
+  const { days, overnightNights, busyResident, rules, now } = args;
   const todayKey = denverDayKey(now);
 
   return days.map((dayStart) => {
@@ -130,7 +139,7 @@ export function deriveBookableDays(
       state = "too-far";
     } else if (busyResident.some((b) => overlapsHalfOpen(daySpan, b))) {
       state = "busy";
-    } else if (!windows.some((w) => overlapsHalfOpen(daySpan, w))) {
+    } else if (!overnightNights.has(dayKey)) {
       state = "out-of-window";
     } else {
       state = "available";
@@ -153,7 +162,8 @@ export interface ValidateStayRangeArgs {
   checkIn: Date;
   /** Denver-midnight instant of the check-out date. */
   checkOut: Date;
-  windows: TimeRange[];
+  /** Set of Denver day-keys ("YYYY-MM-DD") that are overnight-bookable. */
+  overnightNights: Set<string>;
   busyResident: TimeRange[];
   rules: BookingRuleSettings;
   now: Date;
@@ -161,13 +171,19 @@ export interface ValidateStayRangeArgs {
 
 /**
  * Validates a house_sitting check-in/check-out date pair and resolves it to a
- * concrete instant range. Reuses `fitsWindow` for window containment; applies
- * lead-time and hard-max-advance on the resolved start; rejects overlap with
- * any existing resident booking. Hours-of-day holds by construction (both
- * anchored at `bookingOpenMinute`).
+ * concrete instant range. Checks that every covered night [checkIn, checkOut)
+ * is in `overnightNights`; applies lead-time and hard-max-advance on the
+ * resolved start; rejects overlap with any existing resident booking.
+ * Hours-of-day holds by construction (both anchored at `bookingOpenMinute`).
+ *
+ * NIGHT ENUMERATION (DST-safe)
+ * Each night n (0-indexed from checkIn) is identified by computing its Denver
+ * midnight via `denverMidnight` on the n-th day key, which is derived from the
+ * n-th Denver midnight itself — a fixed-point that correctly handles the
+ * spring-forward / fall-back 1h gap without drift.
  */
 export function validateStayRange(args: ValidateStayRangeArgs): StayValidation {
-  const { checkIn, checkOut, windows, busyResident, rules, now } = args;
+  const { checkIn, checkOut, overnightNights, busyResident, rules, now } = args;
 
   const nights = Math.round(
     (checkOut.getTime() - checkIn.getTime()) / MS_PER_DAY,
@@ -185,11 +201,24 @@ export function validateStayRange(args: ValidateStayRangeArgs): StayValidation {
     endsAt: new Date(checkOut.getTime() + offsetMs),
   };
 
-  if (!fitsWindow(range, windows)) {
-    return {
-      ok: false,
-      reason: "Selected dates are outside Cal's availability.",
-    };
+  // Check every night [checkIn, checkOut) is in overnightNights. Enumerate
+  // covered nights DST-safely: start from checkIn's dayKey, advance via
+  // denverMidnight to get successive true midnight instants, stop when the
+  // resulting instant >= checkOut.
+  let cursor = checkIn;
+  while (cursor.getTime() < checkOut.getTime()) {
+    const dayKey = denverDayKey(cursor);
+    if (!overnightNights.has(dayKey)) {
+      return {
+        ok: false,
+        reason: "Selected dates are outside Cal's availability.",
+      };
+    }
+    // Advance to next Denver midnight DST-correctly.
+    const [y, m, d] = dayKey.split("-").map((n) => parseInt(n, 10));
+    cursor = denverMidnight(
+      `${String(y).padStart(4, "0")}-${String(m).padStart(2, "0")}-${String(d + 1).padStart(2, "0")}`,
+    );
   }
 
   const leadMs = range.startsAt.getTime() - now.getTime();

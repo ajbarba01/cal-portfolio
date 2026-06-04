@@ -21,6 +21,7 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useAvailability } from "@/features/booking/use-availability";
 import { useBusyRanges } from "@/features/booking/use-busy-ranges";
+import { useOvernightNights } from "@/features/booking/use-overnight-nights";
 import {
   markSlotsBusy,
   deriveBookableDays,
@@ -200,11 +201,11 @@ export function ServiceBookingClient({
 
   // ── Availability + busy sources ────────────────────────────────────────────
   const {
-    openWindows,
     openSlots,
     loading: windowsLoading,
     error: windowsError,
   } = useAvailability({ durationMs, rules });
+  const { overnightNights } = useOvernightNights();
   const { busy, refresh: refreshBusy } = useBusyRanges(
     service.slug,
     initialBusy,
@@ -229,13 +230,13 @@ export function ServiceBookingClient({
       mode === "month-range"
         ? deriveBookableDays({
             days: monthDayKeys(month).map(denverMidnight),
-            windows: openWindows,
+            overnightNights,
             busyResident: busyRanges,
             rules,
             now,
           })
         : [],
-    [mode, month, openWindows, busyRanges, rules, now],
+    [mode, month, overnightNights, busyRanges, rules, now],
   );
 
   const stay = useMemo(() => {
@@ -243,12 +244,12 @@ export function ServiceBookingClient({
     return validateStayRange({
       checkIn: denverMidnight(localDayKey(range.from)),
       checkOut: denverMidnight(localDayKey(range.to)),
-      windows: openWindows,
+      overnightNights,
       busyResident: busyRanges,
       rules,
       now,
     });
-  }, [mode, range, openWindows, busyRanges, rules, now]);
+  }, [mode, range, overnightNights, busyRanges, rules, now]);
 
   // ── Derived booking time ─────────────────────────────────────────────────────
   let startsAt: Date | null = null;
