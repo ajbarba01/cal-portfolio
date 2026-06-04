@@ -260,9 +260,63 @@ function classifyCell(args: {
 interface DragState {
   active: boolean;
   startCellId: string;
+  /** Latest cell the pointer entered; drives the commit rectangle on pointerup. */
+  currentCellId: string;
   mode: "add" | "remove";
   didDrag: boolean;
 }
+
+// ---------------------------------------------------------------------------
+// WeekCell — memoized single slot button
+// ---------------------------------------------------------------------------
+//
+// Extracted + React.memo'd so a drag tick only re-renders the cells whose
+// visualClassName actually changed (the marquee edge), not all ~200 buttons.
+// Parent passes stable callbacks + the per-cell visual string; cell objects are
+// stable across a drag (they only recompute when classification deps change).
+// This is what closes the responsiveness gap with MonthGrid (~42 cells).
+
+interface WeekCellProps {
+  cell: CellInfo;
+  pressed: boolean | undefined;
+  visualClassName: string;
+  onCellPointerDown: (cell: CellInfo) => void;
+  onCellPointerEnter: (cell: CellInfo) => void;
+  onCellPointerLeave: (cell: CellInfo) => void;
+  onCellClick: (cell: CellInfo) => void;
+}
+
+const WeekCell = React.memo(function WeekCell({
+  cell,
+  pressed,
+  visualClassName,
+  onCellPointerDown,
+  onCellPointerEnter,
+  onCellPointerLeave,
+  onCellClick,
+}: WeekCellProps) {
+  const interactive = cell.role !== "inert";
+  return (
+    <button
+      type="button"
+      disabled={cell.role === "inert"}
+      aria-pressed={pressed}
+      aria-label={`${dayLabel(cell.dayKey)} ${formatMinutes(cell.minute)}`}
+      title={cell.role === "inspect" ? "Booked" : undefined}
+      style={{ touchAction: "none", userSelect: "none" }}
+      className={cn(
+        "border-border h-7 w-full border-b border-l text-xs",
+        "focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset",
+        visualClassName,
+        interactive ? "cursor-pointer" : "cursor-default",
+      )}
+      onPointerDown={() => onCellPointerDown(cell)}
+      onPointerEnter={() => onCellPointerEnter(cell)}
+      onPointerLeave={() => onCellPointerLeave(cell)}
+      onClick={() => onCellClick(cell)}
+    />
+  );
+});
 
 // ---------------------------------------------------------------------------
 // WeekGrid (the actual component — all hooks unconditional)
@@ -498,6 +552,7 @@ function WeekGridInner({ className }: { className?: string }) {
       dragRef.current = {
         active: true,
         startCellId: cellId,
+        currentCellId: cellId,
         mode,
         didDrag: false,
       };
@@ -510,11 +565,18 @@ function WeekGridInner({ className }: { className?: string }) {
         const drag = dragRef.current;
         if (!drag) return;
         suppressNextClick.current = true; // tap OR drag both commit here
-        setPreviewCells((prev) => {
-          const paintable = paintableOf(prev);
-          if (paintable.length > 0) paintCells(paintable, drag.mode);
-          return new Set<string>();
-        });
+        // Recompute the marquee from drag refs and commit OUTSIDE any setState
+        // updater — dispatching the reducer inside setPreviewCells' updater runs
+        // during render and trips "Cannot update a component while rendering".
+        const rect = buildRectangle(
+          drag.startCellId,
+          drag.currentCellId,
+          focusedWeekDays,
+          slots,
+        );
+        const paintable = paintableOf(rect);
+        if (paintable.length > 0) paintCells(paintable, drag.mode);
+        setPreviewCells(new Set<string>());
         setPreviewMode(null);
         dragRef.current = null;
       };
@@ -524,6 +586,8 @@ function WeekGridInner({ className }: { className?: string }) {
       capabilities.intraday,
       capabilities.editable,
       state.gridDraft,
+      focusedWeekDays,
+      slots,
       paintCells,
       paintableOf,
       installEndHandler,
@@ -538,8 +602,9 @@ function WeekGridInner({ className }: { className?: string }) {
       }
       const drag = dragRef.current;
       if (!drag?.active) return;
-      if (cell.cellId === drag.startCellId && !drag.didDrag) return;
-      drag.didDrag = true;
+      if (cell.cellId === drag.currentCellId) return;
+      drag.currentCellId = cell.cellId;
+      if (cell.cellId !== drag.startCellId) drag.didDrag = true;
       const rect = buildRectangle(
         drag.startCellId,
         cell.cellId,
@@ -556,6 +621,15 @@ function WeekGridInner({ className }: { className?: string }) {
   const handlePointerLeave = useCallback((cell: CellInfo) => {
     if (cell.status === "busy") setHoveredBookingId(null);
   }, []);
+
+  // Stable per-cell pointerdown wrapper passed to the memoized WeekCell. (The
+  // click wrapper is declared after handleClick to avoid a TDZ reference.)
+  const onCellPointerDown = useCallback(
+    (cell: CellInfo) => {
+      if (cell.role === "paint") handlePointerDown(cell.cellId);
+    },
+    [handlePointerDown],
+  );
 
   // Unmount cleanup
   useEffect(() => {
@@ -589,6 +663,14 @@ function WeekGridInner({ className }: { className?: string }) {
       }
     },
     [capabilities.intraday, beginGridDrag, inspectBooking],
+  );
+
+  // Stable per-cell click wrapper (declared here so handleClick is initialized).
+  const onCellClick = useCallback(
+    (cell: CellInfo) => {
+      if (cell.role !== "inert") handleClick(cell);
+    },
+    [handleClick],
   );
 
   // ── Week navigation ─────────────────────────────────────────────────────────
@@ -684,35 +766,21 @@ function WeekGridInner({ className }: { className?: string }) {
               {/* Day cells */}
               {focusedWeekDays.map((_dayKey, dayIdx) => {
                 const cell = cells[dayIdx][slotIdx];
-                const interactive = cell.role !== "inert";
                 const pressed =
                   cell.role === "select" || cell.role === "paint"
                     ? state.gridDraft.has(cell.cellId)
                     : undefined;
 
                 return (
-                  <button
+                  <WeekCell
                     key={cell.cellId}
-                    type="button"
-                    disabled={cell.role === "inert"}
-                    aria-pressed={pressed}
-                    aria-label={`${dayLabel(cell.dayKey)} ${formatMinutes(m)}`}
-                    title={cell.role === "inspect" ? "Booked" : undefined}
-                    style={{ touchAction: "none", userSelect: "none" }}
-                    className={cn(
-                      "border-border h-7 w-full border-b border-l text-xs",
-                      "focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset",
-                      visualFor(cell),
-                      interactive ? "cursor-pointer" : "cursor-default",
-                    )}
-                    onPointerDown={() => {
-                      if (cell.role === "paint") handlePointerDown(cell.cellId);
-                    }}
-                    onPointerEnter={() => handlePointerEnter(cell)}
-                    onPointerLeave={() => handlePointerLeave(cell)}
-                    onClick={() => {
-                      if (interactive) handleClick(cell);
-                    }}
+                    cell={cell}
+                    pressed={pressed}
+                    visualClassName={visualFor(cell)}
+                    onCellPointerDown={onCellPointerDown}
+                    onCellPointerEnter={handlePointerEnter}
+                    onCellPointerLeave={handlePointerLeave}
+                    onCellClick={onCellClick}
                   />
                 );
               })}

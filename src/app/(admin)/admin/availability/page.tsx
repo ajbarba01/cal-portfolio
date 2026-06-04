@@ -81,6 +81,7 @@ export default async function AdminAvailabilityPage() {
         initialBusy={busyResult.ranges}
         initialNights={nightsResult.nights}
         rules={rules}
+        nowIso={new Date().toISOString()}
       />
     </main>
   );
