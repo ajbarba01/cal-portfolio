@@ -73,14 +73,14 @@
   --sand-100: #f2ece1;
   --sand-200: #e7decf;
   --sand-400: #b6a88f;
-  --sand-500: #8a7e6c;
+  --sand-500: #6e6354;
   --sand-700: #5a5044;
   --sand-800: #322b22;
   --sand-900: #2b2520;
   --sand-950: #1c1813;
 
   /* Clay / terracotta accent (two roles: bright fill vs AA-safe text) */
-  --clay-fill: #b5613c; /* fills + large text only */
+  --clay-fill: #ae5a35; /* fills + button text (white passes AA) */
   --clay-strong: #8a4226; /* small clay text/links on light (AA ≥ 4.5 on cream) */
   --clay-soft: #e7d8cc; /* subtle tints */
   --clay-onfill: #ffffff; /* text on --clay-fill */

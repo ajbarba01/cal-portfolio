@@ -51,7 +51,7 @@ Tokens live in two files: **`src/app/globals.css`** owns color + radius as two-l
 **Brand tokens (set 2026-06-04):**
 
 - **Palette "Trail":** `--sand-0…950` warm neutrals (the re-palette swap layer) + clay accent.
-  Clay is **two roles**: `--brand` (bright `#B5613C` fill — fills + large text only) and
+  Clay is **two roles**: `--brand` (bright `#AE5A35` fill — fills + button text, white passes AA) and
   `--brand-strong` (`#8A4226` — AA-safe small text/links/active-nav/focus ring). `--primary` stays
   warm near-black: clay is a deliberate accent, never the default button color.
 - **Type:** Fraunces (`--font-heading`) headings, Public Sans (`--font-sans`) body. Documented type
