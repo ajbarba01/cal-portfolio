@@ -103,7 +103,11 @@ export interface DayAvailability {
   bookingId?: string;
 }
 
-/** A resident booking that blocks whole days. `id` is optional so plain TimeRange callers still type-check; when present it is surfaced as `DayAvailability.bookingId`. */
+/**
+ * Resident booking that blocks whole days.
+ * `id` is optional — plain `TimeRange` callers still type-check.
+ * When present, surfaced as {@link DayAvailability.bookingId}.
+ */
 export interface ResidentBusy extends TimeRange {
   id?: string;
 }
@@ -125,6 +129,8 @@ export interface DeriveBookableDaysArgs {
  * Precedence: past → too-far → busy → out-of-window → available. A day is
  * in-window if its dayKey is present in `overnightNights`; busy if any
  * resident booking overlaps the day span `[dayStart, dayStart + 24h)`.
+ * Busy uses the first matching block in `busyResident`; overlapping resident
+ * bookings are prevented by the DB exclusion constraint in practice.
  */
 export function deriveBookableDays(
   args: DeriveBookableDaysArgs,
@@ -150,13 +156,7 @@ export function deriveBookableDays(
     } else {
       const busyMatch = busyResident.find((b) => overlapsHalfOpen(daySpan, b));
       if (busyMatch !== undefined) {
-        const bookingId = busyMatch.id;
-        return {
-          dayKey,
-          dayStart,
-          state: "busy",
-          ...(bookingId !== undefined ? { bookingId } : {}),
-        };
+        return { dayKey, dayStart, state: "busy", bookingId: busyMatch.id };
       } else if (!overnightNights.has(dayKey)) {
         state = "out-of-window";
       } else {
