@@ -46,7 +46,7 @@ Distance feeds **two** things: an approval gate and a driving-time cost.
 
 ## Brand / visual direction
 
-Cal's stated intent: **"simple and straightforward."** No brand assets yet (no logo, palette, or fonts). Concrete palette + typography are set later in a **Claude Design** session (separate quota), onboarded on this repo so it reuses `design-tokens.ts` + existing components. Anti-generic, accessibility, and token rules live in [FRONTEND.md](FRONTEND.md) — not restated here.
+Cal's stated intent: **"simple and straightforward."** No brand assets yet (no logo, palette, or fonts). Concrete brand is **set** (Phase 0 of the design overhaul, 2026-06-04): palette **"Trail"** — warm sand/stone/cream neutrals (`--sand-*`) + a **clay/terracotta** accent split into `--brand` (bright fill) and `--brand-strong` (AA-safe text/links). Type: **Fraunces** (serif headings) + **Public Sans** (body), wired via `next/font` → `--font-heading` / `--font-sans`. Status colors (sage/blue/warm-gray) reconciled to the warm base. Tokens live in `src/app/globals.css`; the swap layer is the `--sand-*` / `--clay-*` primitives. Full rationale: `docs/superpowers/specs/2026-06-04-design-overhaul-phase0-tokens-design.md`. Anti-generic, accessibility, and token rules live in [FRONTEND.md](FRONTEND.md) — not restated here.
 
 **Starting brief for that session:** warm, trustworthy, approachable-but-professional, with an outdoorsy hint (dog-walking / house-sitting). Photography-forward (Gallery, About). Not flashy. Mobile-first.
 
@@ -247,4 +247,4 @@ Marketing copy that Cal must write is stubbed with double-square-bracket markers
 
 ---
 
-_Last reviewed: 2026-06-03_
+_Last reviewed: 2026-06-04_
