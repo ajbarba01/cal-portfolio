@@ -19,6 +19,9 @@ export const SEMANTIC_COLORS = [
   "secondary",
   "muted",
   "accent",
+  "brand",
+  "brand-foreground",
+  "brand-strong",
   "destructive",
   "border",
   "input",
@@ -59,4 +62,37 @@ export const zIndex = {
   overlay: 30,
   modal: 40,
   toast: 50,
+} as const;
+
+/**
+ * Spacing scale — whitespace is a token, not a per-page choice. These are the ONLY
+ * approved gap/padding conventions; shells (Phase 1) consume them so marketing,
+ * account, and admin breathe identically. All values are Tailwind 4px-base steps.
+ */
+export const space = {
+  /** Responsive container horizontal padding. */
+  pageX: "px-5 sm:px-8",
+  /** Vertical gap between major page sections. */
+  sectionY: "py-12 sm:py-16",
+  /** Default gap within a vertical content stack. */
+  stack: "gap-6",
+  /** Gap between a label and its form control. */
+  field: "gap-1.5",
+} as const;
+
+/** Reading measure for long-form/marketing content (also the `.measure` CSS utility). */
+export const measure = "65ch";
+
+/**
+ * Type scale — one documented set of steps. Headings use Fraunces (var `--font-heading`),
+ * body uses Public Sans (var `--font-sans`). Pages pick a step; never ad-hoc sizes.
+ */
+export const typeScale = {
+  display: { size: "3rem", leading: "1.05", font: "heading", weight: 600 },
+  h1: { size: "2.25rem", leading: "1.1", font: "heading", weight: 600 },
+  h2: { size: "1.5rem", leading: "1.2", font: "heading", weight: 600 },
+  h3: { size: "1.175rem", leading: "1.3", font: "heading", weight: 600 },
+  body: { size: "1rem", leading: "1.6", font: "sans", weight: 400 },
+  small: { size: "0.875rem", leading: "1.5", font: "sans", weight: 400 },
+  eyebrow: { size: "0.72rem", leading: "1.4", font: "sans", weight: 600 },
 } as const;
