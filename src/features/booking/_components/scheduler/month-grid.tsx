@@ -60,11 +60,6 @@ function monthDayKeys(month: Date): string[] {
   return keys;
 }
 
-/** Whether two Dates represent the same year-month. */
-function sameMonth(a: Date, b: Date): boolean {
-  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
-}
-
 // ---------------------------------------------------------------------------
 // Custom DayButton for pointer-drag (multi capability only)
 // ---------------------------------------------------------------------------
@@ -140,19 +135,17 @@ export function MonthGrid({ className }: { className?: string }) {
   } = selection;
 
   // ── Visible month ─────────────────────────────────────────────────────────
-  // `userMonth` = what the user last explicitly navigated to.
-  // `resolvedMonth` = derived: focusedWeekStart's month when it falls outside
-  // userMonth, otherwise userMonth. Pure useMemo — no effects, no refs in render.
+  // User-controlled via the calendar's prev/next arrows; defaults to today's
+  // month. The focused-week highlight band is applied via the `focusedWeek`
+  // modifier (per in-view day) — the visible month is NOT slaved to the focused
+  // week, because today's week can start in the prior month and would otherwise
+  // pin the view to a fully-past month. (Auto-advancing the month on cross-month
+  // week-nav is a deferred enhancement.)
   const [userMonth, setUserMonth] = useState<Date>(data.now);
-
-  const resolvedMonth = useMemo(() => {
-    const focusedDate = denverMidnight(state.focusedWeekStart);
-    return sameMonth(focusedDate, userMonth) ? userMonth : focusedDate;
-  }, [userMonth, state.focusedWeekStart]);
 
   // ── Classification ────────────────────────────────────────────────────────
   const days = useMemo(() => {
-    const keys = monthDayKeys(resolvedMonth);
+    const keys = monthDayKeys(userMonth);
     return deriveBookableDays({
       days: keys.map((k) => denverMidnight(k)),
       overnightNights: data.overnightNights,
@@ -161,7 +154,7 @@ export function MonthGrid({ className }: { className?: string }) {
       now: data.now,
     });
   }, [
-    resolvedMonth,
+    userMonth,
     data.overnightNights,
     data.busyResident,
     data.rules,
@@ -356,7 +349,7 @@ export function MonthGrid({ className }: { className?: string }) {
     <div className={cn("flex flex-col gap-4", className)}>
       <Calendar
         mode="single"
-        month={resolvedMonth}
+        month={userMonth}
         onMonthChange={setUserMonth}
         selected={undefined}
         onDayClick={handleDayClickWithDragGuard}
