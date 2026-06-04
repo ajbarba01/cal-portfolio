@@ -35,6 +35,12 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-status-available: var(--status-available);
+  --color-status-available-foreground: var(--status-available-foreground);
+  --color-status-booked: var(--status-booked);
+  --color-status-booked-foreground: var(--status-booked-foreground);
+  --color-status-unavailable: var(--status-unavailable);
+  --color-status-unavailable-foreground: var(--status-unavailable-foreground);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -70,6 +76,10 @@
   --neutral-900: oklch(0.205 0 0);
   --neutral-950: oklch(0.145 0 0);
   --danger: oklch(0.577 0.245 27.325);
+  --green-soft: oklch(0.93 0.04 150);
+  --green-deep: oklch(0.45 0.09 150);
+  --blue-soft: oklch(0.92 0.045 245);
+  --blue-deep: oklch(0.45 0.11 245);
 
   --radius: 0.625rem;
 
@@ -97,6 +107,13 @@
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
+  /* ── Status roles (scheduler cell states) ───────────────────────── */
+  --status-available: var(--green-soft);
+  --status-available-foreground: var(--green-deep);
+  --status-booked: var(--blue-soft);
+  --status-booked-foreground: var(--blue-deep);
+  --status-unavailable: var(--neutral-100);
+  --status-unavailable-foreground: var(--neutral-500);
   --sidebar: var(--neutral-50);
   --sidebar-foreground: var(--neutral-950);
   --sidebar-primary: var(--neutral-900);
@@ -131,6 +148,13 @@
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
+  /* ── Status roles (dark overrides) ──────────────────────────────── */
+  --status-available: oklch(0.36 0.05 150);
+  --status-available-foreground: oklch(0.85 0.07 150);
+  --status-booked: oklch(0.36 0.055 245);
+  --status-booked-foreground: oklch(0.84 0.07 245);
+  --status-unavailable: var(--neutral-800);
+  --status-unavailable-foreground: var(--neutral-400);
   --sidebar: var(--neutral-900);
   --sidebar-foreground: var(--neutral-50);
   --sidebar-primary: var(--neutral-200);
