@@ -64,7 +64,6 @@ function fmtTime(date: Date): string {
  *
  * Whole-day: "Jun 7 – Jun 10"
  * Intraday:  "Jun 7, 9:00 AM – 10:00 AM"
- *            (collapses AM/PM when both share the same meridiem)
  */
 function formatRange(block: BusyBlock): string {
   if (isWholeDayBlock(block)) {
