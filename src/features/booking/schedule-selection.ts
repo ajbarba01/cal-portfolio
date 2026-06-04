@@ -16,11 +16,9 @@ export interface ScheduleSelectionState {
 export type ScheduleSelectionAction =
   | { type: "toggleDay"; dayKey: string }
   | { type: "setRange"; anchor: string; target: string }
-  | { type: "dragDays"; days: string[] }
   | { type: "clearDays" }
   | { type: "setFocusedWeek"; weekStart: string }
   | { type: "beginGridDrag"; cellId: string }
-  | { type: "extendGridDrag"; cellIds: string[] }
   | { type: "clearGridDraft" }
   | { type: "paintDays"; days: string[]; mode: "add" | "remove" }
   | { type: "paintCells"; cellIds: string[]; mode: "add" | "remove" }
@@ -357,23 +355,6 @@ export function scheduleSelectionReducer(
       };
     }
 
-    case "dragDays": {
-      if (action.days.length === 0) return state;
-      const next = new Set(state.selectedDays);
-      for (const k of action.days) next.add(k);
-      const minDay = [...action.days].sort()[0];
-      return {
-        ...state,
-        selectedDays: next,
-        anchorDay: minDay,
-        focusedWeekStart: applySyncRule(
-          next,
-          state.selectedDays,
-          state.focusedWeekStart,
-        ),
-      };
-    }
-
     case "clearDays": {
       return {
         ...state,
@@ -394,15 +375,6 @@ export function scheduleSelectionReducer(
       return {
         ...state,
         gridDraft: new Set([action.cellId]),
-      };
-    }
-
-    case "extendGridDrag": {
-      const next = new Set(state.gridDraft);
-      for (const id of action.cellIds) next.add(id);
-      return {
-        ...state,
-        gridDraft: next,
       };
     }
 

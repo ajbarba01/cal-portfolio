@@ -37,11 +37,9 @@ export interface UseScheduleSelectionResult {
   // dispatchers (memoized with useCallback)
   toggleDay: (dayKey: string) => void;
   setRange: (anchor: string, target: string) => void;
-  dragDays: (days: string[]) => void;
   clearDays: () => void;
   setFocusedWeek: (weekStart: string) => void;
   beginGridDrag: (cellId: string) => void;
-  extendGridDrag: (cellIds: string[]) => void;
   clearGridDraft: () => void;
   paintDays: (days: string[], mode: "add" | "remove") => void;
   paintCells: (cellIds: string[], mode: "add" | "remove") => void;
@@ -84,11 +82,6 @@ export function useScheduleSelection(args: {
     [],
   );
 
-  const dragDays = useCallback(
-    (days: string[]) => dispatch({ type: "dragDays", days }),
-    [],
-  );
-
   const clearDays = useCallback(() => dispatch({ type: "clearDays" }), []);
 
   const setFocusedWeek = useCallback(
@@ -98,11 +91,6 @@ export function useScheduleSelection(args: {
 
   const beginGridDrag = useCallback(
     (cellId: string) => dispatch({ type: "beginGridDrag", cellId }),
-    [],
-  );
-
-  const extendGridDrag = useCallback(
-    (cellIds: string[]) => dispatch({ type: "extendGridDrag", cellIds }),
     [],
   );
 
@@ -155,11 +143,9 @@ export function useScheduleSelection(args: {
       state,
       toggleDay,
       setRange,
-      dragDays,
       clearDays,
       setFocusedWeek,
       beginGridDrag,
-      extendGridDrag,
       clearGridDraft,
       paintDays,
       paintCells,
@@ -175,11 +161,9 @@ export function useScheduleSelection(args: {
       state,
       toggleDay,
       setRange,
-      dragDays,
       clearDays,
       setFocusedWeek,
       beginGridDrag,
-      extendGridDrag,
       clearGridDraft,
       paintDays,
       paintCells,
