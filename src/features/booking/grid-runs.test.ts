@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import { runEdges, runFillRounding, runOutlineClasses } from "./grid-runs";
-import type { RunEdge, RunAxis } from "./grid-runs";
 
 // ---------------------------------------------------------------------------
 // runEdges
