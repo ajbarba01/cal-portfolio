@@ -7,6 +7,7 @@ import {
   collapseRuns,
   createInitialSelectionState,
   scheduleSelectionReducer,
+  mergeDraftToRanges,
 } from "./schedule-selection";
 import type { ScheduleSelectionState } from "./schedule-selection";
 
@@ -540,6 +541,121 @@ describe("reducer: gridDraft", () => {
     });
     expect(s1.selectedDays.has("2026-06-01")).toBe(true);
     expect(s1.anchorDay).toBe("2026-06-01");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// mergeDraftToRanges
+// ---------------------------------------------------------------------------
+
+describe("mergeDraftToRanges", () => {
+  const INTERVAL = 30;
+
+  it("empty set returns []", () => {
+    expect(mergeDraftToRanges(new Set(), INTERVAL)).toEqual([]);
+  });
+
+  it("single slot → single range [minute, minute+interval)", () => {
+    expect(mergeDraftToRanges(new Set(["2026-06-01@540"]), INTERVAL)).toEqual([
+      { dayKey: "2026-06-01", fromMinute: 540, toMinute: 570 },
+    ]);
+  });
+
+  it("three contiguous slots merge into one range (9:00–10:30)", () => {
+    const draft = new Set([
+      "2026-06-01@540",
+      "2026-06-01@570",
+      "2026-06-01@600",
+    ]);
+    expect(mergeDraftToRanges(draft, INTERVAL)).toEqual([
+      { dayKey: "2026-06-01", fromMinute: 540, toMinute: 630 },
+    ]);
+  });
+
+  it("gap in the middle → two separate ranges", () => {
+    // 540 and 600 with 570 missing — 30-min interval means 540→570 is contiguous
+    // but 570 is absent so 540 and 600 are NOT contiguous
+    const draft = new Set(["2026-06-01@540", "2026-06-01@600"]);
+    expect(mergeDraftToRanges(draft, INTERVAL)).toEqual([
+      { dayKey: "2026-06-01", fromMinute: 540, toMinute: 570 },
+      { dayKey: "2026-06-01", fromMinute: 600, toMinute: 630 },
+    ]);
+  });
+
+  it("out-of-order input still merges correctly", () => {
+    const draft = new Set([
+      "2026-06-01@600",
+      "2026-06-01@540",
+      "2026-06-01@570",
+    ]);
+    expect(mergeDraftToRanges(draft, INTERVAL)).toEqual([
+      { dayKey: "2026-06-01", fromMinute: 540, toMinute: 630 },
+    ]);
+  });
+
+  it("multiple days: grouped separately, sorted by dayKey", () => {
+    const draft = new Set([
+      "2026-06-02@480",
+      "2026-06-01@540",
+      "2026-06-02@510",
+      "2026-06-01@570",
+    ]);
+    expect(mergeDraftToRanges(draft, INTERVAL)).toEqual([
+      { dayKey: "2026-06-01", fromMinute: 540, toMinute: 600 },
+      { dayKey: "2026-06-02", fromMinute: 480, toMinute: 540 },
+    ]);
+  });
+
+  it("two non-adjacent runs on the same day", () => {
+    const draft = new Set([
+      "2026-06-01@540",
+      "2026-06-01@570",
+      "2026-06-01@660",
+      "2026-06-01@690",
+    ]);
+    expect(mergeDraftToRanges(draft, INTERVAL)).toEqual([
+      { dayKey: "2026-06-01", fromMinute: 540, toMinute: 600 },
+      { dayKey: "2026-06-01", fromMinute: 660, toMinute: 720 },
+    ]);
+  });
+
+  it("malformed id without '@' is ignored — no throw", () => {
+    const draft = new Set(["garbage", "2026-06-01@540"]);
+    expect(mergeDraftToRanges(draft, INTERVAL)).toEqual([
+      { dayKey: "2026-06-01", fromMinute: 540, toMinute: 570 },
+    ]);
+  });
+
+  it("malformed id with '@' but non-numeric minute is ignored", () => {
+    const draft = new Set(["2026-06-01@abc", "2026-06-01@540"]);
+    expect(mergeDraftToRanges(draft, INTERVAL)).toEqual([
+      { dayKey: "2026-06-01", fromMinute: 540, toMinute: 570 },
+    ]);
+  });
+
+  it("all malformed ids → []", () => {
+    expect(
+      mergeDraftToRanges(new Set(["bad", "@540", "2026-06-01@xyz"]), INTERVAL),
+    ).toEqual([]);
+  });
+
+  it("different interval (15 min): contiguous means +15", () => {
+    const draft = new Set([
+      "2026-06-01@480",
+      "2026-06-01@495",
+      "2026-06-01@510",
+    ]);
+    expect(mergeDraftToRanges(draft, 15)).toEqual([
+      { dayKey: "2026-06-01", fromMinute: 480, toMinute: 525 },
+    ]);
+  });
+
+  it("different interval (15 min): +30 gap splits into two ranges", () => {
+    const draft = new Set(["2026-06-01@480", "2026-06-01@510"]);
+    expect(mergeDraftToRanges(draft, 15)).toEqual([
+      { dayKey: "2026-06-01", fromMinute: 480, toMinute: 495 },
+      { dayKey: "2026-06-01", fromMinute: 510, toMinute: 525 },
+    ]);
   });
 });
 

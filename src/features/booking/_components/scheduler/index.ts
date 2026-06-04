@@ -15,12 +15,14 @@ import { SelectionSummary } from "./selection-summary";
 import { MonthGrid } from "./month-grid";
 import { DayPanel } from "./day-panel";
 import { WeekGrid } from "./week-grid";
+import { WeekActions } from "./week-actions";
 
 export const Scheduler = Object.assign(SchedulerRoot, {
   SelectionSummary,
   MonthGrid,
   DayPanel,
   WeekGrid,
+  WeekActions,
 });
 
 // Re-export prop types consumers need when wiring data/callbacks from outside.
