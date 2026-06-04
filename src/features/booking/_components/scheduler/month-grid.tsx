@@ -5,51 +5,75 @@
  *
  * Reads all state from SchedulerContext (via useScheduler) and dispatches back
  * into it. Owns NO selection logic — all day-classification logic lives in
- * calendar-model.ts. Owns NO colours — token-only (bg-primary, bg-secondary,
- * bg-muted, text-muted-foreground, text-destructive, border-border, ring-ring).
+ * calendar-model.ts; all run-edge math lives in grid-runs.ts. Owns NO colours —
+ * token-only (status fills + primary outline + muted; no hex).
  *
  * DAY-KEY BRIDGE
  * The Calendar (react-day-picker v9) yields local-midnight Date objects for
  * each cell. We key them with format(date, "yyyy-MM-dd") (date-fns, layout
- * only) so they match the Denver day-keys built via denverMidnight. This
- * matches the pattern in the old month-grid.tsx.
- *
- * POINTER-DRAG
- * Progressive enhancement for both "multi" and "range" capabilities. Transient
- * drag state lives in refs to avoid re-renders during drag. previewDays is a
- * React state Set<string> that drives a live range-preview highlight during
- * drag (before pointer-up commits to model). The drag forms a CONTIGUOUS DATE
- * RANGE from dragAnchorKey to the current cell — not an arbitrary accumulated
- * set. Model is committed only on pointerup. Click + keyboard remain the
- * canonical interaction paths.
+ * only) so they match the Denver day-keys built via denverMidnight.
  *
  * VISUAL LANGUAGE (token-only, no bespoke colors)
- * - ringed (ring-1 ring-inset ring-primary/60)  = overnight-available night
- * - solid fill (bg-primary)                     = selected day
- * - destructive bg                              = busy / already booked
- * - muted / low opacity                         = past / unavailable
- * - preview (bg-primary/30)                     = live drag range before commit
+ * The cell composes three INDEPENDENT layers so state and selection no longer
+ * fight (selection used to be a solid fill that hid the day's state):
+ *
+ *   1. STATE FILL (background of the day, from byKey classification):
+ *        available     → bg-status-available  / text-status-available-foreground
+ *        busy (booked) → bg-status-booked     / text-status-booked-foreground
+ *        out-of-window → bg-status-unavailable / text-status-unavailable-foreground
+ *        past          → text-muted-foreground opacity-40 (no loud fill)
+ *        no-data       → disabled / faint (rdp default)
+ *   2. BOOKING MERGE: busy days of the SAME bookingId merge horizontally within
+ *        a week row into one rounded blue pill (runFillRounding). Hovering any
+ *        cell of a booking lifts ALL its cells lighter (bg-status-booked/70) via
+ *        transient hoveredBookingId state (CSS :hover can't span sibling cells).
+ *   3. SELECTION OUTLINE: selected days draw a merged charcoal outline
+ *        (border-primary) that joins horizontally-adjacent selected days in the
+ *        same week row into one rounded pill (runOutlineClasses). A gap or week
+ *        boundary caps the run. Live drag preview uses the same mechanism in a
+ *        dashed/half-opacity variant (border-primary/50 border-dashed).
+ *   State fill and selection outline COMPOSE — a day can be available-green AND
+ *   selection-outlined at once.
+ *
+ * INTERACTION
+ * - multi (admin): PAINT-TOGGLE. pointerdown on a non-booked selectable cell
+ *     picks mode = selected ? "remove" : "add"; dragging across cells paints
+ *     that mode along the pointer path (a free set, not a contiguous range);
+ *     pointerup commits via paintDays. A single tap is the same path with one
+ *     key. pointerdown on a BOOKED cell → inspectBooking (no selection change,
+ *     no paint drag). Past / no-data cells are inert.
+ * - range (house_sitting) / single: UNCHANGED. Click + contiguous-range drag
+ *     anchor→current, committed on pointerup. A click on a booked cell also
+ *     inspects the booking (does not disturb range selection).
+ *
+ * Transient drag state lives in refs to avoid re-renders during drag; a one-shot
+ * global pointerup/pointercancel listener commits even when released outside the
+ * grid, with unmount cleanup. suppressNextClick swallows the click that follows
+ * a drag.
  *
  * MONTH SYNC
- * `userMonth` tracks the month the user last navigated to. `resolvedMonth` is
- * derived in useMemo: if focusedWeekStart lands outside userMonth, show the
- * focused month instead. This is a pure derived computation — no effects, no
- * refs in render (satisfies react-hooks/set-state-in-effect and refs rules).
+ * `userMonth` tracks the month the user last navigated to (prev/next arrows).
+ * The focused-week band is a SUBTLE underline on the day number (low priority)
+ * so it never overrides the status fills.
  */
 
-import React, {
-  useState,
-  useMemo,
-  useRef,
-  useCallback,
-  useEffect,
-} from "react";
+import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { format, getDaysInMonth, startOfMonth } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { useScheduler } from "@/features/booking/scheduler-context";
 import { deriveBookableDays } from "@/features/booking/calendar-model";
+import type { DayAvailability } from "@/features/booking/calendar-model";
 import { denverMidnight } from "@/features/booking/availability";
+import {
+  weekDays,
+  sundayWeekStart,
+} from "@/features/booking/schedule-selection";
+import {
+  runEdges,
+  runFillRounding,
+  runOutlineClasses,
+} from "@/features/booking/grid-runs";
 import type { DayButtonProps } from "react-day-picker";
 
 // ---------------------------------------------------------------------------
@@ -101,60 +125,89 @@ function daysInRange(a: string, b: string): string[] {
   return keys;
 }
 
+/** Cell-level kind for pointer routing. */
+type CellKind = "selectable" | "booked" | "inert";
+
 // ---------------------------------------------------------------------------
-// Custom DayButton for pointer-drag (multi + range capabilities)
+// Custom DayButton — owns ALL per-cell visuals (state fill + booking merge +
+// selection outline + hover) because per-cell rounding/outline depends on
+// row-neighbor computation that rdp's static modifiersClassNames can't express.
 // ---------------------------------------------------------------------------
 
 interface DragState {
   active: boolean;
+  /** "paint" (multi) builds a free set; "range" builds anchor→current. */
+  variant: "paint" | "range";
   anchorKey: string;
   currentKey: string;
+  paintMode: "add" | "remove";
+  painted: Set<string>;
   didDrag: boolean;
 }
 
-interface DragButtonProps extends DayButtonProps {
+interface SchedulerDayButtonProps extends DayButtonProps {
   dayKey: string;
-  isDisabled: boolean;
-  dragRef: React.MutableRefObject<DragState | null>;
-  onPointerDragStart: (key: string) => void;
-  onPointerDragEnter: (key: string) => void;
+  /** Classification of this cell for fill + pointer routing. */
+  availability: DayAvailability | undefined;
+  kind: CellKind;
+  /** Pre-computed composed visual className (fill + booking rounding + outline). */
+  visualClassName: string;
+  onCellPointerDown: (
+    dayKey: string,
+    kind: CellKind,
+    bookingId?: string,
+  ) => void;
+  onCellPointerEnter: (
+    dayKey: string,
+    kind: CellKind,
+    bookingId?: string,
+  ) => void;
+  onCellPointerLeave: (kind: CellKind) => void;
 }
 
-function DragDayButton({
-  // `day` is part of DayButtonProps (required by rdp) but we only need dayKey
+function SchedulerDayButton({
+  // `day` is part of DayButtonProps (required by rdp) but we only need dayKey,
   // which is pre-computed from day.date by the parent.
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   day: _day,
   modifiers,
   dayKey,
-  isDisabled,
-  dragRef,
-  onPointerDragStart,
-  onPointerDragEnter,
+  availability,
+  kind,
+  visualClassName,
+  onCellPointerDown,
+  onCellPointerEnter,
+  onCellPointerLeave,
+  className,
   ...buttonProps
-}: DragButtonProps) {
+}: SchedulerDayButtonProps) {
   const isSelected = modifiers.selected === true;
+  const bookingId = availability?.bookingId;
 
   // Do NOT call setPointerCapture — that redirects all pointer events to this
   // element and prevents onPointerEnter from firing on sibling buttons.
   const handlePointerDown = useCallback(() => {
-    if (isDisabled) return;
-    onPointerDragStart(dayKey);
-  }, [isDisabled, dayKey, onPointerDragStart]);
+    onCellPointerDown(dayKey, kind, bookingId);
+  }, [dayKey, kind, bookingId, onCellPointerDown]);
 
   const handlePointerEnter = useCallback(() => {
-    if (!dragRef.current?.active) return;
-    if (isDisabled) return;
-    onPointerDragEnter(dayKey);
-  }, [isDisabled, dayKey, dragRef, onPointerDragEnter]);
+    onCellPointerEnter(dayKey, kind, bookingId);
+  }, [dayKey, kind, bookingId, onCellPointerEnter]);
+
+  const handlePointerLeave = useCallback(() => {
+    onCellPointerLeave(kind);
+  }, [kind, onCellPointerLeave]);
 
   return (
     <button
       {...buttonProps}
+      className={cn(className, visualClassName)}
       aria-pressed={isSelected}
+      title={availability?.bookingId ? "Booked" : undefined}
       style={{ touchAction: "none", userSelect: "none" }}
       onPointerDown={handlePointerDown}
       onPointerEnter={handlePointerEnter}
+      onPointerLeave={handlePointerLeave}
     />
   );
 }
@@ -165,22 +218,30 @@ function DragDayButton({
 
 export function MonthGrid({ className }: { className?: string }) {
   const { selection, capabilities, data } = useScheduler();
-  const { state, toggleDay, setRange, clearDays, focusedWeekDays, isPast } =
-    selection;
+  const {
+    state,
+    toggleDay,
+    setRange,
+    clearDays,
+    paintDays,
+    inspectBooking,
+    focusedWeekDays,
+  } = selection;
 
   // ── Visible month ─────────────────────────────────────────────────────────
   // User-controlled via the calendar's prev/next arrows; defaults to today's
-  // month. The focused-week highlight band is applied via the `focusedWeek`
-  // modifier (per in-view day) — the visible month is NOT slaved to the focused
-  // week, because today's week can start in the prior month and would otherwise
-  // pin the view to a fully-past month. (Auto-advancing the month on cross-month
-  // week-nav is a deferred enhancement.)
+  // month. The focused-week band is applied via the `focusedWeek` modifier per
+  // in-view day; the visible month is NOT slaved to the focused week.
   const [userMonth, setUserMonth] = useState<Date>(data.now);
 
-  // Live drag range preview (populated during pointer-drag, cleared on commit).
+  // Live drag preview (populated during pointer-drag, cleared on commit).
   const [previewDays, setPreviewDays] = useState<Set<string>>(
     () => new Set<string>(),
   );
+
+  // Transient hovered-booking id: lifts ALL cells of one booking together,
+  // since CSS :hover can't span sibling cells.
+  const [hoveredBookingId, setHoveredBookingId] = useState<string | null>(null);
 
   // ── Classification ────────────────────────────────────────────────────────
   const days = useMemo(() => {
@@ -215,92 +276,159 @@ export function MonthGrid({ className }: { className?: string }) {
     [byKey, capabilities.editable],
   );
 
-  // ── Modifiers ─────────────────────────────────────────────────────────────
-  // Precedence (last wins in rdp modifier merging):
-  //   focusedWeek < available < selected < preview < busy < past
+  // ── Cell kind (pointer routing) ───────────────────────────────────────────
+  // selectable: paintable / range-eligible (available or out-of-window, not past)
+  // booked:     busy day → inspect, never select
+  // inert:      past / no-data
+  const cellKind = useCallback(
+    (dayKey: string): CellKind => {
+      const da = byKey.get(dayKey);
+      if (!da) return "inert";
+      if (da.state === "busy") return "booked";
+      if (da.state === "past") return "inert";
+      // available + out-of-window are selectable (admin may book out-of-window);
+      // for non-editable views isDisabled gates non-available cells already.
+      if (!capabilities.editable && da.state !== "available") return "inert";
+      return "selectable";
+    },
+    [byKey, capabilities.editable],
+  );
+
+  // ── Per-cell composed visuals ─────────────────────────────────────────────
+  // Computes the state fill + booking-run rounding + selection/preview outline
+  // for a single cell, using its week row for neighbor-aware merging.
+  const visualFor = useCallback(
+    (dayKey: string): string => {
+      const da = byKey.get(dayKey);
+      if (!da) return ""; // no-data cell → rdp defaults (faint/disabled)
+
+      const row = weekDays(sundayWeekStart(dayKey));
+
+      // 1. State fill
+      let fill = "";
+      switch (da.state) {
+        case "available":
+          fill = "bg-status-available text-status-available-foreground";
+          break;
+        case "busy": {
+          const lifted =
+            hoveredBookingId != null && da.bookingId === hoveredBookingId;
+          fill = cn(
+            lifted ? "bg-status-booked/70" : "bg-status-booked",
+            "text-status-booked-foreground",
+          );
+          break;
+        }
+        case "out-of-window":
+          fill = "bg-status-unavailable text-status-unavailable-foreground";
+          break;
+        case "past":
+          fill = "text-muted-foreground opacity-40";
+          break;
+        default:
+          // too-far (not produced in current month windows) → neutral
+          fill = "bg-status-unavailable text-status-unavailable-foreground";
+      }
+
+      // 2. Booking fill merge (busy days of same bookingId → one rounded pill)
+      let bookingRounding = "";
+      if (da.state === "busy") {
+        const bookEdge = runEdges(
+          row,
+          (k) => byKey.get(k)?.bookingId ?? null,
+        ).get(dayKey);
+        if (bookEdge) {
+          bookingRounding = runFillRounding(bookEdge, "horizontal");
+        }
+      }
+
+      // 3. Selection outline (committed) — merged across adjacent selected days
+      let selectionOutline = "";
+      const selEdge = runEdges(row, (k) =>
+        state.selectedDays.has(k) ? "sel" : null,
+      ).get(dayKey);
+      if (selEdge) {
+        selectionOutline = cn(
+          runOutlineClasses(selEdge, "horizontal"),
+          "border-primary",
+        );
+      }
+
+      // 4. Live drag preview outline — dashed/half variant over previewDays.
+      //    Only when not already committed-selected (avoids double border).
+      let previewOutline = "";
+      if (previewDays.size > 0 && !selEdge) {
+        const prevEdge = runEdges(row, (k) =>
+          previewDays.has(k) ? "prev" : null,
+        ).get(dayKey);
+        if (prevEdge) {
+          previewOutline = cn(
+            runOutlineClasses(prevEdge, "horizontal"),
+            "border-dashed border-primary/50",
+          );
+        }
+      }
+
+      return cn(fill, bookingRounding, selectionOutline, previewOutline);
+    },
+    [byKey, state.selectedDays, previewDays, hoveredBookingId],
+  );
+
+  // ── Modifiers (selected + focusedWeek only — fills moved into DayButton) ───
   const modifiers = useMemo(
     () => ({
       focusedWeek: (date: Date) =>
         focusedWeekDays.includes(format(date, "yyyy-MM-dd")),
-      // available: overnight-available nights that are NOT yet selected
-      available: (date: Date) => {
-        const k = format(date, "yyyy-MM-dd");
-        return (
-          byKey.get(k)?.state === "available" && !state.selectedDays.has(k)
-        );
-      },
       selected: (date: Date) =>
         state.selectedDays.has(format(date, "yyyy-MM-dd")),
-      // preview: live drag range highlight (before commit)
-      preview: (date: Date) => previewDays.has(format(date, "yyyy-MM-dd")),
-      busy: (date: Date) =>
-        byKey.get(format(date, "yyyy-MM-dd"))?.state === "busy",
-      past: (date: Date) => {
-        const k = format(date, "yyyy-MM-dd");
-        return isPast(k) || byKey.get(k)?.state === "past";
-      },
     }),
-    [state.selectedDays, focusedWeekDays, byKey, isPast, previewDays],
+    [state.selectedDays, focusedWeekDays],
   );
 
-  // Visual language:
-  //   ringed  (ring-1 ring-inset ring-primary/60) = overnight-available night
-  //   solid   (bg-primary)                        = selected
-  //   preview (bg-primary/30)                     = live drag before commit
-  //   destructive                                 = busy
-  //   muted                                       = past / unavailable
+  // focusedWeek: SUBTLE band — a muted underline on the day number, low visual
+  // priority, so it never overrides the status fills behind the button.
   const modifiersClassNames = {
-    focusedWeek: "bg-secondary text-secondary-foreground",
-    // available: outline ring so it reads "selectable overnight", dominated by selected fill
-    available:
-      "[&>button]:ring-1 [&>button]:ring-inset [&>button]:ring-primary/60",
-    // selected fill must survive hover — use explicit hover override to beat base hover:bg-muted
-    selected:
-      "bg-primary text-primary-foreground [&>button]:bg-primary [&>button]:text-primary-foreground [&>button]:hover:bg-primary/80",
-    // preview: semi-transparent fill for live drag range, visually distinct from committed selected
-    preview:
-      "[&>button]:bg-primary/30 [&>button]:text-primary-foreground [&>button]:hover:bg-primary/40",
-    busy: "text-destructive",
-    past: "text-muted-foreground opacity-40",
+    focusedWeek:
+      "[&>button]:underline [&>button]:decoration-muted-foreground/60 [&>button]:underline-offset-4",
   };
 
-  // Override the base Calendar day_button classNames to:
-  //   1. Remove hover:bg-muted which washes over selected bg-primary fill
-  //   2. Add ring-hover affordance for non-disabled interactive days
-  //   3. Re-include all other base utilities (size, layout, focus-visible, disabled)
-  // NOTE: passing classNames to <Calendar> spreads over the primitive's computed
-  // classNames map — the day_button key is fully replaced, so we must re-include
-  // the needed base utilities from calendar.tsx minus hover:bg-muted.
-  const calendarClassNames = {
-    day_button: cn(
-      // Base layout + size (from calendar.tsx primitive — minus hover:bg-muted)
-      "inline-flex size-9 items-center justify-center rounded-lg outline-none",
-      // Focus ring
-      "focus-visible:ring-ring/50 focus-visible:ring-3",
-      // Disabled
-      "disabled:pointer-events-none disabled:opacity-40 aria-selected:opacity-100",
-      // Hover: ring affordance for interactive cells; selected fill override is
-      // handled by modifiersClassNames.selected ([&>button]:hover:bg-primary/80)
-      "hover:ring-2 hover:ring-inset hover:ring-ring",
-    ),
-  };
+  // Base layout for the custom DayButton (re-include needed utilities from the
+  // calendar.tsx primitive MINUS hover:bg-muted, which would wash the fills).
+  // The status fill / outline is composed on top via visualClassName.
+  const dayButtonBase = useMemo(
+    () =>
+      cn(
+        "inline-flex size-9 items-center justify-center rounded-lg outline-none",
+        "focus-visible:ring-ring/50 focus-visible:ring-3",
+        "disabled:pointer-events-none disabled:opacity-40 aria-selected:opacity-100",
+      ),
+    [],
+  );
 
-  // ── Click handler ─────────────────────────────────────────────────────────
+  // ── Click handler (range / single / none — preserved behavior) ────────────
   const handleDayClick = useCallback(
-    (date: Date, _modifiers: Record<string, boolean>, e: React.MouseEvent) => {
+    (date: Date) => {
       const k = format(date, "yyyy-MM-dd");
-      if (isDisabled(date)) return;
 
       switch (capabilities.daySelection) {
         case "none":
           return;
 
         case "single":
+          if (isDisabled(date)) return;
           clearDays();
           toggleDay(k);
           break;
 
-        case "range":
+        case "range": {
+          // A click on a booked cell inspects the booking without disturbing
+          // the range selection.
+          if (cellKind(k) === "booked") {
+            const bid = byKey.get(k)?.bookingId;
+            if (bid) inspectBooking(bid);
+            return;
+          }
+          if (isDisabled(date)) return;
           if (state.anchorDay == null || state.selectedDays.size !== 1) {
             clearDays();
             toggleDay(k);
@@ -308,17 +436,13 @@ export function MonthGrid({ className }: { className?: string }) {
             setRange(state.anchorDay, k);
           }
           break;
+        }
 
         case "multi":
-          if (e.shiftKey) {
-            setRange(state.anchorDay ?? k, k);
-          } else if (e.ctrlKey || e.metaKey) {
-            toggleDay(k);
-          } else {
-            clearDays();
-            toggleDay(k);
-          }
-          break;
+          // multi uses pointer paint-toggle (handled in pointer handlers); the
+          // click path is suppressed after a paint. A bare click is routed
+          // through onCellPointerDown/up, so do nothing here.
+          return;
       }
     },
     [
@@ -326,77 +450,153 @@ export function MonthGrid({ className }: { className?: string }) {
       state.anchorDay,
       state.selectedDays,
       isDisabled,
+      cellKind,
+      byKey,
+      inspectBooking,
       clearDays,
       toggleDay,
       setRange,
     ],
   );
 
-  // ── Pointer-drag (multi + range, progressive enhancement) ─────────────────
+  // ── Pointer-drag plumbing ─────────────────────────────────────────────────
   const dragRef = useRef<DragState | null>(null);
-  // Suppresses the click event that fires after pointerUp when drag occurred.
+  // Suppresses the click that fires after pointerUp (paint commits there).
   const suppressNextClick = useRef(false);
   // Holds the current global end handler so we can remove it on unmount.
   const dragEndHandlerRef = useRef<(() => void) | null>(null);
 
-  const handlePointerDragStart = useCallback(
-    (key: string) => {
-      dragRef.current = {
-        active: true,
-        anchorKey: key,
-        currentKey: key,
-        didDrag: false,
-      };
-      suppressNextClick.current = false;
-      setPreviewDays(new Set([key]));
+  const isMulti = capabilities.daySelection === "multi";
+  const isRange = capabilities.daySelection === "range";
 
-      // Remove any stale listener from a previous drag that didn't fire.
-      if (dragEndHandlerRef.current) {
-        window.removeEventListener("pointerup", dragEndHandlerRef.current);
-        window.removeEventListener("pointercancel", dragEndHandlerRef.current);
-        dragEndHandlerRef.current = null;
+  const installEndHandler = useCallback((endHandler: () => void) => {
+    // Remove any stale listener from a previous drag that didn't fire.
+    if (dragEndHandlerRef.current) {
+      window.removeEventListener("pointerup", dragEndHandlerRef.current);
+      window.removeEventListener("pointercancel", dragEndHandlerRef.current);
+      dragEndHandlerRef.current = null;
+    }
+    dragEndHandlerRef.current = endHandler;
+    window.addEventListener("pointerup", endHandler, { once: true });
+    window.addEventListener("pointercancel", endHandler, { once: true });
+  }, []);
+
+  // pointerdown on a cell — routes by mode + kind.
+  const handleCellPointerDown = useCallback(
+    (dayKey: string, kind: CellKind, bookingId?: string) => {
+      if (kind === "inert") return;
+
+      // Booked cell → inspect (both multi and range), no selection change.
+      if (kind === "booked") {
+        if (bookingId) inspectBooking(bookingId);
+        // No drag started; suppress the synthetic click too (multi) so the
+        // click handler doesn't run.
+        if (isMulti) suppressNextClick.current = true;
+        return;
       }
 
-      // One-shot global listener: fires even when pointer is released outside
-      // the grid, which per-button onPointerUp would miss.
-      const endHandler = () => {
-        dragEndHandlerRef.current = null;
-        const drag = dragRef.current;
-        if (!drag) return;
-        setPreviewDays(new Set<string>());
-        if (drag.didDrag) {
-          suppressNextClick.current = true;
-          const anchor = drag.anchorKey;
-          const current = drag.currentKey;
-          if (capabilities.daySelection === "range") {
-            // Range mode: clear then set the contiguous range
-            clearDays();
-            setRange(anchor, current);
-          } else {
-            // Multi mode: additive range paint
-            setRange(anchor, current);
-          }
-        }
-        dragRef.current = null;
-      };
+      if (isMulti) {
+        // PAINT-TOGGLE: mode from the anchor cell's current selection state.
+        const mode: "add" | "remove" = state.selectedDays.has(dayKey)
+          ? "remove"
+          : "add";
+        dragRef.current = {
+          active: true,
+          variant: "paint",
+          anchorKey: dayKey,
+          currentKey: dayKey,
+          paintMode: mode,
+          painted: new Set([dayKey]),
+          didDrag: false,
+        };
+        suppressNextClick.current = false;
+        setPreviewDays(new Set([dayKey]));
 
-      dragEndHandlerRef.current = endHandler;
-      window.addEventListener("pointerup", endHandler, { once: true });
-      window.addEventListener("pointercancel", endHandler, { once: true });
+        const endHandler = () => {
+          dragEndHandlerRef.current = null;
+          const drag = dragRef.current;
+          if (!drag) return;
+          setPreviewDays(new Set<string>());
+          suppressNextClick.current = true; // tap OR drag both commit here
+          paintDays([...drag.painted], drag.paintMode);
+          dragRef.current = null;
+        };
+        installEndHandler(endHandler);
+        return;
+      }
+
+      if (isRange) {
+        // Contiguous-range drag anchor→current (existing behavior).
+        dragRef.current = {
+          active: true,
+          variant: "range",
+          anchorKey: dayKey,
+          currentKey: dayKey,
+          paintMode: "add",
+          painted: new Set([dayKey]),
+          didDrag: false,
+        };
+        suppressNextClick.current = false;
+        setPreviewDays(new Set([dayKey]));
+
+        const endHandler = () => {
+          dragEndHandlerRef.current = null;
+          const drag = dragRef.current;
+          if (!drag) return;
+          setPreviewDays(new Set<string>());
+          if (drag.didDrag) {
+            suppressNextClick.current = true;
+            clearDays();
+            setRange(drag.anchorKey, drag.currentKey);
+          }
+          dragRef.current = null;
+        };
+        installEndHandler(endHandler);
+        return;
+      }
+      // single / none: no drag; click handler owns it.
     },
-    [capabilities.daySelection, clearDays, setRange],
+    [
+      isMulti,
+      isRange,
+      state.selectedDays,
+      inspectBooking,
+      paintDays,
+      clearDays,
+      setRange,
+      installEndHandler,
+    ],
   );
 
-  const handlePointerDragEnter = useCallback((key: string) => {
-    const drag = dragRef.current;
-    if (!drag?.active) return;
-    if (key === drag.currentKey) return;
-    drag.currentKey = key;
-    drag.didDrag = true;
-    // Build the inclusive contiguous range from anchor to current cell
-    const rangeKeys = daysInRange(drag.anchorKey, key);
-    // Exclude disabled days from preview (disabled days excluded from commit too)
-    setPreviewDays(new Set(rangeKeys));
+  // pointerenter on a cell during a drag — extends paint set / range, and
+  // tracks booking hover.
+  const handleCellPointerEnter = useCallback(
+    (dayKey: string, kind: CellKind, bookingId?: string) => {
+      // Booking hover lift (independent of any drag).
+      if (kind === "booked" && bookingId != null) {
+        setHoveredBookingId(bookingId);
+      }
+
+      const drag = dragRef.current;
+      if (!drag?.active) return;
+      if (dayKey === drag.currentKey) return;
+      drag.currentKey = dayKey;
+      drag.didDrag = true;
+
+      if (drag.variant === "paint") {
+        // Free set: paint follows pointer path; exclude booked / inert cells.
+        if (kind === "selectable") drag.painted.add(dayKey);
+        setPreviewDays(new Set(drag.painted));
+      } else {
+        // Contiguous range anchor→current.
+        setPreviewDays(new Set(daysInRange(drag.anchorKey, dayKey)));
+      }
+    },
+    [],
+  );
+
+  const handleCellPointerLeave = useCallback((kind: CellKind) => {
+    if (kind === "booked") setHoveredBookingId(null);
   }, []);
 
   // Clean up any dangling global listener on unmount.
@@ -412,37 +612,46 @@ export function MonthGrid({ className }: { className?: string }) {
 
   // Wrap onDayClick to honour the drag-suppress flag.
   const handleDayClickWithDragGuard = useCallback(
-    (date: Date, mods: Record<string, boolean>, e: React.MouseEvent) => {
+    (date: Date) => {
       if (suppressNextClick.current) {
         suppressNextClick.current = false;
         return;
       }
-      handleDayClick(date, mods, e);
+      handleDayClick(date);
     },
     [handleDayClick],
   );
 
-  // ── Custom DayButton (drag enhancement, multi + range) ────────────────────
-  const isDragCapable =
-    capabilities.daySelection === "multi" ||
-    capabilities.daySelection === "range";
-
+  // ── Custom DayButton — default renderer for ALL modes ─────────────────────
   const CustomDayButton = useCallback(
     (props: DayButtonProps) => {
       const k = format(props.day.date, "yyyy-MM-dd");
-      const disabled = isDisabled(props.day.date);
+      const availability = byKey.get(k);
+      const kind = cellKind(k);
+      const visualClassName = visualFor(k);
       return (
-        <DragDayButton
+        <SchedulerDayButton
           {...props}
+          className={dayButtonBase}
           dayKey={k}
-          isDisabled={disabled}
-          dragRef={dragRef}
-          onPointerDragStart={handlePointerDragStart}
-          onPointerDragEnter={handlePointerDragEnter}
+          availability={availability}
+          kind={kind}
+          visualClassName={visualClassName}
+          onCellPointerDown={handleCellPointerDown}
+          onCellPointerEnter={handleCellPointerEnter}
+          onCellPointerLeave={handleCellPointerLeave}
         />
       );
     },
-    [isDisabled, handlePointerDragStart, handlePointerDragEnter],
+    [
+      byKey,
+      cellKind,
+      visualFor,
+      dayButtonBase,
+      handleCellPointerDown,
+      handleCellPointerEnter,
+      handleCellPointerLeave,
+    ],
   );
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -457,42 +666,9 @@ export function MonthGrid({ className }: { className?: string }) {
         disabled={isDisabled}
         modifiers={modifiers}
         modifiersClassNames={modifiersClassNames}
-        classNames={calendarClassNames}
         className="border-border rounded-lg border"
-        {...(isDragCapable
-          ? { components: { DayButton: CustomDayButton } }
-          : {})}
+        components={{ DayButton: CustomDayButton }}
       />
-
-      {data.busyResident.length > 0 && (
-        <div className="flex flex-col gap-1.5">
-          <h3 className="text-muted-foreground text-xs font-medium">
-            Already booked
-          </h3>
-          <ul className="flex flex-col gap-1.5">
-            {data.busyResident.map((b, i) => (
-              <li
-                key={i}
-                className="border-border bg-muted text-muted-foreground flex items-center justify-between gap-2 rounded-lg border px-2.5 py-1.5 text-xs"
-              >
-                <span>
-                  {b.startsAt.toLocaleString("en-US", {
-                    timeZone: "America/Denver",
-                    month: "short",
-                    day: "numeric",
-                  })}{" "}
-                  –{" "}
-                  {b.endsAt.toLocaleString("en-US", {
-                    timeZone: "America/Denver",
-                    month: "short",
-                    day: "numeric",
-                  })}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
     </div>
   );
 }
