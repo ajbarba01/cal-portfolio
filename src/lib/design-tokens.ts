@@ -9,7 +9,12 @@
  * See docs/FRONTEND.md ("Modular theming"). Project palette/type are finalized in docs/DESIGN.md.
  */
 
-/** Semantic color roles defined in globals.css. Use via Tailwind classes (e.g. `bg-primary`), never raw hex. */
+/**
+ * Curated list of the primary semantic color roles defined in globals.css — the ones referenced by
+ * name in code. Use via Tailwind classes (e.g. `bg-primary`), never raw hex. Intentionally NOT
+ * exhaustive: paired `*-foreground` variants (e.g. `card-foreground`) are implied by their base role
+ * and omitted here to keep this a concise reference, not a mirror of every CSS var.
+ */
 export const SEMANTIC_COLORS = [
   "background",
   "foreground",

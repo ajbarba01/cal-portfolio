@@ -15,6 +15,7 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  /* Not circular: next/font sets --font-sans/--font-heading on <html>; @theme reads them from page scope. */
   --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-heading);
@@ -93,6 +94,15 @@
   --blue-soft: #d9e2e8;
   --blue-deep: #3c5566;
 
+  /* Dark-mode primitives (warm surfaces + lightened accents/status; referenced by .dark) */
+  --sand-925: #241f19; /* warm dark surface: cards / popover / sidebar */
+  --clay-bright: #c9764e; /* dark chart accent */
+  --clay-light: #e5946b; /* clay text / links / focus ring on dark */
+  --green-fill-dark: #2e3a22;
+  --green-text-dark: #c7d3ac; /* available foreground + chart on dark */
+  --blue-fill-dark: #25323b;
+  --blue-text-dark: #afc6d6; /* booked foreground + chart on dark */
+
   --radius: 0.625rem;
 
   /* ── 2. Semantic roles (components reference only these) ─────────── */
@@ -143,9 +153,9 @@
 .dark {
   --background: var(--sand-950);
   --foreground: var(--sand-50);
-  --card: #241f19;
+  --card: var(--sand-925);
   --card-foreground: var(--sand-50);
-  --popover: #241f19;
+  --popover: var(--sand-925);
   --popover-foreground: var(--sand-50);
   --primary: var(--sand-200);
   --primary-foreground: var(--sand-900);
@@ -158,31 +168,31 @@
   /* Brand: same clay fill (white text passes), lighter clay for text-on-dark */
   --brand: var(--clay-fill);
   --brand-foreground: var(--clay-onfill);
-  --brand-strong: #e5946b;
+  --brand-strong: var(--clay-light);
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: #e5946b;
-  --chart-1: #c9764e;
+  --ring: var(--clay-light);
+  --chart-1: var(--clay-bright);
   --chart-2: var(--sand-400);
   --chart-3: var(--sand-200);
-  --chart-4: #c7d3ac;
-  --chart-5: #afc6d6;
+  --chart-4: var(--green-text-dark);
+  --chart-5: var(--blue-text-dark);
   /* ── Status roles (warm-dark overrides) ─────────────────────────── */
-  --status-available: #2e3a22;
-  --status-available-foreground: #c7d3ac;
-  --status-booked: #25323b;
-  --status-booked-foreground: #afc6d6;
+  --status-available: var(--green-fill-dark);
+  --status-available-foreground: var(--green-text-dark);
+  --status-booked: var(--blue-fill-dark);
+  --status-booked-foreground: var(--blue-text-dark);
   --status-unavailable: var(--sand-800);
   --status-unavailable-foreground: var(--sand-400);
-  --sidebar: #241f19;
+  --sidebar: var(--sand-925);
   --sidebar-foreground: var(--sand-50);
   --sidebar-primary: var(--sand-200);
   --sidebar-primary-foreground: var(--sand-900);
   --sidebar-accent: var(--sand-800);
   --sidebar-accent-foreground: var(--sand-50);
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: #e5946b;
+  --sidebar-ring: var(--clay-light);
 }
 
 @layer base {
@@ -202,7 +212,7 @@
   h4,
   h5,
   h6 {
-    font-family: var(--font-heading);
+    @apply font-heading;
     font-optical-sizing: auto;
   }
 }
