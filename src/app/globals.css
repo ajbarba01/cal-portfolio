@@ -9,7 +9,7 @@
  * Two layers:
  *   1. Primitive palette  — raw color values. Swap these to re-palette.
  *   2. Semantic roles      — what components reference. Never hardcode color in a component.
- * Brand palette + type are finalized in docs/DESIGN.md; the neutrals below are a placeholder.
+ * Brand palette + type are finalized in docs/DESIGN.md; the warm "Trail" sand/clay primitives below are the live theme.
  */
 
 @theme inline {
@@ -17,7 +17,7 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
+  --font-heading: var(--font-heading);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -43,6 +43,9 @@
   --color-status-unavailable-foreground: var(--status-unavailable-foreground);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-brand-strong: var(--brand-strong);
   --color-muted-foreground: var(--muted-foreground);
   --color-muted: var(--muted);
   --color-secondary-foreground: var(--secondary-foreground);
@@ -64,105 +67,122 @@
 
 :root {
   /* ── 1. Primitive palette (swap here to re-palette) ──────────────── */
-  --neutral-0: oklch(1 0 0);
-  --neutral-50: oklch(0.985 0 0);
-  --neutral-100: oklch(0.97 0 0);
-  --neutral-200: oklch(0.922 0 0);
-  --neutral-400: oklch(0.708 0 0);
-  --neutral-500: oklch(0.556 0 0);
-  --neutral-600: oklch(0.439 0 0);
-  --neutral-700: oklch(0.371 0 0);
-  --neutral-800: oklch(0.269 0 0);
-  --neutral-900: oklch(0.205 0 0);
-  --neutral-950: oklch(0.145 0 0);
+  /* Warm neutrals — "sand/stone/cream" */
+  --sand-0: #ffffff;
+  --sand-50: #faf6f0;
+  --sand-100: #f2ece1;
+  --sand-200: #e7decf;
+  --sand-400: #b6a88f;
+  --sand-500: #8a7e6c;
+  --sand-700: #5a5044;
+  --sand-800: #322b22;
+  --sand-900: #2b2520;
+  --sand-950: #1c1813;
+
+  /* Clay / terracotta accent (two roles: bright fill vs AA-safe text) */
+  --clay-fill: #b5613c; /* fills + large text only */
+  --clay-strong: #8a4226; /* small clay text/links on light (AA ≥ 4.5 on cream) */
+  --clay-soft: #e7d8cc; /* subtle tints */
+  --clay-onfill: #ffffff; /* text on --clay-fill */
+
   --danger: oklch(0.577 0.245 27.325);
-  --green-soft: oklch(0.93 0.04 150);
-  --green-deep: oklch(0.45 0.09 150);
-  --blue-soft: oklch(0.92 0.045 245);
-  --blue-deep: oklch(0.45 0.11 245);
+
+  /* Status primitives, reconciled to the warm base (light) */
+  --green-soft: #e3e7d2;
+  --green-deep: #4f5b33;
+  --blue-soft: #d9e2e8;
+  --blue-deep: #3c5566;
 
   --radius: 0.625rem;
 
   /* ── 2. Semantic roles (components reference only these) ─────────── */
-  --background: var(--neutral-0);
-  --foreground: var(--neutral-950);
-  --card: var(--neutral-0);
-  --card-foreground: var(--neutral-950);
-  --popover: var(--neutral-0);
-  --popover-foreground: var(--neutral-950);
-  --primary: var(--neutral-900);
-  --primary-foreground: var(--neutral-50);
-  --secondary: var(--neutral-100);
-  --secondary-foreground: var(--neutral-900);
-  --muted: var(--neutral-100);
-  --muted-foreground: var(--neutral-500);
-  --accent: var(--neutral-100);
-  --accent-foreground: var(--neutral-900);
+  --background: var(--sand-50);
+  --foreground: var(--sand-900);
+  --card: var(--sand-0);
+  --card-foreground: var(--sand-900);
+  --popover: var(--sand-0);
+  --popover-foreground: var(--sand-900);
+  --primary: var(--sand-900);
+  --primary-foreground: var(--sand-50);
+  --secondary: var(--sand-100);
+  --secondary-foreground: var(--sand-900);
+  --muted: var(--sand-100);
+  --muted-foreground: var(--sand-500);
+  --accent: var(--sand-100);
+  --accent-foreground: var(--sand-900);
+  /* Brand (clay) — intentional accent, NOT the default action color */
+  --brand: var(--clay-fill);
+  --brand-foreground: var(--clay-onfill);
+  --brand-strong: var(--clay-strong);
   --destructive: var(--danger);
-  --border: var(--neutral-200);
-  --input: var(--neutral-200);
-  --ring: var(--neutral-400);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  --border: var(--sand-200);
+  --input: var(--sand-200);
+  --ring: var(--clay-strong);
+  --chart-1: var(--clay-fill);
+  --chart-2: var(--sand-500);
+  --chart-3: var(--sand-700);
+  --chart-4: var(--green-deep);
+  --chart-5: var(--blue-deep);
   /* ── Status roles (scheduler cell states) ───────────────────────── */
   --status-available: var(--green-soft);
   --status-available-foreground: var(--green-deep);
   --status-booked: var(--blue-soft);
   --status-booked-foreground: var(--blue-deep);
-  --status-unavailable: var(--neutral-100);
-  --status-unavailable-foreground: var(--neutral-500);
-  --sidebar: var(--neutral-50);
-  --sidebar-foreground: var(--neutral-950);
-  --sidebar-primary: var(--neutral-900);
-  --sidebar-primary-foreground: var(--neutral-50);
-  --sidebar-accent: var(--neutral-100);
-  --sidebar-accent-foreground: var(--neutral-900);
-  --sidebar-border: var(--neutral-200);
-  --sidebar-ring: var(--neutral-400);
+  --status-unavailable: var(--sand-100);
+  --status-unavailable-foreground: var(--sand-500);
+  --sidebar: var(--sand-100);
+  --sidebar-foreground: var(--sand-900);
+  --sidebar-primary: var(--sand-900);
+  --sidebar-primary-foreground: var(--sand-50);
+  --sidebar-accent: var(--sand-200);
+  --sidebar-accent-foreground: var(--sand-900);
+  --sidebar-border: var(--sand-200);
+  --sidebar-ring: var(--clay-strong);
 }
 
 .dark {
-  --background: var(--neutral-950);
-  --foreground: var(--neutral-50);
-  --card: var(--neutral-900);
-  --card-foreground: var(--neutral-50);
-  --popover: var(--neutral-900);
-  --popover-foreground: var(--neutral-50);
-  --primary: var(--neutral-200);
-  --primary-foreground: var(--neutral-900);
-  --secondary: var(--neutral-800);
-  --secondary-foreground: var(--neutral-50);
-  --muted: var(--neutral-800);
-  --muted-foreground: var(--neutral-400);
-  --accent: var(--neutral-800);
-  --accent-foreground: var(--neutral-50);
+  --background: var(--sand-950);
+  --foreground: var(--sand-50);
+  --card: #241f19;
+  --card-foreground: var(--sand-50);
+  --popover: #241f19;
+  --popover-foreground: var(--sand-50);
+  --primary: var(--sand-200);
+  --primary-foreground: var(--sand-900);
+  --secondary: var(--sand-800);
+  --secondary-foreground: var(--sand-50);
+  --muted: var(--sand-800);
+  --muted-foreground: var(--sand-400);
+  --accent: var(--sand-800);
+  --accent-foreground: var(--sand-50);
+  /* Brand: same clay fill (white text passes), lighter clay for text-on-dark */
+  --brand: var(--clay-fill);
+  --brand-foreground: var(--clay-onfill);
+  --brand-strong: #e5946b;
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: var(--neutral-500);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  /* ── Status roles (dark overrides) ──────────────────────────────── */
-  --status-available: oklch(0.36 0.05 150);
-  --status-available-foreground: oklch(0.85 0.07 150);
-  --status-booked: oklch(0.36 0.055 245);
-  --status-booked-foreground: oklch(0.84 0.07 245);
-  --status-unavailable: var(--neutral-800);
-  --status-unavailable-foreground: var(--neutral-400);
-  --sidebar: var(--neutral-900);
-  --sidebar-foreground: var(--neutral-50);
-  --sidebar-primary: var(--neutral-200);
-  --sidebar-primary-foreground: var(--neutral-900);
-  --sidebar-accent: var(--neutral-800);
-  --sidebar-accent-foreground: var(--neutral-50);
+  --ring: #e5946b;
+  --chart-1: #c9764e;
+  --chart-2: var(--sand-400);
+  --chart-3: var(--sand-200);
+  --chart-4: #c7d3ac;
+  --chart-5: #afc6d6;
+  /* ── Status roles (warm-dark overrides) ─────────────────────────── */
+  --status-available: #2e3a22;
+  --status-available-foreground: #c7d3ac;
+  --status-booked: #25323b;
+  --status-booked-foreground: #afc6d6;
+  --status-unavailable: var(--sand-800);
+  --status-unavailable-foreground: var(--sand-400);
+  --sidebar: #241f19;
+  --sidebar-foreground: var(--sand-50);
+  --sidebar-primary: var(--sand-200);
+  --sidebar-primary-foreground: var(--sand-900);
+  --sidebar-accent: var(--sand-800);
+  --sidebar-accent-foreground: var(--sand-50);
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: var(--neutral-500);
+  --sidebar-ring: #e5946b;
 }
 
 @layer base {
