@@ -17,21 +17,23 @@
  * server-side redirect("/login") backstop.
  */
 
-import { useMemo, useState, useTransition } from "react";
+import { useCallback, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useAvailability } from "@/features/booking/use-availability";
 import { useBusyRanges } from "@/features/booking/use-busy-ranges";
 import { useOvernightNights } from "@/features/booking/use-overnight-nights";
-import {
-  markSlotsBusy,
-  deriveBookableDays,
-  validateStayRange,
-} from "@/features/booking/calendar-model";
+import { validateStayRange } from "@/features/booking/calendar-model";
 import { denverMidnight, denverDayKey } from "@/features/booking/availability";
 import { buildReturnTo } from "@/features/booking/return-to";
 import { previewQuote } from "@/features/booking/quote-action";
 import { createBooking } from "@/features/booking/actions";
-import { BookingCalendar } from "@/features/booking/_components/booking-calendar";
+import { Scheduler } from "@/features/booking/_components/scheduler";
+import {
+  BOOK_HOUSE_SITTING_CAPABILITIES,
+  BOOK_WALK_CAPABILITIES,
+} from "@/features/booking/schedule-capabilities";
+import type { SchedulerData } from "@/features/booking/_components/scheduler";
+import type { ScheduleSelectionState } from "@/features/booking/schedule-selection";
 import { PetAssignment, type AssignablePet } from "./pet-assignment";
 import {
   QuantityForm,
@@ -96,14 +98,6 @@ function localDayKey(d: Date): string {
 function localDateFromKey(key: string): Date {
   const [y, m, d] = key.split("-").map((n) => parseInt(n, 10));
   return new Date(y, m - 1, d);
-}
-function monthDayKeys(month: Date): string[] {
-  const y = month.getFullYear();
-  const m = month.getMonth();
-  const last = new Date(y, m + 1, 0).getDate();
-  const keys: string[] = [];
-  for (let d = 1; d <= last; d++) keys.push(`${y}-${pad(m + 1)}-${pad(d)}`);
-  return keys;
 }
 
 // ── Message banner ─────────────────────────────────────────────────────────────
@@ -185,12 +179,6 @@ export function ServiceBookingClient({
         }
       : undefined,
   );
-  const [month, setMonth] = useState<Date>(() =>
-    initialSelection.start
-      ? localDateFromKey(denverDayKey(new Date(initialSelection.start)))
-      : new Date(),
-  );
-
   const [quote, setQuote] = useState<BookingQuotePreview | null>(null);
   const [previewMsg, setPreviewMsg] = useState<UserMessage | null>(null);
   const [submitMsg, setSubmitMsg] = useState<UserMessage | null>(null);
@@ -201,7 +189,7 @@ export function ServiceBookingClient({
 
   // ── Availability + busy sources ────────────────────────────────────────────
   const {
-    openSlots,
+    openWindows,
     loading: windowsLoading,
     error: windowsError,
   } = useAvailability({ durationMs, rules });
@@ -220,23 +208,76 @@ export function ServiceBookingClient({
     [busy],
   );
 
-  const markedSlots = useMemo(
-    () => markSlotsBusy(openSlots, busyRanges),
-    [openSlots, busyRanges],
-  );
-
-  const days = useMemo(
+  // ── Scheduler capabilities + data ────────────────────────────────────────────
+  const capabilities = useMemo(
     () =>
       mode === "month-range"
-        ? deriveBookableDays({
-            days: monthDayKeys(month).map(denverMidnight),
-            overnightNights,
-            busyResident: busyRanges,
-            rules,
-            now,
-          })
-        : [],
-    [mode, month, overnightNights, busyRanges, rules, now],
+        ? BOOK_HOUSE_SITTING_CAPABILITIES
+        : {
+            ...BOOK_WALK_CAPABILITIES,
+            intervalMinutes: service.defaultDurationMin ?? 60,
+          },
+    [mode, service.defaultDurationMin],
+  );
+
+  const schedulerData = useMemo<SchedulerData>(
+    () => ({
+      overnightNights,
+      windows: openWindows,
+      busy: busyRanges,
+      busyResident: busyRanges,
+      rules,
+      now,
+    }),
+    [overnightNights, openWindows, busyRanges, rules, now],
+  );
+
+  // ── Bridge Scheduler selection → range / selectedSlot ────────────────────────
+  const onSelectionChange = useCallback(
+    (state: ScheduleSelectionState) => {
+      if (mode === "month-range") {
+        // selectedDays = the nights selected (dayKeys).
+        // range.from = check-in night, range.to = check-out day (last night + 1).
+        if (state.selectedDays.size === 0) {
+          setRange(undefined);
+          return;
+        }
+        const sorted = [...state.selectedDays].sort();
+        const minKey = sorted[0];
+        const maxKey = sorted[sorted.length - 1];
+        // Add one day to maxKey (DST-safe via denverMidnight + 24h → denverDayKey).
+        const checkOutDate = new Date(
+          denverMidnight(maxKey).getTime() + 86_400_000,
+        );
+        const checkOutKey = denverDayKey(checkOutDate);
+        setRange({
+          from: localDateFromKey(minKey),
+          to: localDateFromKey(checkOutKey),
+        });
+        setQuote(null);
+        setPreviewMsg(null);
+      } else {
+        // gridDraft: exactly one cell "dayKey@minute" → selectedSlot.
+        if (state.gridDraft.size === 0) {
+          setSelectedSlot(null);
+          return;
+        }
+        const [cell] = state.gridDraft;
+        const atIdx = cell.indexOf("@");
+        if (atIdx === -1) return;
+        const dayKey = cell.slice(0, atIdx);
+        const minute = parseInt(cell.slice(atIdx + 1), 10);
+        if (isNaN(minute)) return;
+        const startsAtMs = denverMidnight(dayKey).getTime() + minute * 60_000;
+        setSelectedSlot({
+          startsAt: new Date(startsAtMs),
+          endsAt: new Date(startsAtMs + durationMs),
+        });
+        setQuote(null);
+        setPreviewMsg(null);
+      }
+    },
+    [mode, durationMs, setRange, setSelectedSlot, setQuote, setPreviewMsg],
   );
 
   const stay = useMemo(() => {
@@ -363,31 +404,24 @@ export function ServiceBookingClient({
           <p className="text-muted-foreground text-sm">Loading availability…</p>
         )}
         {!windowsLoading && !windowsError && mode === "week-slots" && (
-          <BookingCalendar
-            mode="week-slots"
-            slots={markedSlots}
-            busy={busy}
-            selectedStart={selectedSlot?.startsAt.getTime() ?? null}
-            onSelectSlot={(slot) => {
-              setSelectedSlot(slot);
-              clearQuote();
-            }}
-          />
+          <Scheduler
+            capabilities={capabilities}
+            data={schedulerData}
+            onSelectionChange={onSelectionChange}
+          >
+            <Scheduler.WeekGrid />
+          </Scheduler>
         )}
         {!windowsLoading && !windowsError && mode === "month-range" && (
           <>
-            <BookingCalendar
-              mode="month-range"
-              days={days}
-              busy={busy}
-              range={range}
-              onRangeChange={(r) => {
-                setRange(r);
-                clearQuote();
-              }}
-              month={month}
-              onMonthChange={setMonth}
-            />
+            <Scheduler
+              capabilities={capabilities}
+              data={schedulerData}
+              onSelectionChange={onSelectionChange}
+            >
+              <Scheduler.MonthGrid />
+              <Scheduler.SelectionSummary />
+            </Scheduler>
             {range?.from && range?.to && stay && !stay.ok && (
               <p className="text-destructive mt-2 text-sm">{stay.reason}</p>
             )}
