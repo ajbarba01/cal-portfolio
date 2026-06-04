@@ -10,6 +10,7 @@ export interface ScheduleSelectionState {
   anchorDay: string | null; // anchor for shift-range
   focusedWeekStart: string; // Sunday dayKey of the focused week (SHARED state)
   gridDraft: Set<string>; // transient when2meet cell ids "dayKey@minute"
+  inspectedBookingId: string | null; // booking whose details are shown in the panel
 }
 
 export type ScheduleSelectionAction =
@@ -20,7 +21,11 @@ export type ScheduleSelectionAction =
   | { type: "setFocusedWeek"; weekStart: string }
   | { type: "beginGridDrag"; cellId: string }
   | { type: "extendGridDrag"; cellIds: string[] }
-  | { type: "clearGridDraft" };
+  | { type: "clearGridDraft" }
+  | { type: "paintDays"; days: string[]; mode: "add" | "remove" }
+  | { type: "paintCells"; cellIds: string[]; mode: "add" | "remove" }
+  | { type: "inspectBooking"; bookingId: string }
+  | { type: "clearInspection" };
 
 // ---------------------------------------------------------------------------
 // Date math helpers (DST-free, timezone-free)
@@ -270,6 +275,7 @@ export function createInitialSelectionState(args: {
     anchorDay: null,
     focusedWeekStart: args.focusedWeekStart ?? sundayWeekStart(args.todayKey),
     gridDraft: new Set<string>(),
+    inspectedBookingId: null,
   };
 }
 
@@ -404,6 +410,55 @@ export function scheduleSelectionReducer(
       return {
         ...state,
         gridDraft: new Set<string>(),
+      };
+    }
+
+    case "paintDays": {
+      if (action.days.length === 0) return state;
+      const next = new Set(state.selectedDays);
+      if (action.mode === "add") {
+        for (const k of action.days) next.add(k);
+      } else {
+        for (const k of action.days) next.delete(k);
+      }
+      const minDay = [...action.days].sort()[0];
+      return {
+        ...state,
+        selectedDays: next,
+        anchorDay: minDay,
+        focusedWeekStart: applySyncRule(
+          next,
+          state.selectedDays,
+          state.focusedWeekStart,
+        ),
+      };
+    }
+
+    case "paintCells": {
+      if (action.cellIds.length === 0) return state;
+      const next = new Set(state.gridDraft);
+      if (action.mode === "add") {
+        for (const id of action.cellIds) next.add(id);
+      } else {
+        for (const id of action.cellIds) next.delete(id);
+      }
+      return {
+        ...state,
+        gridDraft: next,
+      };
+    }
+
+    case "inspectBooking": {
+      return {
+        ...state,
+        inspectedBookingId: action.bookingId,
+      };
+    }
+
+    case "clearInspection": {
+      return {
+        ...state,
+        inspectedBookingId: null,
       };
     }
   }

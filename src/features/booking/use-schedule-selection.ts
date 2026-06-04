@@ -43,11 +43,16 @@ export interface UseScheduleSelectionResult {
   beginGridDrag: (cellId: string) => void;
   extendGridDrag: (cellIds: string[]) => void;
   clearGridDraft: () => void;
+  paintDays: (days: string[], mode: "add" | "remove") => void;
+  paintCells: (cellIds: string[], mode: "add" | "remove") => void;
+  inspectBooking: (bookingId: string) => void;
+  clearInspection: () => void;
   // derived (memoized with useMemo)
   summaryLabel: string;
   focusedWeekDays: string[];
   isPast: (dayKey: string) => boolean;
   todayKey: string;
+  inspectedBookingId: string | null;
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -106,6 +111,28 @@ export function useScheduleSelection(args: {
     [],
   );
 
+  const paintDays = useCallback(
+    (days: string[], mode: "add" | "remove") =>
+      dispatch({ type: "paintDays", days, mode }),
+    [],
+  );
+
+  const paintCells = useCallback(
+    (cellIds: string[], mode: "add" | "remove") =>
+      dispatch({ type: "paintCells", cellIds, mode }),
+    [],
+  );
+
+  const inspectBooking = useCallback(
+    (bookingId: string) => dispatch({ type: "inspectBooking", bookingId }),
+    [],
+  );
+
+  const clearInspection = useCallback(
+    () => dispatch({ type: "clearInspection" }),
+    [],
+  );
+
   // ── derived ────────────────────────────────────────────────────────────────
 
   const summaryLabel = useMemo(
@@ -123,6 +150,8 @@ export function useScheduleSelection(args: {
     [args.todayKey],
   );
 
+  const inspectedBookingId = state.inspectedBookingId;
+
   return useMemo(
     () => ({
       state,
@@ -134,10 +163,15 @@ export function useScheduleSelection(args: {
       beginGridDrag,
       extendGridDrag,
       clearGridDraft,
+      paintDays,
+      paintCells,
+      inspectBooking,
+      clearInspection,
       summaryLabel,
       focusedWeekDays,
       isPast,
       todayKey: args.todayKey,
+      inspectedBookingId,
     }),
     [
       state,
@@ -149,10 +183,15 @@ export function useScheduleSelection(args: {
       beginGridDrag,
       extendGridDrag,
       clearGridDraft,
+      paintDays,
+      paintCells,
+      inspectBooking,
+      clearInspection,
       summaryLabel,
       focusedWeekDays,
       isPast,
       args.todayKey,
+      inspectedBookingId,
     ],
   );
 }

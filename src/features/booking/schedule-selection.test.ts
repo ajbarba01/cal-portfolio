@@ -221,6 +221,7 @@ function makeState(
     anchorDay: null,
     focusedWeekStart: "2026-06-07",
     gridDraft: new Set(),
+    inspectedBookingId: null,
     ...overrides,
   };
 }
@@ -656,6 +657,199 @@ describe("mergeDraftToRanges", () => {
       { dayKey: "2026-06-01", fromMinute: 480, toMinute: 495 },
       { dayKey: "2026-06-01", fromMinute: 510, toMinute: 525 },
     ]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Reducer: paintDays
+// ---------------------------------------------------------------------------
+
+describe("reducer: paintDays", () => {
+  it("add: unions days into selectedDays", () => {
+    const s0 = makeState({ selectedDays: new Set(["2026-06-01"]) });
+    const s1 = scheduleSelectionReducer(s0, {
+      type: "paintDays",
+      days: ["2026-06-05", "2026-06-06"],
+      mode: "add",
+    });
+    expect(s1.selectedDays.has("2026-06-01")).toBe(true);
+    expect(s1.selectedDays.has("2026-06-05")).toBe(true);
+    expect(s1.selectedDays.has("2026-06-06")).toBe(true);
+  });
+
+  it("remove: deletes days from selectedDays", () => {
+    const s0 = makeState({
+      selectedDays: new Set(["2026-06-01", "2026-06-02", "2026-06-03"]),
+    });
+    const s1 = scheduleSelectionReducer(s0, {
+      type: "paintDays",
+      days: ["2026-06-02", "2026-06-03"],
+      mode: "remove",
+    });
+    expect(s1.selectedDays.has("2026-06-01")).toBe(true);
+    expect(s1.selectedDays.has("2026-06-02")).toBe(false);
+    expect(s1.selectedDays.has("2026-06-03")).toBe(false);
+  });
+
+  it("empty days → state unchanged (same reference)", () => {
+    const s0 = makeState({ selectedDays: new Set(["2026-06-01"]) });
+    const s1 = scheduleSelectionReducer(s0, {
+      type: "paintDays",
+      days: [],
+      mode: "add",
+    });
+    expect(s1).toBe(s0);
+  });
+
+  it("empty days remove → state unchanged (same reference)", () => {
+    const s0 = makeState({ selectedDays: new Set(["2026-06-01"]) });
+    const s1 = scheduleSelectionReducer(s0, {
+      type: "paintDays",
+      days: [],
+      mode: "remove",
+    });
+    expect(s1).toBe(s0);
+  });
+
+  it("sets anchorDay to lexically-min of painted days", () => {
+    const s0 = makeState();
+    const s1 = scheduleSelectionReducer(s0, {
+      type: "paintDays",
+      days: ["2026-06-11", "2026-06-09", "2026-06-10"],
+      mode: "add",
+    });
+    expect(s1.anchorDay).toBe("2026-06-09");
+  });
+
+  it("week-sync rule: painting an earlier week moves focusedWeekStart", () => {
+    // focusedWeekStart = Jun 7 week; paint Jun 1 (Monday → week May 31)
+    const s0 = makeState({ focusedWeekStart: "2026-06-07" });
+    const s1 = scheduleSelectionReducer(s0, {
+      type: "paintDays",
+      days: ["2026-06-01"],
+      mode: "add",
+    });
+    expect(s1.focusedWeekStart).toBe("2026-05-31");
+  });
+
+  it("week-sync rule: painting a later day doesn't move focusedWeekStart", () => {
+    const s0 = makeState({
+      selectedDays: new Set(["2026-06-01"]),
+      focusedWeekStart: "2026-06-14",
+    });
+    const s1 = scheduleSelectionReducer(s0, {
+      type: "paintDays",
+      days: ["2026-06-15"],
+      mode: "add",
+    });
+    expect(s1.focusedWeekStart).toBe("2026-06-14");
+  });
+
+  it("remove of non-selected day is a no-op on selection (no throw, set stays correct)", () => {
+    const s0 = makeState({ selectedDays: new Set(["2026-06-01"]) });
+    const s1 = scheduleSelectionReducer(s0, {
+      type: "paintDays",
+      days: ["2026-06-05"], // not in selection
+      mode: "remove",
+    });
+    expect(s1.selectedDays.has("2026-06-01")).toBe(true);
+    expect(s1.selectedDays.size).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Reducer: paintCells
+// ---------------------------------------------------------------------------
+
+describe("reducer: paintCells", () => {
+  it("add: unions cellIds into gridDraft", () => {
+    const s0 = makeState({ gridDraft: new Set(["2026-06-01@480"]) });
+    const s1 = scheduleSelectionReducer(s0, {
+      type: "paintCells",
+      cellIds: ["2026-06-01@510", "2026-06-01@540"],
+      mode: "add",
+    });
+    expect(s1.gridDraft.size).toBe(3);
+    expect(s1.gridDraft.has("2026-06-01@480")).toBe(true);
+    expect(s1.gridDraft.has("2026-06-01@510")).toBe(true);
+    expect(s1.gridDraft.has("2026-06-01@540")).toBe(true);
+  });
+
+  it("remove: deletes cellIds from gridDraft", () => {
+    const s0 = makeState({
+      gridDraft: new Set([
+        "2026-06-01@480",
+        "2026-06-01@510",
+        "2026-06-01@540",
+      ]),
+    });
+    const s1 = scheduleSelectionReducer(s0, {
+      type: "paintCells",
+      cellIds: ["2026-06-01@510"],
+      mode: "remove",
+    });
+    expect(s1.gridDraft.size).toBe(2);
+    expect(s1.gridDraft.has("2026-06-01@510")).toBe(false);
+    expect(s1.gridDraft.has("2026-06-01@480")).toBe(true);
+    expect(s1.gridDraft.has("2026-06-01@540")).toBe(true);
+  });
+
+  it("empty cellIds → state unchanged (same reference)", () => {
+    const s0 = makeState({ gridDraft: new Set(["2026-06-01@480"]) });
+    const s1 = scheduleSelectionReducer(s0, {
+      type: "paintCells",
+      cellIds: [],
+      mode: "add",
+    });
+    expect(s1).toBe(s0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Reducer: inspectBooking / clearInspection
+// ---------------------------------------------------------------------------
+
+describe("reducer: inspectBooking / clearInspection", () => {
+  it("initial state has inspectedBookingId: null", () => {
+    const state = createInitialSelectionState({ todayKey: "2026-06-03" });
+    expect(state.inspectedBookingId).toBeNull();
+  });
+
+  it("inspectBooking sets inspectedBookingId", () => {
+    const s0 = makeState();
+    const s1 = scheduleSelectionReducer(s0, {
+      type: "inspectBooking",
+      bookingId: "booking-abc-123",
+    });
+    expect(s1.inspectedBookingId).toBe("booking-abc-123");
+  });
+
+  it("inspectBooking does NOT change selectedDays or gridDraft", () => {
+    const s0 = makeState({
+      selectedDays: new Set(["2026-06-01"]),
+      gridDraft: new Set(["2026-06-01@480"]),
+    });
+    const s1 = scheduleSelectionReducer(s0, {
+      type: "inspectBooking",
+      bookingId: "booking-xyz",
+    });
+    expect(s1.selectedDays).toBe(s0.selectedDays);
+    expect(s1.gridDraft).toBe(s0.gridDraft);
+  });
+
+  it("clearInspection resets inspectedBookingId to null", () => {
+    const s0 = makeState({ inspectedBookingId: "booking-abc" });
+    const s1 = scheduleSelectionReducer(s0, { type: "clearInspection" });
+    expect(s1.inspectedBookingId).toBeNull();
+  });
+
+  it("non-inspection action (toggleDay) preserves existing inspectedBookingId", () => {
+    const s0 = makeState({ inspectedBookingId: "booking-abc" });
+    const s1 = scheduleSelectionReducer(s0, {
+      type: "toggleDay",
+      dayKey: "2026-06-10",
+    });
+    expect(s1.inspectedBookingId).toBe("booking-abc");
   });
 });
 
