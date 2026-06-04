@@ -150,8 +150,6 @@ export function useScheduleSelection(args: {
     [args.todayKey],
   );
 
-  const inspectedBookingId = state.inspectedBookingId;
-
   return useMemo(
     () => ({
       state,
@@ -171,7 +169,7 @@ export function useScheduleSelection(args: {
       focusedWeekDays,
       isPast,
       todayKey: args.todayKey,
-      inspectedBookingId,
+      inspectedBookingId: state.inspectedBookingId,
     }),
     [
       state,
@@ -191,7 +189,6 @@ export function useScheduleSelection(args: {
       focusedWeekDays,
       isPast,
       args.todayKey,
-      inspectedBookingId,
     ],
   );
 }

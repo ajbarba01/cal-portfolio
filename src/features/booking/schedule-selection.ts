@@ -421,11 +421,14 @@ export function scheduleSelectionReducer(
       } else {
         for (const k of action.days) next.delete(k);
       }
-      const minDay = [...action.days].sort()[0];
+      const anchorDay =
+        action.mode === "add"
+          ? ([...action.days].sort()[0] ?? null)
+          : ([...next].sort()[0] ?? null);
       return {
         ...state,
         selectedDays: next,
-        anchorDay: minDay,
+        anchorDay,
         focusedWeekStart: applySyncRule(
           next,
           state.selectedDays,

@@ -755,6 +755,34 @@ describe("reducer: paintDays", () => {
     expect(s1.selectedDays.has("2026-06-01")).toBe(true);
     expect(s1.selectedDays.size).toBe(1);
   });
+
+  it("remove: anchorDay reflects earliest REMAINING day, not removed day", () => {
+    const s0 = makeState({
+      selectedDays: new Set(["2026-06-01", "2026-06-08", "2026-06-09"]),
+      anchorDay: "2026-06-01",
+    });
+    const s1 = scheduleSelectionReducer(s0, {
+      type: "paintDays",
+      days: ["2026-06-01"],
+      mode: "remove",
+    });
+    expect(s1.anchorDay).toBe("2026-06-08");
+    expect(s1.anchorDay).not.toBe("2026-06-01");
+  });
+
+  it("remove: anchorDay is null when removal empties the selection", () => {
+    const s0 = makeState({
+      selectedDays: new Set(["2026-06-05"]),
+      anchorDay: "2026-06-05",
+    });
+    const s1 = scheduleSelectionReducer(s0, {
+      type: "paintDays",
+      days: ["2026-06-05"],
+      mode: "remove",
+    });
+    expect(s1.anchorDay).toBeNull();
+    expect(s1.selectedDays.size).toBe(0);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -800,6 +828,16 @@ describe("reducer: paintCells", () => {
       type: "paintCells",
       cellIds: [],
       mode: "add",
+    });
+    expect(s1).toBe(s0);
+  });
+
+  it("empty cellIds remove → state unchanged (same reference)", () => {
+    const s0 = makeState({ gridDraft: new Set(["2026-06-01@480"]) });
+    const s1 = scheduleSelectionReducer(s0, {
+      type: "paintCells",
+      cellIds: [],
+      mode: "remove",
     });
     expect(s1).toBe(s0);
   });
