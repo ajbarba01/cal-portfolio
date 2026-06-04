@@ -28,7 +28,8 @@ import type { SetOvernightNightsResult } from "@/features/admin/overnight-action
 
 export interface SchedulerData {
   overnightNights: Set<string>; // bookable nights (dayKeys)
-  windows: TimeRange[]; // intraday availability windows (for WeekGrid, later)
+  windows: TimeRange[]; // intraday availability windows (for WeekGrid)
+  busy: TimeRange[]; // active intraday bookings (for WeekGrid non-paintable cells)
   busyResident: TimeRange[]; // resident bookings that block whole days
   rules: BookingRuleSettings;
   now: Date;
