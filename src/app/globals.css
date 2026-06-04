@@ -9,7 +9,7 @@
  * Two layers:
  *   1. Primitive palette  — raw color values. Swap these to re-palette.
  *   2. Semantic roles      — what components reference. Never hardcode color in a component.
- * Brand palette + type are finalized in docs/DESIGN.md; the neutrals below are a placeholder.
+ * Brand palette + type are finalized in docs/DESIGN.md; the warm "Trail" sand/clay primitives below are the live theme.
  */
 
 @theme inline {
