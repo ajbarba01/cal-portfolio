@@ -242,6 +242,75 @@ describe("deriveBookableDays", () => {
       }),
     ).toBe("busy");
   });
+
+  // -- bookingId surface tests --
+
+  function dayFor(
+    day: Date,
+    opts?: Partial<{
+      busyResident: { startsAt: Date; endsAt: Date; id?: string }[];
+      overnightNights: Set<string>;
+    }>,
+  ) {
+    const out = deriveBookableDays({
+      days: [day],
+      overnightNights: opts?.overnightNights ?? juneNights,
+      busyResident: opts?.busyResident ?? [],
+      rules: RULES,
+      now,
+    });
+    return out[0];
+  }
+
+  it("busy day with an identified block surfaces bookingId", () => {
+    const busyResident = [
+      {
+        ...range("2025-06-20T06:00:00Z", "2025-06-22T06:00:00Z"),
+        id: "bk-123",
+      },
+    ];
+    const day = dayFor(denverMidnightMDT("2025-06-21"), { busyResident });
+    expect(day.state).toBe("busy");
+    expect(day.bookingId).toBe("bk-123");
+  });
+
+  it("busy day whose overlapping block has no id leaves bookingId undefined (back-compat)", () => {
+    const busyResident = [
+      range("2025-06-20T06:00:00Z", "2025-06-22T06:00:00Z"),
+    ];
+    const day = dayFor(denverMidnightMDT("2025-06-21"), { busyResident });
+    expect(day.state).toBe("busy");
+    expect(day.bookingId).toBeUndefined();
+  });
+
+  it("non-busy days (available, out-of-window, past, too-far) have bookingId undefined", () => {
+    const available = dayFor(denverMidnightMDT("2025-06-15"));
+    const outOfWindow = dayFor(denverMidnightMDT("2025-06-15"), {
+      overnightNights: new Set(),
+    });
+    const past = dayFor(denverMidnightMDT("2025-06-09"));
+    const tooFar = dayFor(denverMidnightMDT("2025-09-30"));
+    expect(available.bookingId).toBeUndefined();
+    expect(outOfWindow.bookingId).toBeUndefined();
+    expect(past.bookingId).toBeUndefined();
+    expect(tooFar.bookingId).toBeUndefined();
+  });
+
+  it("first match wins: when two resident bookings overlap the same day, bookingId is the first entry's id", () => {
+    const busyResident = [
+      {
+        ...range("2025-06-20T06:00:00Z", "2025-06-22T06:00:00Z"),
+        id: "bk-FIRST",
+      },
+      {
+        ...range("2025-06-19T06:00:00Z", "2025-06-23T06:00:00Z"),
+        id: "bk-SECOND",
+      },
+    ];
+    const day = dayFor(denverMidnightMDT("2025-06-21"), { busyResident });
+    expect(day.state).toBe("busy");
+    expect(day.bookingId).toBe("bk-FIRST");
+  });
 });
 
 // ---------------------------------------------------------------------------

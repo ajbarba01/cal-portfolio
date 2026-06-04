@@ -96,6 +96,20 @@ export interface DayAvailability {
   /** The Denver-midnight instant passed in for this day. */
   dayStart: Date;
   state: DayState;
+  /**
+   * Set only when `state === 'busy'` and the overlapping resident booking
+   * carries an id; identifies the owning booking for grouping/inspection.
+   */
+  bookingId?: string;
+}
+
+/**
+ * Resident booking that blocks whole days.
+ * `id` is optional — plain `TimeRange` callers still type-check.
+ * When present, surfaced as {@link DayAvailability.bookingId}.
+ */
+export interface ResidentBusy extends TimeRange {
+  id?: string;
 }
 
 export interface DeriveBookableDaysArgs {
@@ -104,7 +118,7 @@ export interface DeriveBookableDaysArgs {
   /** Set of Denver day-keys ("YYYY-MM-DD") that are overnight-bookable. */
   overnightNights: Set<string>;
   /** Other resident (house_sitting) bookings that block whole days. */
-  busyResident: TimeRange[];
+  busyResident: ResidentBusy[];
   rules: BookingRuleSettings;
   now: Date;
 }
@@ -115,6 +129,8 @@ export interface DeriveBookableDaysArgs {
  * Precedence: past → too-far → busy → out-of-window → available. A day is
  * in-window if its dayKey is present in `overnightNights`; busy if any
  * resident booking overlaps the day span `[dayStart, dayStart + 24h)`.
+ * Busy uses the first matching block in `busyResident`; overlapping resident
+ * bookings are prevented by the DB exclusion constraint in practice.
  */
 export function deriveBookableDays(
   args: DeriveBookableDaysArgs,
@@ -137,12 +153,15 @@ export function deriveBookableDays(
       rules.hardMaxAdvanceDays
     ) {
       state = "too-far";
-    } else if (busyResident.some((b) => overlapsHalfOpen(daySpan, b))) {
-      state = "busy";
-    } else if (!overnightNights.has(dayKey)) {
-      state = "out-of-window";
     } else {
-      state = "available";
+      const busyMatch = busyResident.find((b) => overlapsHalfOpen(daySpan, b));
+      if (busyMatch !== undefined) {
+        return { dayKey, dayStart, state: "busy", bookingId: busyMatch.id };
+      } else if (!overnightNights.has(dayKey)) {
+        state = "out-of-window";
+      } else {
+        state = "available";
+      }
     }
 
     return { dayKey, dayStart, state };
