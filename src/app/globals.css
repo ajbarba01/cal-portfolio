@@ -194,5 +194,22 @@
   }
   html {
     @apply font-sans;
+    font-optical-sizing: auto;
+  }
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-heading);
+    font-optical-sizing: auto;
+  }
+}
+
+@layer utilities {
+  /* Reading measure for marketing/long-form content (applied by shells in Phase 1) */
+  .measure {
+    max-width: 65ch;
   }
 }
