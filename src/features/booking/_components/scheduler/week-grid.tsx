@@ -213,8 +213,6 @@ interface CellInfo {
 }
 
 function classifyCell(args: {
-  dayKey: string;
-  minute: number;
   start: number;
   end: number;
   isPastDay: boolean;
@@ -224,20 +222,8 @@ function classifyCell(args: {
   intraday: "free-paint" | "fixed-interval";
   editable: boolean;
 }): { status: CellStatus; role: CellRole; bookingId: string | null } {
-  const {
-    dayKey,
-    minute,
-    start,
-    end,
-    isPastDay,
-    nowMs,
-    busy,
-    windows,
-    intraday,
-    editable,
-  } = args;
-  void dayKey;
-  void minute;
+  const { start, end, isPastDay, nowMs, busy, windows, intraday, editable } =
+    args;
   const slotRange: TimeRange = {
     startsAt: new Date(start),
     endsAt: new Date(end),
@@ -323,8 +309,6 @@ function WeekGridInner({ className }: { className?: string }) {
         const start = midnight + m * 60_000;
         const end = start + interval * 60_000;
         const { status, role, bookingId } = classifyCell({
-          dayKey,
-          minute: m,
           start,
           end,
           isPastDay,
@@ -562,9 +546,11 @@ function WeekGridInner({ className }: { className?: string }) {
         focusedWeekDays,
         slots,
       );
-      setPreviewCells(rect);
+      // Filter to paintable cells so busy/past cells inside the marquee don't
+      // flash a dashed preview mid-drag (parity with MonthGrid).
+      setPreviewCells(new Set(paintableOf(rect)));
     },
-    [focusedWeekDays, slots],
+    [focusedWeekDays, slots, paintableOf],
   );
 
   const handlePointerLeave = useCallback((cell: CellInfo) => {
@@ -665,6 +651,9 @@ function WeekGridInner({ className }: { className?: string }) {
             aria-hidden="true"
           />
           {focusedWeekDays.map((dayKey) => {
+            // Bold day headers for selectedDays (links month selection → week).
+            // Intentional divergence from MonthGrid's focused-week underline —
+            // do NOT "unify" them.
             const isSelectedDay = state.selectedDays.has(dayKey);
             return (
               <div
