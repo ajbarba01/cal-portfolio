@@ -12,8 +12,12 @@
 
 import { Scheduler as SchedulerRoot } from "./scheduler";
 import { SelectionSummary } from "./selection-summary";
+import { MonthGrid } from "./month-grid";
 
-export const Scheduler = Object.assign(SchedulerRoot, { SelectionSummary });
+export const Scheduler = Object.assign(SchedulerRoot, {
+  SelectionSummary,
+  MonthGrid,
+});
 
 // Re-export prop types consumers need when wiring data/callbacks from outside.
 export type { SchedulerProps } from "./scheduler";
