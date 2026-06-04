@@ -34,6 +34,7 @@ import { ADMIN_CAPABILITIES } from "@/features/booking/schedule-capabilities";
 import type {
   SchedulerData,
   SchedulerCallbacks,
+  BusyBlock,
 } from "@/features/booking/_components/scheduler";
 import type { AvailabilityWindow } from "@/features/admin/availability-actions";
 import type { AdminBusyRangeView } from "@/features/admin/admin-busy";
@@ -50,6 +51,16 @@ function resultError(result: ActionResult): string | null {
 }
 
 const DENVER_TZ = "America/Denver";
+
+/** Map an enriched admin busy range to a BusyBlock, preserving booking identity. */
+function toBusyBlock(b: AdminBusyRangeView): BusyBlock {
+  return {
+    startsAt: new Date(b.startsAt),
+    endsAt: new Date(b.endsAt),
+    id: b.bookingId,
+    label: b.clientName ?? undefined,
+  };
+}
 
 function denverLabel(iso: string): string {
   return new Date(iso).toLocaleString("en-US", {
@@ -104,18 +115,12 @@ export function AvailabilityClient({
         startsAt: new Date(w.starts_at),
         endsAt: new Date(w.ends_at),
       })),
-      busy: initialBusy.map((b) => ({
-        startsAt: new Date(b.startsAt),
-        endsAt: new Date(b.endsAt),
-      })),
+      busy: initialBusy.map(toBusyBlock),
       // AdminBusyRangeView has no concurrency class, so we pass all admin busy
       // here too; this slightly over-marks non-resident days in the month
       // (cosmetic only; admin can still select them). A future enrichment can
       // add class to narrow this.
-      busyResident: initialBusy.map((b) => ({
-        startsAt: new Date(b.startsAt),
-        endsAt: new Date(b.endsAt),
-      })),
+      busyResident: initialBusy.map(toBusyBlock),
       rules,
       now: new Date(),
     }),

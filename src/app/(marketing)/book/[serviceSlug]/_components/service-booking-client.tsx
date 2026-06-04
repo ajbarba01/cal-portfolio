@@ -32,7 +32,10 @@ import {
   BOOK_HOUSE_SITTING_CAPABILITIES,
   BOOK_WALK_CAPABILITIES,
 } from "@/features/booking/schedule-capabilities";
-import type { SchedulerData } from "@/features/booking/_components/scheduler";
+import type {
+  SchedulerData,
+  BusyBlock,
+} from "@/features/booking/_components/scheduler";
 import type { ScheduleSelectionState } from "@/features/booking/schedule-selection";
 import { PetAssignment, type AssignablePet } from "./pet-assignment";
 import {
@@ -199,11 +202,14 @@ export function ServiceBookingClient({
     initialBusy,
   );
 
-  const busyRanges = useMemo<TimeRange[]>(
+  const busyRanges = useMemo<BusyBlock[]>(
     () =>
       busy.map((b) => ({
         startsAt: new Date(b.startsAt),
         endsAt: new Date(b.endsAt),
+        // Public source is identity-free; synthesize a stable, deterministic id
+        // from the range so the grid can group cells without leaking client identity.
+        id: `pub-${b.startsAt}-${b.endsAt}`,
       })),
     [busy],
   );

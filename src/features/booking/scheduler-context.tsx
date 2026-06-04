@@ -26,11 +26,20 @@ import type { SetOvernightNightsResult } from "@/features/admin/overnight-action
 // Types
 // ──────────────────────────────────────────────────────────────────────────────
 
+/** A busy time range that carries booking identity, so the grid can group
+ *  contiguous cells of the same booking and open it on click. */
+export interface BusyBlock extends TimeRange {
+  /** Stable id of the owning booking (admin: real booking id; public: a synthesized stable key). */
+  id: string;
+  /** Optional short label for grid hover/title (e.g. client name). Omitted in identity-free public contexts. */
+  label?: string;
+}
+
 export interface SchedulerData {
   overnightNights: Set<string>; // bookable nights (dayKeys)
   windows: TimeRange[]; // intraday availability windows (for WeekGrid)
-  busy: TimeRange[]; // active intraday bookings (for WeekGrid non-paintable cells)
-  busyResident: TimeRange[]; // resident bookings that block whole days
+  busy: BusyBlock[]; // active intraday bookings (for WeekGrid non-paintable cells)
+  busyResident: BusyBlock[]; // resident bookings that block whole days
   rules: BookingRuleSettings;
   now: Date;
 }
