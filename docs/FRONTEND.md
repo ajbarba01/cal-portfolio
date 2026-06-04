@@ -48,6 +48,20 @@ Tokens live in two files: **`src/app/globals.css`** owns color + radius as two-l
 - Real contrast: weight extremes (200 vs 800), size jumps of 3×+ (not 1.5×).
 - **Commit to a visual direction.** The project's specific direction and palette live in [DESIGN.md](DESIGN.md) — set them there, not here.
 
+**Brand tokens (set 2026-06-04):**
+
+- **Palette "Trail":** `--sand-0…950` warm neutrals (the re-palette swap layer) + clay accent.
+  Clay is **two roles**: `--brand` (bright `#B5613C` fill — fills + large text only) and
+  `--brand-strong` (`#8A4226` — AA-safe small text/links/active-nav/focus ring). `--primary` stays
+  warm near-black: clay is a deliberate accent, never the default button color.
+- **Type:** Fraunces (`--font-heading`) headings, Public Sans (`--font-sans`) body. Documented type
+  scale + spacing scale + `65ch` reading measure live in `src/lib/design-tokens.ts` (`typeScale`,
+  `space`, `measure`); the `.measure` utility is in `globals.css`.
+- **Whitespace is a token:** only the `space.*` steps (Tailwind 4px base) are used for padding/gaps;
+  no arbitrary values. Shells apply them so all zones share one rhythm.
+- **Status reconciliation:** `--status-*` fills were re-tuned to the warm base; unavailable stays
+  warm gray (not red); red is reserved for `--destructive`.
+
 **Baseline requirements (every UI):**
 
 - **Responsive, mobile-first.**
