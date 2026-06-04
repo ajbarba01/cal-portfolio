@@ -64,22 +64,31 @@
 
 :root {
   /* ── 1. Primitive palette (swap here to re-palette) ──────────────── */
-  --neutral-0: oklch(1 0 0);
-  --neutral-50: oklch(0.985 0 0);
-  --neutral-100: oklch(0.97 0 0);
-  --neutral-200: oklch(0.922 0 0);
-  --neutral-400: oklch(0.708 0 0);
-  --neutral-500: oklch(0.556 0 0);
-  --neutral-600: oklch(0.439 0 0);
-  --neutral-700: oklch(0.371 0 0);
-  --neutral-800: oklch(0.269 0 0);
-  --neutral-900: oklch(0.205 0 0);
-  --neutral-950: oklch(0.145 0 0);
+  /* Warm neutrals — "sand/stone/cream" */
+  --sand-0: #ffffff;
+  --sand-50: #faf6f0;
+  --sand-100: #f2ece1;
+  --sand-200: #e7decf;
+  --sand-400: #b6a88f;
+  --sand-500: #8a7e6c;
+  --sand-700: #5a5044;
+  --sand-800: #322b22;
+  --sand-900: #2b2520;
+  --sand-950: #1c1813;
+
+  /* Clay / terracotta accent (two roles: bright fill vs AA-safe text) */
+  --clay-fill: #b5613c; /* fills + large text only */
+  --clay-strong: #8a4226; /* small clay text/links on light (AA ≥ 4.5 on cream) */
+  --clay-soft: #e7d8cc; /* subtle tints */
+  --clay-onfill: #ffffff; /* text on --clay-fill */
+
   --danger: oklch(0.577 0.245 27.325);
-  --green-soft: oklch(0.93 0.04 150);
-  --green-deep: oklch(0.45 0.09 150);
-  --blue-soft: oklch(0.92 0.045 245);
-  --blue-deep: oklch(0.45 0.11 245);
+
+  /* Status primitives, reconciled to the warm base (light) */
+  --green-soft: #e3e7d2;
+  --green-deep: #4f5b33;
+  --blue-soft: #d9e2e8;
+  --blue-deep: #3c5566;
 
   --radius: 0.625rem;
 
