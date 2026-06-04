@@ -296,6 +296,13 @@ const WeekCell = React.memo(function WeekCell({
   onCellClick,
 }: WeekCellProps) {
   const interactive = cell.role !== "inert";
+  // Dotted hover affordance on selectable slots only (paint/select) — same
+  // three-tier language as the month grid (dotted hover / dashed preview /
+  // solid commit). Booked slots already have the booking-lift hover.
+  const canSelect = cell.role === "paint" || cell.role === "select";
+  const hoverClass = canSelect
+    ? "hover:outline-2 hover:outline-dotted hover:outline-primary/50 hover:-outline-offset-2"
+    : "";
   return (
     <button
       type="button"
@@ -304,10 +311,14 @@ const WeekCell = React.memo(function WeekCell({
       aria-label={`${dayLabel(cell.dayKey)} ${formatMinutes(cell.minute)}`}
       title={cell.role === "inspect" ? "Booked" : undefined}
       style={{ touchAction: "none", userSelect: "none" }}
+      // Suppress native HTML5 drag so a pointer-drag paint isn't hijacked.
+      draggable={false}
+      onDragStart={(e) => e.preventDefault()}
       className={cn(
-        "border-border h-7 w-full border-b border-l text-xs",
+        "border-border relative h-7 w-full border-b border-l text-xs",
         "focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset",
         visualClassName,
+        hoverClass,
         interactive ? "cursor-pointer" : "cursor-default",
       )}
       onPointerDown={() => onCellPointerDown(cell)}
@@ -470,9 +481,11 @@ function WeekGridInner({ className }: { className?: string }) {
         if (bookEdge) bookingRounding = runFillRounding(bookEdge, "vertical");
       }
 
-      // 3. Selection outline (committed) — merged vertically. During a REMOVE
-      //    paint drag, drafted cells in the preview render a distinct pending-
-      //    removal treatment (dashed/faded) so removal is visible mid-drag.
+      // 3. Selection outline (committed) — merged vertically, SQUARE (no rounding)
+      //    and width-2. The cell's base gray grid border-b is intentionally kept
+      //    so the normal light time-slot dividers still show INSIDE a selection
+      //    (same dividers as outside it). During a REMOVE paint drag, drafted
+      //    cells render a pending-removal treatment (dashed/faded).
       let selectionOutline = "";
       const selEdge = selEdgeMap.get(cell.cellId);
       const pendingRemove =
@@ -481,7 +494,7 @@ function WeekGridInner({ className }: { className?: string }) {
         state.gridDraft.has(cell.cellId);
       if (selEdge) {
         selectionOutline = cn(
-          runOutlineClasses(selEdge, "vertical"),
+          runOutlineClasses(selEdge, "vertical", 2, false),
           pendingRemove ? "border-dashed border-primary/40" : "border-primary",
         );
       }
@@ -493,7 +506,7 @@ function WeekGridInner({ className }: { className?: string }) {
         const prevEdge = previewEdgeMap.get(cell.cellId);
         if (prevEdge) {
           previewOutline = cn(
-            runOutlineClasses(prevEdge, "vertical"),
+            runOutlineClasses(prevEdge, "vertical", 2, false),
             "border-dashed border-primary/50",
           );
         }
@@ -686,7 +699,12 @@ function WeekGridInner({ className }: { className?: string }) {
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
-    <div className={cn("flex flex-col gap-3", className)}>
+    <div
+      className={cn("flex flex-col gap-3 select-none", className)}
+      // Subtree-level guard: cancel any native dragstart so a pointer-drag paint
+      // is never hijacked into an HTML5 image/file drag.
+      onDragStart={(e) => e.preventDefault()}
+    >
       {/* Week-navigation header */}
       <div className="flex items-center justify-between">
         {capabilities.weekNavigable ? (

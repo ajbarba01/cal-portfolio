@@ -84,10 +84,12 @@ export function runOutlineClasses(
   edge: RunEdge,
   axis: RunAxis,
   width: 1 | 2 = 1,
+  rounded = true,
 ): string {
   // `rounded-none` resets the day-button's base `rounded-lg` so the continuous
   // long-axis borders run straight across interior cells instead of scalloping
-  // at each boundary; the caps below re-round only the true run ends.
+  // at each boundary; the caps below re-round only the true run ends (unless
+  // `rounded` is false — the week grid wants fully square selection blocks).
   //
   // Side classes are spelled out as literals per width (NOT built via template
   // strings) so Tailwind's source scanner emits the utilities.
@@ -101,19 +103,23 @@ export function runOutlineClasses(
     // Always draw top and bottom
     classes.push(W.t, W.b);
     if (edge.start) {
-      classes.push(W.l, "rounded-l-md");
+      classes.push(W.l);
+      if (rounded) classes.push("rounded-l-md");
     }
     if (edge.end) {
-      classes.push(W.r, "rounded-r-md");
+      classes.push(W.r);
+      if (rounded) classes.push("rounded-r-md");
     }
   } else {
     // Always draw left and right
     classes.push(W.l, W.r);
     if (edge.start) {
-      classes.push(W.t, "rounded-t-md");
+      classes.push(W.t);
+      if (rounded) classes.push("rounded-t-md");
     }
     if (edge.end) {
-      classes.push(W.b, "rounded-b-md");
+      classes.push(W.b);
+      if (rounded) classes.push("rounded-b-md");
     }
   }
 
