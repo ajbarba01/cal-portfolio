@@ -74,6 +74,7 @@ import {
   runFillRounding,
   runOutlineClasses,
 } from "@/features/booking/grid-runs";
+import type { RunEdge } from "@/features/booking/grid-runs";
 import type { DayButtonProps } from "react-day-picker";
 
 // ---------------------------------------------------------------------------
@@ -202,8 +203,8 @@ function SchedulerDayButton({
     <button
       {...buttonProps}
       className={cn(className, visualClassName)}
-      aria-pressed={isSelected}
-      title={availability?.bookingId ? "Booked" : undefined}
+      aria-pressed={kind === "selectable" ? isSelected : undefined}
+      title={kind === "booked" ? "Booked" : undefined}
       style={{ touchAction: "none", userSelect: "none" }}
       onPointerDown={handlePointerDown}
       onPointerEnter={handlePointerEnter}
@@ -239,6 +240,10 @@ export function MonthGrid({ className }: { className?: string }) {
     () => new Set<string>(),
   );
 
+  // Active paint mode for the live preview (multi only). dragRef is non-reactive,
+  // so visualFor needs a reactive mirror to differentiate add vs remove feedback.
+  const [previewMode, setPreviewMode] = useState<"add" | "remove" | null>(null);
+
   // Transient hovered-booking id: lifts ALL cells of one booking together,
   // since CSS :hover can't span sibling cells.
   const [hoveredBookingId, setHoveredBookingId] = useState<string | null>(null);
@@ -262,6 +267,59 @@ export function MonthGrid({ className }: { className?: string }) {
   ]);
 
   const byKey = useMemo(() => new Map(days.map((d) => [d.dayKey, d])), [days]);
+
+  // ── Visible week rows ─────────────────────────────────────────────────────
+  // Distinct Sunday-week-start rows covering the visible grid, derived from the
+  // first day of userMonth. 6 rows always cover any month layout; extra rows are
+  // harmless (byKey.get returns undefined for non-month days). Used to compute
+  // run-edge maps ONCE per render instead of per-cell.
+  const visibleWeeks = useMemo(() => {
+    const firstKey = format(startOfMonth(userMonth), "yyyy-MM-dd");
+    let weekStart = sundayWeekStart(firstKey);
+    const rows: string[][] = [];
+    for (let i = 0; i < 6; i++) {
+      const row = weekDays(weekStart);
+      rows.push(row);
+      // Next row's Sunday = the day after this row's Saturday (row[6]). Treat
+      // Saturday as a 7-day window start; index 1 is the following Sunday.
+      weekStart = weekDays(row[6])[1];
+    }
+    return rows;
+  }, [userMonth]);
+
+  // ── Per-row run-edge maps (computed once per render, not per-cell) ──────────
+  // Each map combines every visible week row's runEdges into one dayKey→RunEdge
+  // lookup. visualFor reads via map.get(dayKey). Selection + booking maps MUST
+  // NOT depend on previewDays/hoveredBookingId so hover/preview re-renders don't
+  // rebuild them (the drag hot path).
+  const selEdgeMap = useMemo(() => {
+    const map = new Map<string, RunEdge>();
+    for (const row of visibleWeeks) {
+      const e = runEdges(row, (k) =>
+        state.selectedDays.has(k) ? "sel" : null,
+      );
+      for (const [k, v] of e) map.set(k, v);
+    }
+    return map;
+  }, [visibleWeeks, state.selectedDays]);
+
+  const bookEdgeMap = useMemo(() => {
+    const map = new Map<string, RunEdge>();
+    for (const row of visibleWeeks) {
+      const e = runEdges(row, (k) => byKey.get(k)?.bookingId ?? null);
+      for (const [k, v] of e) map.set(k, v);
+    }
+    return map;
+  }, [visibleWeeks, byKey]);
+
+  const previewEdgeMap = useMemo(() => {
+    const map = new Map<string, RunEdge>();
+    for (const row of visibleWeeks) {
+      const e = runEdges(row, (k) => (previewDays.has(k) ? "p" : null));
+      for (const [k, v] of e) map.set(k, v);
+    }
+    return map;
+  }, [visibleWeeks, previewDays]);
 
   // ── Disabled predicate ────────────────────────────────────────────────────
   const isDisabled = useCallback(
@@ -302,8 +360,6 @@ export function MonthGrid({ className }: { className?: string }) {
       const da = byKey.get(dayKey);
       if (!da) return ""; // no-data cell → rdp defaults (faint/disabled)
 
-      const row = weekDays(sundayWeekStart(dayKey));
-
       // 1. State fill
       let fill = "";
       switch (da.state) {
@@ -333,34 +389,34 @@ export function MonthGrid({ className }: { className?: string }) {
       // 2. Booking fill merge (busy days of same bookingId → one rounded pill)
       let bookingRounding = "";
       if (da.state === "busy") {
-        const bookEdge = runEdges(
-          row,
-          (k) => byKey.get(k)?.bookingId ?? null,
-        ).get(dayKey);
+        const bookEdge = bookEdgeMap.get(dayKey);
         if (bookEdge) {
           bookingRounding = runFillRounding(bookEdge, "horizontal");
         }
       }
 
-      // 3. Selection outline (committed) — merged across adjacent selected days
+      // 3. Selection outline (committed) — merged across adjacent selected days.
+      //    During a REMOVE paint drag, painted-selected cells render a distinct
+      //    "pending removal" treatment (dashed/faded) so removal is visible
+      //    mid-drag instead of only at commit.
       let selectionOutline = "";
-      const selEdge = runEdges(row, (k) =>
-        state.selectedDays.has(k) ? "sel" : null,
-      ).get(dayKey);
+      const selEdge = selEdgeMap.get(dayKey);
+      const pendingRemove =
+        previewMode === "remove" &&
+        previewDays.has(dayKey) &&
+        state.selectedDays.has(dayKey);
       if (selEdge) {
         selectionOutline = cn(
           runOutlineClasses(selEdge, "horizontal"),
-          "border-primary",
+          pendingRemove ? "border-dashed border-primary/40" : "border-primary",
         );
       }
 
-      // 4. Live drag preview outline — dashed/half variant over previewDays.
-      //    Only when not already committed-selected (avoids double border).
+      // 4. Live ADD preview outline — dashed/half variant over previewDays for
+      //    cells not yet committed-selected (avoids double border on add).
       let previewOutline = "";
-      if (previewDays.size > 0 && !selEdge) {
-        const prevEdge = runEdges(row, (k) =>
-          previewDays.has(k) ? "prev" : null,
-        ).get(dayKey);
+      if (previewMode !== "remove" && previewDays.size > 0 && !selEdge) {
+        const prevEdge = previewEdgeMap.get(dayKey);
         if (prevEdge) {
           previewOutline = cn(
             runOutlineClasses(prevEdge, "horizontal"),
@@ -371,7 +427,16 @@ export function MonthGrid({ className }: { className?: string }) {
 
       return cn(fill, bookingRounding, selectionOutline, previewOutline);
     },
-    [byKey, state.selectedDays, previewDays, hoveredBookingId],
+    [
+      byKey,
+      selEdgeMap,
+      bookEdgeMap,
+      previewEdgeMap,
+      state.selectedDays,
+      previewDays,
+      previewMode,
+      hoveredBookingId,
+    ],
   );
 
   // ── Modifiers (selected + focusedWeek only — fills moved into DayButton) ───
@@ -511,12 +576,14 @@ export function MonthGrid({ className }: { className?: string }) {
         };
         suppressNextClick.current = false;
         setPreviewDays(new Set([dayKey]));
+        setPreviewMode(mode);
 
         const endHandler = () => {
           dragEndHandlerRef.current = null;
           const drag = dragRef.current;
           if (!drag) return;
           setPreviewDays(new Set<string>());
+          setPreviewMode(null);
           suppressNextClick.current = true; // tap OR drag both commit here
           paintDays([...drag.painted], drag.paintMode);
           dragRef.current = null;
