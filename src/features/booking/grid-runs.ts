@@ -16,14 +16,15 @@ export type RunAxis = "horizontal" | "vertical";
 
 /**
  * Given cells ordered along one axis, compute run-boundary caps per member.
- * `groupOf` returns the group key of a cell, or null if the cell is not a
- * member (e.g. an unselected day, or a cell with no booking). Non-members are
- * omitted from the result. Adjacency is by position in `orderedIds` only —
+ * `groupOf` returns the group key of a cell; a falsy return (null or empty
+ * string) means the cell is not a member (e.g. an unselected day, or a cell
+ * with no booking). Non-members are omitted from the result. Adjacency is by
+ * position in `orderedIds` only —
  * the caller controls axis order; this function does NOT sort.
  */
 export function runEdges(
   orderedIds: string[],
-  groupOf: (id: string) => string | null,
+  groupOf: (id: string) => string | null | undefined,
 ): Map<string, RunEdge> {
   const result = new Map<string, RunEdge>();
 
@@ -31,7 +32,7 @@ export function runEdges(
     const id = orderedIds[i];
     const group = groupOf(id);
 
-    if (group === null) continue;
+    if (!group) continue;
 
     const prevGroup = i > 0 ? groupOf(orderedIds[i - 1]) : null;
     const nextGroup =

@@ -77,6 +77,12 @@ describe("runEdges", () => {
     expect(result.get("b")).toEqual({ start: true, end: true });
     expect(result.get("a2")).toEqual({ start: true, end: true });
   });
+
+  it("empty-string group key is a non-member (excluded)", () => {
+    const result = runEdges(["a", "b"], (id) => (id === "a" ? "" : "grp"));
+    expect(result.has("a")).toBe(false);
+    expect(result.get("b")).toEqual({ start: true, end: true });
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -112,6 +118,18 @@ describe("runFillRounding", () => {
     const cls = runFillRounding({ start: false, end: false }, "vertical");
     expect(cls).not.toContain("rounded-t-md");
     expect(cls).not.toContain("rounded-b-md");
+  });
+
+  it("end-only cell horizontal → rounded-r-md, no rounded-l-md", () => {
+    const cls = runFillRounding({ start: false, end: true }, "horizontal");
+    expect(cls).toContain("rounded-r-md");
+    expect(cls).not.toContain("rounded-l-md");
+  });
+
+  it("end-only cell vertical → rounded-b-md, no rounded-t-md", () => {
+    const cls = runFillRounding({ start: false, end: true }, "vertical");
+    expect(cls).toContain("rounded-b-md");
+    expect(cls).not.toContain("rounded-t-md");
   });
 });
 
