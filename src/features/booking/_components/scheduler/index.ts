@@ -30,4 +30,5 @@ export type { SchedulerProps } from "./scheduler";
 export type {
   SchedulerData,
   SchedulerCallbacks,
+  BusyBlock,
 } from "@/features/booking/scheduler-context";
