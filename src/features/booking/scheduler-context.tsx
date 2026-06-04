@@ -3,10 +3,10 @@
 /**
  * SchedulerContext — shared state carrier for the compound <Scheduler.*> tree.
  *
- * Deliberately minimal: carries only selection + capabilities now. Future tasks
- * will extend SchedulerContextValue with data and mutation callbacks.
+ * Carries selection, capabilities, data (server-fetched availability), and
+ * optional mutation callbacks (admin only; empty object for read-only views).
  *
- * Pattern: the future <Scheduler> root computes `value` via useScheduleSelection
+ * Pattern: the <Scheduler> root computes `value` via useScheduleSelection
  * + chosen capabilities, then renders <SchedulerProvider value={value}>.
  * Leaf components call useScheduler() to read state without prop-drilling.
  */
@@ -15,14 +15,47 @@ import { createContext, useContext } from "react";
 import type { ReactNode } from "react";
 import type { UseScheduleSelectionResult } from "./use-schedule-selection";
 import type { SchedulerCapabilities } from "./schedule-capabilities";
+import type { TimeRange, BookingRuleSettings } from "./availability";
+import type {
+  AvailabilityResult,
+  SetWindowUnavailableResult,
+} from "@/features/admin/availability-actions";
+import type { SetOvernightNightsResult } from "@/features/admin/overnight-actions";
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Types
 // ──────────────────────────────────────────────────────────────────────────────
 
+export interface SchedulerData {
+  overnightNights: Set<string>; // bookable nights (dayKeys)
+  windows: TimeRange[]; // intraday availability windows (for WeekGrid, later)
+  busyResident: TimeRange[]; // resident bookings that block whole days
+  rules: BookingRuleSettings;
+  now: Date;
+}
+
+export interface SchedulerCallbacks {
+  createWindowsBatch?: (input: {
+    dayKeys: string[];
+    openMinute: number;
+    closeMinute: number;
+  }) => Promise<AvailabilityResult>;
+  setWindowUnavailable?: (input: {
+    dayKey: string;
+    fromMinute: number;
+    toMinute: number;
+  }) => Promise<SetWindowUnavailableResult>;
+  setOvernightNightsBatch?: (input: {
+    nights: string[];
+    on: boolean;
+  }) => Promise<SetOvernightNightsResult>;
+}
+
 export interface SchedulerContextValue {
   selection: UseScheduleSelectionResult;
   capabilities: SchedulerCapabilities;
+  data: SchedulerData;
+  callbacks: SchedulerCallbacks; // empty object when not editable
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
