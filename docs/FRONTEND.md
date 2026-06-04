@@ -62,7 +62,7 @@ Tokens live in two files: **`src/app/globals.css`** owns color + radius as two-l
 | `status-booked` / `-foreground`      | Muted blue; day has a confirmed booking | Distinct from available without shouting                                                                                                                                  |
 | `status-unavailable` / `-foreground` | Neutral gray; day blocked or unset      | **Not red by design** — a blank admin calendar is mostly unavailable; gray reads as quiet/neutral, not alarming. Red is reserved for `--destructive` (conflicts, errors). |
 
-Dark mode provides desaturated fills with lighter foregrounds. Primitives `--green-soft`, `--green-deep`, `--blue-soft`, `--blue-deep` (and their `-dark` counterparts) live in the primitive layer; components reference only the semantic `--status-*` roles.
+Dark mode provides desaturated fills with lighter foregrounds. Primitives `--green-soft`, `--green-deep`, `--blue-soft`, `--blue-deep` live in the primitive layer (light only); dark overrides for green/blue status roles are inlined directly in `.dark`, matching the `--destructive` pattern. Components reference only the semantic `--status-*` roles.
 
 **Calendar primitive** — `src/components/ui/calendar.tsx` is a **hand-authored** thin wrapper over `react-day-picker` v9 (NOT the shadcn CLI, which scaffolds Radix; this project layers shadcn-style components on `@base-ui/react`). It only restyles rdp's headless day-grid with semantic token classes + a lucide nav chevron. `date-fns` is layout-only inside the grid components, never for booking rules.
 
@@ -78,4 +78,4 @@ Layer 3 is **wireframe / semantic-token-only** by contract — a design pass lat
 
 ---
 
-_Last reviewed: 2026-05-29_
+_Last reviewed: 2026-06-04_
