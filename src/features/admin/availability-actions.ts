@@ -8,6 +8,9 @@
  *
  * Block-out: deletes (or trims) a window and cancels any active booking that
  * falls inside the removed range by reusing cancelBookingCore (admin path).
+ *
+ * Refuse-not-cancel cores: createWindowsBatchCore and setWindowUnavailableCore
+ * implement the NEW scheduler policy — refuse on conflict, never cancel.
  */
 
 import { z } from "zod";
@@ -17,6 +20,7 @@ import { assertActorIsAdmin } from "./admin-guard";
 import { getActorOrRedirect } from "./admin-session";
 import { cancelBookingCore } from "@/features/booking/booking-service";
 import { createSupabaseBookingRepository } from "@/features/booking/booking-repository";
+import { denverMidnight } from "@/features/booking/availability";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { PaymentGateway } from "@/features/payments/types";
 
@@ -385,6 +389,253 @@ export async function deleteWindow(input: {
       now: new Date(),
       gateway: new StripeGateway(),
     },
+    input,
+  );
+  if (result.kind === "success") revalidatePath("/admin/availability");
+  return result;
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Refuse-not-cancel result types (new scheduler policy)
+// ──────────────────────────────────────────────────────────────────────────────
+
+export type ConflictBooking = { id: string; startsAt: string; endsAt: string };
+
+export type SetWindowUnavailableResult =
+  | { kind: "success" }
+  | { kind: "forbidden" }
+  | { kind: "validation_error"; message: string }
+  | { kind: "conflict"; bookings: ConflictBooking[] }
+  | { kind: "error"; message: string };
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Validation schemas
+// ──────────────────────────────────────────────────────────────────────────────
+
+const dayKeySchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Each dayKey must be a YYYY-MM-DD date string");
+
+const createWindowsBatchInputSchema = z
+  .object({
+    dayKeys: z
+      .array(dayKeySchema)
+      .nonempty("dayKeys must be a non-empty array"),
+    openMinute: z.number().int().min(0).max(1440),
+    closeMinute: z.number().int().min(0).max(1440),
+  })
+  .refine((d) => d.openMinute < d.closeMinute, {
+    message: "openMinute must be less than closeMinute",
+    path: ["openMinute"],
+  });
+
+const setWindowUnavailableInputSchema = z
+  .object({
+    dayKey: dayKeySchema,
+    fromMinute: z.number().int().min(0).max(1440),
+    toMinute: z.number().int().min(0).max(1440),
+  })
+  .refine((d) => d.fromMinute < d.toMinute, {
+    message: "fromMinute must be less than toMinute",
+    path: ["fromMinute"],
+  });
+
+// ──────────────────────────────────────────────────────────────────────────────
+// createWindowsBatchCore — bulk window create, no conflict check
+// ──────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Creates one availability window per dayKey spanning [openMinute, closeMinute)
+ * of the Denver calendar day. Adding availability is always safe — no conflict
+ * check. All rows inserted in a single .insert([...]) call.
+ */
+export async function createWindowsBatchCore(
+  deps: AvailabilityDeps,
+  rawInput: { dayKeys: string[]; openMinute: number; closeMinute: number },
+): Promise<AvailabilityResult> {
+  const isAdmin = await assertActorIsAdmin(
+    deps.serviceClient,
+    deps.actorUserId,
+  );
+  if (!isAdmin) return { kind: "forbidden" };
+
+  const parsed = createWindowsBatchInputSchema.safeParse(rawInput);
+  if (!parsed.success)
+    return { kind: "validation_error", message: parsed.error.message };
+
+  const { dayKeys, openMinute, closeMinute } = parsed.data;
+
+  const rows = dayKeys.map((dayKey) => {
+    const midnight = denverMidnight(dayKey).getTime();
+    return {
+      starts_at: new Date(midnight + openMinute * 60000).toISOString(),
+      ends_at: new Date(midnight + closeMinute * 60000).toISOString(),
+      note: null as string | null,
+    };
+  });
+
+  const { error } = await deps.serviceClient
+    .from("availability_windows")
+    .insert(rows);
+
+  if (error) return { kind: "error", message: error.message };
+  return { kind: "success" };
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// setWindowUnavailableCore — trim/split with refuse-not-cancel policy
+// ──────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Removes the instant slice R = [denverMidnight(dayKey)+fromMinute*60000,
+ * denverMidnight(dayKey)+toMinute*60000) from availability by trimming/splitting
+ * any overlapping windows.
+ *
+ * Refuse-not-cancel: if any active booking (pending_approval | confirmed) of
+ * ANY concurrency class overlaps R, returns conflict and mutates nothing.
+ *
+ * Split logic per overlapping window W = [ws, we):
+ *   left  remainder [ws, R.start)   iff ws < R.start
+ *   right remainder [R.end, we)     iff R.end < we
+ *   full-cover (W ⊆ R)              → delete, no remainders
+ */
+export async function setWindowUnavailableCore(
+  deps: AvailabilityDeps,
+  rawInput: { dayKey: string; fromMinute: number; toMinute: number },
+): Promise<SetWindowUnavailableResult> {
+  const isAdmin = await assertActorIsAdmin(
+    deps.serviceClient,
+    deps.actorUserId,
+  );
+  if (!isAdmin) return { kind: "forbidden" };
+
+  const parsed = setWindowUnavailableInputSchema.safeParse(rawInput);
+  if (!parsed.success)
+    return { kind: "validation_error", message: parsed.error.message };
+
+  const { dayKey, fromMinute, toMinute } = parsed.data;
+
+  const midnight = denverMidnight(dayKey).getTime();
+  const rStart = new Date(midnight + fromMinute * 60000);
+  const rEnd = new Date(midnight + toMinute * 60000);
+
+  // ── 1. Read-only conflict check ──────────────────────────────────────────
+  const { data: conflicting, error: conflictErr } = await deps.serviceClient
+    .from("bookings")
+    .select("id, starts_at, ends_at")
+    .lt("starts_at", rEnd.toISOString())
+    .gt("ends_at", rStart.toISOString())
+    .in("status", ["pending_approval", "confirmed"]);
+
+  if (conflictErr)
+    return {
+      kind: "error",
+      message: `Conflict query failed: ${conflictErr.message}`,
+    };
+
+  const conflictBookings: ConflictBooking[] = (conflicting ?? []).map(
+    (row) => ({
+      id: row.id as string,
+      startsAt: row.starts_at as string,
+      endsAt: row.ends_at as string,
+    }),
+  );
+
+  if (conflictBookings.length > 0) {
+    return { kind: "conflict", bookings: conflictBookings };
+  }
+
+  // ── 2. Fetch overlapping availability windows ────────────────────────────
+  const { data: windows, error: windowsErr } = await deps.serviceClient
+    .from("availability_windows")
+    .select("id, starts_at, ends_at, note")
+    .lt("starts_at", rEnd.toISOString())
+    .gt("ends_at", rStart.toISOString());
+
+  if (windowsErr)
+    return {
+      kind: "error",
+      message: `Window query failed: ${windowsErr.message}`,
+    };
+
+  // ── 3. Trim/split each overlapping window ───────────────────────────────
+  for (const w of windows ?? []) {
+    const ws = w.starts_at as string;
+    const we = w.ends_at as string;
+    const wId = w.id as string;
+    const note = w.note as string | null;
+
+    const { error: delErr } = await deps.serviceClient
+      .from("availability_windows")
+      .delete()
+      .eq("id", wId);
+
+    if (delErr)
+      return {
+        kind: "error",
+        message: `Delete window failed: ${delErr.message}`,
+      };
+
+    const remainders: {
+      starts_at: string;
+      ends_at: string;
+      note: string | null;
+    }[] = [];
+
+    // Left remainder: [ws, R.start) — exists iff window starts before R
+    if (new Date(ws).getTime() < rStart.getTime()) {
+      remainders.push({ starts_at: ws, ends_at: rStart.toISOString(), note });
+    }
+
+    // Right remainder: [R.end, we) — exists iff window ends after R
+    if (rEnd.getTime() < new Date(we).getTime()) {
+      remainders.push({ starts_at: rEnd.toISOString(), ends_at: we, note });
+    }
+
+    if (remainders.length > 0) {
+      const { error: insertErr } = await deps.serviceClient
+        .from("availability_windows")
+        .insert(remainders);
+
+      if (insertErr)
+        return {
+          kind: "error",
+          message: `Insert remainder failed: ${insertErr.message}`,
+        };
+    }
+  }
+
+  return { kind: "success" };
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// "use server" wrappers — refuse-not-cancel cores
+// ──────────────────────────────────────────────────────────────────────────────
+
+export async function createWindowsBatch(input: {
+  dayKeys: string[];
+  openMinute: number;
+  closeMinute: number;
+}): Promise<AvailabilityResult> {
+  const actorUserId = await getActorOrRedirect();
+  const serviceClient = createServiceClient();
+  const result = await createWindowsBatchCore(
+    { serviceClient, actorUserId },
+    input,
+  );
+  if (result.kind === "success") revalidatePath("/admin/availability");
+  return result;
+}
+
+export async function setWindowUnavailable(input: {
+  dayKey: string;
+  fromMinute: number;
+  toMinute: number;
+}): Promise<SetWindowUnavailableResult> {
+  const actorUserId = await getActorOrRedirect();
+  const serviceClient = createServiceClient();
+  const result = await setWindowUnavailableCore(
+    { serviceClient, actorUserId },
     input,
   );
   if (result.kind === "success") revalidatePath("/admin/availability");
