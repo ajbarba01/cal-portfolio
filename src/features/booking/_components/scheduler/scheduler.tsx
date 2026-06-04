@@ -66,9 +66,10 @@ export function Scheduler({
       data,
       callbacks: callbacks ?? {},
     }),
-    // selection is a stable object from useScheduleSelection (dispatcher refs
-    // are memoized; state identity changes on dispatch). Including the full
-    // object is safe — useMemo checks referential equality.
+    // selection is a memoized object from useScheduleSelection — its identity
+    // changes only when state or derived values change (dispatchers are stable
+    // useCallback refs). This useMemo therefore recomputes only on real
+    // selection changes, not on every render.
     [selection, capabilities, data, callbacks],
   );
 

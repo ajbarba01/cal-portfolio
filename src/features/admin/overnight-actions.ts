@@ -15,7 +15,7 @@ import { revalidatePath } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/service";
 import { assertActorIsAdmin } from "./admin-guard";
 import { getActorOrRedirect } from "./admin-session";
-import { denverMidnight } from "@/features/booking/availability";
+import { denverMidnight, denverDayKey } from "@/features/booking/availability";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -64,12 +64,15 @@ const batchInputSchema = z.object({
 // Private helper: resident-booking conflict detector (read-only)
 // ──────────────────────────────────────────────────────────────────────────────
 
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
-
 /**
  * Returns active resident bookings that overlap any of the given nights.
  *
- * For each night D, the blocked instant range is [denverMidnight(D), denverMidnight(D) + 24h).
+ * For each night D, the blocked instant range is [denverMidnight(D), denverMidnight(nextDay(D))).
+ * Using the next day's true Denver midnight (rather than start + 24h) is DST-correct:
+ * a fall-back night is 25h long; adding a fixed 24h would miss bookings in that
+ * extra hour. nextDayKey derives the successor date via a 36h offset past midnight
+ * (always lands in the next calendar day regardless of DST) then snaps back to a
+ * day key via denverDayKey.
  * Overlap: booking.starts_at < nightEnd AND booking.ends_at > nightStart.
  * Uses the union span across all nights for a single DB round-trip, then
  * post-filters to only rows that actually overlap at least one specific night
@@ -77,6 +80,16 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
  *
  * Does NOT mutate anything.
  */
+
+/** Returns the YYYY-MM-DD key for the calendar day after `dayKey` (DST-safe). */
+function nextDayKey(dayKey: string): string {
+  // Add 36h to midnight so we always land in the next calendar day regardless
+  // of DST transitions, then snap back to the wall-clock date in Denver.
+  return denverDayKey(
+    new Date(denverMidnight(dayKey).getTime() + 36 * 3600 * 1000),
+  );
+}
+
 async function findConflictingResidentBookings(
   serviceClient: SupabaseClient,
   nights: string[],
@@ -84,11 +97,12 @@ async function findConflictingResidentBookings(
   | { kind: "success"; bookings: ConflictBooking[] }
   | { kind: "error"; message: string }
 > {
-  // Precompute per-night [start, end) instant ranges.
-  const nightRanges = nights.map((d) => {
-    const start = denverMidnight(d).getTime();
-    return { start, end: start + MS_PER_DAY };
-  });
+  // Precompute per-night [start, end) instant ranges — DST-correct end via
+  // next day's true Denver midnight rather than a fixed 24h offset.
+  const nightRanges = nights.map((d) => ({
+    start: denverMidnight(d).getTime(),
+    end: denverMidnight(nextDayKey(d)).getTime(),
+  }));
 
   // Union span for a single DB query.
   const rangeStart = new Date(Math.min(...nightRanges.map((r) => r.start)));
@@ -96,7 +110,7 @@ async function findConflictingResidentBookings(
 
   const { data, error } = await serviceClient
     .from("bookings")
-    .select("id, starts_at, ends_at, client_id")
+    .select("id, starts_at, ends_at")
     .lt("starts_at", rangeEnd.toISOString())
     .gt("ends_at", rangeStart.toISOString())
     .eq("concurrency", "resident")

@@ -123,19 +123,36 @@ export function useScheduleSelection(args: {
     [args.todayKey],
   );
 
-  return {
-    state,
-    toggleDay,
-    setRange,
-    dragDays,
-    clearDays,
-    setFocusedWeek,
-    beginGridDrag,
-    extendGridDrag,
-    clearGridDraft,
-    summaryLabel,
-    focusedWeekDays,
-    isPast,
-    todayKey: args.todayKey,
-  };
+  return useMemo(
+    () => ({
+      state,
+      toggleDay,
+      setRange,
+      dragDays,
+      clearDays,
+      setFocusedWeek,
+      beginGridDrag,
+      extendGridDrag,
+      clearGridDraft,
+      summaryLabel,
+      focusedWeekDays,
+      isPast,
+      todayKey: args.todayKey,
+    }),
+    [
+      state,
+      toggleDay,
+      setRange,
+      dragDays,
+      clearDays,
+      setFocusedWeek,
+      beginGridDrag,
+      extendGridDrag,
+      clearGridDraft,
+      summaryLabel,
+      focusedWeekDays,
+      isPast,
+      args.todayKey,
+    ],
+  );
 }

@@ -242,6 +242,10 @@ export function ServiceBookingClient({
           setRange(undefined);
           return;
         }
+        // NOTE: min/max derivation assumes selectedDays are CONTIGUOUS, which is
+        // guaranteed today because this booking uses the "range" capability. If a
+        // future capability change allowed non-contiguous selection, min..max+1
+        // would include gap nights and this derivation must be revisited.
         const sorted = [...state.selectedDays].sort();
         const minKey = sorted[0];
         const maxKey = sorted[sorted.length - 1];
