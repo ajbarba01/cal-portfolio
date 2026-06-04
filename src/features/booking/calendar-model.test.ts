@@ -108,17 +108,50 @@ describe("markSlotsBusy", () => {
 // ---------------------------------------------------------------------------
 
 describe("deriveBookableDays", () => {
-  // now = mid-June (MDT). Window covers all of June.
+  // now = mid-June (MDT). Night-set covers all of June.
   const now = new Date("2025-06-10T12:00:00Z");
-  const windows = [range("2025-06-01T06:00:00Z", "2025-06-30T06:00:00Z")];
+  const juneNights = new Set([
+    "2025-06-01",
+    "2025-06-02",
+    "2025-06-03",
+    "2025-06-04",
+    "2025-06-05",
+    "2025-06-06",
+    "2025-06-07",
+    "2025-06-08",
+    "2025-06-09",
+    "2025-06-10",
+    "2025-06-11",
+    "2025-06-12",
+    "2025-06-13",
+    "2025-06-14",
+    "2025-06-15",
+    "2025-06-16",
+    "2025-06-17",
+    "2025-06-18",
+    "2025-06-19",
+    "2025-06-20",
+    "2025-06-21",
+    "2025-06-22",
+    "2025-06-23",
+    "2025-06-24",
+    "2025-06-25",
+    "2025-06-26",
+    "2025-06-27",
+    "2025-06-28",
+    "2025-06-29",
+  ]);
 
   function stateFor(
     day: Date,
-    opts?: Partial<{ busyResident: TimeRange[]; windows: TimeRange[] }>,
+    opts?: Partial<{
+      busyResident: TimeRange[];
+      overnightNights: Set<string>;
+    }>,
   ) {
     const out = deriveBookableDays({
       days: [day],
-      windows: opts?.windows ?? windows,
+      overnightNights: opts?.overnightNights ?? juneNights,
       busyResident: opts?.busyResident ?? [],
       rules: RULES,
       now,
@@ -143,10 +176,12 @@ describe("deriveBookableDays", () => {
     );
   });
 
-  it("classifies a near future day with no covering window as out-of-window", () => {
-    expect(stateFor(denverMidnightMDT("2025-06-15"), { windows: [] })).toBe(
-      "out-of-window",
-    );
+  it("classifies a near future day NOT in the night-set as out-of-window", () => {
+    expect(
+      stateFor(denverMidnightMDT("2025-06-15"), {
+        overnightNights: new Set(),
+      }),
+    ).toBe("out-of-window");
   });
 
   it("classifies a day beyond hardMaxAdvanceDays as too-far", () => {
@@ -155,21 +190,57 @@ describe("deriveBookableDays", () => {
   });
 
   it("too-far takes precedence over out-of-window", () => {
-    expect(stateFor(denverMidnightMDT("2025-09-30"), { windows: [] })).toBe(
-      "too-far",
-    );
+    expect(
+      stateFor(denverMidnightMDT("2025-09-30"), {
+        overnightNights: new Set(),
+      }),
+    ).toBe("too-far");
   });
 
   it("classifies an empty day list as empty output", () => {
     expect(
       deriveBookableDays({
         days: [],
-        windows,
+        overnightNights: juneNights,
         busyResident: [],
         rules: RULES,
         now,
       }),
     ).toEqual([]);
+  });
+
+  it("day IN the night-set is available", () => {
+    const nights = new Set(["2025-06-20"]);
+    expect(
+      stateFor(denverMidnightMDT("2025-06-20"), { overnightNights: nights }),
+    ).toBe("available");
+  });
+
+  it("day NOT in the night-set is out-of-window", () => {
+    const nights = new Set(["2025-06-20"]);
+    // 2025-06-21 is not in the set
+    expect(
+      stateFor(denverMidnightMDT("2025-06-21"), { overnightNights: nights }),
+    ).toBe("out-of-window");
+  });
+
+  it("past takes precedence over out-of-window", () => {
+    // 2025-06-09 is yesterday — past regardless of night-set
+    expect(
+      stateFor(denverMidnightMDT("2025-06-09"), { overnightNights: new Set() }),
+    ).toBe("past");
+  });
+
+  it("busy takes precedence over out-of-window", () => {
+    const busyResident = [
+      range("2025-06-15T06:00:00Z", "2025-06-16T06:00:00Z"),
+    ];
+    expect(
+      stateFor(denverMidnightMDT("2025-06-15"), {
+        busyResident,
+        overnightNights: new Set(), // not in set, but busy wins
+      }),
+    ).toBe("busy");
   });
 });
 
@@ -178,15 +249,21 @@ describe("deriveBookableDays", () => {
 // ---------------------------------------------------------------------------
 
 describe("validateStayRange", () => {
-  // January (MST). Window covers all of January.
+  // January (MST). All nights in the stay are in the set.
   const now = new Date("2025-01-01T00:00:00Z");
-  const windows = [range("2025-01-01T00:00:00Z", "2025-02-01T00:00:00Z")];
+  // Night-set covers all of January
+  const januaryNights = new Set(
+    Array.from({ length: 31 }, (_, i) => {
+      const d = i + 1;
+      return `2025-01-${String(d).padStart(2, "0")}`;
+    }),
+  );
 
   it("accepts a 2-night in-window stay and returns nights + a 6:30am start", () => {
     const result = validateStayRange({
       checkIn: denverMidnightMST("2025-01-15"),
       checkOut: denverMidnightMST("2025-01-17"),
-      windows,
+      overnightNights: januaryNights,
       busyResident: [],
       rules: RULES,
       now,
@@ -208,7 +285,7 @@ describe("validateStayRange", () => {
     const result = validateStayRange({
       checkIn: denverMidnightMST("2025-01-17"),
       checkOut: denverMidnightMST("2025-01-15"),
-      windows,
+      overnightNights: januaryNights,
       busyResident: [],
       rules: RULES,
       now,
@@ -222,7 +299,7 @@ describe("validateStayRange", () => {
     const result = validateStayRange({
       checkIn: day,
       checkOut: day,
-      windows,
+      overnightNights: januaryNights,
       busyResident: [],
       rules: RULES,
       now,
@@ -234,7 +311,7 @@ describe("validateStayRange", () => {
     const result = validateStayRange({
       checkIn: denverMidnightMST("2025-01-15"),
       checkOut: denverMidnightMST("2025-01-17"),
-      windows,
+      overnightNights: januaryNights,
       busyResident: [range("2025-01-16T00:00:00Z", "2025-01-18T00:00:00Z")],
       rules: RULES,
       now,
@@ -243,11 +320,27 @@ describe("validateStayRange", () => {
     if (!result.ok) expect(result.reason).toMatch(/overlap/i);
   });
 
-  it("rejects a stay partly outside the availability window", () => {
+  it("rejects a stay where one interior night is missing from the set", () => {
+    // Remove 2025-01-16 from the set
+    const partialNights = new Set(januaryNights);
+    partialNights.delete("2025-01-16");
     const result = validateStayRange({
       checkIn: denverMidnightMST("2025-01-15"),
       checkOut: denverMidnightMST("2025-01-17"),
-      windows: [range("2025-01-01T00:00:00Z", "2025-01-16T00:00:00Z")],
+      overnightNights: partialNights,
+      busyResident: [],
+      rules: RULES,
+      now,
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toMatch(/availability/i);
+  });
+
+  it("rejects a stay with empty night-set (outside availability)", () => {
+    const result = validateStayRange({
+      checkIn: denverMidnightMST("2025-01-15"),
+      checkOut: denverMidnightMST("2025-01-17"),
+      overnightNights: new Set(),
       busyResident: [],
       rules: RULES,
       now,
@@ -260,7 +353,7 @@ describe("validateStayRange", () => {
     const result = validateStayRange({
       checkIn: denverMidnightMST("2025-01-15"),
       checkOut: denverMidnightMST("2025-01-17"),
-      windows,
+      overnightNights: januaryNights,
       busyResident: [],
       rules: RULES,
       now: new Date("2025-01-15T10:00:00Z"), // only ~3.5h before the 13:30Z start → lead < 24h
@@ -273,12 +366,66 @@ describe("validateStayRange", () => {
     const result = validateStayRange({
       checkIn: denverMidnightMST("2025-01-15"),
       checkOut: denverMidnightMST("2025-01-17"),
-      windows,
+      overnightNights: januaryNights,
       busyResident: [],
       rules: RULES,
       now: new Date("2024-09-01T00:00:00Z"), // ~136 days before check-in
     });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.reason).toMatch(/too far/i);
+  });
+
+  it("DST-spanning stay (spring-forward 2026): all nights in set → ok:true with correct count", () => {
+    // US/Denver spring-forward 2026: clocks spring forward at 2026-03-08 02:00 MST → 03:00 MDT
+    // Stay: 2026-03-06 (MST) to 2026-03-10 (MDT) = 4 nights covering 03-06, 03-07, 03-08, 03-09
+    // now = 2026-02-01 (well before, within 90-day window of 2026-03-06)
+    const now2026 = new Date("2026-02-01T00:00:00Z");
+    const checkIn = new Date("2026-03-06T07:00:00Z"); // Denver midnight MST (UTC-7)
+    const checkOut = new Date("2026-03-10T06:00:00Z"); // Denver midnight MDT (UTC-6)
+    const dstNights = new Set([
+      "2026-03-06",
+      "2026-03-07",
+      "2026-03-08", // DST transition night
+      "2026-03-09",
+    ]);
+    const result = validateStayRange({
+      checkIn,
+      checkOut,
+      overnightNights: dstNights,
+      busyResident: [],
+      rules: RULES,
+      now: now2026,
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.nights).toBe(4);
+    }
+  });
+
+  it("DST-spanning stay (fall-back 2026): all nights in set → ok:true with correct count", () => {
+    // US/Denver fall-back 2026: clocks fall back at 2026-11-01 02:00 MDT → 01:00 MST
+    // Stay: 2026-10-30 (MDT) to 2026-11-03 (MST) = 4 nights covering 10-30, 10-31, 11-01, 11-02
+    // now = 2026-10-01 (within 90-day window)
+    const now2026 = new Date("2026-10-01T00:00:00Z");
+    const checkIn = new Date("2026-10-30T06:00:00Z"); // Denver midnight MDT (UTC-6)
+    const checkOut = new Date("2026-11-03T07:00:00Z"); // Denver midnight MST (UTC-7)
+    const dstNights = new Set([
+      "2026-10-30",
+      "2026-10-31",
+      "2026-11-01", // DST transition night
+      "2026-11-02",
+    ]);
+    const result = validateStayRange({
+      checkIn,
+      checkOut,
+      overnightNights: dstNights,
+      busyResident: [],
+      rules: RULES,
+      now: now2026,
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.nights).toBe(4);
+    }
   });
 });
