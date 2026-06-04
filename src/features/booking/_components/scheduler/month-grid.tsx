@@ -37,11 +37,14 @@
  *
  * INTERACTION
  * - multi (admin): PAINT-TOGGLE. pointerdown on a non-booked selectable cell
- *     picks mode = selected ? "remove" : "add"; dragging across cells paints
- *     that mode along the pointer path (a free set, not a contiguous range);
- *     pointerup commits via paintDays. A single tap is the same path with one
- *     key. pointerdown on a BOOKED cell → inspectBooking (no selection change,
- *     no paint drag). Past / no-data cells are inert.
+ *     picks mode = selected ? "remove" : "add"; dragging selects a CONTIGUOUS
+ *     calendar range anchor→current (text-selection semantics, reading-order
+ *     day flow — NOT a free pointer path, NOT a rectangular marquee), filtered
+ *     to selectable cells so booked/past/no-data days the range flows over are
+ *     skipped; pointerup commits that filtered range via paintDays. A single
+ *     tap is the same path with one key. pointerdown on a BOOKED cell →
+ *     inspectBooking (no selection change, no paint drag). Past / no-data cells
+ *     are inert.
  * - range (house_sitting) / single: UNCHANGED. Click + contiguous-range drag
  *     anchor→current, committed on pointerup. A click on a booked cell also
  *     inspects the booking (does not disturb range selection).
@@ -137,12 +140,15 @@ type CellKind = "selectable" | "booked" | "inert";
 
 interface DragState {
   active: boolean;
-  /** "paint" (multi) builds a free set; "range" builds anchor→current. */
+  /**
+   * Both variants build a contiguous anchor→current calendar range. "paint"
+   * (multi) filters that range to selectable cells and applies paintMode;
+   * "range" sets the raw range.
+   */
   variant: "paint" | "range";
   anchorKey: string;
   currentKey: string;
   paintMode: "add" | "remove";
-  painted: Set<string>;
   didDrag: boolean;
 }
 
@@ -534,6 +540,19 @@ export function MonthGrid({ className }: { className?: string }) {
   const isMulti = capabilities.daySelection === "multi";
   const isRange = capabilities.daySelection === "range";
 
+  // Contiguous calendar range anchor→current (inclusive, direction-agnostic via
+  // daysInRange), filtered to selectable cells only. Booked/past/no-data days
+  // within the span are skipped so the range "flows over" them like a text
+  // selection skipping unselectable spans. Used for both the multi paint
+  // preview and its commit.
+  const selectableRange = useCallback(
+    (anchorKey: string, currentKey: string): string[] =>
+      daysInRange(anchorKey, currentKey).filter(
+        (k) => cellKind(k) === "selectable",
+      ),
+    [cellKind],
+  );
+
   const installEndHandler = useCallback((endHandler: () => void) => {
     // Remove any stale listener from a previous drag that didn't fire.
     if (dragEndHandlerRef.current) {
@@ -571,7 +590,6 @@ export function MonthGrid({ className }: { className?: string }) {
           anchorKey: dayKey,
           currentKey: dayKey,
           paintMode: mode,
-          painted: new Set([dayKey]),
           didDrag: false,
         };
         suppressNextClick.current = false;
@@ -585,7 +603,12 @@ export function MonthGrid({ className }: { className?: string }) {
           setPreviewDays(new Set<string>());
           setPreviewMode(null);
           suppressNextClick.current = true; // tap OR drag both commit here
-          paintDays([...drag.painted], drag.paintMode);
+          // Recompute the contiguous anchor→current range, filtered to
+          // selectable cells (matches the live preview), and commit it.
+          paintDays(
+            selectableRange(drag.anchorKey, drag.currentKey),
+            drag.paintMode,
+          );
           dragRef.current = null;
         };
         installEndHandler(endHandler);
@@ -600,7 +623,6 @@ export function MonthGrid({ className }: { className?: string }) {
           anchorKey: dayKey,
           currentKey: dayKey,
           paintMode: "add",
-          painted: new Set([dayKey]),
           didDrag: false,
         };
         suppressNextClick.current = false;
@@ -632,6 +654,7 @@ export function MonthGrid({ className }: { className?: string }) {
       clearDays,
       setRange,
       installEndHandler,
+      selectableRange,
     ],
   );
 
@@ -651,15 +674,16 @@ export function MonthGrid({ className }: { className?: string }) {
       drag.didDrag = true;
 
       if (drag.variant === "paint") {
-        // Free set: paint follows pointer path; exclude booked / inert cells.
-        if (kind === "selectable") drag.painted.add(dayKey);
-        setPreviewDays(new Set(drag.painted));
+        // Contiguous range anchor→current, filtered to selectable cells
+        // (text-selection semantics): booked/past/no-data days the span flows
+        // over are skipped.
+        setPreviewDays(new Set(selectableRange(drag.anchorKey, dayKey)));
       } else {
         // Contiguous range anchor→current.
         setPreviewDays(new Set(daysInRange(drag.anchorKey, dayKey)));
       }
     },
-    [],
+    [selectableRange],
   );
 
   const handleCellPointerLeave = useCallback((kind: CellKind) => {
