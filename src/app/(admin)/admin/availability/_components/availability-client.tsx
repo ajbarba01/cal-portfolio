@@ -263,6 +263,13 @@ export function AvailabilityClient({
     [optimisticWindows, optimisticNights, initialBusy, rules, nowIso],
   );
 
+  // These callbacks do NOT call router.refresh(): each server action already
+  // calls revalidatePath("/admin/availability"), which refreshes this route's
+  // RSC data within the same transition. An extra router.refresh() was a second,
+  // redundant full refetch — doubling the round-trip and causing the optimistic
+  // layer to briefly revert before the refresh landed (the "slow"/flicker feel).
+  // Relying on revalidation alone lets the optimistic state dissolve seamlessly
+  // into the fresh server props as the transition resolves.
   const callbacks: SchedulerCallbacks = useMemo(
     () => ({
       createWindowsBatch: async (input) => {
@@ -274,32 +281,26 @@ export function AvailabilityClient({
             dayWindow(k, input.openMinute, input.closeMinute),
           ),
         });
-        const r = await createWindowsBatch(input);
-        if (r.kind === "success") router.refresh();
-        return r;
+        return createWindowsBatch(input);
       },
       setWindowUnavailable: async (input) => {
         // Optimistic removal — interval-subtract the slice. Reverts if the
-        // server refuses (booking conflict) since no refresh follows.
+        // server refuses (booking conflict) since revalidation won't fire.
         applyOptimisticWindow({
           type: "subtract",
           dayKey: input.dayKey,
           fromMinute: input.fromMinute,
           toMinute: input.toMinute,
         });
-        const r = await setWindowUnavailable(input);
-        if (r.kind === "success") router.refresh();
-        return r;
+        return setWindowUnavailable(input);
       },
       setOvernightNightsBatch: async (input) => {
         // Optimistic month-fill flip; reverts if removal hits a booking conflict.
         applyOptimisticNights({ nights: input.nights, on: input.on });
-        const r = await setOvernightNightsBatch(input);
-        if (r.kind === "success") router.refresh();
-        return r;
+        return setOvernightNightsBatch(input);
       },
     }),
-    [router, applyOptimisticWindow, applyOptimisticNights],
+    [applyOptimisticWindow, applyOptimisticNights],
   );
 
   return (

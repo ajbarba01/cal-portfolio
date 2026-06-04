@@ -1,9 +1,6 @@
-- need better mobile
-- booking page refactor to be calendar formatted (also how to get to admin page)
-- onboarding broken
+- need good mobile
 - design overhaul
 - errors need to be descriptive and human readable
-- calbarba.com domain broken
 - account system should have tabs for information (changing info, reset password, delete account, etc...), bookings (current bookings where you can cancel or prepay or modfiy), pets (edit, remove, or add pets), history (completed bookings for information and like to tip), any any others???
 - cal should have an email created for automated emails
 - website logo
