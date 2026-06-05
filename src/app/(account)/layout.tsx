@@ -1,13 +1,12 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { SiteHeader } from "@/components/site-header";
+import { AppShell } from "@/components/layout/app-shell";
+import { accountNav } from "@/components/layout/nav-config";
 
 /**
- * Thin server-side backstop for the (account) routes. The real auth + onboarding
- * gate lives in middleware (`src/lib/supabase/proxy.ts`), which reliably reads
- * the pathname and redirects un-onboarded users to /onboarding. This layout only
- * guards against the edge case of an unauthenticated request slipping past the
- * middleware matcher.
+ * Account zone shell. The real auth + onboarding gate lives in middleware
+ * (`src/lib/supabase/proxy.ts`); this layout keeps a thin unauthenticated
+ * backstop and renders the persistent account sidebar via AppShell.
  */
 export default async function AccountLayout({
   children,
@@ -23,10 +22,16 @@ export default async function AccountLayout({
     redirect("/login");
   }
 
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("full_name")
+    .eq("id", user.id)
+    .single();
+  const identity = profile?.full_name ?? user.email ?? "Signed in";
+
   return (
-    <>
-      <SiteHeader />
+    <AppShell nav={accountNav} identity={identity}>
       {children}
-    </>
+    </AppShell>
   );
 }

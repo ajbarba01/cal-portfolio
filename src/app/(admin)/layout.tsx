@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { SiteHeader } from "@/components/site-header";
+import { AppShell } from "@/components/layout/app-shell";
+import { adminNav } from "@/components/layout/nav-config";
 
-/** Guard for all (admin) routes: unauthenticated or non-admin role → /. */
+/** Guard for all (admin) routes: unauthenticated or non-admin role → redirect. */
 export default async function AdminLayout({
   children,
 }: {
@@ -19,7 +20,7 @@ export default async function AdminLayout({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role")
+    .select("full_name, role")
     .eq("id", user.id)
     .single();
 
@@ -27,10 +28,11 @@ export default async function AdminLayout({
     redirect("/");
   }
 
+  const identity = `${profile?.full_name ?? user.email ?? "Admin"} · admin`;
+
   return (
-    <>
-      <SiteHeader />
+    <AppShell nav={adminNav} identity={identity}>
       {children}
-    </>
+    </AppShell>
   );
 }
