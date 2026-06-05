@@ -36,6 +36,7 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-destructive-warm: var(--destructive-warm);
   --color-status-available: var(--status-available);
   --color-status-available-foreground: var(--status-available-foreground);
   --color-status-booked: var(--status-booked);
@@ -90,6 +91,8 @@
   --clay-deep: #3a2a20; /* dark sidebar-active rect fill (warm, clay-tinted) */
 
   --danger: oklch(0.577 0.245 27.325);
+  /* Warm "clay-leaning" danger — sign-out etc. (still reads red, hue toward clay) */
+  --danger-warm: oklch(0.55 0.18 35);
 
   /* Status primitives, reconciled to the warm base (light) */
   --green-soft: #e3e7d2;
@@ -131,6 +134,7 @@
   --brand-foreground: var(--clay-onfill);
   --brand-strong: var(--clay-strong);
   --destructive: var(--danger);
+  --destructive-warm: var(--danger-warm);
   --border: var(--sand-200);
   --input: var(--sand-200);
   --ring: var(--clay-strong);
@@ -178,6 +182,7 @@
   --brand-foreground: var(--clay-onfill);
   --brand-strong: var(--clay-light);
   --destructive: oklch(0.704 0.191 22.216);
+  --destructive-warm: oklch(0.7 0.16 35);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: var(--clay-light);

@@ -18,6 +18,7 @@ A site at `calbarba.com` — a **portfolio + self-serve booking system** for a d
 
 - **Hierarchical context.** This file is a **router**, not a knowledge dump. Given a broad task, open the one doc that owns it (table above) rather than loading everything. Load a doc just-in-time, when the task needs it.
 - **Single source of truth.** Each fact lives in exactly one doc. Cross-link; never restate. Project facts → DESIGN.md; everything else → its framework doc.
+- **Skill-invocation policy.** Each dev-loop stage names the skill that owns it — the map lives in [WORKFLOW.md](docs/WORKFLOW.md) ("Skill workflow"). Execution defaults to `subagent-driven-development`; `frontend-design` shapes UI specs and builds. The `using-superpowers` mandate (invoke a relevant skill before acting) auto-loads each session.
 - **Doc discipline.**
   - _Same-commit rule_ — a code change that adds/moves/deletes files updates the relevant doc in the _same_ commit.
   - _No code-as-doc_ — no function signatures or long path lists in docs (they rot); grep is faster.
@@ -43,4 +44,4 @@ Next.js (App Router) + TypeScript · Tailwind + shadcn/ui · Supabase · Vercel 
 
 ---
 
-_Last reviewed: 2026-05-29_
+_Last reviewed: 2026-06-05_

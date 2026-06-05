@@ -80,7 +80,11 @@ function SiteNavMobileDrawer({
   const [open, setOpen] = React.useState(false);
 
   return (
-    <Drawer.Root open={open} onOpenChange={(nextOpen) => setOpen(nextOpen)}>
+    <Drawer.Root
+      open={open}
+      onOpenChange={(nextOpen) => setOpen(nextOpen)}
+      swipeDirection="right"
+    >
       <Drawer.Trigger
         aria-label="Open menu"
         className="text-foreground inline-flex size-11 items-center justify-center rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2"
@@ -89,25 +93,53 @@ function SiteNavMobileDrawer({
       </Drawer.Trigger>
       <Drawer.Portal>
         <Drawer.Backdrop className="bg-foreground/20 fixed inset-0 z-50" />
-        <Drawer.Popup className="bg-background fixed inset-y-0 right-0 z-50 flex w-72 max-w-[85vw] flex-col overflow-y-auto">
-          <div className="flex items-center justify-between p-4">
-            <span className="font-heading text-lg font-semibold">Menu</span>
-            <Drawer.Close
-              aria-label="Close menu"
-              className="inline-flex size-11 items-center justify-center focus-visible:outline-2 focus-visible:outline-offset-2"
-            >
-              <X className="size-5" />
-            </Drawer.Close>
-          </div>
+        <Drawer.Viewport className="fixed inset-0 z-50">
+          <Drawer.Popup className="bg-background absolute inset-y-0 right-0 flex w-72 max-w-[85vw] translate-x-[var(--drawer-swipe-movement-x,0px)] flex-col overflow-y-auto shadow-xl transition-transform duration-300 ease-out data-[ending-style]:translate-x-full data-[starting-style]:translate-x-full">
+            <div className="flex items-center justify-between p-4">
+              <span className="font-heading text-lg font-semibold">Menu</span>
+              <Drawer.Close
+                aria-label="Close menu"
+                className="inline-flex size-11 items-center justify-center focus-visible:outline-2 focus-visible:outline-offset-2"
+              >
+                <X className="size-5" />
+              </Drawer.Close>
+            </div>
 
-          {/* Zone sections first (account/admin only) */}
-          {zoneNav ? (
-            <nav aria-label={`${zoneNav.zoneLabel} sections`}>
-              <p className="text-muted-foreground px-4 pt-1 pb-1 text-xs font-medium tracking-wide uppercase">
-                {zoneNav.zoneLabel}
-              </p>
-              <ul className="flex flex-col px-2 pb-2">
-                {zoneNav.items.map(({ href, label }) => {
+            {/* Zone sections first (account/admin only) */}
+            {zoneNav ? (
+              <nav aria-label={`${zoneNav.zoneLabel} sections`}>
+                <p className="text-muted-foreground px-4 pt-1 pb-1 text-xs font-medium tracking-wide uppercase">
+                  {zoneNav.zoneLabel}
+                </p>
+                <ul className="flex flex-col px-2 pb-2">
+                  {zoneNav.items.map(({ href, label }) => {
+                    const active = isActiveNav(pathname, href);
+                    return (
+                      <li key={href}>
+                        <Link
+                          href={href}
+                          aria-current={active ? "page" : undefined}
+                          className={cn(
+                            "flex min-h-11 items-center rounded-lg px-3 text-base",
+                            active
+                              ? "bg-sidebar-active text-brand-strong font-semibold"
+                              : "text-foreground hover:bg-muted",
+                          )}
+                        >
+                          {label}
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+                <div className="border-border mx-4 my-1 border-t" />
+              </nav>
+            ) : null}
+
+            {/* Marketing links */}
+            <nav aria-label="Site navigation">
+              <ul className="flex flex-col">
+                {links.map(({ href, label }) => {
                   const active = isActiveNav(pathname, href);
                   return (
                     <li key={href}>
@@ -115,10 +147,10 @@ function SiteNavMobileDrawer({
                         href={href}
                         aria-current={active ? "page" : undefined}
                         className={cn(
-                          "flex min-h-11 items-center rounded-lg px-3 text-base",
+                          "border-border flex min-h-11 items-center border-b px-4 text-base",
                           active
-                            ? "bg-sidebar-active text-brand-strong font-semibold"
-                            : "text-foreground hover:bg-muted",
+                            ? "text-brand-strong border-l-brand-strong border-l-2 font-semibold"
+                            : "text-foreground",
                         )}
                       >
                         {label}
@@ -127,72 +159,46 @@ function SiteNavMobileDrawer({
                   );
                 })}
               </ul>
-              <div className="border-border mx-4 my-1 border-t" />
-            </nav>
-          ) : null}
-
-          {/* Marketing links */}
-          <nav aria-label="Site navigation">
-            <ul className="flex flex-col">
-              {links.map(({ href, label }) => {
-                const active = isActiveNav(pathname, href);
-                return (
-                  <li key={href}>
-                    <Link
-                      href={href}
-                      aria-current={active ? "page" : undefined}
-                      className={cn(
-                        "border-border flex min-h-11 items-center border-b px-4 text-base",
-                        active
-                          ? "text-brand-strong border-l-brand-strong border-l-2 font-semibold"
-                          : "text-foreground",
-                      )}
-                    >
-                      {label}
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-            <div className="border-border my-2 border-t" />
-            <ul className="flex flex-col">
-              {isAdmin && (
-                <li>
-                  <Link
-                    href="/admin"
-                    className="border-border text-foreground flex min-h-11 items-center border-b px-4 text-base font-medium"
-                  >
-                    Admin
-                  </Link>
-                </li>
-              )}
-              {isSignedIn ? (
-                <>
+              <div className="border-border my-2 border-t" />
+              <ul className="flex flex-col">
+                {isAdmin && (
                   <li>
                     <Link
-                      href="/account"
+                      href="/admin"
+                      className="border-border text-foreground flex min-h-11 items-center border-b px-4 text-base font-medium"
+                    >
+                      Admin
+                    </Link>
+                  </li>
+                )}
+                {isSignedIn ? (
+                  <>
+                    <li>
+                      <Link
+                        href="/account"
+                        className="border-border text-foreground flex min-h-11 items-center border-b px-4 text-base"
+                      >
+                        Account
+                      </Link>
+                    </li>
+                    <li>
+                      <SignOutButton className="border-border text-foreground flex min-h-11 w-full items-center border-b px-4 text-base" />
+                    </li>
+                  </>
+                ) : (
+                  <li>
+                    <Link
+                      href="/login"
                       className="border-border text-foreground flex min-h-11 items-center border-b px-4 text-base"
                     >
-                      Account
+                      Sign in
                     </Link>
                   </li>
-                  <li>
-                    <SignOutButton className="border-border text-foreground flex min-h-11 w-full items-center border-b px-4 text-base" />
-                  </li>
-                </>
-              ) : (
-                <li>
-                  <Link
-                    href="/login"
-                    className="border-border text-foreground flex min-h-11 items-center border-b px-4 text-base"
-                  >
-                    Sign in
-                  </Link>
-                </li>
-              )}
-            </ul>
-          </nav>
-        </Drawer.Popup>
+                )}
+              </ul>
+            </nav>
+          </Drawer.Popup>
+        </Drawer.Viewport>
       </Drawer.Portal>
     </Drawer.Root>
   );

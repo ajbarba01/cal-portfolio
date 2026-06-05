@@ -24,4 +24,14 @@ describe("navUnderline", () => {
   it("exposes the base for non-link callers (e.g. admin wordmark)", () => {
     expect(NAV_UNDERLINE_BASE).toContain("after:bg-brand-strong");
   });
+
+  it("hoverReveal=false omits the inactive hover-underline (dropdown trigger)", () => {
+    const cls = navUnderline(false, false);
+    expect(cls).toContain("text-muted-foreground");
+    expect(cls).not.toContain("hover:after:scale-x-100");
+  });
+
+  it("hoverReveal=false still shows the underline when active", () => {
+    expect(navUnderline(true, false)).toContain("after:scale-x-100");
+  });
 });

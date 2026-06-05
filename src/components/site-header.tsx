@@ -65,9 +65,9 @@ export async function SiteHeader({ zoneNav }: { zoneNav?: ZoneNav }) {
             <SiteNavTabs links={navLinks} />
           </div>
 
-          <div className="justify-self-end">
+          <div className="flex items-center justify-end">
             <div className="hidden md:block">{authCluster}</div>
-            <div className="flex justify-end md:hidden">
+            <div className="md:hidden">
               <SiteNavMobile
                 links={navLinks}
                 zoneNav={zoneNav}
