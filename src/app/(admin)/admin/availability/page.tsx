@@ -9,6 +9,9 @@ import { listWindowsCore } from "@/features/admin/availability-actions";
 import { getAdminBusyRanges } from "@/features/admin/admin-busy";
 import { listOvernightNightsCore } from "@/features/admin/overnight-actions";
 import { AvailabilityClient } from "./_components/availability-client";
+import { ErrorState } from "@/components/feedback/error-state";
+import { PageContainer } from "@/components/layout/page-container";
+import { PageHeader } from "@/components/layout/page-header";
 import type { BookingRuleSettings } from "@/features/booking/availability";
 
 export default async function AdminAvailabilityPage() {
@@ -30,22 +33,29 @@ export default async function AdminAvailabilityPage() {
     busyResult.kind === "forbidden" ||
     nightsResult.kind === "forbidden"
   ) {
-    return <p className="text-destructive p-8">Access denied.</p>;
+    return (
+      <ErrorState
+        title="Access denied"
+        message="You don't have permission to view this."
+      />
+    );
   }
 
   if (result.kind === "error") {
     return (
-      <p className="text-destructive p-8">
-        Failed to load windows: {result.message}
-      </p>
+      <ErrorState
+        title="Couldn't load this"
+        message="We couldn't load this right now. Please try again."
+      />
     );
   }
 
   if (nightsResult.kind === "error") {
     return (
-      <p className="text-destructive p-8">
-        Failed to load overnight nights: {nightsResult.message}
-      </p>
+      <ErrorState
+        title="Couldn't load this"
+        message="We couldn't load this right now. Please try again."
+      />
     );
   }
 
@@ -60,9 +70,10 @@ export default async function AdminAvailabilityPage() {
 
   if (settingsError || !settingsData) {
     return (
-      <p className="text-destructive p-8">
-        Could not load booking settings. Please try again later.
-      </p>
+      <ErrorState
+        title="Couldn't load this"
+        message="We couldn't load this right now. Please try again."
+      />
     );
   }
 
@@ -74,8 +85,8 @@ export default async function AdminAvailabilityPage() {
   };
 
   return (
-    <main className="mx-auto max-w-5xl p-8">
-      <h1 className="mb-6 text-2xl font-semibold">Availability & Bookings</h1>
+    <PageContainer width="app">
+      <PageHeader title="Availability & Bookings" />
       <AvailabilityClient
         initialWindows={result.windows}
         initialBusy={busyResult.ranges}
@@ -83,6 +94,6 @@ export default async function AdminAvailabilityPage() {
         rules={rules}
         nowIso={new Date().toISOString()}
       />
-    </main>
+    </PageContainer>
   );
 }
