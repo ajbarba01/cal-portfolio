@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { space } from "@/lib/design-tokens";
 import { Input } from "@/components/ui/input";
 
-type FormFieldProps = {
+type FormFieldBase = {
   label: React.ReactNode;
   name: string;
   hint?: React.ReactNode;
@@ -18,19 +18,25 @@ type FormFieldProps = {
    */
   error?: React.ReactNode;
   className?: string;
-  /** Custom control; if omitted, a styled `Input` is rendered via `Field.Control`. */
-  children?: React.ReactNode;
-} & Omit<React.ComponentProps<typeof Input>, "name">;
+};
 
-export function FormField({
-  label,
-  name,
-  hint,
-  error,
-  className,
-  children,
-  ...inputProps
-}: FormFieldProps) {
+// Either pass input props (rendered as a styled Input) OR a custom control via
+// `children` — never both. The `children` branch forbids input props so they
+// can't be silently dropped.
+type FormFieldProps =
+  | (FormFieldBase & { children: React.ReactNode } & {
+      [K in keyof Omit<React.ComponentProps<typeof Input>, "name">]?: never;
+    })
+  | (FormFieldBase & { children?: undefined } & Omit<
+        React.ComponentProps<typeof Input>,
+        "name"
+      >);
+
+export function FormField(props: FormFieldProps) {
+  const { label, name, hint, error, className, children, ...inputProps } =
+    props as FormFieldBase & {
+      children?: React.ReactNode;
+    } & Omit<React.ComponentProps<typeof Input>, "name">;
   const isInvalid = Boolean(error);
 
   return (
