@@ -8,6 +8,7 @@ import { safeReturnTo } from "@/features/booking/return-to";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PageContainer } from "@/components/layout/page-container";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -61,8 +62,8 @@ export default function SignupPage() {
 
   if (isSuccess) {
     return (
-      <main className="bg-background flex min-h-screen items-center justify-center px-4">
-        <div className="w-full max-w-sm">
+      <PageContainer width="read" className="py-12">
+        <div className="mx-auto w-full max-w-sm">
           <h1 className="text-foreground mb-4 text-2xl font-semibold">
             Check your email
           </h1>
@@ -71,13 +72,13 @@ export default function SignupPage() {
             activate your account.
           </p>
         </div>
-      </main>
+      </PageContainer>
     );
   }
 
   return (
-    <main className="bg-background flex min-h-screen items-center justify-center px-4">
-      <div className="w-full max-w-sm">
+    <PageContainer width="read" className="py-12">
+      <div className="mx-auto w-full max-w-sm">
         <h1 className="text-foreground mb-6 text-2xl font-semibold">
           Create account
         </h1>
@@ -130,6 +131,6 @@ export default function SignupPage() {
           </Link>
         </p>
       </div>
-    </main>
+    </PageContainer>
   );
 }

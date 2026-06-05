@@ -8,6 +8,7 @@ import { safeReturnTo } from "@/features/booking/return-to";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PageContainer } from "@/components/layout/page-container";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -43,8 +44,8 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="bg-background flex min-h-screen items-center justify-center px-4">
-      <div className="w-full max-w-sm">
+    <PageContainer width="read" className="py-12">
+      <div className="mx-auto w-full max-w-sm">
         <h1 className="text-foreground mb-6 text-2xl font-semibold">Sign in</h1>
 
         <form
@@ -94,6 +95,6 @@ export default function LoginPage() {
           </Link>
         </p>
       </div>
-    </main>
+    </PageContainer>
   );
 }
