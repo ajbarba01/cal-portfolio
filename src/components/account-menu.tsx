@@ -10,15 +10,20 @@
  */
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { navUnderline } from "@/components/layout/nav-underline";
+import { isActiveSection } from "@/components/layout/is-active-nav";
 import { SignOutButton } from "@/components/sign-out-button";
 
 export function AccountMenu() {
+  const pathname = usePathname();
+  const active = isActiveSection(pathname, "/account");
   return (
     <div className="group relative">
       <Link
         href="/account"
-        className={navUnderline(false)}
+        className={navUnderline(active)}
+        aria-current={active ? "page" : undefined}
         aria-haspopup="menu"
       >
         Account

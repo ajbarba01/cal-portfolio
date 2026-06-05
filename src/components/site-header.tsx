@@ -10,14 +10,11 @@
  * admin) is forwarded to the mobile drawer so it can list the zone's sections.
  */
 import Link from "next/link";
-import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
 import { AccountMenu } from "./account-menu";
 import { SiteNavTabs, SiteNavMobile } from "./site-nav";
-import {
-  NAV_UNDERLINE_BASE,
-  navUnderline,
-} from "@/components/layout/nav-underline";
+import { navUnderline } from "@/components/layout/nav-underline";
+import { Wordmark } from "@/components/layout/wordmark";
 import type { NavItem, ZoneNav } from "@/components/layout/nav-config";
 
 const navLinks: NavItem[] = [
@@ -62,16 +59,7 @@ export async function SiteHeader({ zoneNav }: { zoneNav?: ZoneNav }) {
     <header className="border-border border-b">
       <div className="mx-auto w-full max-w-5xl px-5 sm:px-8">
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 py-4">
-          <Link
-            href={isAdmin ? "/admin" : "/"}
-            className={cn(
-              "font-heading justify-self-start text-xl font-semibold tracking-tight focus-visible:outline-2 focus-visible:outline-offset-2",
-              isAdmin &&
-                `${NAV_UNDERLINE_BASE} text-brand-strong hover:after:scale-x-100`,
-            )}
-          >
-            Cal Barba
-          </Link>
+          <Wordmark isAdmin={isAdmin} />
 
           <div className="hidden justify-self-center md:block">
             <SiteNavTabs links={navLinks} />
