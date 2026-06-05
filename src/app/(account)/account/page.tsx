@@ -2,6 +2,8 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { ProfileForm } from "./_components/profile-form";
 import { PasswordForm } from "./_components/password-form";
+import { PageContainer } from "@/components/layout/page-container";
+import { PageHeader } from "@/components/layout/page-header";
 
 export default async function AccountPage() {
   const supabase = await createClient();
@@ -18,37 +20,11 @@ export default async function AccountPage() {
     .single();
 
   return (
-    <main className="mx-auto max-w-lg px-4 py-10">
-      <h1 className="text-foreground mb-2 text-2xl font-semibold">
-        Your profile
-      </h1>
-      <p className="text-muted-foreground mb-8 text-sm">
-        Update your contact info. Email is managed through your login.
-      </p>
-
-      <nav aria-label="Account sections" className="mb-8 flex gap-4 text-sm">
-        <a href="/account" className="text-foreground font-medium underline">
-          Profile
-        </a>
-        <a
-          href="/account/pets"
-          className="text-muted-foreground hover:text-foreground"
-        >
-          Pets
-        </a>
-        <a
-          href="/account/forms"
-          className="text-muted-foreground hover:text-foreground"
-        >
-          Forms
-        </a>
-        <a
-          href="/account/bookings"
-          className="text-muted-foreground hover:text-foreground"
-        >
-          Bookings
-        </a>
-      </nav>
+    <PageContainer width="app">
+      <PageHeader
+        title="Your profile"
+        subtitle="Update your contact info. Email is managed through your login."
+      />
 
       <section className="mb-10">
         <h2 className="text-foreground mb-4 text-base font-medium">
@@ -79,6 +55,6 @@ export default async function AccountPage() {
         </h2>
         <PasswordForm />
       </section>
-    </main>
+    </PageContainer>
   );
 }

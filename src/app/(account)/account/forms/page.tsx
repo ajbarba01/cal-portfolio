@@ -2,6 +2,8 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { formRegistry, type FormKey } from "@/features/forms/registry";
 import { FormsClient } from "./_components/forms-client";
+import { PageContainer } from "@/components/layout/page-container";
+import { PageHeader } from "@/components/layout/page-header";
 
 export interface FormResponseRow {
   id: string;
@@ -32,45 +34,16 @@ export default async function FormsPage() {
   const formKeys = Object.keys(formRegistry) as FormKey[];
 
   return (
-    <main className="mx-auto max-w-lg px-4 py-10">
-      <h1 className="text-foreground mb-2 text-2xl font-semibold">
-        Your forms
-      </h1>
-      <p className="text-muted-foreground mb-8 text-sm">
-        Complete required forms. They must be on file before booking.
-      </p>
-
-      <nav aria-label="Account sections" className="mb-8 flex gap-4 text-sm">
-        <a
-          href="/account"
-          className="text-muted-foreground hover:text-foreground"
-        >
-          Profile
-        </a>
-        <a
-          href="/account/pets"
-          className="text-muted-foreground hover:text-foreground"
-        >
-          Pets
-        </a>
-        <a
-          href="/account/forms"
-          className="text-foreground font-medium underline"
-        >
-          Forms
-        </a>
-        <a
-          href="/account/bookings"
-          className="text-muted-foreground hover:text-foreground"
-        >
-          Bookings
-        </a>
-      </nav>
+    <PageContainer width="app">
+      <PageHeader
+        title="Your forms"
+        subtitle="Complete required forms. They must be on file before booking."
+      />
 
       <FormsClient
         formKeys={formKeys}
         initialResponses={Object.fromEntries(responseMap)}
       />
-    </main>
+    </PageContainer>
   );
 }

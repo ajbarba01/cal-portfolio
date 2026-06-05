@@ -3,6 +3,8 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { redirect } from "next/navigation";
 import { PetsClient } from "./_components/pets-client";
 import type { Pet } from "@/features/accounts/account-actions";
+import { PageContainer } from "@/components/layout/page-container";
+import { PageHeader } from "@/components/layout/page-header";
 
 /** A pet plus a resolved (signed) photo URL for display. */
 export interface PetView extends Pet {
@@ -40,41 +42,13 @@ export default async function PetsPage() {
   );
 
   return (
-    <main className="mx-auto max-w-lg px-4 py-10">
-      <h1 className="text-foreground mb-2 text-2xl font-semibold">Your pets</h1>
-      <p className="text-muted-foreground mb-8 text-sm">
-        Add or edit your pets. Name, species, breed, a photo, and any care
-        notes.
-      </p>
-
-      <nav aria-label="Account sections" className="mb-8 flex gap-4 text-sm">
-        <a
-          href="/account"
-          className="text-muted-foreground hover:text-foreground"
-        >
-          Profile
-        </a>
-        <a
-          href="/account/pets"
-          className="text-foreground font-medium underline"
-        >
-          Pets
-        </a>
-        <a
-          href="/account/forms"
-          className="text-muted-foreground hover:text-foreground"
-        >
-          Forms
-        </a>
-        <a
-          href="/account/bookings"
-          className="text-muted-foreground hover:text-foreground"
-        >
-          Bookings
-        </a>
-      </nav>
+    <PageContainer width="app">
+      <PageHeader
+        title="Your pets"
+        subtitle="Add or edit your pets. Name, species, breed, a photo, and any care notes."
+      />
 
       <PetsClient pets={views} />
-    </main>
+    </PageContainer>
   );
 }
