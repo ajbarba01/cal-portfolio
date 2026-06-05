@@ -124,7 +124,7 @@
   --accent: var(--sand-100);
   --accent-foreground: var(--sand-900);
   /* Accent "desk" behind the sheet (gutter color) + sidebar active-rect fill */
-  --canvas: var(--sand-100);
+  --canvas: var(--sand-200);
   --sidebar-active: var(--clay-soft);
   /* Brand (clay) — intentional accent, NOT the default action color */
   --brand: var(--clay-fill);
