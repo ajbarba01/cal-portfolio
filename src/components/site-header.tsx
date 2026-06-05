@@ -1,20 +1,20 @@
 /**
- * SiteHeader — the standard, session-aware header shared across route groups
- * (marketing + admin). Renders the brand, main nav, and a right-side control
- * cluster: an Admin link (only when the caller has role='admin'), plus either
- * the AccountMenu (signed in) or a Sign in link.
+ * SiteHeader — two-tier centered marketing header.
  *
- * Server component: it re-derives identity and role from the verified session
- * on every render, so the Admin link is never shown to non-admins. The admin
- * route group still enforces its own redirect guard — this link is convenience,
- * not authorization.
+ * Top tier: centered wordmark; auth cluster right (desktop); hamburger right (mobile).
+ * Bottom tier (desktop only): centered active-state tab row.
+ *
+ * Server component: re-derives identity and role on every render. The Admin link
+ * is convenience, not authorization — the admin route group enforces its own guard.
  */
 
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { AccountMenu } from "./account-menu";
+import { SiteNavTabs, SiteNavMobile } from "./site-nav";
+import type { NavItem } from "@/components/layout/nav-config";
 
-const navLinks = [
+const navLinks: NavItem[] = [
   { href: "/", label: "Home" },
   { href: "/about", label: "About" },
   { href: "/services", label: "Services" },
@@ -40,50 +40,61 @@ export async function SiteHeader() {
     isAdmin = profile?.role === "admin";
   }
 
-  return (
-    <header className="border-border bg-background border-b">
-      <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
+  const authCluster = (
+    <div className="flex items-center gap-4 text-sm">
+      {isAdmin && (
         <Link
-          href="/"
-          className="text-foreground text-lg font-semibold tracking-tight hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2"
+          href="/admin"
+          className="text-muted-foreground hover:text-foreground font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
         >
-          Cal Barba
+          Admin
         </Link>
+      )}
+      {user ? (
+        <AccountMenu />
+      ) : (
+        <Link
+          href="/login"
+          className="text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
+        >
+          Sign in
+        </Link>
+      )}
+    </div>
+  );
 
-        <nav aria-label="Main navigation">
-          <ul className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
-            {navLinks.map(({ href, label }) => (
-              <li key={href}>
-                <Link
-                  href={href}
-                  className="text-muted-foreground hover:text-foreground focus-visible:text-foreground transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
-                >
-                  {label}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
+  return (
+    <header className="border-border bg-card border-b">
+      <div className="mx-auto max-w-5xl px-5 sm:px-8">
+        {/* Top tier: wordmark center (desktop) / left (mobile); auth right (desktop); hamburger right (mobile) */}
+        <div className="grid grid-cols-3 items-center py-4">
+          {/* Left column — spacer on desktop, empty on mobile */}
+          <div className="hidden md:block" />
 
-        <div className="flex items-center gap-4 text-sm">
-          {isAdmin && (
-            <Link
-              href="/admin"
-              className="text-muted-foreground hover:text-foreground focus-visible:text-foreground font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
-            >
-              Admin
-            </Link>
-          )}
-          {user ? (
-            <AccountMenu />
-          ) : (
-            <Link
-              href="/login"
-              className="text-muted-foreground hover:text-foreground focus-visible:text-foreground transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
-            >
-              Sign in
-            </Link>
-          )}
+          {/* Center column — wordmark */}
+          <Link
+            href="/"
+            className="font-heading col-start-1 justify-self-start text-xl font-semibold tracking-tight md:col-start-2 md:justify-self-center"
+          >
+            Cal Barba
+          </Link>
+
+          {/* Right column — auth (desktop) | hamburger (mobile) */}
+          <div className="col-start-3 justify-self-end">
+            <div className="hidden md:block">{authCluster}</div>
+            <div className="md:hidden">
+              <SiteNavMobile
+                links={navLinks}
+                isSignedIn={!!user}
+                isAdmin={isAdmin}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom tier: centered tab row (desktop only) */}
+        <div className="hidden pb-3 md:block">
+          <SiteNavTabs links={navLinks} />
         </div>
       </div>
     </header>
