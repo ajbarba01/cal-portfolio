@@ -7,10 +7,11 @@ import { Drawer } from "@base-ui/react/drawer";
 import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isActiveNav } from "@/components/layout/is-active-nav";
+import { navUnderline } from "@/components/layout/nav-underline";
 import { SignOutButton } from "@/components/sign-out-button";
-import type { NavItem } from "@/components/layout/nav-config";
+import type { NavItem, ZoneNav } from "@/components/layout/nav-config";
 
-/** Desktop-only centered tab row. Rendered in the bottom tier of SiteHeader. */
+/** Desktop-only centered tab row. */
 export function SiteNavTabs({ links }: { links: NavItem[] }) {
   const pathname = usePathname();
 
@@ -24,12 +25,7 @@ export function SiteNavTabs({ links }: { links: NavItem[] }) {
               <Link
                 href={href}
                 aria-current={active ? "page" : undefined}
-                className={cn(
-                  "after:bg-brand-strong relative py-1 text-sm transition-colors after:absolute after:inset-x-0 after:-bottom-2 after:h-0.5 after:origin-center after:scale-x-0 after:rounded after:transition-transform after:duration-200 after:ease-out",
-                  active
-                    ? "text-brand-strong font-semibold after:scale-x-100"
-                    : "text-muted-foreground hover:text-foreground hover:after:scale-x-100",
-                )}
+                className={navUnderline(active)}
               >
                 {label}
               </Link>
@@ -41,24 +37,26 @@ export function SiteNavTabs({ links }: { links: NavItem[] }) {
   );
 }
 
-/** Mobile-only hamburger + slide-in drawer. Rendered in the top-tier right slot of SiteHeader. */
+/** Mobile-only hamburger + slide-in drawer (merged: zone sections + marketing + account). */
 export function SiteNavMobile({
   links,
+  zoneNav,
   isSignedIn,
   isAdmin,
 }: {
   links: NavItem[];
+  zoneNav?: ZoneNav;
   isSignedIn: boolean;
   isAdmin: boolean;
 }) {
   const pathname = usePathname();
-  // Remount the drawer subtree on every navigation to guarantee it starts closed.
-  // Using pathname as the key means React tears down and recreates the Drawer.Root
-  // whenever the route changes — no effect or ref needed.
+  // Remount on navigation so the drawer always starts closed (repo eslint bans
+  // set-state-in-effect; key={pathname} is the sanctioned auto-close pattern).
   return (
     <SiteNavMobileDrawer
       key={pathname}
       links={links}
+      zoneNav={zoneNav}
       pathname={pathname}
       isSignedIn={isSignedIn}
       isAdmin={isAdmin}
@@ -68,11 +66,13 @@ export function SiteNavMobile({
 
 function SiteNavMobileDrawer({
   links,
+  zoneNav,
   pathname,
   isSignedIn,
   isAdmin,
 }: {
   links: NavItem[];
+  zoneNav?: ZoneNav;
   pathname: string;
   isSignedIn: boolean;
   isAdmin: boolean;
@@ -83,13 +83,13 @@ function SiteNavMobileDrawer({
     <Drawer.Root open={open} onOpenChange={(nextOpen) => setOpen(nextOpen)}>
       <Drawer.Trigger
         aria-label="Open menu"
-        className="text-foreground inline-flex size-11 items-center justify-center rounded-lg"
+        className="text-foreground inline-flex size-11 items-center justify-center rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2"
       >
         <Menu className="size-5" />
       </Drawer.Trigger>
       <Drawer.Portal>
         <Drawer.Backdrop className="bg-foreground/20 fixed inset-0 z-50" />
-        <Drawer.Popup className="bg-background fixed inset-y-0 right-0 z-50 flex w-72 max-w-[85vw] flex-col">
+        <Drawer.Popup className="bg-background fixed inset-y-0 right-0 z-50 flex w-72 max-w-[85vw] flex-col overflow-y-auto">
           <div className="flex items-center justify-between p-4">
             <span className="font-heading text-lg font-semibold">Menu</span>
             <Drawer.Close
@@ -99,7 +99,40 @@ function SiteNavMobileDrawer({
               <X className="size-5" />
             </Drawer.Close>
           </div>
-          <nav aria-label="Mobile navigation">
+
+          {/* Zone sections first (account/admin only) */}
+          {zoneNav ? (
+            <nav aria-label={`${zoneNav.zoneLabel} sections`}>
+              <p className="text-muted-foreground px-4 pt-1 pb-1 text-xs font-medium tracking-wide uppercase">
+                {zoneNav.zoneLabel}
+              </p>
+              <ul className="flex flex-col px-2 pb-2">
+                {zoneNav.items.map(({ href, label }) => {
+                  const active = isActiveNav(pathname, href);
+                  return (
+                    <li key={href}>
+                      <Link
+                        href={href}
+                        aria-current={active ? "page" : undefined}
+                        className={cn(
+                          "flex min-h-11 items-center rounded-lg px-3 text-base",
+                          active
+                            ? "bg-sidebar-active text-brand-strong font-semibold"
+                            : "text-foreground hover:bg-muted",
+                        )}
+                      >
+                        {label}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+              <div className="border-border mx-4 my-1 border-t" />
+            </nav>
+          ) : null}
+
+          {/* Marketing links */}
+          <nav aria-label="Site navigation">
             <ul className="flex flex-col">
               {links.map(({ href, label }) => {
                 const active = isActiveNav(pathname, href);
