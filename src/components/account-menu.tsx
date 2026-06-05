@@ -24,9 +24,11 @@ export function AccountMenu() {
       <Link
         href="/account"
         className={cn(
-          navUnderline(active),
-          // Suppress the underline whenever the menu is open so it never sits
-          // awkwardly between the trigger and the dropdown panel.
+          // hoverReveal=false: this is a menu trigger, so it only underlines when
+          // active — hovering opens the panel rather than revealing an underline.
+          navUnderline(active, false),
+          // And when active, suppress the underline while the menu is open so it
+          // never sits awkwardly between the trigger and the dropdown panel.
           "group-focus-within:after:scale-x-0 group-hover:after:scale-x-0",
         )}
         aria-current={active ? "page" : undefined}
