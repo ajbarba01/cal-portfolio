@@ -67,10 +67,7 @@ export async function SiteHeader({ zoneNav }: { zoneNav?: ZoneNav }) {
             className={cn(
               "font-heading justify-self-start text-xl font-semibold tracking-tight focus-visible:outline-2 focus-visible:outline-offset-2",
               isAdmin &&
-                cn(
-                  NAV_UNDERLINE_BASE,
-                  "text-brand-strong hover:after:scale-x-100",
-                ),
+                `${NAV_UNDERLINE_BASE} text-brand-strong hover:after:scale-x-100`,
             )}
           >
             Cal Barba
