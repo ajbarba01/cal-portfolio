@@ -24,7 +24,7 @@ export function PageShell({
         aria-hidden
         className="desk-grain pointer-events-none absolute inset-0"
       />
-      <div className="bg-card border-border relative mx-auto flex min-h-dvh w-full max-w-5xl flex-1 flex-col sm:border-x">
+      <div className="bg-card border-border relative mx-auto flex w-full max-w-5xl flex-1 flex-col sm:border-x">
         <SiteHeader zoneNav={zoneNav} />
         {children}
         <SiteFooter />
