@@ -5,6 +5,7 @@ import { completeOnboarding } from "@/features/accounts/onboarding-action";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PageContainer } from "@/components/layout/page-container";
 
 export default function OnboardingPage() {
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +52,7 @@ export default function OnboardingPage() {
   }
 
   return (
-    <main className="mx-auto max-w-lg px-4 py-10">
+    <PageContainer width="read" className="py-10">
       <h1 className="text-foreground mb-2 text-2xl font-semibold">
         Welcome — let&apos;s get you set up
       </h1>
@@ -173,6 +174,6 @@ export default function OnboardingPage() {
           {isLoading ? "Saving…" : "Complete setup"}
         </Button>
       </form>
-    </main>
+    </PageContainer>
   );
 }
