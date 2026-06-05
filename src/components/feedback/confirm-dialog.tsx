@@ -40,6 +40,7 @@ export function useConfirm() {
       <AlertDialog.Portal>
         <AlertDialog.Backdrop className="bg-foreground/20 fixed inset-0 z-50 backdrop-blur-[1px]" />
         <AlertDialog.Popup
+          data-slot="confirm-dialog"
           className={cn(
             "bg-popover text-popover-foreground border-border fixed inset-x-0 bottom-0 z-50 mx-auto flex w-full max-w-sm flex-col gap-3 rounded-t-xl border p-5 shadow-xl",
             "sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-xl",
