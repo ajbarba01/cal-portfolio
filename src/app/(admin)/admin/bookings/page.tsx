@@ -6,6 +6,9 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { createClient } from "@/lib/supabase/server";
 import { listPendingBookingsCore } from "@/features/admin/approval-actions";
 import { BookingsClient } from "./_components/bookings-client";
+import { ErrorState } from "@/components/feedback/error-state";
+import { PageContainer } from "@/components/layout/page-container";
+import { PageHeader } from "@/components/layout/page-header";
 
 export default async function AdminBookingsPage() {
   const authClient = await createClient();
@@ -20,23 +23,29 @@ export default async function AdminBookingsPage() {
   });
 
   if (result.kind === "forbidden") {
-    return <p className="text-destructive p-8">Access denied.</p>;
+    return (
+      <ErrorState
+        title="Access denied"
+        message="You don't have permission to view this."
+      />
+    );
   }
 
   if (result.kind === "error") {
     return (
-      <p className="text-destructive p-8">
-        Failed to load bookings: {result.message}
-      </p>
+      <ErrorState
+        title="Couldn't load this"
+        message="We couldn't load this right now. Please try again."
+      />
     );
   }
 
   return (
-    <main className="mx-auto max-w-3xl p-8">
-      <h1 className="mb-6 text-2xl font-semibold">
-        Pending Booking Approvals ({result.bookings.length})
-      </h1>
+    <PageContainer width="app">
+      <PageHeader
+        title={`Pending Booking Approvals (${result.bookings.length})`}
+      />
       <BookingsClient initialBookings={result.bookings} />
-    </main>
+    </PageContainer>
   );
 }

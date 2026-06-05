@@ -6,6 +6,9 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { createClient } from "@/lib/supabase/server";
 import { listServicesCore } from "@/features/admin/services-actions";
 import { ServicesClient } from "./_components/services-client";
+import { ErrorState } from "@/components/feedback/error-state";
+import { PageContainer } from "@/components/layout/page-container";
+import { PageHeader } from "@/components/layout/page-header";
 
 export default async function AdminServicesPage() {
   const authClient = await createClient();
@@ -20,21 +23,27 @@ export default async function AdminServicesPage() {
   });
 
   if (result.kind === "forbidden") {
-    return <p className="text-destructive p-8">Access denied.</p>;
+    return (
+      <ErrorState
+        title="Access denied"
+        message="You don't have permission to view this."
+      />
+    );
   }
 
   if (result.kind === "error") {
     return (
-      <p className="text-destructive p-8">
-        Failed to load services: {result.message}
-      </p>
+      <ErrorState
+        title="Couldn't load this"
+        message="We couldn't load this right now. Please try again."
+      />
     );
   }
 
   return (
-    <main className="mx-auto max-w-3xl p-8">
-      <h1 className="mb-6 text-2xl font-semibold">Services Editor</h1>
+    <PageContainer width="app">
+      <PageHeader title="Services Editor" />
       <ServicesClient services={result.services} />
-    </main>
+    </PageContainer>
   );
 }

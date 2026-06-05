@@ -6,6 +6,9 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { createClient } from "@/lib/supabase/server";
 import { listReviewsCore } from "@/features/admin/reviews-actions";
 import { ReviewsClient } from "./_components/reviews-client";
+import { ErrorState } from "@/components/feedback/error-state";
+import { PageContainer } from "@/components/layout/page-container";
+import { PageHeader } from "@/components/layout/page-header";
 
 export default async function AdminReviewsPage() {
   const authClient = await createClient();
@@ -20,23 +23,27 @@ export default async function AdminReviewsPage() {
   });
 
   if (result.kind === "forbidden") {
-    return <p className="text-destructive p-8">Access denied.</p>;
+    return (
+      <ErrorState
+        title="Access denied"
+        message="You don't have permission to view this."
+      />
+    );
   }
 
   if (result.kind === "error") {
     return (
-      <p className="text-destructive p-8">
-        Failed to load reviews: {result.message}
-      </p>
+      <ErrorState
+        title="Couldn't load this"
+        message="We couldn't load this right now. Please try again."
+      />
     );
   }
 
   return (
-    <main className="mx-auto max-w-3xl p-8">
-      <h1 className="mb-6 text-2xl font-semibold">
-        Reviews Moderation ({result.reviews.length})
-      </h1>
+    <PageContainer width="app">
+      <PageHeader title={`Reviews Moderation (${result.reviews.length})`} />
       <ReviewsClient initialReviews={result.reviews} />
-    </main>
+    </PageContainer>
   );
 }
