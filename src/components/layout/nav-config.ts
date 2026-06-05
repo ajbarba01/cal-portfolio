@@ -19,6 +19,5 @@ export const adminNav: ZoneNav = {
     { href: "/admin/services", label: "Services" },
     { href: "/admin/settings", label: "Settings" },
     { href: "/admin/reviews", label: "Reviews" },
-    { href: "/admin/clients", label: "Clients" },
   ],
 };

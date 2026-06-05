@@ -77,8 +77,8 @@ export async function SiteHeader() {
             Cal Barba
           </Link>
 
-          {/* Center: tab row (SiteNavTabs is itself hidden below md) */}
-          <div className="justify-self-center">
+          {/* Center: tab row — desktop only (collapses into the mobile drawer) */}
+          <div className="hidden justify-self-center md:block">
             <SiteNavTabs links={navLinks} />
           </div>
 
