@@ -44,13 +44,11 @@ export function AppSidebar({
           );
         })}
       </nav>
-      <div className="mt-2 px-2">
-        <SignOutButton className="border-border text-foreground hover:bg-sidebar-accent flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2">
+      <div className="border-border mt-auto flex flex-col gap-2 border-t p-4">
+        <span className="text-muted-foreground text-xs">{identity}</span>
+        <SignOutButton className="border-border text-destructive hover:border-destructive/40 hover:bg-destructive/10 flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2">
           <LogOut className="size-4" /> Sign out
         </SignOutButton>
-      </div>
-      <div className="border-border mt-auto border-t p-4">
-        <span className="text-muted-foreground text-xs">{identity}</span>
       </div>
     </div>
   );

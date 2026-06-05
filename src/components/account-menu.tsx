@@ -11,6 +11,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
 import { navUnderline } from "@/components/layout/nav-underline";
 import { isActiveSection } from "@/components/layout/is-active-nav";
 import { SignOutButton } from "@/components/sign-out-button";
@@ -22,7 +23,12 @@ export function AccountMenu() {
     <div className="group relative">
       <Link
         href="/account"
-        className={navUnderline(active)}
+        className={cn(
+          navUnderline(active),
+          // Suppress the underline whenever the menu is open so it never sits
+          // awkwardly between the trigger and the dropdown panel.
+          "group-focus-within:after:scale-x-0 group-hover:after:scale-x-0",
+        )}
         aria-current={active ? "page" : undefined}
         aria-haspopup="menu"
       >
@@ -34,10 +40,10 @@ export function AccountMenu() {
           pt-2 for the visual gap — that padding is part of the hovered subtree,
           so moving the cursor from trigger to panel never crosses a dead zone
           that would close the menu. */}
-      <div className="invisible absolute top-full right-0 z-10 pt-4 opacity-0 transition-opacity group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100">
+      <div className="invisible absolute top-full right-0 z-10 pt-2 opacity-0 transition-opacity group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100">
         <div
           role="menu"
-          className="border-border bg-background flex min-w-32 flex-col rounded-md border py-1"
+          className="border-border bg-background flex min-w-32 flex-col rounded-md border py-1 shadow-lg"
         >
           <Link
             href="/account"
