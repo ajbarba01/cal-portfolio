@@ -94,7 +94,7 @@ function SiteNavMobileDrawer({
             <span className="font-heading text-lg font-semibold">Menu</span>
             <Drawer.Close
               aria-label="Close menu"
-              className="inline-flex size-11 items-center justify-center"
+              className="inline-flex size-11 items-center justify-center focus-visible:outline-2 focus-visible:outline-offset-2"
             >
               <X className="size-5" />
             </Drawer.Close>
