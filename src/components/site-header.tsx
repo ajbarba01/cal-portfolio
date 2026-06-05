@@ -1,8 +1,8 @@
 /**
- * SiteHeader — two-tier centered marketing header.
+ * SiteHeader — single-row marketing header.
  *
- * Top tier: centered wordmark; auth cluster right (desktop); hamburger right (mobile).
- * Bottom tier (desktop only): centered active-state tab row.
+ * One row: left wordmark · centered active-state tab row (desktop) · auth cluster
+ * right (desktop) / hamburger right (mobile). Tabs collapse into the drawer on mobile.
  *
  * Server component: re-derives identity and role on every render. The Admin link
  * is convenience, not authorization — the admin route group enforces its own guard.
@@ -66,21 +66,24 @@ export async function SiteHeader() {
   return (
     <header className="border-border bg-card border-b">
       <div className="mx-auto max-w-5xl px-5 sm:px-8">
-        {/* Top tier: wordmark center (desktop) / left (mobile); auth right (desktop); hamburger right (mobile) */}
-        <div className="grid grid-cols-3 items-center py-4">
-          {/* Left column — spacer on desktop, empty on mobile */}
-          <div className="hidden md:block" />
-
-          {/* Center column — wordmark */}
+        {/* Single row: wordmark left · centered tabs (desktop) · auth/hamburger right.
+            The 1fr_auto_1fr grid keeps the tab row optically centered regardless of
+            the wordmark/auth widths. */}
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 py-4">
           <Link
             href="/"
-            className="font-heading col-start-1 justify-self-start text-xl font-semibold tracking-tight md:col-start-2 md:justify-self-center"
+            className="font-heading justify-self-start text-xl font-semibold tracking-tight focus-visible:outline-2 focus-visible:outline-offset-2"
           >
             Cal Barba
           </Link>
 
-          {/* Right column — auth (desktop) | hamburger (mobile) */}
-          <div className="col-start-3 justify-self-end">
+          {/* Center: tab row (SiteNavTabs is itself hidden below md) */}
+          <div className="justify-self-center">
+            <SiteNavTabs links={navLinks} />
+          </div>
+
+          {/* Right: auth (desktop) / hamburger (mobile) */}
+          <div className="justify-self-end">
             <div className="hidden md:block">{authCluster}</div>
             <div className="md:hidden">
               <SiteNavMobile
@@ -90,11 +93,6 @@ export async function SiteHeader() {
               />
             </div>
           </div>
-        </div>
-
-        {/* Bottom tier: centered tab row (desktop only) */}
-        <div className="hidden pb-3 md:block">
-          <SiteNavTabs links={navLinks} />
         </div>
       </div>
     </header>
