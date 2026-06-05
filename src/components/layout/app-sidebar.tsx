@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isActiveNav } from "./is-active-nav";
 import type { ZoneNav } from "./nav-config";
@@ -18,12 +17,6 @@ export function AppSidebar({
   const pathname = usePathname();
   return (
     <div className="flex h-full flex-col">
-      <Link
-        href="/"
-        className="text-brand-strong flex min-h-11 items-center gap-1 px-4 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2"
-      >
-        <ChevronLeft className="size-4" /> Back to site
-      </Link>
       <p className="text-muted-foreground px-4 pt-3 pb-1 text-xs font-medium tracking-wide uppercase">
         {nav.zoneLabel}
       </p>
@@ -41,7 +34,7 @@ export function AppSidebar({
               className={cn(
                 "flex min-h-11 items-center rounded-lg px-3 text-sm transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 md:min-h-9",
                 active
-                  ? "bg-accent text-brand-strong font-semibold"
+                  ? "bg-sidebar-active text-brand-strong font-semibold"
                   : "text-foreground hover:bg-muted",
               )}
             >
