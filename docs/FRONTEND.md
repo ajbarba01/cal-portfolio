@@ -20,6 +20,8 @@ Goal: a distinctive, professional UI that **avoids the generic AI look**, with a
 
 4. **Claude Code build** — invoke the `frontend-design` skill to force deliberate aesthetic choices, then implement with **shadcn/ui** + `design-tokens.ts`.
 
+> **`frontend-design` fires twice for UI features.** First during **brainstorming** (the spec stage — see [WORKFLOW.md](WORKFLOW.md) skill table) so the aesthetic direction is set in the spec before the plan, then again at **build** (step 4) for implementation. Non-UI work skips it.
+
 ---
 
 ## B. Modular theming (swap palettes / components with minimal effort)
@@ -48,12 +50,15 @@ Tokens live in two files: **`src/app/globals.css`** owns color + radius as two-l
 - Real contrast: weight extremes (200 vs 800), size jumps of 3×+ (not 1.5×).
 - **Commit to a visual direction.** The project's specific direction and palette live in [DESIGN.md](DESIGN.md) — set them there, not here.
 
-**Brand tokens (set 2026-06-04):**
+**Brand tokens (set 2026-06-04; extended 2026-06-05):**
 
 - **Palette "Trail":** `--sand-0…950` warm neutrals (the re-palette swap layer) + clay accent.
   Clay is **two roles**: `--brand` (bright `#AE5A35` fill — fills + button text, white passes AA) and
   `--brand-strong` (`#8A4226` — AA-safe small text/links/active-nav/focus ring). `--primary` stays
   warm near-black: clay is a deliberate accent, never the default button color.
+- **`--canvas`** (the accent desk behind the sheet): light = `--sand-200`, dark = `--sand-950`. Two-layer
+  semantic role — swapping the desk color requires no component edits.
+- **`--sidebar-active`** — sidebar active-rect fill: light = `--clay-soft`, dark = `--clay-deep`.
 - **Type:** Fraunces (`--font-heading`) headings, Public Sans (`--font-sans`) body. Documented type
   scale + spacing scale + `65ch` reading measure live in `src/lib/design-tokens.ts` (`typeScale`,
   `space`, `measure`); the `.measure` utility is in `globals.css`.
@@ -62,13 +67,15 @@ Tokens live in two files: **`src/app/globals.css`** owns color + radius as two-l
 - **Status reconciliation:** `--status-*` fills were re-tuned to the warm base; unavailable stays
   warm gray (not red); red is reserved for `--destructive`.
 
-**Shared chrome + component kit (Phase 1, 2026-06-04):**
+**Shared chrome + component kit (Phase 1, 2026-06-04; shell unification 2026-06-05):**
 
-- **Shell primitives.** `PageContainer` is the single source of page width + horizontal padding (`width="read"` ≈ 65ch reading column for marketing; `width="app"` wider for account/admin tables). `PageHeader` is the single source of the page title/subtitle/actions rhythm — renders the one `<h1>` per page from the type scale. No page sets its own max-width, horizontal padding, or ad-hoc `<h1>` — they compose these primitives.
-- **Navigation — three shells, one model.** Marketing: single-row header — left wordmark, centered active-state tab row, auth cluster (Sign in / account menu / Admin) right; tabs + auth collapse into a hamburger drawer on mobile. Account + admin: persistent left sidebar (`AppShell`) with back-to-site, zone section nav with active-state, and a footer identity + sign-out; off-canvas drawer on mobile. Active-state computed by a shared pure `isActiveNav` (exact-match) helper. Chrome surfaces use `bg-card` (a shade lighter than `bg-background`) for subtle elevation in both light and dark. All internal navigation uses `next/link` — no raw `<a href>` for in-app routes. No copy-pasted per-page nav; no dead-end sections (`/admin` redirects to its first section).
+- **Shell primitives.** `PageShell` is the outermost server primitive: renders the global `SiteHeader`, the zone body, and `SiteFooter` inside a "sheet on a desk" (see _Shell_ below). `PageContainer` governs the inner content column (`width="read"` ≈ 65ch; `width="app"` wider for tables). `PageHeader` is the single source of the page title/subtitle/actions rhythm — renders the one `<h1>` per page from the type scale. No page sets its own max-width, horizontal padding, or ad-hoc `<h1>` — they compose these primitives.
+- **Shell.** `PageShell` wraps every zone. The desk (`bg-canvas` + a faint static `.desk-grain` noise overlay) fills the viewport; one centered `bg-card` sheet (hairline `sm:border-x` side borders, full height) sits on top; at phone width the sheet goes full-bleed (borders collapse). Account/admin zones keep their desktop sidebar (`AppShell`) as the body of the sheet, below the global header.
+- **Navigation — global header, one model.** `SiteHeader` renders on **every** zone inside `PageShell`. Left: wordmark — admin users get a clay-tinted (`text-brand-strong`) wordmark with underline-hover, linking to `/admin`; non-admin is plain near-black, linking home. Center (desktop): marketing tab row. Right (desktop): auth cluster (Sign in / account menu). Account/admin also keep a persistent left sidebar with zone section nav and footer identity + sign-out. **One merged mobile drawer** (single hamburger, flush right) lists zone sections first (account/admin), then marketing links, then account/sign-out. Active-state computed by a shared pure `isActiveNav` (exact-match) helper. All internal navigation uses `next/link` — no raw `<a href>` for in-app routes. No dead-end sections.
+- **Interaction language (standing standard for all phases).** Top-bar links (tabs, account menu trigger, admin wordmark) use the `nav-underline` style via the `navUnderline` helper (`src/components/layout/nav-underline.ts`): underline grows from center on hover, persists when `aria-current`. Sidebar items use a **rect** active state via `--sidebar-active` (`bg-sidebar-active text-brand-strong font-semibold`), neutral on hover. Buttons **deepen** on hover (`brand` → `--brand-strong`; `default` darkens) with a 1px press on `:active`. New interactive surfaces should follow these three patterns.
 - **Feedback system — one taxonomy.** Validation errors render inline at the field (`FormField` on base-ui `field`, never a toast). A view that fails to load shows a friendly `ErrorState` panel — no raw "Failed to load …" / "Access denied." strings. No-data lists show an `EmptyState` panel. Transient results: routine in-place saves get an inline "Saved ✓"; important actions whose result isn't on screen fire a toast (success auto-dismisses, failure is sticky with retry). Toast provider mounts once at the root; aria-live handled by base-ui; auto-themes to warm-dark. Destructive actions route through a `ConfirmDialog` (promise-based; bottom-sheet on mobile, centered on desktop).
-- **Component kit.** Built on `@base-ui/react` + semantic tokens, in `src/components/ui/` and `src/components/feedback/`: card, badge, table (stacked labeled cards below `md`), tabs, skeleton, form field, select, plus the feedback set (ErrorState, EmptyState, toast, ConfirmDialog). Button/input/label/calendar are token-aligned; a `brand` button variant uses `--brand` for primary marketing CTAs (`--primary` stays the neutral default). Time/date pickers are deferred to the admin input-humanization phase.
-- **Mobile-first / adaptive (authored, not bolted on).** Every shell and component is authored at phone width first; mobile uses purpose-built patterns — nav → off-canvas drawers, tables → stacked cards, dialogs → bottom-sheets, toasts → bottom-anchored (safe-area aware). Interactive targets ≥44 px; full-height shells use `dvh`. Accessibility floor (semantic HTML, AA contrast, visible focus, keyboard nav including drawer/dialog focus-trap + Esc) re-verified per surface.
+- **Component kit.** Built on `@base-ui/react` + semantic tokens, in `src/components/ui/` and `src/components/feedback/`: card, badge, table (stacked labeled cards below `md`), tabs, skeleton, form field, select, plus the feedback set (ErrorState, EmptyState, toast, ConfirmDialog). Button/input/label/calendar are token-aligned; a `brand` button variant uses `--brand` for primary marketing CTAs (`--primary` stays the neutral default). `FormField` enforces `children` XOR `inputProps` at the type level. Time/date pickers are deferred to the admin input-humanization phase.
+- **Mobile-first / adaptive (authored, not bolted on).** Every shell and component is authored at phone width first; mobile uses purpose-built patterns — nav → merged off-canvas drawer, tables → stacked cards, dialogs → bottom-sheets, toasts → bottom-anchored (safe-area aware). Interactive targets ≥44 px; full-height shells use `dvh`. Accessibility floor (semantic HTML, AA contrast, visible focus, keyboard nav including drawer/dialog focus-trap + Esc) re-verified per surface.
 
 **Baseline requirements (every UI):**
 
@@ -102,4 +109,4 @@ Layer 3 is **wireframe / semantic-token-only** by contract — a design pass lat
 
 ---
 
-_Last reviewed: 2026-06-04_
+_Last reviewed: 2026-06-05_ (shell unification + interaction language)

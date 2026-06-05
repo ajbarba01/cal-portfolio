@@ -48,6 +48,8 @@ Distance feeds **two** things: an approval gate and a driving-time cost.
 
 Cal's stated intent: **"simple and straightforward."** No brand assets yet (no logo, palette, or fonts). Concrete brand is **set** (Phase 0 of the design overhaul, 2026-06-04): palette **"Trail"** — warm sand/stone/cream neutrals (`--sand-*`) + a **clay/terracotta** accent split into `--brand` (bright fill) and `--brand-strong` (AA-safe text/links). Type: **Fraunces** (serif headings) + **Public Sans** (body), wired via `next/font` → `--font-heading` / `--font-sans`. Status colors (sage/blue/warm-gray) reconciled to the warm base. Tokens live in `src/app/globals.css`; the swap layer is the `--sand-*` / `--clay-*` primitives. Full rationale: `docs/superpowers/specs/2026-06-04-design-overhaul-phase0-tokens-design.md`. Anti-generic, accessibility, and token rules live in [FRONTEND.md](FRONTEND.md) — not restated here.
 
+**Layout: desk + sheet (2026-06-05).** Every page renders as one centered `bg-card` sheet on a warm accent desk (`--canvas`, light = sand-200 / dark = sand-950) with a faint static paper-grain overlay (`.desk-grain`) — depth felt, not seen. Inspired by the content-first, document-like study references below. The sheet has hairline side borders on wide viewports; on mobile it goes full-bleed. System details in [FRONTEND.md](FRONTEND.md) (Shell + brand tokens).
+
 **Starting brief for that session:** warm, trustworthy, approachable-but-professional, with an outdoorsy hint (dog-walking / house-sitting). Photography-forward (Gallery, About). Not flashy. Mobile-first.
 
 **Cal's design study references** (to **study, not fork**, in that session): `about.readthedocs.com`, `gwern.net`, `write.as`. Common thread — content-first, strongly typographic, low-chrome, document-like reading surfaces. Signals a restrained, text-forward aesthetic over a flashy marketing look; reconcile with the photography-forward Gallery/About when concrete type + palette are set.
@@ -247,4 +249,4 @@ Marketing copy that Cal must write is stubbed with double-square-bracket markers
 
 ---
 
-_Last reviewed: 2026-06-04_
+_Last reviewed: 2026-06-05_
