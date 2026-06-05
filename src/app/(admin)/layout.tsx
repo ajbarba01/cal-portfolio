@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { PageShell } from "@/components/layout/page-shell";
 import { AppShell } from "@/components/layout/app-shell";
 import { adminNav } from "@/components/layout/nav-config";
 
@@ -31,8 +32,10 @@ export default async function AdminLayout({
   const identity = `${profile?.full_name ?? user.email ?? "Admin"} · admin`;
 
   return (
-    <AppShell nav={adminNav} identity={identity}>
-      {children}
-    </AppShell>
+    <PageShell zoneNav={adminNav}>
+      <AppShell nav={adminNav} identity={identity}>
+        {children}
+      </AppShell>
+    </PageShell>
   );
 }
