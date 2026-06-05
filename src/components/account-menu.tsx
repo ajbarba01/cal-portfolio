@@ -6,28 +6,13 @@
  * The "Account" trigger links to /account (unchanged behavior); hovering or
  * keyboard-focusing it reveals a minimal dropdown with Profile + Sign out.
  * Reveal is CSS-only (group-hover / group-focus-within) so it works for mouse
- * and keyboard without extra state; the only client logic is the sign-out
- * handler, which clears the Supabase session and refreshes server components so
- * the header flips back to "Sign in".
+ * and keyboard without extra state; sign-out logic lives in SignOutButton.
  */
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { SignOutButton } from "@/components/sign-out-button";
 
 export function AccountMenu() {
-  const router = useRouter();
-  const [isSigningOut, setIsSigningOut] = useState(false);
-
-  async function handleSignOut() {
-    setIsSigningOut(true);
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    router.push("/");
-    router.refresh();
-  }
-
   return (
     <div className="group relative">
       <Link
@@ -55,15 +40,10 @@ export function AccountMenu() {
           >
             Profile
           </Link>
-          <button
-            type="button"
+          <SignOutButton
             role="menuitem"
-            onClick={handleSignOut}
-            disabled={isSigningOut}
-            className="text-muted-foreground hover:text-foreground hover:bg-muted px-3 py-1.5 text-left transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 disabled:opacity-50"
-          >
-            {isSigningOut ? "Signing out…" : "Sign out"}
-          </button>
+            className="text-muted-foreground hover:text-foreground hover:bg-muted px-3 py-1.5 focus-visible:outline-2 focus-visible:-outline-offset-2"
+          />
         </div>
       </div>
     </div>
