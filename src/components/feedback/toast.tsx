@@ -32,6 +32,7 @@ function Toaster() {
             <Toast.Root
               key={toast.id}
               toast={toast}
+              data-slot="toast"
               className="bg-card text-card-foreground border-border relative flex items-start gap-3 overflow-hidden rounded-xl border p-3 pr-2 shadow-lg"
             >
               <span
