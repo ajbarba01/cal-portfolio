@@ -152,10 +152,17 @@ consumer in the shells or the page-wrapping pass, or is a Phase-2 staple worth l
   primitive + the first humanized control).
 - Feedback set from §3 (`Toast`, `ErrorState`, `EmptyState`, `ConfirmDialog`).
 
-**Align to the new tokens** (no API change): existing `button` / `input` / `label` — verify they read
-the Phase-0 semantic roles (incl. `--brand*` where a branded variant is wanted) and the focus ring is
-`--ring`. Add a **`brand`** button variant (uses `--brand` / `--brand-foreground`) for primary
-marketing/hero CTAs — `--primary` stays the neutral default.
+**Align to the new tokens** (no API change): existing `button` / `input` / `label` / `calendar` —
+verify they read the Phase-0 semantic roles (incl. `--brand*` where a branded variant is wanted) and
+the focus ring is `--ring`. Add a **`brand`** button variant (uses `--brand` / `--brand-foreground`)
+for primary marketing/hero CTAs — `--primary` stays the neutral default. The `calendar.tsx` primitive
+(react-day-picker wrapper) is the shared base the date controls **and** the `<Scheduler>` family build
+on, so aligning it here makes the whole calendar foundation consistent now.
+
+**Scheduler note:** the `<Scheduler>` booking/admin surfaces are **not** restyled this phase — their
+Layer-3 visual pass is Phase 3 (booking) + Phase 4 (admin), per the FRONTEND.md contract. They already
+inherit the Phase-0 Trail palette + fonts (semantic roles), so they read as on-brand now, just not yet
+final on spacing/polish. Layers 1–2 stay untouched throughout.
 
 **Defer to Phase 4:** time picker, date picker (no consumer until settings humanization).
 
@@ -207,6 +214,8 @@ afterthought:
   screens for `ErrorState`; wrap in `PageContainer`/`PageHeader`.
 - `src/app/layout.tsx` — mount `ToastProvider` at root.
 - `src/components/ui/button.tsx` — add `brand` variant; confirm token alignment (input/label too).
+- `src/components/ui/calendar.tsx` — align to Trail tokens (the shared base for date controls +
+  `<Scheduler>`); no API change.
 - `docs/FRONTEND.md` — document shell primitives, the three-shell nav model, the feedback taxonomy +
   toast, the component kit, and the mobile-first/adaptive principles (same-commit doc rule).
 
