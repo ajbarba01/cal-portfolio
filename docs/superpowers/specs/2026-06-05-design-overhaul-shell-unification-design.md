@@ -87,6 +87,10 @@ per zone layout. Structure (light values shown; dark mirrors via tokens):
   sits flush to the right edge within the header's normal horizontal padding (no extra margin).
 - **Dark mode:** sheet = `--card` (sand-925), desk = `--canvas` (sand-950, a touch darker) → sheet reads
   as slightly lifted, the inverse-but-equivalent of the light relationship.
+- **Desk depth (frontend-design pass):** the desk is not a flat fill — a **faint static grain** overlay
+  (inline-SVG `feTurbulence` noise, ~3–4% opacity, no motion) sits over `bg-canvas` so the surface reads
+  as "a desk under the paper." Delivered as a `.desk-grain` utility in `globals.css`; opacity tuned so
+  it stays invisible-but-felt in both light and dark (verify not muddy on the dark desk).
 
 `PageShell` replaces the per-zone outer wrappers in all three layouts
 (`(marketing)/layout.tsx`, `(account)/layout.tsx`, `(admin)/layout.tsx`).
