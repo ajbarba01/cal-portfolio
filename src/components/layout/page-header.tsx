@@ -1,7 +1,7 @@
 import * as React from "react";
 
 import { cn } from "@/lib/utils";
-import { space } from "@/lib/design-tokens";
+import { space, typeScale } from "@/lib/design-tokens";
 
 type PageHeaderProps = {
   title: React.ReactNode;
@@ -25,7 +25,10 @@ export function PageHeader({
       )}
     >
       <div className={cn("flex flex-col", space.field)}>
-        <h1 className="text-4xl leading-tight font-semibold tracking-tight">
+        <h1
+          className="text-4xl font-semibold tracking-tight"
+          style={{ lineHeight: typeScale.h1.leading }}
+        >
           {title}
         </h1>
         {subtitle ? (
