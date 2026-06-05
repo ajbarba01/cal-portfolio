@@ -10,6 +10,7 @@
  */
 
 import Link from "next/link";
+import { navUnderline } from "@/components/layout/nav-underline";
 import { SignOutButton } from "@/components/sign-out-button";
 
 export function AccountMenu() {
@@ -17,7 +18,7 @@ export function AccountMenu() {
     <div className="group relative">
       <Link
         href="/account"
-        className="text-muted-foreground hover:text-foreground focus-visible:text-foreground transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
+        className={navUnderline(false)}
         aria-haspopup="menu"
       >
         Account

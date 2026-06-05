@@ -1,18 +1,24 @@
 /**
- * SiteHeader — single-row marketing header.
+ * SiteHeader — the single global header, rendered inside PageShell on every zone.
  *
- * One row: left wordmark · centered active-state tab row (desktop) · auth cluster
- * right (desktop) / hamburger right (mobile). Tabs collapse into the drawer on mobile.
+ * Left: wordmark (admin → clay-tinted, underline-hover, links to /admin; everyone
+ * else → near-black, links home). Center: marketing tab row (desktop). Right:
+ * account cluster (desktop) / hamburger (mobile). The separate "Admin" link is
+ * gone — the wordmark is the admin affordance.
  *
- * Server component: re-derives identity and role on every render. The Admin link
- * is convenience, not authorization — the admin route group enforces its own guard.
+ * Server component: re-derives identity + role each render. `zoneNav` (account/
+ * admin) is forwarded to the mobile drawer so it can list the zone's sections.
  */
-
 import Link from "next/link";
+import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
 import { AccountMenu } from "./account-menu";
 import { SiteNavTabs, SiteNavMobile } from "./site-nav";
-import type { NavItem } from "@/components/layout/nav-config";
+import {
+  NAV_UNDERLINE_BASE,
+  navUnderline,
+} from "@/components/layout/nav-underline";
+import type { NavItem, ZoneNav } from "@/components/layout/nav-config";
 
 const navLinks: NavItem[] = [
   { href: "/", label: "Home" },
@@ -24,7 +30,7 @@ const navLinks: NavItem[] = [
   { href: "/book", label: "Book" },
 ];
 
-export async function SiteHeader() {
+export async function SiteHeader({ zoneNav }: { zoneNav?: ZoneNav }) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -41,22 +47,11 @@ export async function SiteHeader() {
   }
 
   const authCluster = (
-    <div className="flex items-center gap-4 text-sm">
-      {isAdmin && (
-        <Link
-          href="/admin"
-          className="text-muted-foreground hover:text-foreground font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
-        >
-          Admin
-        </Link>
-      )}
+    <div className="flex items-center gap-5 text-sm">
       {user ? (
         <AccountMenu />
       ) : (
-        <Link
-          href="/login"
-          className="text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
-        >
+        <Link href="/login" className={navUnderline(false)}>
           Sign in
         </Link>
       )}
@@ -64,30 +59,33 @@ export async function SiteHeader() {
   );
 
   return (
-    <header className="border-border bg-card border-b">
-      <div className="mx-auto max-w-5xl px-5 sm:px-8">
-        {/* Single row: wordmark left · centered tabs (desktop) · auth/hamburger right.
-            The 1fr_auto_1fr grid keeps the tab row optically centered regardless of
-            the wordmark/auth widths. */}
+    <header className="border-border border-b">
+      <div className="mx-auto w-full max-w-5xl px-5 sm:px-8">
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 py-4">
           <Link
-            href="/"
-            className="font-heading justify-self-start text-xl font-semibold tracking-tight focus-visible:outline-2 focus-visible:outline-offset-2"
+            href={isAdmin ? "/admin" : "/"}
+            className={cn(
+              "font-heading justify-self-start text-xl font-semibold tracking-tight focus-visible:outline-2 focus-visible:outline-offset-2",
+              isAdmin &&
+                cn(
+                  NAV_UNDERLINE_BASE,
+                  "text-brand-strong hover:after:scale-x-100",
+                ),
+            )}
           >
             Cal Barba
           </Link>
 
-          {/* Center: tab row — desktop only (collapses into the mobile drawer) */}
           <div className="hidden justify-self-center md:block">
             <SiteNavTabs links={navLinks} />
           </div>
 
-          {/* Right: auth (desktop) / hamburger (mobile) */}
           <div className="justify-self-end">
             <div className="hidden md:block">{authCluster}</div>
-            <div className="md:hidden">
+            <div className="flex justify-end md:hidden">
               <SiteNavMobile
                 links={navLinks}
+                zoneNav={zoneNav}
                 isSignedIn={!!user}
                 isAdmin={isAdmin}
               />
