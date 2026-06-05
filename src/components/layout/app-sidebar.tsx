@@ -1,0 +1,59 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { ChevronLeft } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { isActiveNav } from "./is-active-nav";
+import type { ZoneNav } from "./nav-config";
+import { SignOutButton } from "@/components/sign-out-button";
+
+export function AppSidebar({
+  nav,
+  identity,
+}: {
+  nav: ZoneNav;
+  identity: string;
+}) {
+  const pathname = usePathname();
+  return (
+    <div className="flex h-full flex-col">
+      <Link
+        href="/"
+        className="text-brand-strong flex min-h-11 items-center gap-1 px-4 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2"
+      >
+        <ChevronLeft className="size-4" /> Back to site
+      </Link>
+      <p className="text-muted-foreground px-4 pt-3 pb-1 text-xs font-medium tracking-wide uppercase">
+        {nav.zoneLabel}
+      </p>
+      <nav
+        aria-label={`${nav.zoneLabel} sections`}
+        className="flex flex-col px-2"
+      >
+        {nav.items.map(({ href, label }) => {
+          const active = isActiveNav(pathname, href);
+          return (
+            <Link
+              key={href}
+              href={href}
+              aria-current={active ? "page" : undefined}
+              className={cn(
+                "flex min-h-11 items-center rounded-lg px-3 text-sm transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 md:min-h-9",
+                active
+                  ? "bg-accent text-brand-strong font-semibold"
+                  : "text-foreground hover:bg-muted",
+              )}
+            >
+              {label}
+            </Link>
+          );
+        })}
+      </nav>
+      <div className="border-border mt-auto flex flex-col gap-1 border-t p-4">
+        <span className="text-muted-foreground text-xs">{identity}</span>
+        <SignOutButton className="text-muted-foreground hover:text-foreground text-sm" />
+      </div>
+    </div>
+  );
+}
