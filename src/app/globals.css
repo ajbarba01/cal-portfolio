@@ -44,6 +44,8 @@
   --color-status-unavailable-foreground: var(--status-unavailable-foreground);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
+  --color-canvas: var(--canvas);
+  --color-sidebar-active: var(--sidebar-active);
   --color-brand: var(--brand);
   --color-brand-foreground: var(--brand-foreground);
   --color-brand-strong: var(--brand-strong);
@@ -85,6 +87,7 @@
   --clay-strong: #8a4226; /* small clay text/links on light (AA ≥ 4.5 on cream) */
   --clay-soft: #e7d8cc; /* subtle tints */
   --clay-onfill: #ffffff; /* text on --clay-fill */
+  --clay-deep: #3a2a20; /* dark sidebar-active rect fill (warm, clay-tinted) */
 
   --danger: oklch(0.577 0.245 27.325);
 
@@ -120,6 +123,9 @@
   --muted-foreground: var(--sand-500);
   --accent: var(--sand-100);
   --accent-foreground: var(--sand-900);
+  /* Accent "desk" behind the sheet (gutter color) + sidebar active-rect fill */
+  --canvas: var(--sand-100);
+  --sidebar-active: var(--clay-soft);
   /* Brand (clay) — intentional accent, NOT the default action color */
   --brand: var(--clay-fill);
   --brand-foreground: var(--clay-onfill);
@@ -165,6 +171,8 @@
   --muted-foreground: var(--sand-400);
   --accent: var(--sand-800);
   --accent-foreground: var(--sand-50);
+  --canvas: var(--sand-950);
+  --sidebar-active: var(--clay-deep);
   /* Brand: same clay fill (white text passes), lighter clay for text-on-dark */
   --brand: var(--clay-fill);
   --brand-foreground: var(--clay-onfill);
@@ -221,5 +229,12 @@
   /* Reading measure for marketing/long-form content (applied by shells in Phase 1) */
   .measure {
     max-width: 65ch;
+  }
+
+  /* Faint static paper grain for the accent desk — invisible-but-felt depth.
+     Applied to an absolutely-positioned aria-hidden overlay inside the desk. */
+  .desk-grain {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    opacity: 0.035;
   }
 }
