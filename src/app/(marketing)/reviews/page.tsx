@@ -1,8 +1,11 @@
 /**
- * Reviews page — published reviews list + submission form.
+ * Reviews — published reviews + submission form, read column.
  * Server component.
  */
-
+import { PageContainer } from "@/components/layout/page-container";
+import { PageHeader } from "@/components/layout/page-header";
+import { Card } from "@/components/ui/card";
+import { EmptyState } from "@/components/feedback/empty-state";
 import { createClient } from "@/lib/supabase/server";
 import { listPublishedReviews } from "@/features/reviews/reviews-repo";
 import { ReviewForm } from "./_components/review-form";
@@ -10,7 +13,11 @@ import type { PublishedReview } from "@/features/reviews/reviews-repo";
 
 function StarRating({ rating }: { rating: number }) {
   return (
-    <span aria-label={`${rating} out of 5 stars`} role="img">
+    <span
+      aria-label={`${rating} out of 5 stars`}
+      role="img"
+      className="text-brand-strong"
+    >
       {"★".repeat(rating)}
       {"☆".repeat(5 - rating)}
     </span>
@@ -23,22 +30,23 @@ function ReviewCard({ review }: { review: PublishedReview }) {
     month: "long",
     day: "numeric",
   });
-
   return (
-    <article className="bg-card text-card-foreground border-border rounded-lg border p-6">
-      <header className="mb-3 flex items-start justify-between gap-4">
+    <Card>
+      <header className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-foreground font-semibold">{review.author_name}</p>
+          <p className="font-heading text-foreground font-semibold">
+            {review.author_name}
+          </p>
           <p className="text-muted-foreground text-sm">{date}</p>
         </div>
-        <p className="text-foreground shrink-0 text-base">
+        <p className="shrink-0 text-base">
           <StarRating rating={review.rating} />
         </p>
       </header>
       <p className="text-muted-foreground text-sm leading-relaxed">
         {review.body}
       </p>
-    </article>
+    </Card>
   );
 }
 
@@ -55,26 +63,21 @@ export default async function ReviewsPage() {
   ]);
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-16">
-      <header className="mb-10">
-        <h1 className="text-foreground text-3xl font-bold tracking-tight">
-          Reviews
-        </h1>
-        <p className="text-muted-foreground mt-2 leading-relaxed">
-          [[BODY: reviews section purpose]]
-        </p>
-      </header>
+    <PageContainer width="read" className="py-12 sm:py-16">
+      <PageHeader
+        title="Reviews"
+        subtitle="[[BODY: reviews section purpose]]"
+      />
 
-      {/* Published reviews */}
       <section aria-labelledby="reviews-list-heading" className="mb-14">
         <h2 id="reviews-list-heading" className="sr-only">
           Published reviews
         </h2>
-
         {reviews.length === 0 ? (
-          <p className="text-muted-foreground text-sm">
-            No reviews yet — be the first to share your experience!
-          </p>
+          <EmptyState
+            title="No reviews yet"
+            message="Be the first to share your experience."
+          />
         ) : (
           <ul className="flex flex-col gap-4" role="list">
             {reviews.map((review) => (
@@ -86,16 +89,15 @@ export default async function ReviewsPage() {
         )}
       </section>
 
-      {/* Submit a review */}
       <section aria-labelledby="submit-review-heading">
         <h2
           id="submit-review-heading"
-          className="text-foreground mb-4 text-xl font-semibold"
+          className="font-heading mb-4 text-xl font-semibold"
         >
           Leave a review
         </h2>
         <ReviewForm isSignedIn={user !== null} />
       </section>
-    </div>
+    </PageContainer>
   );
 }
