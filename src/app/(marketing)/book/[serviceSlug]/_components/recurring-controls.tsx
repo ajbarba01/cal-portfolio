@@ -2,8 +2,17 @@
 
 /** Weekly-recurrence toggle + occurrence count. Presentational; caller owns state. */
 
+import { FormField as FormFieldBase } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import type React from "react";
+
+// Cast to the children branch of FormField's union so JSX children typecheck.
+const FormField = FormFieldBase as React.FC<{
+  label: React.ReactNode;
+  name: string;
+  children: React.ReactNode;
+}>;
 
 export function RecurringControls({
   enabled,
@@ -24,26 +33,27 @@ export function RecurringControls({
           type="checkbox"
           checked={enabled}
           onChange={(e) => onEnabledChange(e.target.checked)}
-          className="border-border accent-foreground focus-visible:outline-ring h-4 w-4 rounded focus-visible:outline-2"
+          className="border-border accent-brand focus-visible:outline-ring h-4 w-4 rounded focus-visible:outline-2"
         />
         <Label htmlFor="recurring-toggle">Repeat weekly</Label>
       </div>
       {enabled && (
         <div className="ml-7 flex flex-col gap-1">
-          <Label htmlFor="occurrence-count">Number of weeks</Label>
-          <Input
-            id="occurrence-count"
-            type="number"
-            value={count}
-            min={2}
-            max={52}
-            step={1}
-            onChange={(e) => {
-              const n = parseInt(e.target.value, 10);
-              if (!isNaN(n) && n >= 2) onCountChange(n);
-            }}
-            className="w-28"
-          />
+          <FormField label="Number of weeks" name="occurrence-count">
+            <Input
+              id="occurrence-count"
+              type="number"
+              value={count}
+              min={2}
+              max={52}
+              step={1}
+              onChange={(e) => {
+                const n = parseInt(e.target.value, 10);
+                if (!isNaN(n) && n >= 2) onCountChange(n);
+              }}
+              className="w-28"
+            />
+          </FormField>
           <p className="text-muted-foreground text-xs">
             Books {count} weekly occurrences starting from the selected slot.
           </p>
