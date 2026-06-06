@@ -29,7 +29,7 @@ export function Calendar({ className, classNames, ...props }: DayPickerProps) {
 
   return (
     <DayPicker
-      className={cn("w-fit", className)}
+      className={cn("w-full", className)}
       classNames={{
         root: cn(defaults.root, "p-2"),
         months: cn(defaults.months, "relative flex flex-col gap-4"),
@@ -51,17 +51,17 @@ export function Calendar({ className, classNames, ...props }: DayPickerProps) {
           defaults.button_next,
           "hover:bg-muted inline-flex size-8 items-center justify-center rounded-lg disabled:opacity-40",
         ),
-        month_grid: cn(defaults.month_grid, "w-full border-collapse"),
-        weekdays: cn(defaults.weekdays, "flex"),
+        month_grid: cn(defaults.month_grid, "flex w-full flex-col gap-1.5"),
+        weekdays: cn(defaults.weekdays, "grid grid-cols-7 gap-1.5"),
         weekday: cn(
           defaults.weekday,
-          "text-muted-foreground w-9 text-xs font-normal",
+          "text-muted-foreground text-center text-xs font-medium",
         ),
-        week: cn(defaults.week, "mt-1 flex w-full"),
-        day: cn(defaults.day, "size-9 p-0 text-center text-sm"),
+        week: cn(defaults.week, "grid grid-cols-7 gap-1.5"),
+        day: cn(defaults.day, "w-full p-0 text-center text-sm"),
         day_button: cn(
           defaults.day_button,
-          "hover:bg-muted focus-visible:ring-ring/50 inline-flex size-9 items-center justify-center rounded-lg outline-none focus-visible:ring-3 disabled:pointer-events-none disabled:opacity-40 aria-selected:opacity-100",
+          "hover:bg-muted focus-visible:ring-ring/50 inline-flex aspect-square w-full items-center justify-center rounded-lg outline-none focus-visible:ring-3 disabled:pointer-events-none disabled:opacity-40 aria-selected:opacity-100",
         ),
         today: cn(defaults.today, "border-border rounded-lg border"),
         selected: cn(
