@@ -15,24 +15,33 @@ export function QuotePanel({ preview }: { preview: BookingQuotePreview }) {
   return (
     <section
       aria-label="Price estimate"
-      className="border-border bg-card text-card-foreground rounded-lg border p-4"
+      className="bg-card text-card-foreground border-border relative rounded-xl border p-4 shadow-[0_1px_0_var(--sand-200),0_8px_20px_-14px_rgba(60,40,20,0.4)]"
     >
-      <h2 className="mb-3 text-sm font-semibold">Price estimate</h2>
-      <ul className="space-y-1 text-sm">
+      <ul className="space-y-1.5">
         {preview.breakdown.lines.map((line, i) => (
-          <li key={i} className="flex justify-between gap-4">
-            <span className="text-muted-foreground">{line.label}</span>
-            <span>{centsToDollars(line.amountCents)}</span>
+          <li key={i} className="flex justify-between gap-4 text-sm">
+            <span className="text-foreground/70">{line.label}</span>
+            <span className="text-foreground tabular-nums">
+              {centsToDollars(line.amountCents)}
+            </span>
           </li>
         ))}
       </ul>
-      <div className="border-border mt-3 flex justify-between border-t pt-3 font-medium">
-        <span>Total</span>
-        <span>{centsToDollars(preview.finalCents)}</span>
+      <div className="border-border my-3 border-t border-dashed" />
+      <div className="flex items-baseline justify-between">
+        <span className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+          Total
+        </span>
+        <span
+          className="text-brand-strong text-2xl"
+          style={{ fontFamily: "var(--font-heading)" }}
+        >
+          {centsToDollars(preview.finalCents)}
+        </span>
       </div>
       {preview.requiresApproval && (
-        <p className="text-muted-foreground mt-2 text-xs">
-          This booking requires Cal&apos;s approval before it is confirmed.
+        <p className="text-foreground/70 mt-2 text-xs italic">
+          Requires Cal&apos;s approval before it is confirmed.
         </p>
       )}
     </section>

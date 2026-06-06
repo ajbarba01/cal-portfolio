@@ -76,7 +76,7 @@ export function PetAssignment({
                   className={
                     "focus-visible:border-ring focus-visible:ring-ring/50 flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors outline-none focus-visible:ring-3 " +
                     (isSelected
-                      ? "border-foreground bg-secondary text-secondary-foreground"
+                      ? "border-brand bg-brand/10 text-brand-strong"
                       : "border-border bg-background hover:bg-muted")
                   }
                 >

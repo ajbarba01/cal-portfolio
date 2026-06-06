@@ -7,9 +7,17 @@
  * house-sitting form collects only the per-day add-ons.
  */
 
+import { FormField as FormFieldBase } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import type { PricingType } from "@/features/pricing/types";
+import type React from "react";
+
+// Cast to the children branch of FormField's union so JSX children typecheck.
+const FormField = FormFieldBase as React.FC<{
+  label: React.ReactNode;
+  name: string;
+  children: React.ReactNode;
+}>;
 
 // ── State shapes ────────────────────────────────────────────────────────────
 
@@ -89,11 +97,11 @@ function NumberField({
   onChange: (v: number) => void;
 }) {
   return (
-    <div className="flex flex-col gap-1">
-      <Label htmlFor={id}>{label}</Label>
+    <FormField label={label} name={id}>
       <Input
         id={id}
         type="number"
+        inputMode="numeric"
         value={value}
         min={min ?? 0}
         step={step ?? 1}
@@ -103,7 +111,7 @@ function NumberField({
         }}
         className="w-28"
       />
-    </div>
+    </FormField>
   );
 }
 
