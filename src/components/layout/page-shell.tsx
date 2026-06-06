@@ -20,7 +20,7 @@ export function PageShell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="bg-canvas relative flex min-h-dvh flex-col">
+    <div className="bg-canvas bg-texture relative flex min-h-dvh flex-col">
       <div
         aria-hidden
         className="desk-grain pointer-events-none absolute inset-0"

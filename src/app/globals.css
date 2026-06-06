@@ -161,6 +161,14 @@
   --sidebar-accent-foreground: var(--sand-900);
   --sidebar-border: var(--sand-200);
   --sidebar-ring: var(--clay-strong);
+
+  /* ── Background texture library ─────────────────────────────────────
+     Site-wide pattern painted on <html> (covers content + overscroll).
+     Each --tex-* is a self-contained SVG data-URI from texture-lab.html and
+     is theme-aware (tint differs light/dark). Swap the whole site pattern by
+     pointing --bg-texture at a different --tex-* — set `none` to disable. */
+  --tex-wood: url("data:image/svg+xml,%3Csvg xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22 width%3D%22600%22 height%3D%22600%22%3E%3Cfilter id%3D%22w%22 x%3D%220%22 y%3D%220%22 width%3D%22100%25%22 height%3D%22100%25%22%3E%3CfeTurbulence type%3D%22fractalNoise%22 baseFrequency%3D%220.0170 0.0019%22 numOctaves%3D%223%22 seed%3D%227%22 stitchTiles%3D%22stitch%22 result%3D%22n%22%2F%3E%3CfeColorMatrix in%3D%22n%22 type%3D%22matrix%22 values%3D%220 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0.33 0.33 0.34 0 0%22 result%3D%22a%22%2F%3E%3CfeComponentTransfer in%3D%22a%22 result%3D%22b%22%3E%3CfeFuncA type%3D%22table%22 tableValues%3D%220.0000 0.0237 0.0106 0.0017 0.0300 0.0017 0.0106 0.0237 0.0000 0.0237 0.0106 0.0017 0.0300 0.0017 0.0106 0.0237 0.0000 0.0237 0.0106 0.0017 0.0300 0.0017 0.0106 0.0237 0.0000 0.0237 0.0106 0.0017 0.0300 0.0017 0.0106 0.0237 0.0000%22%2F%3E%3C%2FfeComponentTransfer%3E%3CfeFlood flood-color%3D%22%233a2a20%22 result%3D%22c%22%2F%3E%3CfeComposite in%3D%22c%22 in2%3D%22b%22 operator%3D%22in%22%2F%3E%3C%2Ffilter%3E%3Crect width%3D%22100%25%22 height%3D%22100%25%22 filter%3D%22url(%23w)%22%2F%3E%3C%2Fsvg%3E");
+  --bg-texture: var(--tex-wood);
 }
 
 .dark {
@@ -210,6 +218,10 @@
   --sidebar-accent-foreground: var(--sand-50);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: var(--clay-light);
+
+  /* Background texture — dark-tint variant (warm tan reads on near-black canvas).
+     Same grain geometry as the light --tex-wood; see :root texture library. */
+  --tex-wood: url("data:image/svg+xml,%3Csvg xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22 width%3D%22600%22 height%3D%22600%22%3E%3Cfilter id%3D%22w%22 x%3D%220%22 y%3D%220%22 width%3D%22100%25%22 height%3D%22100%25%22%3E%3CfeTurbulence type%3D%22fractalNoise%22 baseFrequency%3D%220.0170 0.0019%22 numOctaves%3D%223%22 seed%3D%227%22 stitchTiles%3D%22stitch%22 result%3D%22n%22%2F%3E%3CfeColorMatrix in%3D%22n%22 type%3D%22matrix%22 values%3D%220 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0.33 0.33 0.34 0 0%22 result%3D%22a%22%2F%3E%3CfeComponentTransfer in%3D%22a%22 result%3D%22b%22%3E%3CfeFuncA type%3D%22table%22 tableValues%3D%220.0000 0.0237 0.0106 0.0017 0.0300 0.0017 0.0106 0.0237 0.0000 0.0237 0.0106 0.0017 0.0300 0.0017 0.0106 0.0237 0.0000 0.0237 0.0106 0.0017 0.0300 0.0017 0.0106 0.0237 0.0000 0.0237 0.0106 0.0017 0.0300 0.0017 0.0106 0.0237 0.0000%22%2F%3E%3C%2FfeComponentTransfer%3E%3CfeFlood flood-color%3D%22%23c9a36e%22 result%3D%22c%22%2F%3E%3CfeComposite in%3D%22c%22 in2%3D%22b%22 operator%3D%22in%22%2F%3E%3C%2Ffilter%3E%3Crect width%3D%22100%25%22 height%3D%22100%25%22 filter%3D%22url(%23w)%22%2F%3E%3C%2Fsvg%3E");
 }
 
 @layer base {
@@ -217,10 +229,14 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-canvas text-foreground;
+    /* transparent (no bg-canvas) so the html texture shows behind content */
+    @apply text-foreground;
   }
   html {
     @apply bg-canvas font-sans;
+    /* swappable site pattern; paints content area + overscroll gutter */
+    background-image: var(--bg-texture);
+    background-repeat: repeat;
     font-optical-sizing: auto;
   }
   h1,
@@ -238,6 +254,15 @@
   /* Reading measure for marketing/long-form content (applied by shells in Phase 1) */
   .measure {
     max-width: 65ch;
+  }
+
+  /* Swappable site-wide background pattern (currently wood grain). Apply to any
+     fill surface (desk, sheet) so the texture rides over its color. The pattern
+     itself lives in the --bg-texture token (theme-aware); html carries it too so
+     the overscroll gutter matches. Swap the whole look by repointing --bg-texture. */
+  .bg-texture {
+    background-image: var(--bg-texture);
+    background-repeat: repeat;
   }
 
   /* Faint static paper grain for the accent desk — invisible-but-felt depth.
