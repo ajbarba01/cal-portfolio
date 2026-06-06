@@ -46,7 +46,7 @@ export function AppSidebar({
       </nav>
       <div className="border-border mt-auto flex flex-col gap-2 border-t p-4">
         <span className="text-muted-foreground text-xs">{identity}</span>
-        <SignOutButton className="bg-destructive/10 text-destructive hover:bg-destructive/20 flex min-h-11 w-full items-center justify-center gap-2 rounded-lg text-sm font-medium transition-colors duration-200 ease-out focus-visible:outline-2 focus-visible:outline-offset-2">
+        <SignOutButton className="bg-destructive-warm/10 text-destructive-warm hover:bg-destructive-warm/20 flex min-h-11 w-full items-center justify-center gap-2 rounded-lg text-sm font-medium transition-colors duration-200 ease-out focus-visible:outline-2 focus-visible:outline-offset-2">
           <LogOut className="size-4" /> Sign out
         </SignOutButton>
       </div>
