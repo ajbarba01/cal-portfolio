@@ -129,6 +129,34 @@ Chosen over single-column (A) and guided stepper (C). C was rejected: it fights 
   off-screen results · `ConfirmDialog` for destructive actions · `ErrorState` /
   `EmptyState` for load/empty (no raw "Failed to load …" / bare strings).
 
+### F. Aesthetic detail (frontend-design pass — on-brand "warm document")
+
+Three deliberate, token-only details lift these surfaces from "wireframe restyled"
+to designed, without breaking restraint or the two-layer token law:
+
+- **Booking summary rail = a receipt / ticket**, not a generic sidebar card. On the
+  `bg-card` surface: a **side-notch ticket cut** (the clean stub cut — NOT a top
+  scallop, which produced gradient artifacts), **dashed hairline rules** between
+  line-items + above the total, the running **total in Fraunces** (`--font-heading`)
+  in `--brand-strong`, tabular-nums for amounts. **Contrast fix (Alex):** line-item
+  labels + date use an AA-contrast body ink (`text-foreground` / sufficiently dark
+  muted — **not** the faint `muted-foreground` gray that failed on white). This is
+  the booking centerpiece's memorable hook; the mobile sticky bottom-bar echoes the
+  same total treatment.
+- **Form / pet status = a checklist dot**, not pill badges. Completed = a filled
+  **green** dot using `--status-available-foreground` (`--green-deep`) with a
+  `--status-available` (`--green-soft`) halo — existing semantic roles, theme-aware,
+  no new color (Alex: green over clay so it reads "done/go" and matches status
+  semantics). Not-started = a hollow `--border`/sand ring. Replaces the badge-soup
+  on `/account/forms` (and any pet/onboarding status tell).
+- **Empty states = a small branded moment** — a restrained paw/trail glyph (brand
+  tint) + a Fraunces line + the existing `EmptyState` CTA, instead of a bare
+  sentence. Applies to `EmptyState` usages in the account zone (no pets / no
+  bookings / no forms).
+
+These compose the existing tokens only; the interaction language (nav underline,
+sidebar rect, button deepen + 1px press) governs all motion — no new animation.
+
 ## Mobile parity (explicit per surface)
 
 - **Booking:** two-column → single column; summary rail → **sticky bottom action
@@ -166,9 +194,11 @@ Chosen over single-column (A) and guided stepper (C). C was rejected: it fights 
 ## Docs to update (same-commit rule)
 
 - **FRONTEND.md:** note the Scheduler selection treatment is now the **clay ring**
-  (Layer-3), the booking two-column + sticky-rail / mobile bottom-bar pattern, and
-  that the account/auth bodies compose the shell + feedback taxonomy. Add
-  `--destructive-warm` to the brand-token list if still missing (carry-forward).
+  (Layer-3), the booking two-column + sticky-rail / mobile bottom-bar pattern with
+  the **receipt/ticket** summary, the **checklist-dot** status tell (green-deep
+  completed), branded empty states, and that the account/auth bodies compose the
+  shell + feedback taxonomy. Add `--destructive-warm` to the brand-token list if
+  still missing (carry-forward).
 - **DESIGN.md:** confirm the booking flow + account route descriptions match the
   shipped composition; record "no payment-info tab; Stripe hosted checkout; saved
   cards = future hook."
