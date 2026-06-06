@@ -109,10 +109,10 @@ Dark mode provides desaturated fills with lighter foregrounds. Primitives `--gre
 **Scheduler component family** — the booking and admin availability surfaces share a single compound `<Scheduler>` family in `features/booking/_components/scheduler/`. Three-layer split:
 
 - **Layer 1 (data / server)** — RSC / server actions; fetches windows, busy ranges, overnight nights, settings; passes typed data down as props.
-- **Layer 2 (pure model + hook + context)** — `schedule-selection`, `use-schedule-selection`, `scheduler-context`; stateless logic and selection state; no IO.
-- **Layer 3 (compound `<Scheduler.*>` parts)** — presentational wireframe only; wired to context; logic-free. `<Scheduler>` root, `<Scheduler.MonthGrid>`, `<Scheduler.WeekGrid>`, `<Scheduler.DayPanel>`, `<Scheduler.SelectionSummary>`, `<Scheduler.WeekActions>`, `<Scheduler.Legend>`, `<Scheduler.BookingDetailsPanel>`.
+- **Layer 2 (pure model + hook + context)** — `schedule-selection`, `use-schedule-selection`, `scheduler-context`, `calendar-model`, `grid-runs`, `day-timeline-model`; stateless logic and selection state; no IO.
+- **Layer 3 (compound `<Scheduler.*>` parts)** — presentational wireframe only; wired to context; logic-free. `<Scheduler>` root, `<Scheduler.MonthGrid>`, `<Scheduler.DayTimeline>`, `<Scheduler.WeekGrid>`, `<Scheduler.DayPanel>`, `<Scheduler.SelectionSummary>`, `<Scheduler.ClearDates>`, `<Scheduler.WeekActions>`, `<Scheduler.Legend>`, `<Scheduler.BookingDetailsPanel>`.
 
-**Visual/interaction model.** Cell STATUS is a background fill (available=green, booked=blue, unavailable=neutral — via the status tokens above); SELECTION is a merged OUTLINE overlay (not a fill) composed on top, so a cell can show both at once. Contiguous same-booking cells merge into one rounded fill and contiguous selected cells merge into one outline — run-boundary math is a pure util in `src/features/booking/grid-runs.ts`. Admin paints to select and clicks a booked cell to inspect (opens `Scheduler.BookingDetailsPanel`); status colors are keyed by `Scheduler.Legend`.
+**Visual/interaction model.** Cell STATUS is a background fill (available=green, booked=blue, unavailable=neutral — via the status tokens above); SELECTION is an OUTLINE overlay (not a fill) composed on top, so a cell can show both at once. Each selected day is its **own** rounded clay box — outlines do **not** merge across adjacent days (a deliberate "keep days separated" call); only the live drag-preview still uses run-boundary math (pure util in `src/features/booking/grid-runs.ts`). The month grid renders as a gapped `table-fixed` (rdp v9 emits a real `<table>`; equal H/V gaps come from `border-spacing`, not flex/grid gaps). Admin paints to select and clicks a booked cell to inspect (opens `Scheduler.BookingDetailsPanel`); status colors are keyed by `Scheduler.Legend`. **Hourly booking** (walk/check-in/training) uses a month→day flow: the month picks the DAY, then `Scheduler.DayTimeline` shows that single day as a duration-accurate vertical timeline for picking/typing the start time; house-sitting stays a month date-range.
 
 **Selection ring (Layer-3 restyle):** selection is a **thick clay (`--brand`) ring with a bold `--brand-strong` day number**, composing over the status fill; hover affordance and drag-preview use `--brand` at reduced opacity. Layers 1–2 are unmodified.
 
@@ -122,4 +122,4 @@ Layer 3 is **wireframe / semantic-token-only** by contract — a design pass lat
 
 ---
 
-_Last reviewed: 2026-06-05_ (shell unification + interaction language)
+_Last reviewed: 2026-06-06_ (booking + account redesign: month→day-timeline, per-day selection outlines, table-fixed calendar)
