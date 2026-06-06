@@ -26,7 +26,7 @@ export function Hero() {
 
       <div className="px-5 py-8 sm:absolute sm:inset-0 sm:flex sm:flex-col sm:justify-center sm:px-8 sm:py-0 lg:px-16">
         <div className="flex max-w-[42ch] flex-col items-start gap-5 sm:max-w-[60%]">
-          <Eyebrow className="sm:text-[var(--sand-50)]">
+          <Eyebrow className="sm:text-white">
             Dog walking · house sitting · Colorado
           </Eyebrow>
           <h1
@@ -52,7 +52,7 @@ export function Hero() {
               href="/services"
               className={cn(
                 buttonVariants({ variant: "outline", size: "lg" }),
-                "w-full sm:w-auto",
+                "w-full sm:w-auto sm:border-white/70 sm:bg-transparent sm:text-white sm:hover:bg-white/10",
               )}
             >
               See services

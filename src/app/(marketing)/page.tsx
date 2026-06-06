@@ -11,14 +11,17 @@ import { cn } from "@/lib/utils";
 
 const trustPoints = [
   {
+    id: "trust-1",
     title: "[[HEADER: trust point 1]]",
     body: "[[BODY: trust point 1 detail]]",
   },
   {
+    id: "trust-2",
     title: "[[HEADER: trust point 2]]",
     body: "[[BODY: trust point 2 detail]]",
   },
   {
+    id: "trust-3",
     title: "[[HEADER: trust point 3]]",
     body: "[[BODY: trust point 3 detail]]",
   },
@@ -39,7 +42,7 @@ export default function HomePage() {
         <ul className="grid gap-8 sm:grid-cols-3" role="list">
           {trustPoints.map((p) => (
             <li
-              key={p.title}
+              key={p.id}
               className="flex flex-col gap-2 text-center sm:text-left"
             >
               <span className="font-heading text-foreground text-lg font-semibold">
