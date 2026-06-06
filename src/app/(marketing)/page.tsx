@@ -1,99 +1,76 @@
 /**
- * Home page — the main marketing landing page.
+ * Home page — photographic hero + lean document body.
  * Server component.
  */
-
 import Link from "next/link";
+import { Hero } from "./_components/hero";
+import { Eyebrow } from "@/components/marketing/eyebrow";
+import { PageContainer } from "@/components/layout/page-container";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+
+const trustPoints = [
+  {
+    title: "[[HEADER: trust point 1]]",
+    body: "[[BODY: trust point 1 detail]]",
+  },
+  {
+    title: "[[HEADER: trust point 2]]",
+    body: "[[BODY: trust point 2 detail]]",
+  },
+  {
+    title: "[[HEADER: trust point 3]]",
+    body: "[[BODY: trust point 3 detail]]",
+  },
+];
 
 export default function HomePage() {
   return (
     <>
-      {/* Hero */}
-      <section
-        aria-labelledby="hero-heading"
-        className="bg-background px-6 py-24 text-center"
-      >
-        <div className="mx-auto max-w-2xl">
-          {/* TODO: real copy before launch */}
-          <h1
-            id="hero-heading"
-            className="text-foreground mb-4 text-4xl font-bold tracking-tight sm:text-5xl"
-          >
-            [[HEADER: hero hook]]
-          </h1>
-          <p className="text-muted-foreground mb-8 text-lg leading-relaxed">
-            [[BODY: services overview and key differentiators]]
-          </p>
-          <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-            <Link href="/book" className={cn(buttonVariants({ size: "lg" }))}>
-              Book a service
-            </Link>
-            <Link
-              href="/services"
-              className={cn(buttonVariants({ variant: "outline", size: "lg" }))}
+      <Hero />
+
+      <PageContainer width="app" className="py-12 sm:py-16">
+        <div className="mx-auto mb-10 max-w-[34ch] text-center">
+          <Eyebrow>Why Cal</Eyebrow>
+          <h2 className="font-heading mt-2 text-2xl font-semibold sm:text-3xl">
+            [[HEADER: why-Cal section]]
+          </h2>
+        </div>
+        <ul className="grid gap-8 sm:grid-cols-3" role="list">
+          {trustPoints.map((p) => (
+            <li
+              key={p.title}
+              className="flex flex-col gap-2 text-center sm:text-left"
             >
-              See all services
-            </Link>
-          </div>
-        </div>
-      </section>
+              <span className="font-heading text-foreground text-lg font-semibold">
+                {p.title}
+              </span>
+              <p className="text-muted-foreground text-sm leading-relaxed">
+                {p.body}
+              </p>
+            </li>
+          ))}
+        </ul>
+      </PageContainer>
 
-      {/* Quick-trust strip */}
-      <section aria-label="Why choose Cal" className="bg-muted px-6 py-16">
-        <div className="mx-auto max-w-4xl">
-          <h2 className="text-foreground mb-10 text-center text-2xl font-semibold">
-            {/* TODO: real copy before launch */}
-            Why choose Cal?
+      <section aria-label="Get started" className="border-border border-t">
+        <PageContainer width="read" className="py-12 text-center sm:py-16">
+          <h2 className="font-heading text-2xl font-semibold sm:text-3xl">
+            [[HEADER: closing CTA]]
           </h2>
-          <ul className="grid gap-8 sm:grid-cols-3">
-            <li className="flex flex-col gap-2 text-center">
-              <span className="text-foreground font-semibold">
-                [[HEADER: trust point 1]]
-              </span>
-              <p className="text-muted-foreground text-sm leading-relaxed">
-                [[BODY: trust point 1 detail]]
-              </p>
-            </li>
-            <li className="flex flex-col gap-2 text-center">
-              <span className="text-foreground font-semibold">
-                [[HEADER: trust point 2]]
-              </span>
-              <p className="text-muted-foreground text-sm leading-relaxed">
-                [[BODY: trust point 2 detail]]
-              </p>
-            </li>
-            <li className="flex flex-col gap-2 text-center">
-              <span className="text-foreground font-semibold">
-                [[HEADER: trust point 3]]
-              </span>
-              <p className="text-muted-foreground text-sm leading-relaxed">
-                [[BODY: trust point 3 detail]]
-              </p>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      {/* CTA strip */}
-      <section
-        aria-label="Get started"
-        className="bg-background px-6 py-16 text-center"
-      >
-        <div className="mx-auto max-w-xl">
-          {/* TODO: real copy before launch */}
-          <h2 className="text-foreground mb-3 text-2xl font-semibold">
-            Looking to book?
-          </h2>
-          <p className="text-muted-foreground mb-6 text-sm leading-relaxed">
-            Create a free account, fill in your dog&apos;s details, and request
-            a service.
+          <p className="text-muted-foreground mx-auto mt-3 max-w-[44ch] leading-relaxed">
+            [[BODY: short prompt to book]]
           </p>
-          <Link href="/book" className={cn(buttonVariants())}>
-            Booking
+          <Link
+            href="/book"
+            className={cn(
+              buttonVariants({ variant: "brand", size: "lg" }),
+              "mt-6",
+            )}
+          >
+            Book a service
           </Link>
-        </div>
+        </PageContainer>
       </section>
     </>
   );
