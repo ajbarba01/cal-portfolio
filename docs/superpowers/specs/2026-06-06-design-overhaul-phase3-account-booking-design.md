@@ -157,16 +157,35 @@ to designed, without breaking restraint or the two-layer token law:
 These compose the existing tokens only; the interaction language (nav underline,
 sidebar rect, button deepen + 1px press) governs all motion — no new animation.
 
-## Mobile parity (explicit per surface)
+## Mobile parity (FIRST-CLASS — a per-surface build gate, not a reflow afterthought)
 
-- **Booking:** two-column → single column; summary rail → **sticky bottom action
-  bar** (price + Book, safe-area). Calendar/week-grid already horizontally
-  scroll-contained; verify no page h-scroll. Targets ≥44px.
-- **Account profile/forms:** cards stack; grouped fields go single-column; segmented
-  select stays tappable ≥44px.
-- **Pets:** Delete `ConfirmDialog` = **bottom-sheet**; inline edit/add forms stack.
-- **Bookings:** Table → **stacked labeled cards** (kit behavior).
-- **Auth/onboarding:** single-column forms full-width; buttons full-width.
+**Standing rule (Alex):** every surface in this phase is _authored mobile-first_ and
+must be **as fluid, dynamic, and intentional at phone width as on desktop**. Each
+surface below names its explicit mobile pattern; "it just reflows" is not acceptable.
+Mobile is verified per surface in the completion walk (≤390px), not assumed — a
+surface is not done until its phone rendering is confirmed.
+
+- **Booking (centerpiece):** two-column → single column in selection order
+  (calendar → pets → details → recurring); the summary rail collapses to a **sticky
+  bottom action bar** — estimated total (same Fraunces treatment as the receipt) +
+  **Book**, pinned, **safe-area-inset aware**, so Book is never a scroll away. The
+  month calendar + week-slot grid are **horizontally scroll-contained inside their
+  own wrapper** (the grid scrolls, the page does not); cells/targets ≥44px; the
+  scheduler drag + clear-dates work by touch. Confirm **zero page horizontal
+  scroll**.
+- **Account profile / forms:** cards stack full-bleed; grouped field pairs collapse
+  to single-column; the dog/cat **segmented select** and every input stay tappable
+  ≥44px; inline validation visible without zoom.
+- **Pets:** Delete `ConfirmDialog` renders as a **bottom-sheet** (not a centered
+  modal); inline edit/add forms stack; the photo dropzone falls back to a tap-to-
+  upload target.
+- **Bookings:** the kit **Table → stacked labeled cards** below `md`; status badge +
+  amount-owed + Pay remain reachable in the card.
+- **Auth / onboarding:** single-column forms, full-width inputs + buttons; the
+  onboarding multi-fieldset flow stays a comfortable single scroll, no cramped
+  multi-column.
+- **Chrome reused (already shipped, re-verified here):** merged off-canvas drawer for
+  nav, toasts bottom-anchored + safe-area aware, focus-trap + Esc on drawer/dialog.
 
 ## Out of scope
 
