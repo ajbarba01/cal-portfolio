@@ -29,15 +29,19 @@ export async function getGalleryImages(): Promise<GalleryImage[]> {
   const files = listGalleryFiles(entries);
   const images: GalleryImage[] = [];
   for (const file of files) {
-    const buf = await readFile(path.join(GALLERY_DIR, file));
-    const { width, height } = imageSize(buf);
-    if (!width || !height) continue;
-    images.push({
-      src: `/gallery/${file}`,
-      width,
-      height,
-      alt: "A dog in Cal's care",
-    });
+    try {
+      const buf = await readFile(path.join(GALLERY_DIR, file));
+      const { width, height } = imageSize(buf);
+      if (!width || !height) continue;
+      images.push({
+        src: `/gallery/${file}`,
+        width,
+        height,
+        alt: "A dog in Cal's care",
+      });
+    } catch (err) {
+      console.warn(`Skipping unreadable gallery image: ${file}`, err);
+    }
   }
   return images;
 }
