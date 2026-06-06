@@ -129,16 +129,63 @@ Chosen over single-column (A) and guided stepper (C). C was rejected: it fights 
   off-screen results · `ConfirmDialog` for destructive actions · `ErrorState` /
   `EmptyState` for load/empty (no raw "Failed to load …" / bare strings).
 
-## Mobile parity (explicit per surface)
+### F. Aesthetic detail (frontend-design pass — on-brand "warm document")
 
-- **Booking:** two-column → single column; summary rail → **sticky bottom action
-  bar** (price + Book, safe-area). Calendar/week-grid already horizontally
-  scroll-contained; verify no page h-scroll. Targets ≥44px.
-- **Account profile/forms:** cards stack; grouped fields go single-column; segmented
-  select stays tappable ≥44px.
-- **Pets:** Delete `ConfirmDialog` = **bottom-sheet**; inline edit/add forms stack.
-- **Bookings:** Table → **stacked labeled cards** (kit behavior).
-- **Auth/onboarding:** single-column forms full-width; buttons full-width.
+Three deliberate, token-only details lift these surfaces from "wireframe restyled"
+to designed, without breaking restraint or the two-layer token law:
+
+- **Booking summary rail = a receipt / ticket**, not a generic sidebar card. On the
+  `bg-card` surface: a **side-notch ticket cut** (the clean stub cut — NOT a top
+  scallop, which produced gradient artifacts), **dashed hairline rules** between
+  line-items + above the total, the running **total in Fraunces** (`--font-heading`)
+  in `--brand-strong`, tabular-nums for amounts. **Contrast fix (Alex):** line-item
+  labels + date use an AA-contrast body ink (`text-foreground` / sufficiently dark
+  muted — **not** the faint `muted-foreground` gray that failed on white). This is
+  the booking centerpiece's memorable hook; the mobile sticky bottom-bar echoes the
+  same total treatment.
+- **Form / pet status = a checklist dot**, not pill badges. Completed = a filled
+  **green** dot using `--status-available-foreground` (`--green-deep`) with a
+  `--status-available` (`--green-soft`) halo — existing semantic roles, theme-aware,
+  no new color (Alex: green over clay so it reads "done/go" and matches status
+  semantics). Not-started = a hollow `--border`/sand ring. Replaces the badge-soup
+  on `/account/forms` (and any pet/onboarding status tell).
+- **Empty states = a small branded moment** — a restrained paw/trail glyph (brand
+  tint) + a Fraunces line + the existing `EmptyState` CTA, instead of a bare
+  sentence. Applies to `EmptyState` usages in the account zone (no pets / no
+  bookings / no forms).
+
+These compose the existing tokens only; the interaction language (nav underline,
+sidebar rect, button deepen + 1px press) governs all motion — no new animation.
+
+## Mobile parity (FIRST-CLASS — a per-surface build gate, not a reflow afterthought)
+
+**Standing rule (Alex):** every surface in this phase is _authored mobile-first_ and
+must be **as fluid, dynamic, and intentional at phone width as on desktop**. Each
+surface below names its explicit mobile pattern; "it just reflows" is not acceptable.
+Mobile is verified per surface in the completion walk (≤390px), not assumed — a
+surface is not done until its phone rendering is confirmed.
+
+- **Booking (centerpiece):** two-column → single column in selection order
+  (calendar → pets → details → recurring); the summary rail collapses to a **sticky
+  bottom action bar** — estimated total (same Fraunces treatment as the receipt) +
+  **Book**, pinned, **safe-area-inset aware**, so Book is never a scroll away. The
+  month calendar + week-slot grid are **horizontally scroll-contained inside their
+  own wrapper** (the grid scrolls, the page does not); cells/targets ≥44px; the
+  scheduler drag + clear-dates work by touch. Confirm **zero page horizontal
+  scroll**.
+- **Account profile / forms:** cards stack full-bleed; grouped field pairs collapse
+  to single-column; the dog/cat **segmented select** and every input stay tappable
+  ≥44px; inline validation visible without zoom.
+- **Pets:** Delete `ConfirmDialog` renders as a **bottom-sheet** (not a centered
+  modal); inline edit/add forms stack; the photo dropzone falls back to a tap-to-
+  upload target.
+- **Bookings:** the kit **Table → stacked labeled cards** below `md`; status badge +
+  amount-owed + Pay remain reachable in the card.
+- **Auth / onboarding:** single-column forms, full-width inputs + buttons; the
+  onboarding multi-fieldset flow stays a comfortable single scroll, no cramped
+  multi-column.
+- **Chrome reused (already shipped, re-verified here):** merged off-canvas drawer for
+  nav, toasts bottom-anchored + safe-area aware, focus-trap + Esc on drawer/dialog.
 
 ## Out of scope
 
@@ -166,9 +213,11 @@ Chosen over single-column (A) and guided stepper (C). C was rejected: it fights 
 ## Docs to update (same-commit rule)
 
 - **FRONTEND.md:** note the Scheduler selection treatment is now the **clay ring**
-  (Layer-3), the booking two-column + sticky-rail / mobile bottom-bar pattern, and
-  that the account/auth bodies compose the shell + feedback taxonomy. Add
-  `--destructive-warm` to the brand-token list if still missing (carry-forward).
+  (Layer-3), the booking two-column + sticky-rail / mobile bottom-bar pattern with
+  the **receipt/ticket** summary, the **checklist-dot** status tell (green-deep
+  completed), branded empty states, and that the account/auth bodies compose the
+  shell + feedback taxonomy. Add `--destructive-warm` to the brand-token list if
+  still missing (carry-forward).
 - **DESIGN.md:** confirm the booking flow + account route descriptions match the
   shipped composition; record "no payment-info tab; Stripe hosted checkout; saved
   cards = future hook."
