@@ -535,6 +535,14 @@ export function ServiceBookingClient({
         )}
         {!windowsLoading && !windowsError && mode === "month-range" && (
           <>
+            <p className="text-muted-foreground mb-3 text-sm">
+              Highlighted days are the nights Cal sleeps over. Click your{" "}
+              <span className="text-foreground font-medium">check-in</span>{" "}
+              date, then your{" "}
+              <span className="text-foreground font-medium">check-out</span>{" "}
+              date — you can span across months. Check-out is the morning after
+              the last night.
+            </p>
             <Scheduler
               capabilities={capabilities}
               data={schedulerData}
