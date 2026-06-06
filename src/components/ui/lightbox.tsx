@@ -104,7 +104,7 @@ export function Lightbox({
                 sizes="(min-width: 1024px) 90vw, 100vw"
                 className="max-h-[82vh] w-auto max-w-[92vw] rounded-sm object-contain shadow-2xl"
               />
-              <p className="mt-4 text-xs tracking-[0.14em] text-(--sand-200)">
+              <p className="mt-4 text-xs tracking-[0.14em] text-white/60">
                 {String((index ?? 0) + 1).padStart(2, "0")} / {images.length}
               </p>
 

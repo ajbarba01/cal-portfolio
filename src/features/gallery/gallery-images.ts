@@ -25,7 +25,13 @@ export function listGalleryFiles(filenames: string[]): string[] {
  * Generic non-claim alt until Cal supplies captions.
  */
 export async function getGalleryImages(): Promise<GalleryImage[]> {
-  const entries = await readdir(GALLERY_DIR);
+  let entries: string[];
+  try {
+    entries = await readdir(GALLERY_DIR);
+  } catch {
+    // No gallery dir (fresh clone / CI / preview) → let the page show its EmptyState.
+    return [];
+  }
   const files = listGalleryFiles(entries);
   const images: GalleryImage[] = [];
   for (const file of files) {

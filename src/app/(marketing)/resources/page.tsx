@@ -8,21 +8,25 @@ import { PageHeader } from "@/components/layout/page-header";
 
 const localResources = [
   {
+    id: "r1",
     title: "[[Resource 1: name]]",
     description: "[[Resource 1: one-line description]]",
     href: "#",
   },
   {
+    id: "r2",
     title: "[[Resource 2: name]]",
     description: "[[Resource 2: one-line description]]",
     href: "#",
   },
   {
+    id: "r3",
     title: "Animal Emergency & Referral Center of Northern Colorado",
     description: "24/7 emergency veterinary care in Colorado.",
     href: "https://aercnc.com",
   },
   {
+    id: "r4",
     title: "ASPCA Poison Control Hotline",
     description: "(888) 426-4435 — available 24/7 for pet poison emergencies.",
     href: "https://www.aspca.org/pet-care/animal-poison-control",
@@ -70,11 +74,8 @@ export default function ResourcesPage() {
           Local dog resources
         </h2>
         <ul className="flex flex-col gap-4" role="list">
-          {localResources.map(({ title, description, href }) => (
-            <li
-              key={href}
-              className="border-border border-b pb-4 last:border-0"
-            >
+          {localResources.map(({ id, title, description, href }) => (
+            <li key={id} className="border-border border-b pb-4 last:border-0">
               <a
                 href={href}
                 target="_blank"
@@ -106,7 +107,7 @@ export default function ResourcesPage() {
               className="border-border border-b"
             >
               <Accordion.Header>
-                <Accordion.Trigger className="group flex w-full items-center justify-between gap-4 py-4 text-left outline-none">
+                <Accordion.Trigger className="group focus-visible:outline-ring/50 flex w-full items-center justify-between gap-4 py-4 text-left outline-none focus-visible:outline-2 focus-visible:outline-offset-2">
                   <span className="text-foreground font-medium">
                     {item.question}
                   </span>
