@@ -8,7 +8,8 @@
  */
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { Check, Plus } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
   PetAvatar,
   type PetSpecies,
@@ -64,33 +65,53 @@ export function PetAssignment({
       )}
 
       {eligible.length > 0 && (
-        <ul className="flex flex-wrap gap-2">
+        <ul className="flex flex-wrap gap-2.5">
           {eligible.map((pet) => {
             const isSelected = selected.includes(pet.id);
+            const subtitle =
+              pet.breed ?? (pet.species === "dog" ? "Dog" : "Cat");
             return (
-              <li key={pet.id}>
+              <li key={pet.id} className="flex-1 basis-40">
                 <button
                   type="button"
                   onClick={() => toggle(pet.id)}
                   aria-pressed={isSelected}
-                  className={
-                    "focus-visible:border-ring focus-visible:ring-ring/50 flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors outline-none focus-visible:ring-3 " +
-                    (isSelected
-                      ? "border-brand bg-brand/10 text-brand-strong"
-                      : "border-border bg-background hover:bg-muted")
-                  }
+                  className={cn(
+                    "focus-visible:border-ring focus-visible:ring-ring/50 flex min-h-11 w-full items-center gap-2.5 rounded-xl border-[1.5px] p-3 text-left transition-colors outline-none focus-visible:ring-3",
+                    isSelected
+                      ? "border-brand bg-brand/10"
+                      : "border-border bg-card hover:border-brand/30 hover:bg-muted",
+                  )}
                 >
                   <PetAvatar
                     name={pet.name}
                     species={pet.species}
                     photoUrl={pet.photoUrl}
-                    size={28}
+                    size={38}
                   />
-                  <span>
-                    {pet.name}
-                    <span className="text-muted-foreground ml-1 font-normal">
-                      ({pet.species})
-                    </span>
+                  <div className="min-w-0">
+                    <div
+                      className={cn(
+                        "truncate text-sm font-semibold",
+                        isSelected ? "text-brand-strong" : "text-foreground",
+                      )}
+                    >
+                      {pet.name}
+                    </div>
+                    <div className="text-muted-foreground truncate text-xs">
+                      {subtitle}
+                    </div>
+                  </div>
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      "ml-auto flex size-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
+                      isSelected
+                        ? "border-brand bg-brand text-brand-foreground"
+                        : "border-border",
+                    )}
+                  >
+                    {isSelected && <Check className="size-3" strokeWidth={3} />}
                   </span>
                 </button>
               </li>
@@ -100,7 +121,7 @@ export function PetAssignment({
       )}
 
       {showAdd ? (
-        <div className="border-border rounded-lg border p-4">
+        <div className="border-border rounded-xl border p-4">
           <h3 className="text-foreground mb-3 text-sm font-medium">
             Add a pet
           </h3>
@@ -113,15 +134,14 @@ export function PetAssignment({
           />
         </div>
       ) : (
-        <Button
+        <button
           type="button"
-          variant="outline"
-          size="sm"
-          className="self-start"
           onClick={() => setShowAdd(true)}
+          className="text-muted-foreground hover:border-brand/40 hover:text-brand-strong hover:bg-muted focus-visible:border-ring focus-visible:ring-ring/50 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border-[1.5px] border-dashed px-4 text-sm font-medium transition-colors outline-none focus-visible:ring-3 sm:w-auto sm:self-start sm:px-6"
         >
+          <Plus className="size-4" strokeWidth={2.5} />
           Add a pet
-        </Button>
+        </button>
       )}
     </div>
   );

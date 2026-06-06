@@ -61,9 +61,10 @@ export function NumberStepper({
 
   const stepBtnBase = cn(
     "inline-flex h-full w-11 shrink-0 items-center justify-center",
-    "bg-muted hover:bg-accent text-brand-strong",
-    "focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
-    "active:translate-y-px transition-all",
+    "bg-muted text-brand-strong",
+    "hover:bg-brand/15 hover:text-brand active:bg-brand/25",
+    "focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset",
+    "transition-colors",
     "disabled:opacity-40 disabled:pointer-events-none",
   );
 

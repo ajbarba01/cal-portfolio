@@ -246,7 +246,7 @@ function SchedulerDayButton({
       {hasMyBooking && (
         <span
           aria-hidden="true"
-          className="bg-status-available-foreground absolute bottom-1 left-1/2 size-1.5 -translate-x-1/2 rounded-full"
+          className="bg-brand absolute bottom-2 left-1/2 size-1.5 -translate-x-1/2 rounded-full"
         />
       )}
       {outlineClassName !== "" && (
@@ -434,14 +434,14 @@ export function MonthGrid({ className }: { className?: string }) {
         state.selectedDays.has(dayKey);
       if (state.selectedDays.has(dayKey)) {
         outline = pendingRemove
-          ? "border-2 border-dashed border-brand/50 rounded-lg"
-          : "border-2 border-brand rounded-lg";
+          ? "border-[3px] border-dashed border-brand/50 rounded-lg"
+          : "border-[3px] border-brand rounded-lg";
       } else if (previewMode !== "remove" && previewDays.size > 0) {
         // 3. Live ADD preview outline — dashed/half variant for cells not yet
         //    committed-selected (only reached when there is no committed outline).
         const prevEdge = previewEdgeMap.get(dayKey);
         if (prevEdge)
-          outline = "border-2 border-dashed border-brand/60 rounded-lg";
+          outline = "border-[3px] border-dashed border-brand/60 rounded-lg";
       }
 
       return { fill, outline };
@@ -480,7 +480,7 @@ export function MonthGrid({ className }: { className?: string }) {
   const dayButtonBase = useMemo(
     () =>
       cn(
-        "relative inline-flex aspect-square w-full items-center justify-center rounded-lg text-sm outline-none",
+        "relative inline-flex aspect-square w-full items-center justify-center rounded-lg text-lg outline-none",
         "focus-visible:ring-ring/50 focus-visible:ring-3",
         "disabled:pointer-events-none disabled:opacity-40 aria-selected:opacity-100",
       ),
@@ -776,7 +776,7 @@ export function MonthGrid({ className }: { className?: string }) {
         disabled={isDisabled}
         modifiers={modifiers}
         modifiersClassNames={modifiersClassNames}
-        className="mx-auto w-full max-w-md"
+        className="w-full"
         // Slot overrides:
         //  selected — neutralize rdp's default bg-primary (solid black on commit);
         //    our selection is the overlay outline, modifier kept only for aria.

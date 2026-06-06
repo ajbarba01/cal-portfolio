@@ -7,8 +7,7 @@
  * house-sitting form collects only the per-day add-ons.
  */
 
-import { FormField } from "@/components/ui/form-field";
-import { Input } from "@/components/ui/input";
+import { NumberStepper } from "@/components/ui/number-stepper";
 import type { PricingType } from "@/features/pricing/types";
 
 // ── State shapes ────────────────────────────────────────────────────────────
@@ -73,37 +72,48 @@ export function quantitiesToRecord(
 
 // ── Field primitive ──────────────────────────────────────────────────────────
 
-function NumberField({
+function StepperField({
   id,
   label,
+  sub,
   value,
   min,
+  max,
   step,
+  unit,
   onChange,
 }: {
   id: string;
   label: string;
+  sub?: string;
   value: number;
   min?: number;
+  max?: number;
   step?: number;
+  unit?: string;
   onChange: (v: number) => void;
 }) {
   return (
-    <FormField label={label} name={id}>
-      <Input
+    <div className="flex flex-col gap-1.5">
+      <label htmlFor={id} className="text-foreground text-sm font-medium">
+        {label}
+        {sub && (
+          <span className="text-muted-foreground ml-1 text-xs font-normal">
+            {sub}
+          </span>
+        )}
+      </label>
+      <NumberStepper
         id={id}
-        type="number"
-        inputMode="numeric"
+        ariaLabel={label}
         value={value}
         min={min ?? 0}
+        max={max}
         step={step ?? 1}
-        onChange={(e) => {
-          const n = parseFloat(e.target.value);
-          if (!isNaN(n)) onChange(n);
-        }}
-        className="w-28"
+        unit={unit}
+        onChange={onChange}
       />
-    </FormField>
+    </div>
   );
 }
 
@@ -121,30 +131,34 @@ export function QuantityForm({
     const set = (patch: Partial<HouseSittingExtras>) =>
       onChange({ type: "house_sitting", qty: { ...qty, ...patch } });
     return (
-      <fieldset className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+      <fieldset className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <legend className="col-span-full mb-2 text-sm font-medium">
           Stay add-ons
         </legend>
-        <NumberField
+        <StepperField
           id="hs-cant-alone"
           label="Can't-be-left-alone days"
           value={qty.cantBeLeftAloneDays}
           min={0}
+          unit="days"
           onChange={(v) => set({ cantBeLeftAloneDays: Math.round(v) })}
         />
-        <NumberField
+        <StepperField
           id="hs-walk-min"
-          label="Walk min/day"
+          label="Walk time/day"
+          sub="(15-min steps)"
           value={qty.walkMinutesPerDay}
           min={0}
           step={15}
+          unit="min"
           onChange={(v) => set({ walkMinutesPerDay: v })}
         />
-        <NumberField
+        <StepperField
           id="hs-holiday"
           label="Holiday days"
           value={qty.holidayDays}
           min={0}
+          unit="days"
           onChange={(v) => set({ holidayDays: Math.round(v) })}
         />
       </fieldset>
@@ -160,12 +174,14 @@ export function QuantityForm({
   return (
     <fieldset>
       <legend className="mb-2 text-sm font-medium">Duration</legend>
-      <NumberField
+      <StepperField
         id={idMap[state.type]}
         label="Hours"
+        sub="(15-min steps)"
         value={state.qty.hours}
         min={0.25}
         step={0.25}
+        unit="hr"
         onChange={(v) => onChange({ type: state.type, qty: { hours: v } })}
       />
     </fieldset>
