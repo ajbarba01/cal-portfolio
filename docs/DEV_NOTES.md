@@ -5,6 +5,9 @@
 - cal should have an email created for automated emails
 - website logo
 - setup page analytics for vercel
+- nav text is a little hard to see
+- overscroll?
+- gallery: click empty space to exit lightbox, remove "out on the trail", images load so slow into lightbox
 
 ## admin UI owed by booking-rules-v2 (see docs/superpowers/plans/2026-06-03-booking-rules-v2.md)
 
