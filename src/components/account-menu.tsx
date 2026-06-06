@@ -4,16 +4,21 @@
  * AccountMenu — header control for signed-in users.
  *
  * The "Account" trigger links to /account (unchanged behavior); hovering or
- * keyboard-focusing it reveals a minimal dropdown with Profile + Sign out.
- * Reveal is CSS-only (group-hover / group-focus-within) so it works for mouse
- * and keyboard without extra state; sign-out logic lives in SignOutButton.
+ * keyboard-focusing it reveals a dropdown mirroring the account sidebar — every
+ * accountNav section plus Sign out. Reveal is CSS-only (group-hover /
+ * group-focus-within) so it works for mouse and keyboard without extra state;
+ * sign-out logic lives in SignOutButton.
  */
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { navUnderline } from "@/components/layout/nav-underline";
-import { isActiveSection } from "@/components/layout/is-active-nav";
+import {
+  isActiveNav,
+  isActiveSection,
+} from "@/components/layout/is-active-nav";
+import { accountNav } from "@/components/layout/nav-config";
 import { SignOutButton } from "@/components/sign-out-button";
 
 export function AccountMenu() {
@@ -33,6 +38,10 @@ export function AccountMenu() {
         )}
         aria-current={active ? "page" : undefined}
         aria-haspopup="menu"
+        // Clicking the trigger (mouse) navigates but leaves focus on it, so
+        // group-focus-within would pin the panel open after the cursor leaves.
+        // Blur on click so only genuine keyboard focus keeps the menu revealed.
+        onClick={(e) => e.currentTarget.blur()}
       >
         Account
       </Link>
@@ -47,16 +56,29 @@ export function AccountMenu() {
           role="menu"
           className="border-border bg-background flex min-w-32 flex-col rounded-md border py-1 shadow-lg"
         >
-          <Link
-            href="/account"
-            role="menuitem"
-            className="text-muted-foreground hover:text-foreground hover:bg-muted px-3 py-1.5 text-left transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2"
-          >
-            Profile
-          </Link>
+          {accountNav.items.map(({ href, label }) => {
+            const itemActive = isActiveNav(pathname, href);
+            return (
+              <Link
+                key={href}
+                href={href}
+                role="menuitem"
+                aria-current={itemActive ? "page" : undefined}
+                onClick={(e) => e.currentTarget.blur()}
+                className={cn(
+                  "hover:text-foreground hover:bg-muted px-3 py-1.5 text-left transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2",
+                  itemActive
+                    ? "text-brand-strong font-semibold"
+                    : "text-muted-foreground",
+                )}
+              >
+                {label}
+              </Link>
+            );
+          })}
           <SignOutButton
             role="menuitem"
-            className="text-muted-foreground hover:text-foreground hover:bg-muted px-3 py-1.5 focus-visible:outline-2 focus-visible:-outline-offset-2"
+            className="text-destructive-warm hover:bg-destructive-warm/10 px-3 py-1.5 text-left transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2"
           />
         </div>
       </div>

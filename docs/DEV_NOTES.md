@@ -1,13 +1,14 @@
 - need good mobile
-- design overhaul
-- errors need to be descriptive and human readable
 - account system should have tabs for information (changing info, reset password, delete account, etc...), bookings (current bookings where you can cancel or prepay or modfiy), pets (edit, remove, or add pets), history (completed bookings for information and like to tip), any any others???
 - cal should have an email created for automated emails
 - website logo
 - setup page analytics for vercel
-- nav text is a little hard to see
-- overscroll?
-- gallery: click empty space to exit lightbox, remove "out on the trail", images load so slow into lightbox
+- email icon footer + change those links in footer
+- return to top button bottom right
+- gallery lightbox still slow
+- maybe combine services and booking
+- contact page
+- house sitting bookings accross months is impossible right now
 
 ## admin UI owed by booking-rules-v2 (see docs/superpowers/plans/2026-06-03-booking-rules-v2.md)
 

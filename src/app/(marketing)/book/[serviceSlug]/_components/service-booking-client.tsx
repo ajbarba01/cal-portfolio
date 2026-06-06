@@ -25,6 +25,7 @@ import {
   useState,
   useTransition,
 } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAvailability } from "@/features/booking/use-availability";
 import { useBusyRanges } from "@/features/booking/use-busy-ranges";
@@ -349,10 +350,12 @@ export function ServiceBookingClient({
   // forbids assigning ref.current during render, so the sync lives in this effect
   // (which runs synchronously after commit, well before the 400ms timer fires).
   const buildInputRef = useRef(buildInput);
-  const canQuoteRef = useRef(hasSelection && petsOk);
+  const canQuoteRef = useRef(hasSelection && petsOk && authState === "ready");
   useEffect(() => {
     buildInputRef.current = buildInput;
-    canQuoteRef.current = hasSelection && petsOk;
+    // Non-ready users never get a server quote — the price box shows an auth
+    // prompt instead, so skip the round-trip entirely.
+    canQuoteRef.current = hasSelection && petsOk && authState === "ready";
   });
 
   // ── Debounced live quote (no useEffect setState) ───────────────────────────
@@ -493,6 +496,20 @@ export function ServiceBookingClient({
     !isPreviewing &&
     !submitDone &&
     (authState !== "ready" || quote !== null);
+
+  // Auth-prompt link shown in the price box for non-ready users. Mirrors the
+  // deferred-auth gate in handleBook so the destination + returnTo match.
+  const authPromptHref = (() => {
+    const base = authState === "guest" ? "/login" : "/onboarding";
+    if (!startsAt || !endsAt) return base;
+    const returnTo = buildReturnTo({
+      serviceSlug: service.slug,
+      start: startsAt.toISOString(),
+      end: endsAt.toISOString(),
+      petIds: petAware ? selectedPetIds : undefined,
+    });
+    return `${base}?returnTo=${encodeURIComponent(returnTo)}`;
+  })();
 
   // Step counter helpers
   const step2Label = petAware ? "2" : "2";
@@ -653,7 +670,20 @@ export function ServiceBookingClient({
             {previewMsg.text}
           </p>
         )}
-        {quote ? (
+        {authState !== "ready" ? (
+          <div className="border-border bg-card text-muted-foreground rounded-xl border border-dashed p-6 text-center text-sm">
+            Please{" "}
+            <Link
+              href={authPromptHref}
+              className="text-foreground font-medium underline-offset-4 hover:underline focus-visible:underline focus-visible:outline-none"
+            >
+              {authState === "guest"
+                ? "log in"
+                : "finish setting up your account"}
+            </Link>{" "}
+            to get a quote.
+          </div>
+        ) : quote ? (
           <QuotePanel
             preview={quote}
             onBook={handleBook}
