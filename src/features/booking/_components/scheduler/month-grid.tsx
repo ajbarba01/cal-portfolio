@@ -511,10 +511,14 @@ export function MonthGrid({ className }: { className?: string }) {
             return;
           }
           if (isDisabled(date)) return;
+          // Commit clears the live between-clicks preview either way.
+          setPreviewDays(new Set());
           if (state.anchorDay == null || state.selectedDays.size !== 1) {
+            // First click: drop any existing range, start a fresh anchor.
             clearDays();
             toggleDay(k);
           } else {
+            // Second click: commit the range anchor→here (any month).
             setRange(state.anchorDay, k);
           }
           break;
@@ -679,22 +683,36 @@ export function MonthGrid({ className }: { className?: string }) {
       }
 
       const drag = dragRef.current;
-      if (!drag?.active) return;
-      if (dayKey === drag.currentKey) return;
-      drag.currentKey = dayKey;
-      drag.didDrag = true;
+      if (drag?.active) {
+        if (dayKey === drag.currentKey) return;
+        drag.currentKey = dayKey;
+        drag.didDrag = true;
 
-      if (drag.variant === "paint") {
-        // Contiguous range anchor→current, filtered to selectable cells
-        // (text-selection semantics): booked/past/no-data days the span flows
-        // over are skipped.
-        setPreviewDays(new Set(selectableRange(drag.anchorKey, dayKey)));
-      } else {
-        // Contiguous range anchor→current.
-        setPreviewDays(new Set(daysInRange(drag.anchorKey, dayKey)));
+        if (drag.variant === "paint") {
+          // Contiguous range anchor→current, filtered to selectable cells
+          // (text-selection semantics): booked/past/no-data days the span flows
+          // over are skipped.
+          setPreviewDays(new Set(selectableRange(drag.anchorKey, dayKey)));
+        } else {
+          // Contiguous range anchor→current.
+          setPreviewDays(new Set(daysInRange(drag.anchorKey, dayKey)));
+        }
+        return;
+      }
+
+      // Two-click range (no button held): after the first click sets an anchor
+      // (exactly one day selected), the cursor "drags" a live preview to the
+      // hovered day until the second click commits. Works across month nav.
+      if (
+        isRange &&
+        state.anchorDay != null &&
+        state.selectedDays.size === 1 &&
+        kind === "selectable"
+      ) {
+        setPreviewDays(new Set(daysInRange(state.anchorDay, dayKey)));
       }
     },
-    [selectableRange],
+    [selectableRange, isRange, state.anchorDay, state.selectedDays],
   );
 
   const handleCellPointerLeave = useCallback((kind: CellKind) => {

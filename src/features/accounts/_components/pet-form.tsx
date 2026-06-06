@@ -103,8 +103,10 @@ export function PetForm({ initial, onSaved, onCancel }: PetFormProps) {
           />
         </div>
 
-        <fieldset className="flex flex-col gap-1.5">
-          <legend className="mb-1.5 text-sm font-medium">Species</legend>
+        {/* Mirror the Name field's div+Label structure exactly so the control
+            tops align across the 2-col grid. */}
+        <div className="flex flex-col gap-1.5">
+          <Label>Species</Label>
           <div
             role="radiogroup"
             aria-label="Species"
@@ -131,7 +133,7 @@ export function PetForm({ initial, onSaved, onCancel }: PetFormProps) {
               );
             })}
           </div>
-        </fieldset>
+        </div>
       </div>
 
       <div className="flex flex-col gap-1.5">

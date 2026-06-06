@@ -2,9 +2,8 @@
 
 /** Weekly-recurrence toggle + occurrence count. Presentational; caller owns state. */
 
-import { FormField } from "@/components/ui/form-field";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { NumberStepper } from "@/components/ui/number-stepper";
 
 export function RecurringControls({
   enabled,
@@ -30,22 +29,18 @@ export function RecurringControls({
         <Label htmlFor="recurring-toggle">Repeat weekly</Label>
       </div>
       {enabled && (
-        <div className="ml-7 flex flex-col gap-1">
-          <FormField label="Number of weeks" name="occurrence-count">
-            <Input
-              id="occurrence-count"
-              type="number"
-              value={count}
-              min={2}
-              max={52}
-              step={1}
-              onChange={(e) => {
-                const n = parseInt(e.target.value, 10);
-                if (!isNaN(n) && n >= 2) onCountChange(n);
-              }}
-              className="w-28"
-            />
-          </FormField>
+        <div className="ml-7 flex flex-col gap-1.5">
+          <Label htmlFor="occurrence-count">Number of weeks</Label>
+          <NumberStepper
+            id="occurrence-count"
+            ariaLabel="Number of weeks"
+            value={count}
+            min={2}
+            max={52}
+            step={1}
+            unit="wks"
+            onChange={onCountChange}
+          />
           <p className="text-muted-foreground text-xs">
             Books {count} weekly occurrences starting from the selected slot.
           </p>

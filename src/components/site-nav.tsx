@@ -6,7 +6,10 @@ import { usePathname } from "next/navigation";
 import { Drawer } from "@base-ui/react/drawer";
 import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { isActiveNav } from "@/components/layout/is-active-nav";
+import {
+  isActiveNav,
+  isActiveSection,
+} from "@/components/layout/is-active-nav";
 import { navUnderline } from "@/components/layout/nav-underline";
 import { SignOutButton } from "@/components/sign-out-button";
 import type { NavItem, ZoneNav } from "@/components/layout/nav-config";
@@ -19,7 +22,7 @@ export function SiteNavTabs({ links }: { links: NavItem[] }) {
     <nav aria-label="Main navigation">
       <ul className="flex items-center justify-center gap-7 text-sm">
         {links.map(({ href, label }) => {
-          const active = isActiveNav(pathname, href);
+          const active = isActiveSection(pathname, href);
           return (
             <li key={href}>
               <Link
@@ -140,7 +143,7 @@ function SiteNavMobileDrawer({
             <nav aria-label="Site navigation">
               <ul className="flex flex-col">
                 {links.map(({ href, label }) => {
-                  const active = isActiveNav(pathname, href);
+                  const active = isActiveSection(pathname, href);
                   return (
                     <li key={href}>
                       <Link
