@@ -56,8 +56,8 @@ export async function SiteHeader({ zoneNav }: { zoneNav?: ZoneNav }) {
   );
 
   return (
-    <header className="border-border border-b">
-      <div className="mx-auto w-full max-w-5xl px-5 sm:px-8">
+    <header className="bg-card border-border border-b">
+      <div className="mx-auto w-full max-w-6xl px-5 sm:px-8">
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 py-4">
           <Wordmark isAdmin={isAdmin} />
 

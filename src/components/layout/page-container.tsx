@@ -10,7 +10,7 @@ type PageContainerProps = React.ComponentProps<"div"> & {
 
 const widths = {
   read: "max-w-[65ch]",
-  app: "max-w-5xl",
+  app: "max-w-6xl",
 } as const;
 
 export function PageContainer({
