@@ -712,7 +712,7 @@ function WeekGridInner({ className }: { className?: string }) {
             type="button"
             aria-label="Previous week"
             onClick={() => goToWeek(-7)}
-            className="hover:bg-muted focus-visible:ring-ring inline-flex size-8 items-center justify-center rounded-md focus-visible:ring-2 focus-visible:outline-none"
+            className="hover:bg-sidebar-accent focus-visible:ring-ring inline-flex size-8 items-center justify-center rounded-md transition-colors duration-200 ease-out focus-visible:ring-2 focus-visible:outline-none"
           >
             <ChevronLeft className="size-4" />
           </button>
@@ -729,7 +729,7 @@ function WeekGridInner({ className }: { className?: string }) {
             type="button"
             aria-label="Next week"
             onClick={() => goToWeek(7)}
-            className="hover:bg-muted focus-visible:ring-ring inline-flex size-8 items-center justify-center rounded-md focus-visible:ring-2 focus-visible:outline-none"
+            className="hover:bg-sidebar-accent focus-visible:ring-ring inline-flex size-8 items-center justify-center rounded-md transition-colors duration-200 ease-out focus-visible:ring-2 focus-visible:outline-none"
           >
             <ChevronRight className="size-4" />
           </button>

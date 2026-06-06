@@ -18,6 +18,7 @@
 
 import { useTransition, useState } from "react";
 import { useScheduler } from "@/features/booking/scheduler-context";
+import { Button } from "@/components/ui/button";
 import { mergeDraftToRanges } from "@/features/booking/schedule-selection";
 import type { DraftRange } from "@/features/booking/schedule-selection";
 import type { ConflictBooking } from "@/features/admin/availability-actions";
@@ -255,7 +256,7 @@ export function WeekActions({ className }: WeekActionsProps) {
     <aside
       aria-label="Week grid draft actions"
       className={[
-        "bg-card border-border flex flex-col gap-4 rounded-lg border p-4",
+        "bg-card border-border flex flex-col gap-4 rounded-xl border p-4",
         className ?? "",
       ]
         .join(" ")
@@ -322,32 +323,31 @@ export function WeekActions({ className }: WeekActionsProps) {
         </h3>
 
         <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
+          <Button
+            size="sm"
             onClick={handleMarkAvailable}
             disabled={disableActions}
-            className="bg-primary text-primary-foreground focus:ring-ring rounded px-3 py-1.5 text-sm font-medium focus:ring-2 focus:outline-none disabled:opacity-50"
           >
             {isPending ? "Applying…" : "Mark available"}
-          </button>
+          </Button>
 
-          <button
-            type="button"
+          <Button
+            size="sm"
+            variant="outline"
             onClick={handleMarkUnavailable}
             disabled={disableActions}
-            className="border-border bg-background text-foreground focus:ring-ring rounded border px-3 py-1.5 text-sm font-medium focus:ring-2 focus:outline-none disabled:opacity-50"
           >
             {isPending ? "Applying…" : "Mark unavailable"}
-          </button>
+          </Button>
 
-          <button
-            type="button"
+          <Button
+            size="sm"
+            variant="outline"
             onClick={handleClear}
             disabled={!hasRanges || isPending}
-            className="border-border bg-background text-muted-foreground focus:ring-ring rounded border px-3 py-1.5 text-sm font-medium focus:ring-2 focus:outline-none disabled:opacity-50"
           >
             Clear
-          </button>
+          </Button>
         </div>
       </section>
     </aside>

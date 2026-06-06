@@ -75,7 +75,7 @@ export function Scheduler({
 
   return (
     <SchedulerProvider value={value}>
-      <div className="bg-card border-border rounded-lg border p-4">
+      <div className="bg-card border-border rounded-xl border p-4">
         {children}
       </div>
     </SchedulerProvider>
