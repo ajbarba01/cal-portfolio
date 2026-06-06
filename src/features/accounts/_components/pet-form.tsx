@@ -1,10 +1,11 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { PhotoCropField } from "./photo-crop-field";
 import {
   createPet,
   updatePet,
@@ -34,7 +35,7 @@ export function PetForm({ initial, onSaved, onCancel }: PetFormProps) {
     notes: initial?.notes ?? "",
   });
   const [error, setError] = useState<string | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [croppedPhoto, setCroppedPhoto] = useState<Blob | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const fieldId = (f: string) => `pet-${f}-${initial?.id ?? "new"}`;
@@ -71,11 +72,10 @@ export function PetForm({ initial, onSaved, onCancel }: PetFormProps) {
         saved = result.pet;
       }
 
-      const file = fileRef.current?.files?.[0];
-      if (file && file.size > 0) {
+      if (croppedPhoto && croppedPhoto.size > 0) {
         const fd = new FormData();
         fd.set("petId", saved.id);
-        fd.set("file", file);
+        fd.set("file", croppedPhoto, "pet.jpg");
         const upload = await uploadPetPhoto(fd);
         if (upload.kind !== "success") {
           setError(upload.message);
@@ -161,14 +161,8 @@ export function PetForm({ initial, onSaved, onCancel }: PetFormProps) {
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor={fieldId("photo")}>Photo</Label>
-        <Input
-          id={fieldId("photo")}
-          ref={fileRef}
-          name="file"
-          type="file"
-          accept="image/*"
-        />
+        <Label>Photo (optional)</Label>
+        <PhotoCropField onCroppedBlobChange={setCroppedPhoto} />
       </div>
 
       {error && (
