@@ -3,7 +3,7 @@
  * Server component.
  */
 import Link from "next/link";
-import { Hero } from "./_components/hero";
+import { MarketingHero } from "@/components/marketing/marketing-hero";
 import { Eyebrow } from "@/components/marketing/eyebrow";
 import { PageContainer } from "@/components/layout/page-container";
 import { buttonVariants } from "@/components/ui/button";
@@ -30,33 +30,67 @@ const trustPoints = [
 export default function HomePage() {
   return (
     <>
-      <Hero />
-
-      <PageContainer width="app" className="py-12 sm:py-16">
-        <div className="mx-auto mb-10 max-w-[34ch] text-center">
-          <Eyebrow>Why Cal</Eyebrow>
-          <h2 className="font-heading mt-2 text-2xl font-semibold sm:text-3xl">
-            [[HEADER: why-Cal section]]
-          </h2>
-        </div>
-        <ul className="grid gap-8 sm:grid-cols-3" role="list">
-          {trustPoints.map((p) => (
-            <li
-              key={p.id}
-              className="flex flex-col gap-2 text-center sm:text-left"
+      <MarketingHero
+        src="/bg/IMG_7869.JPG"
+        eyebrow="Dog walking · house sitting · Colorado"
+        title="[[HEADER: hero hook]]"
+        body="[[BODY: services overview and what sets Cal apart]]"
+        actions={
+          <>
+            <Link
+              href="/book"
+              className={cn(
+                buttonVariants({ variant: "brand", size: "lg" }),
+                "w-full sm:w-auto",
+              )}
             >
-              <span className="font-heading text-foreground text-lg font-semibold">
-                {p.title}
-              </span>
-              <p className="text-muted-foreground text-sm leading-relaxed">
-                {p.body}
-              </p>
-            </li>
-          ))}
-        </ul>
-      </PageContainer>
+              Book a service
+            </Link>
+            <Link
+              href="/services"
+              className={cn(
+                buttonVariants({ variant: "outline", size: "lg" }),
+                "w-full sm:w-auto sm:border-white/70 sm:bg-transparent sm:text-white sm:hover:bg-white/10",
+              )}
+            >
+              See services
+            </Link>
+          </>
+        }
+      />
 
-      <section aria-label="Get started" className="border-border border-t">
+      {/* Why Cal — section-alt band (alternates with the sand-50 CTA below) */}
+      <section aria-labelledby="why-heading" className="bg-section-alt">
+        <PageContainer width="app" className="py-12 sm:py-16">
+          <div className="mx-auto mb-10 max-w-[34ch] text-center">
+            <Eyebrow>Why Cal</Eyebrow>
+            <h2
+              id="why-heading"
+              className="font-heading mt-2 text-2xl font-semibold sm:text-3xl"
+            >
+              [[HEADER: why-Cal section]]
+            </h2>
+          </div>
+          <ul className="grid gap-10 sm:grid-cols-3" role="list">
+            {trustPoints.map((p) => (
+              <li
+                key={p.id}
+                className="flex flex-col items-center gap-2 text-center"
+              >
+                <span className="font-heading text-foreground text-lg font-semibold">
+                  {p.title}
+                </span>
+                <p className="text-muted-foreground max-w-[28ch] text-sm leading-relaxed">
+                  {p.body}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </PageContainer>
+      </section>
+
+      {/* Closing CTA — sand-50 band */}
+      <section aria-label="Get started" className="bg-background">
         <PageContainer width="read" className="py-12 text-center sm:py-16">
           <h2 className="font-heading text-2xl font-semibold sm:text-3xl">
             [[HEADER: closing CTA]]

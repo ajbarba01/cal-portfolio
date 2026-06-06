@@ -79,6 +79,10 @@ export function Lightbox({
           onTouchCancel={() => {
             touchStartX.current = null;
           }}
+          onClick={(e) => {
+            // Click on the empty area (not the image or a control) closes.
+            if (e.target === e.currentTarget) onClose();
+          }}
           className="fixed inset-0 z-50 flex flex-col items-center justify-center p-4 outline-none select-none sm:p-10"
         >
           <Dialog.Close
@@ -96,7 +100,8 @@ export function Lightbox({
                 alt={current.alt}
                 width={current.width}
                 height={current.height}
-                sizes="100vw"
+                quality={68}
+                sizes="(min-width: 1024px) 90vw, 100vw"
                 className="max-h-[82vh] w-auto max-w-[92vw] rounded-sm object-contain shadow-2xl"
               />
               <p className="mt-4 text-xs tracking-[0.14em] text-(--sand-200)">
