@@ -4,7 +4,6 @@ import * as React from "react";
 import { Dialog } from "@base-ui/react/dialog";
 import Image from "next/image";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { stepIndex } from "./lightbox-nav";
 
 export type LightboxImage = {
@@ -37,6 +36,7 @@ export function Lightbox({
 
   function step(delta: number) {
     if (index === null) return;
+    if (images.length <= 1) return;
     onIndexChange(stepIndex(index, delta, images.length));
   }
 
@@ -76,8 +76,18 @@ export function Lightbox({
           onKeyDown={onKeyDown}
           onTouchStart={onTouchStart}
           onTouchEnd={onTouchEnd}
+          onTouchCancel={() => {
+            touchStartX.current = null;
+          }}
           className="fixed inset-0 z-50 flex flex-col items-center justify-center p-4 outline-none select-none sm:p-10"
         >
+          <Dialog.Close
+            aria-label="Close"
+            className="absolute top-4 right-4 flex size-11 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20"
+          >
+            <X className="size-5" />
+          </Dialog.Close>
+
           {current ? (
             <>
               <Image
@@ -89,16 +99,9 @@ export function Lightbox({
                 sizes="100vw"
                 className="max-h-[82vh] w-auto max-w-[92vw] rounded-sm object-contain shadow-2xl"
               />
-              <p className="mt-4 text-xs tracking-[0.14em] text-[var(--sand-200)]">
+              <p className="mt-4 text-xs tracking-[0.14em] text-(--sand-200)">
                 {String((index ?? 0) + 1).padStart(2, "0")} / {images.length}
               </p>
-
-              <Dialog.Close
-                aria-label="Close"
-                className="absolute top-4 right-4 flex size-11 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20"
-              >
-                <X className="size-5" />
-              </Dialog.Close>
 
               {images.length > 1 ? (
                 <>
@@ -106,9 +109,7 @@ export function Lightbox({
                     type="button"
                     aria-label="Previous photo"
                     onClick={() => step(-1)}
-                    className={cn(
-                      "absolute top-1/2 left-3 flex size-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20 sm:left-6",
-                    )}
+                    className="absolute top-1/2 left-3 flex size-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20 sm:left-6"
                   >
                     <ChevronLeft className="size-6" />
                   </button>
