@@ -14,9 +14,9 @@ describe("navUnderline", () => {
     expect(cls).toContain("after:scale-x-100");
   });
 
-  it("inactive link is muted with hover-reveal underline (not shown by default)", () => {
+  it("inactive link is legible foreground with hover-reveal underline (not shown by default)", () => {
     const cls = navUnderline(false);
-    expect(cls).toContain("text-muted-foreground");
+    expect(cls).toContain("text-foreground/80");
     expect(cls).toContain("hover:after:scale-x-100");
     expect(cls).not.toContain("font-semibold");
   });
@@ -27,7 +27,7 @@ describe("navUnderline", () => {
 
   it("hoverReveal=false omits the inactive hover-underline (dropdown trigger)", () => {
     const cls = navUnderline(false, false);
-    expect(cls).toContain("text-muted-foreground");
+    expect(cls).toContain("text-foreground/80");
     expect(cls).not.toContain("hover:after:scale-x-100");
   });
 
