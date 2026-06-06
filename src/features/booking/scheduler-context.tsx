@@ -42,6 +42,8 @@ export interface SchedulerData {
   busyResident: BusyBlock[]; // resident bookings that block whole days
   rules: BookingRuleSettings;
   now: Date;
+  /** Day-keys where the current client already has a booking (public view). */
+  myBookings?: Set<string>;
 }
 
 export interface SchedulerCallbacks {

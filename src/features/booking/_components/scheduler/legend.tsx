@@ -37,6 +37,11 @@ const ENTRIES = [
     label: "Selected",
     swatchClass: "border-2 border-brand bg-transparent",
   },
+  {
+    label: "Your booking",
+    swatchClass:
+      "bg-status-available relative after:absolute after:bottom-0.5 after:left-1/2 after:size-1 after:-translate-x-1/2 after:rounded-full after:bg-status-available-foreground after:content-['']",
+  },
 ] as const;
 
 // ──────────────────────────────────────────────────────────────────────────────

@@ -72,11 +72,7 @@ import {
   weekDays,
   sundayWeekStart,
 } from "@/features/booking/schedule-selection";
-import {
-  runEdges,
-  runFillRounding,
-  runOutlineClasses,
-} from "@/features/booking/grid-runs";
+import { runEdges, runFillRounding } from "@/features/booking/grid-runs";
 import type { DayButtonProps } from "react-day-picker";
 
 // ---------------------------------------------------------------------------
@@ -200,6 +196,8 @@ function SchedulerDayButton({
 }: SchedulerDayButtonProps) {
   const isSelected = modifiers.selected === true;
   const bookingId = availability?.bookingId;
+  const { data } = useScheduler();
+  const hasMyBooking = data.myBookings?.has(dayKey) ?? false;
 
   // Hover affordance (selectable cells only): a dotted clay (brand) outline signalling
   // "this will select". Outline (not border) so it never shifts layout or fights
@@ -245,6 +243,12 @@ function SchedulerDayButton({
       onPointerLeave={handlePointerLeave}
     >
       {children}
+      {hasMyBooking && (
+        <span
+          aria-hidden="true"
+          className="bg-status-available-foreground absolute bottom-1 left-1/2 size-1.5 -translate-x-1/2 rounded-full"
+        />
+      )}
       {outlineClassName !== "" && (
         <span
           aria-hidden="true"
@@ -344,12 +348,6 @@ export function MonthGrid({ className }: { className?: string }) {
   // Selection + booking maps MUST NOT depend on previewDays/hoveredBookingId so
   // hover/preview re-renders don't rebuild them (the drag hot path).
   const orderedDays = useMemo(() => visibleWeeks.flat(), [visibleWeeks]);
-
-  const selEdgeMap = useMemo(
-    () =>
-      runEdges(orderedDays, (k) => (state.selectedDays.has(k) ? "sel" : null)),
-    [orderedDays, state.selectedDays],
-  );
 
   // Fill runs group by STATUS (not just booking id) so a contiguous block of
   // available days merges into one rounded pill, an unavailable block into
@@ -459,38 +457,31 @@ export function MonthGrid({ className }: { className?: string }) {
         ? runFillRounding(fillEdge, "horizontal")
         : "";
 
-      // 3. Selection outline (committed) — merged across adjacent selected days,
-      //    width-2. During a REMOVE paint drag, painted-selected cells render a
-      //    distinct "pending removal" treatment (dashed/faded) so removal is
-      //    visible mid-drag instead of only at commit.
+      // 3. Selection outline (committed) — each selected day gets its own closed
+      //    clay box, independent of neighbors. During a REMOVE paint drag,
+      //    painted-selected cells render a distinct "pending removal" treatment
+      //    (dashed/faded) so removal is visible mid-drag instead of only at commit.
       let outline = "";
-      const selEdge = selEdgeMap.get(dayKey);
       const pendingRemove =
         previewMode === "remove" &&
         previewDays.has(dayKey) &&
         state.selectedDays.has(dayKey);
-      if (selEdge) {
-        outline = cn(
-          runOutlineClasses(selEdge, "horizontal", 2),
-          pendingRemove ? "border-dashed border-brand/50" : "border-brand",
-        );
+      if (state.selectedDays.has(dayKey)) {
+        outline = pendingRemove
+          ? "border-2 border-dashed border-brand/50 rounded-lg"
+          : "border-2 border-brand rounded-lg";
       } else if (previewMode !== "remove" && previewDays.size > 0) {
         // 4. Live ADD preview outline — dashed/half variant for cells not yet
         //    committed-selected (only reached when there is no committed outline).
         const prevEdge = previewEdgeMap.get(dayKey);
-        if (prevEdge) {
-          outline = cn(
-            runOutlineClasses(prevEdge, "horizontal", 2),
-            "border-dashed border-brand/60",
-          );
-        }
+        if (prevEdge)
+          outline = "border-2 border-dashed border-brand/60 rounded-lg";
       }
 
       return { fill: cn(fill, fillRounding), outline };
     },
     [
       byKey,
-      selEdgeMap,
       fillEdgeMap,
       previewEdgeMap,
       state.selectedDays,
