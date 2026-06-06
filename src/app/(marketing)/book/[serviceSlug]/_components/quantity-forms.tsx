@@ -7,17 +7,9 @@
  * house-sitting form collects only the per-day add-ons.
  */
 
-import { FormField as FormFieldBase } from "@/components/ui/form-field";
+import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
 import type { PricingType } from "@/features/pricing/types";
-import type React from "react";
-
-// Cast to the children branch of FormField's union so JSX children typecheck.
-const FormField = FormFieldBase as React.FC<{
-  label: React.ReactNode;
-  name: string;
-  children: React.ReactNode;
-}>;
 
 // ── State shapes ────────────────────────────────────────────────────────────
 
