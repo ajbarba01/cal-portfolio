@@ -1,7 +1,10 @@
-/**
- * Resources page — local dog resources, FAQ placeholders.
- * Static server component.
- */
+"use client";
+
+import { ChevronDown } from "lucide-react";
+import { Accordion } from "@base-ui/react/accordion";
+
+import { PageContainer } from "@/components/layout/page-container";
+import { PageHeader } from "@/components/layout/page-header";
 
 const localResources = [
   {
@@ -27,24 +30,42 @@ const localResources = [
 ];
 
 const faqItems = [
-  { question: "[[FAQ 1: question]]", answer: "[[FAQ 1: answer]]" },
-  { question: "[[FAQ 2: question]]", answer: "[[FAQ 2: answer]]" },
-  { question: "[[FAQ 3: question]]", answer: "[[FAQ 3: answer]]" },
-  { question: "[[FAQ 4: question]]", answer: "[[FAQ 4: answer]]" },
-  { question: "[[FAQ 5: question]]", answer: "[[FAQ 5: answer]]" },
+  {
+    id: "faq-1",
+    question: "[[FAQ 1: question]]",
+    answer: "[[FAQ 1: answer]]",
+  },
+  {
+    id: "faq-2",
+    question: "[[FAQ 2: question]]",
+    answer: "[[FAQ 2: answer]]",
+  },
+  {
+    id: "faq-3",
+    question: "[[FAQ 3: question]]",
+    answer: "[[FAQ 3: answer]]",
+  },
+  {
+    id: "faq-4",
+    question: "[[FAQ 4: question]]",
+    answer: "[[FAQ 4: answer]]",
+  },
+  {
+    id: "faq-5",
+    question: "[[FAQ 5: question]]",
+    answer: "[[FAQ 5: answer]]",
+  },
 ];
 
 export default function ResourcesPage() {
   return (
-    <div className="mx-auto max-w-2xl px-6 py-16">
-      <h1 className="text-foreground mb-5 text-3xl font-bold tracking-tight">
-        Resources
-      </h1>
-      {/* Local resources */}
+    <PageContainer width="read" className="py-12 sm:py-16">
+      <PageHeader title="Resources" />
+
       <section aria-labelledby="local-resources-heading" className="mb-12">
         <h2
           id="local-resources-heading"
-          className="text-foreground mb-4 text-xl font-semibold"
+          className="font-heading mb-4 text-xl font-semibold"
         >
           Local dog resources
         </h2>
@@ -58,7 +79,7 @@ export default function ResourcesPage() {
                 href={href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-foreground font-medium underline underline-offset-4 hover:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2"
+                className="text-brand-strong font-medium underline underline-offset-4 hover:opacity-70"
               >
                 {title}
               </a>
@@ -70,25 +91,35 @@ export default function ResourcesPage() {
         </ul>
       </section>
 
-      {/* FAQ */}
       <section aria-labelledby="faq-heading">
         <h2
           id="faq-heading"
-          className="text-foreground mb-4 text-xl font-semibold"
+          className="font-heading mb-4 text-xl font-semibold"
         >
           Frequently asked questions
         </h2>
-        <dl className="flex flex-col gap-6">
-          {faqItems.map(({ question, answer }) => (
-            <div key={question}>
-              <dt className="text-foreground mb-1 font-medium">{question}</dt>
-              <dd className="text-muted-foreground text-sm leading-relaxed">
-                {answer}
-              </dd>
-            </div>
+        <Accordion.Root className="flex flex-col">
+          {faqItems.map((item) => (
+            <Accordion.Item
+              key={item.id}
+              value={item.id}
+              className="border-border border-b"
+            >
+              <Accordion.Header>
+                <Accordion.Trigger className="group flex w-full items-center justify-between gap-4 py-4 text-left outline-none">
+                  <span className="text-foreground font-medium">
+                    {item.question}
+                  </span>
+                  <ChevronDown className="text-muted-foreground size-4 shrink-0 transition-transform group-data-panel-open:rotate-180" />
+                </Accordion.Trigger>
+              </Accordion.Header>
+              <Accordion.Panel className="text-muted-foreground pb-4 text-sm leading-relaxed">
+                {item.answer}
+              </Accordion.Panel>
+            </Accordion.Item>
           ))}
-        </dl>
+        </Accordion.Root>
       </section>
-    </div>
+    </PageContainer>
   );
 }

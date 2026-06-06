@@ -52,6 +52,8 @@ Cal's stated intent: **"simple and straightforward."** No brand assets yet (no l
 
 **Starting brief for that session:** warm, trustworthy, approachable-but-professional, with an outdoorsy hint (dog-walking / house-sitting). Photography-forward (Gallery, About). Not flashy. Mobile-first.
 
+**Shell + component kit.** Marketing pages compose the shell system — `PageContainer` / `PageHeader` plus the shadcn/ui component kit — for consistent layout and spacing. The home and about pages share a photographic hero (`public/bg/`); the Gallery page renders real photography from `public/gallery/` in a masonry layout with a lightbox.
+
 **Cal's design study references** (to **study, not fork**, in that session): `about.readthedocs.com`, `gwern.net`, `write.as`. Common thread — content-first, strongly typographic, low-chrome, document-like reading surfaces. Signals a restrained, text-forward aesthetic over a flashy marketing look; reconcile with the photography-forward Gallery/About when concrete type + palette are set.
 
 ## Route map
