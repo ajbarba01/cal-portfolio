@@ -16,7 +16,7 @@ export function Wordmark({ isAdmin }: { isAdmin: boolean }) {
       href={isAdmin ? "/admin" : "/"}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "font-heading justify-self-start text-xl font-semibold tracking-tight focus-visible:outline-2 focus-visible:outline-offset-2",
+        "font-heading justify-self-start text-2xl font-semibold tracking-tight focus-visible:outline-2 focus-visible:outline-offset-2",
         isAdmin &&
           `${NAV_UNDERLINE_BASE} text-brand-strong ${active ? "after:scale-x-100" : "hover:after:scale-x-100"}`,
       )}
