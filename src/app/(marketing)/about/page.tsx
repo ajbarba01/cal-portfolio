@@ -1,21 +1,51 @@
 /**
- * About page — static bio + service overview.
+ * About page — bio + approach + references, document-calm read column.
  * Server component.
  */
+import Link from "next/link";
+import Image from "next/image";
+import { PageContainer } from "@/components/layout/page-container";
+import { PageHeader } from "@/components/layout/page-header";
+
+const approach = [
+  {
+    id: "a1",
+    title: "[[Item 1: approach principle]]",
+    detail: "[[Item 1: detail]]",
+  },
+  {
+    id: "a2",
+    title: "[[Item 2: approach principle]]",
+    detail: "[[Item 2: detail]]",
+  },
+  {
+    id: "a3",
+    title: "[[Item 3: approach principle]]",
+    detail: "[[Item 3: detail]]",
+  },
+];
 
 export default function AboutPage() {
   return (
-    <div className="mx-auto max-w-2xl px-6 py-16">
-      {/* TODO: real copy before launch */}
+    <PageContainer width="read" className="py-12 sm:py-16">
+      <PageHeader title="About" subtitle="[[BODY: one-line about summary]]" />
 
-      <h1 className="text-foreground mb-6 text-3xl font-bold tracking-tight">
-        About Cal
-      </h1>
+      <figure className="border-border my-8 overflow-hidden rounded-lg border">
+        <div className="relative aspect-[3/2] w-full">
+          <Image
+            src="/gallery/IMG_0048.JPG"
+            alt="Cal with a dog in their care"
+            fill
+            sizes="(max-width: 680px) 100vw, 65ch"
+            className="object-cover"
+          />
+        </div>
+      </figure>
 
       <section aria-labelledby="bio-heading" className="mb-10">
         <h2
           id="bio-heading"
-          className="text-foreground mb-3 text-xl font-semibold"
+          className="font-heading mb-3 text-xl font-semibold"
         >
           What I do
         </h2>
@@ -29,50 +59,38 @@ export default function AboutPage() {
       <section aria-labelledby="approach-heading" className="mb-10">
         <h2
           id="approach-heading"
-          className="text-foreground mb-3 text-xl font-semibold"
+          className="font-heading mb-3 text-xl font-semibold"
         >
           My approach
         </h2>
         <ul className="text-muted-foreground flex flex-col gap-3 leading-relaxed">
-          <li>
-            <strong className="text-foreground">
-              [[Item 1: approach principle]]
-            </strong>{" "}
-            — [[Item 1: detail]]
-          </li>
-          <li>
-            <strong className="text-foreground">
-              [[Item 2: approach principle]]
-            </strong>{" "}
-            — [[Item 2: detail]]
-          </li>
-          <li>
-            <strong className="text-foreground">
-              [[Item 3: approach principle]]
-            </strong>{" "}
-            — [[Item 3: detail]]
-          </li>
+          {approach.map((a) => (
+            <li key={a.id}>
+              <strong className="text-foreground">{a.title}</strong> —{" "}
+              {a.detail}
+            </li>
+          ))}
         </ul>
       </section>
 
       <section aria-labelledby="references-heading">
         <h2
           id="references-heading"
-          className="text-foreground mb-3 text-xl font-semibold"
+          className="font-heading mb-3 text-xl font-semibold"
         >
           References
         </h2>
         <p className="text-muted-foreground leading-relaxed">
-          [[BODY: pointer to references — see the&nbsp;
-          <a
+          [[BODY: pointer to references — see the]]{" "}
+          <Link
             href="/reviews"
-            className="text-foreground underline underline-offset-4 hover:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2"
+            className="text-brand-strong underline underline-offset-4 hover:opacity-70"
           >
             Reviews
-          </a>{" "}
-          page.]]
+          </Link>{" "}
+          [[page]].
         </p>
       </section>
-    </div>
+    </PageContainer>
   );
 }
