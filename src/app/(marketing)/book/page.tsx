@@ -1,16 +1,16 @@
 /**
- * /book — service chooser (server component).
- *
- * Lists active services as cards linking to the per-service booking flow at
- * /book/[serviceSlug]. Loaded via the service role (anon cannot read settings,
- * and we keep one load path). The calendar + booking UX lives on the per-service
- * route.
+ * /book — service chooser. Cards link to the per-service booking flow.
+ * Server component; loaded via the service role.
  */
-
 import Link from "next/link";
+import { PageContainer } from "@/components/layout/page-container";
+import { PageHeader } from "@/components/layout/page-header";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { ErrorState } from "@/components/feedback/error-state";
+import { EmptyState } from "@/components/feedback/empty-state";
 import { createServiceClient } from "@/lib/supabase/service";
 
-interface ServiceCard {
+interface ServiceCardData {
   slug: string;
   name: string;
   description: string | null;
@@ -18,61 +18,57 @@ interface ServiceCard {
 
 export default async function BookPage() {
   const svc = createServiceClient();
-
   const { data, error } = await svc
     .from("services")
     .select("slug, name, description")
     .eq("active", true)
     .order("sort_order");
 
-  if (error) {
-    return (
-      <main className="mx-auto max-w-2xl px-4 py-12">
-        <p className="text-destructive">
-          Could not load services. Please try again later.
-        </p>
-      </main>
-    );
-  }
-
-  const services: ServiceCard[] = (data ?? []).map((row) => ({
-    slug: row.slug as string,
-    name: row.name as string,
-    description: typeof row.description === "string" ? row.description : null,
-  }));
-
   return (
-    <main className="mx-auto max-w-2xl px-4 py-12">
-      <h1 className="mb-2 text-2xl font-semibold">Book a service</h1>
-      <p className="text-muted-foreground mb-8 text-sm">
-        Choose a service to see Cal&apos;s availability and book.
-      </p>
+    <PageContainer width="app" className="py-12 sm:py-16">
+      <PageHeader
+        title="Book a service"
+        subtitle="Choose a service to see Cal's availability and book."
+      />
 
-      {services.length === 0 ? (
-        <p className="text-muted-foreground">
-          No services are currently available. Check back soon.
-        </p>
+      {error ? (
+        <ErrorState
+          title="Couldn't load services"
+          message="Please try again in a moment."
+        />
+      ) : (data ?? []).length === 0 ? (
+        <EmptyState title="No services available" message="Check back soon." />
       ) : (
-        <ul className="grid gap-3 sm:grid-cols-2">
-          {services.map((s) => (
-            <li key={s.slug}>
-              <Link
-                href={`/book/${s.slug}`}
-                className="border-border bg-card text-card-foreground hover:border-foreground focus-visible:border-ring focus-visible:ring-ring/50 block h-full rounded-lg border p-4 transition-colors outline-none focus-visible:ring-3"
-              >
-                <span className="text-foreground block font-medium">
-                  {s.name}
-                </span>
-                {s.description && (
-                  <span className="text-muted-foreground mt-1 block text-sm">
-                    {s.description}
-                  </span>
-                )}
-              </Link>
-            </li>
-          ))}
+        <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3" role="list">
+          {(data ?? []).map((row) => {
+            const s: ServiceCardData = {
+              slug: row.slug as string,
+              name: row.name as string,
+              description:
+                typeof row.description === "string" ? row.description : null,
+            };
+            return (
+              <li key={s.slug}>
+                <Link
+                  href={`/book/${s.slug}`}
+                  className="focus-visible:ring-ring/50 block h-full rounded-xl outline-none focus-visible:ring-3"
+                >
+                  <Card className="hover:border-foreground/40 h-full transition-colors">
+                    <CardHeader>
+                      <CardTitle className="font-heading">{s.name}</CardTitle>
+                    </CardHeader>
+                    {s.description ? (
+                      <CardContent className="text-muted-foreground leading-relaxed">
+                        {s.description}
+                      </CardContent>
+                    ) : null}
+                  </Card>
+                </Link>
+              </li>
+            );
+          })}
         </ul>
       )}
-    </main>
+    </PageContainer>
   );
 }
