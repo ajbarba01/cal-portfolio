@@ -285,42 +285,36 @@ export function ServiceBookingClient({
     };
   }
 
+  // Latest-ref pattern: a ref-only effect (no setState) keeps these current so the
+  // debounce timer reads fresh inputs at fire-time. The repo's react-hooks/refs rule
+  // forbids assigning ref.current during render, so the sync lives in this effect
+  // (which runs synchronously after commit, well before the 400ms timer fires).
+  const buildInputRef = useRef(buildInput);
+  const canQuoteRef = useRef(hasSelection && petsOk);
+  useEffect(() => {
+    buildInputRef.current = buildInput;
+    canQuoteRef.current = hasSelection && petsOk;
+  });
+
   // ── Debounced live quote (no useEffect setState) ───────────────────────────
   // Driven entirely from event handlers + a debounce timer.
   // The Scheduler calls onSelectionChange on mount/change, so a rehydrated
   // returnTo selection triggers this path without a mount effect.
+  // The timer reads from refs at fire-time so both week-slots and month-range
+  // always quote against the committed state after re-render.
 
   function requestQuote() {
     if (quoteTimerRef.current !== null) {
       clearTimeout(quoteTimerRef.current);
     }
-    // Snapshot current derived values into the closure at call time.
-    // (startsAt/endsAt are let-bindings re-derived each render; safe to close over.)
-    const currentStartsAt = startsAt;
-    const currentEndsAt = endsAt;
-    const currentHasSelection = hasSelection;
-    const currentPetsOk = petsOk;
-
-    if (!currentHasSelection || !currentPetsOk) {
-      setQuote(null);
-      setPreviewMsg(null);
-      return;
-    }
-
     quoteTimerRef.current = setTimeout(() => {
+      if (!canQuoteRef.current) {
+        setQuote(null);
+        setPreviewMsg(null);
+        return;
+      }
       startPreviewing(async () => {
-        if (!currentStartsAt || !currentEndsAt) return;
-        const result = await previewQuote({
-          serviceSlug: service.slug,
-          startsAt: currentStartsAt,
-          endsAt: currentEndsAt,
-          quantities: quantitiesToRecord(quantities, nights),
-          petIds: petAware ? selectedPetIds : undefined,
-          recurringRule:
-            supportsRecurring && recurringOn
-              ? { freq: "weekly" as const, interval: 1, count: occurrenceCount }
-              : null,
-        });
+        const result = await previewQuote(buildInputRef.current());
         const out = previewResultMessage(result);
         if (out.kind === "quote") {
           setQuote(out.preview);
@@ -361,14 +355,11 @@ export function ServiceBookingClient({
           from: localDateFromKey(minKey),
           to: localDateFromKey(checkOutKey),
         });
-        // requestQuote reads the live startsAt/endsAt — but those are derived from
-        // range state which hasn't flushed yet. For month-range, we trigger the
-        // quote after the range state is set by clearing and letting the next
-        // render's handler fire. Since the month-range quote depends on stay
-        // validation (which reads from state), we clear and let the user explicitly
-        // trigger, OR we snapshot the dates here directly.
         setQuote(null);
         setPreviewMsg(null);
+        // The timer fires ~400ms after this render completes. By then range state
+        // has flushed → stay/startsAt/endsAt are fresh in buildInputRef.current().
+        requestQuote();
       } else {
         // gridDraft: exactly one cell "dayKey@minute" → selectedSlot.
         if (state.gridDraft.size === 0) {
@@ -392,53 +383,10 @@ export function ServiceBookingClient({
         });
         setQuote(null);
         setPreviewMsg(null);
-        // Snapshot new dates into the timer closure directly (bypassing stale state).
-        if (quoteTimerRef.current !== null) {
-          clearTimeout(quoteTimerRef.current);
-        }
-        if (petsOk) {
-          quoteTimerRef.current = setTimeout(() => {
-            startPreviewing(async () => {
-              const result = await previewQuote({
-                serviceSlug: service.slug,
-                startsAt: newStartsAt,
-                endsAt: newEndsAt,
-                quantities: quantitiesToRecord(quantities, null),
-                petIds: petAware ? selectedPetIds : undefined,
-                recurringRule:
-                  supportsRecurring && recurringOn
-                    ? {
-                        freq: "weekly" as const,
-                        interval: 1,
-                        count: occurrenceCount,
-                      }
-                    : null,
-              });
-              const out = previewResultMessage(result);
-              if (out.kind === "quote") {
-                setQuote(out.preview);
-                setPreviewMsg(null);
-              } else {
-                setQuote(null);
-                setPreviewMsg(out.message);
-              }
-            });
-          }, 400);
-        }
+        requestQuote();
       }
     },
-    [
-      mode,
-      durationMs,
-      petsOk,
-      petAware,
-      selectedPetIds,
-      quantities,
-      supportsRecurring,
-      recurringOn,
-      occurrenceCount,
-      service.slug,
-    ],
+    [mode, durationMs],
   );
 
   // ── Book handler ──────────────────────────────────────────────────────────
