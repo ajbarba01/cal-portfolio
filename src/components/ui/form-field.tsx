@@ -25,7 +25,10 @@ type FormFieldBase = {
 // can't be silently dropped.
 type FormFieldProps =
   | (FormFieldBase & { children: React.ReactNode } & {
-      [K in keyof Omit<React.ComponentProps<typeof Input>, "name">]?: never;
+      [K in keyof Omit<
+        React.ComponentProps<typeof Input>,
+        "name" | "children"
+      >]?: never;
     })
   | (FormFieldBase & { children?: undefined } & Omit<
         React.ComponentProps<typeof Input>,
