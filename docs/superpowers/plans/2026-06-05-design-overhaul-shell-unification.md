@@ -1,6 +1,6 @@
 # Shell Unification + Interaction Language — Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: superpowers:subagent-driven-development (default) to implement this plan task-by-task; superpowers:executing-plans only if the maintainer opts in this session. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Make the marketing header global on every zone, render every route as one centered "sheet on an accent desk", and ship a documented hover/active interaction language — plus fold in three Phase-1 cleanups and adopt the shell on the auth pages.
 
