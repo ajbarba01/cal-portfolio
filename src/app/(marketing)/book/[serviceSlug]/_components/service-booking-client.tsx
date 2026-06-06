@@ -29,7 +29,10 @@ import { useRouter } from "next/navigation";
 import { useAvailability } from "@/features/booking/use-availability";
 import { useBusyRanges } from "@/features/booking/use-busy-ranges";
 import { useOvernightNights } from "@/features/booking/use-overnight-nights";
-import { validateStayRange } from "@/features/booking/calendar-model";
+import {
+  validateStayRange,
+  hourlyAvailableDayKeys,
+} from "@/features/booking/calendar-model";
 import { denverMidnight, denverDayKey } from "@/features/booking/availability";
 import { buildReturnTo } from "@/features/booking/return-to";
 import { previewQuote } from "@/features/booking/quote-action";
@@ -53,10 +56,8 @@ import {
 } from "./quantity-forms";
 import { QuotePanel } from "./quote-panel";
 import { RecurringControls } from "./recurring-controls";
-import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/feedback/toast";
 import { ErrorState } from "@/components/feedback/error-state";
-import { centsToDollars } from "@/features/booking/format-money";
 import {
   createResultMessage,
   previewResultMessage,
@@ -64,10 +65,7 @@ import {
 import type { UserMessage } from "../../_components/messages";
 import type { DateRange } from "@/components/ui/calendar";
 import type { PricingType } from "@/features/pricing/types";
-import type {
-  TimeRange,
-  BookingRuleSettings,
-} from "@/features/booking/availability";
+import type { BookingRuleSettings } from "@/features/booking/availability";
 import type { PublicBusyRange } from "@/features/booking/busy-ranges";
 import type { BookingQuotePreview } from "@/features/booking/booking-service";
 import type { Pet } from "@/features/accounts/account-actions";
@@ -98,6 +96,8 @@ interface ServiceBookingClientProps {
   authState: AuthState;
   pets: AssignablePet[];
   initialSelection: InitialSelection;
+  /** Denver day-keys where this client already has an active booking (your-booking dot). */
+  myBookingDayKeys: string[];
 }
 
 // ── Local date helpers (browser-local calendar keys; layout, not business rules) ──
@@ -122,6 +122,7 @@ export function ServiceBookingClient({
   authState,
   pets,
   initialSelection,
+  myBookingDayKeys,
 }: ServiceBookingClientProps) {
   const router = useRouter();
   const toast = useToast();
@@ -133,7 +134,6 @@ export function ServiceBookingClient({
   const allowedSpecies: PetSpecies[] =
     service.pricingType === "house_sitting" ? ["dog", "cat"] : ["dog"];
   const supportsRecurring = mode === "week-slots";
-  const durationMs = (service.defaultDurationMin ?? 60) * 60 * 1000;
 
   // Stable "now" for the component lifetime (page reload re-mounts).
   const now = useMemo(() => new Date(), []);
@@ -148,12 +148,11 @@ export function ServiceBookingClient({
   const [recurringOn, setRecurringOn] = useState(false);
   const [occurrenceCount, setOccurrenceCount] = useState(4);
 
-  const [selectedSlot, setSelectedSlot] = useState<TimeRange | null>(() =>
-    mode === "week-slots" && initialSelection.start && initialSelection.end
-      ? {
-          startsAt: new Date(initialSelection.start),
-          endsAt: new Date(initialSelection.end),
-        }
+  // Hourly selection is just a start instant; the end is always start + the
+  // currently-chosen duration, so changing duration re-derives the end live.
+  const [selectedStart, setSelectedStart] = useState<Date | null>(() =>
+    mode === "week-slots" && initialSelection.start
+      ? new Date(initialSelection.start)
       : null,
   );
   const [range, setRange] = useState<DateRange | undefined>(() =>
@@ -172,6 +171,18 @@ export function ServiceBookingClient({
 
   const [isPreviewing, startPreviewing] = useTransition();
   const [isSubmitting, startSubmitting] = useTransition();
+
+  // ── Booking duration (single source of truth for hourly) ───────────────────
+  // For hourly services the user-chosen "hours" IS the booking duration; it
+  // drives the live quote, the day-timeline block height + candidate starts,
+  // AND which month days read as available. House-sitting uses the service default.
+  const durationMin = useMemo(() => {
+    if (mode !== "week-slots") return service.defaultDurationMin ?? 60;
+    const hours =
+      quantities.type === "house_sitting" ? 1 : quantities.qty.hours;
+    return Math.max(15, Math.round(hours * 60));
+  }, [mode, service.defaultDurationMin, quantities]);
+  const durationMs = durationMin * 60_000;
 
   // ── Debounce timer ref for live quote ──────────────────────────────────────
   const quoteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -217,21 +228,69 @@ export function ServiceBookingClient({
         : {
             ...BOOK_WALK_CAPABILITIES,
             weekNavigable: false,
-            intervalMinutes: service.defaultDurationMin ?? 60,
+            intervalMinutes: durationMin,
           },
-    [mode, service.defaultDurationMin],
+    [mode, durationMin],
   );
+
+  // The client's existing-booking day-keys (your-booking dot).
+  const myBookings = useMemo(
+    () => new Set(myBookingDayKeys),
+    [myBookingDayKeys],
+  );
+
+  // Hourly month availability: a day is "available" only if it has ≥1 open start
+  // for the chosen duration (busy-filtered) — so changing duration re-derives it.
+  // Fed to deriveBookableDays via overnightNights (which keys "available").
+  const availableDayKeys = useMemo(() => {
+    if (mode !== "week-slots") return overnightNights;
+    const days: Date[] = [];
+    const seen = new Set<string>();
+    for (let i = 0; i <= rules.hardMaxAdvanceDays; i++) {
+      const key = denverDayKey(new Date(now.getTime() + i * 86_400_000));
+      if (seen.has(key)) continue;
+      seen.add(key);
+      days.push(denverMidnight(key));
+    }
+    return hourlyAvailableDayKeys({
+      days,
+      windows: openWindows,
+      busy: busyRanges,
+      durationMin,
+      granularityMin: 15,
+    });
+  }, [
+    mode,
+    overnightNights,
+    openWindows,
+    busyRanges,
+    durationMin,
+    rules.hardMaxAdvanceDays,
+    now,
+  ]);
 
   const schedulerData = useMemo<SchedulerData>(
     () => ({
-      overnightNights,
+      overnightNights:
+        mode === "week-slots" ? availableDayKeys : overnightNights,
       windows: openWindows,
       busy: busyRanges,
-      busyResident: busyRanges,
+      // Hourly days are never whole-day "busy"; busyRanges only block time slots.
+      busyResident: mode === "week-slots" ? [] : busyRanges,
+      myBookings,
       rules,
       now,
     }),
-    [overnightNights, openWindows, busyRanges, rules, now],
+    [
+      mode,
+      availableDayKeys,
+      overnightNights,
+      openWindows,
+      busyRanges,
+      myBookings,
+      rules,
+      now,
+    ],
   );
 
   // ── Derived booking time ─────────────────────────────────────────────────────
@@ -252,9 +311,9 @@ export function ServiceBookingClient({
   let endsAt: Date | null = null;
   let nights: number | null = null;
   if (mode === "week-slots") {
-    if (selectedSlot) {
-      startsAt = selectedSlot.startsAt;
-      endsAt = selectedSlot.endsAt;
+    if (selectedStart) {
+      startsAt = selectedStart;
+      endsAt = new Date(selectedStart.getTime() + durationMs);
     }
   } else if (stay?.ok) {
     startsAt = stay.range.startsAt;
@@ -361,9 +420,9 @@ export function ServiceBookingClient({
         // has flushed → stay/startsAt/endsAt are fresh in buildInputRef.current().
         requestQuote();
       } else {
-        // gridDraft: exactly one cell "dayKey@minute" → selectedSlot.
+        // gridDraft: exactly one cell "dayKey@minute" → selectedStart.
         if (state.gridDraft.size === 0) {
-          setSelectedSlot(null);
+          setSelectedStart(null);
           setQuote(null);
           setPreviewMsg(null);
           return;
@@ -375,18 +434,13 @@ export function ServiceBookingClient({
         const minute = parseInt(cell.slice(atIdx + 1), 10);
         if (isNaN(minute)) return;
         const startsAtMs = denverMidnight(dayKey).getTime() + minute * 60_000;
-        const newStartsAt = new Date(startsAtMs);
-        const newEndsAt = new Date(startsAtMs + durationMs);
-        setSelectedSlot({
-          startsAt: newStartsAt,
-          endsAt: newEndsAt,
-        });
+        setSelectedStart(new Date(startsAtMs));
         setQuote(null);
         setPreviewMsg(null);
         requestQuote();
       }
     },
-    [mode, durationMs],
+    [mode],
   );
 
   // ── Book handler ──────────────────────────────────────────────────────────
@@ -446,205 +500,169 @@ export function ServiceBookingClient({
   const step4Label = petAware ? "4" : "3";
 
   return (
-    <div className="grid gap-8 pb-24 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:pb-0">
-      {/* LEFT COLUMN */}
-      <div className="flex flex-col gap-8">
-        {/* 1. Calendar */}
-        <section aria-labelledby="cal-heading">
-          <h2
-            id="cal-heading"
-            className="text-brand-strong mb-3 text-xs font-semibold tracking-wide uppercase"
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-8 pb-12">
+      {/* 1. Calendar */}
+      <section aria-labelledby="cal-heading">
+        <h2
+          id="cal-heading"
+          className="text-brand-strong mb-3 text-xs font-semibold tracking-wide uppercase"
+        >
+          1. {mode === "month-range" ? "Pick your dates" : "Pick a day"}
+        </h2>
+        {windowsError && (
+          <ErrorState
+            title="Couldn't load availability"
+            message={windowsError}
+          />
+        )}
+        {windowsLoading && (
+          <p className="text-muted-foreground text-sm">Loading availability…</p>
+        )}
+        {!windowsLoading && !windowsError && mode === "week-slots" && (
+          <Scheduler
+            capabilities={capabilities}
+            data={schedulerData}
+            onSelectionChange={onSelectionChange}
           >
-            1. {mode === "month-range" ? "Pick your dates" : "Pick a day"}
-          </h2>
-          {windowsError && (
-            <ErrorState
-              title="Couldn't load availability"
-              message={windowsError}
-            />
-          )}
-          {windowsLoading && (
-            <p className="text-muted-foreground text-sm">
-              Loading availability…
-            </p>
-          )}
-          {!windowsLoading && !windowsError && mode === "week-slots" && (
+            <Scheduler.MonthGrid />
+            {/* Legend sits directly under the month (B2), before the timeline. */}
+            <Scheduler.Legend className="mt-5" />
+            <div className="mt-6">
+              <Scheduler.DayTimeline />
+            </div>
+            <Scheduler.BookingDetailsPanel />
+          </Scheduler>
+        )}
+        {!windowsLoading && !windowsError && mode === "month-range" && (
+          <>
             <Scheduler
               capabilities={capabilities}
               data={schedulerData}
               onSelectionChange={onSelectionChange}
             >
               <Scheduler.MonthGrid />
-              <div className="mt-6">
-                <Scheduler.DayTimeline />
-              </div>
-              <Scheduler.Legend />
-              <Scheduler.BookingDetailsPanel />
-            </Scheduler>
-          )}
-          {!windowsLoading && !windowsError && mode === "month-range" && (
-            <>
-              <Scheduler
-                capabilities={capabilities}
-                data={schedulerData}
-                onSelectionChange={onSelectionChange}
-              >
-                <Scheduler.MonthGrid />
-                {/* Fixed-height summary row: nights live inline (never a new line)
+              {/* Fixed-height summary row: nights live inline (never a new line)
                     and the Clear-dates slot is always reserved, so selecting a
                     range changes only text/opacity — never layout height. */}
-                <div className="mt-5 flex h-8 items-center justify-between gap-3 overflow-hidden">
-                  <div className="flex items-baseline gap-2 whitespace-nowrap">
-                    <Scheduler.SelectionSummary />
-                    {stay?.ok && (
-                      <span className="text-muted-foreground text-sm">
-                        · {stay.nights} night{stay.nights === 1 ? "" : "s"}
-                      </span>
-                    )}
-                  </div>
-                  <Scheduler.ClearDates />
+              <div className="mt-5 flex h-8 items-center justify-between gap-3 overflow-hidden">
+                <div className="flex items-baseline gap-2 whitespace-nowrap">
+                  <Scheduler.SelectionSummary />
+                  {stay?.ok && (
+                    <span className="text-muted-foreground text-sm">
+                      · {stay.nights} night{stay.nights === 1 ? "" : "s"}
+                    </span>
+                  )}
                 </div>
-                <Scheduler.Legend className="mt-5" />
-                <Scheduler.BookingDetailsPanel />
-              </Scheduler>
-              {/* Reserved-height line for the invalid-range message only. */}
-              <p className="mt-2 min-h-5 text-sm" aria-live="polite">
-                {range?.from && range?.to && stay && !stay.ok && (
-                  <span className="text-destructive">{stay.reason}</span>
-                )}
-              </p>
-            </>
-          )}
-        </section>
-
-        {/* 2. Pet assignment (pet-aware services) */}
-        {petAware && (
-          <section aria-labelledby="pets-heading">
-            <h2
-              id="pets-heading"
-              className="text-brand-strong mb-3 text-xs font-semibold tracking-wide uppercase"
-            >
-              {step2Label}. Which pets?
-            </h2>
-            {authState === "ready" ? (
-              <PetAssignment
-                pets={pets}
-                allowedSpecies={allowedSpecies}
-                selected={selectedPetIds}
-                onChange={(ids) => {
-                  setSelectedPetIds(ids);
-                  requestQuote();
-                }}
-                onPetAdded={handlePetAdded}
-              />
-            ) : (
-              <p className="text-muted-foreground text-sm">
-                You&apos;ll assign your pets after signing in.
-              </p>
-            )}
-          </section>
+                <Scheduler.ClearDates />
+              </div>
+              <Scheduler.Legend className="mt-5" />
+              <Scheduler.BookingDetailsPanel />
+            </Scheduler>
+            {/* Reserved-height line for the invalid-range message only. */}
+            <p className="mt-2 min-h-5 text-sm" aria-live="polite">
+              {range?.from && range?.to && stay && !stay.ok && (
+                <span className="text-destructive">{stay.reason}</span>
+              )}
+            </p>
+          </>
         )}
+      </section>
 
-        {/* 3. Quantities */}
-        <section aria-labelledby="qty-heading">
+      {/* 2. Pet assignment (pet-aware services) */}
+      {petAware && (
+        <section aria-labelledby="pets-heading">
           <h2
-            id="qty-heading"
+            id="pets-heading"
             className="text-brand-strong mb-3 text-xs font-semibold tracking-wide uppercase"
           >
-            {step3Label}. Details
+            {step2Label}. Which pets?
           </h2>
-          <QuantityForm
-            state={quantities}
-            onChange={(s) => {
-              setQuantities(s);
+          {authState === "ready" ? (
+            <PetAssignment
+              pets={pets}
+              allowedSpecies={allowedSpecies}
+              selected={selectedPetIds}
+              onChange={(ids) => {
+                setSelectedPetIds(ids);
+                requestQuote();
+              }}
+              onPetAdded={handlePetAdded}
+            />
+          ) : (
+            <p className="text-muted-foreground text-sm">
+              You&apos;ll assign your pets after signing in.
+            </p>
+          )}
+        </section>
+      )}
+
+      {/* 3. Quantities */}
+      <section aria-labelledby="qty-heading">
+        <h2
+          id="qty-heading"
+          className="text-brand-strong mb-3 text-xs font-semibold tracking-wide uppercase"
+        >
+          {step3Label}. Details
+        </h2>
+        <QuantityForm
+          state={quantities}
+          onChange={(s) => {
+            setQuantities(s);
+            requestQuote();
+          }}
+        />
+      </section>
+
+      {/* 4. Recurring (time-bounded services only) */}
+      {supportsRecurring && (
+        <section aria-labelledby="recur-heading">
+          <h2
+            id="recur-heading"
+            className="text-brand-strong mb-3 text-xs font-semibold tracking-wide uppercase"
+          >
+            {step4Label}. Recurring (optional)
+          </h2>
+          <RecurringControls
+            enabled={recurringOn}
+            count={occurrenceCount}
+            onEnabledChange={(on) => {
+              setRecurringOn(on);
+              requestQuote();
+            }}
+            onCountChange={(n) => {
+              setOccurrenceCount(n);
               requestQuote();
             }}
           />
         </section>
+      )}
 
-        {/* 4. Recurring (time-bounded services only) */}
-        {supportsRecurring && (
-          <section aria-labelledby="recur-heading">
-            <h2
-              id="recur-heading"
-              className="text-brand-strong mb-3 text-xs font-semibold tracking-wide uppercase"
-            >
-              {step4Label}. Recurring (optional)
-            </h2>
-            <RecurringControls
-              enabled={recurringOn}
-              count={occurrenceCount}
-              onEnabledChange={(on) => {
-                setRecurringOn(on);
-                requestQuote();
-              }}
-              onCountChange={(n) => {
-                setOccurrenceCount(n);
-                requestQuote();
-              }}
-            />
-          </section>
-        )}
-      </div>
-
-      {/* RIGHT RAIL — desktop sticky, vertically centered */}
-      <aside className="flex flex-col gap-4 lg:sticky lg:top-6 lg:flex lg:min-h-[calc(100dvh-6rem)] lg:flex-col lg:justify-center">
+      {/* Receipt + Book — live, centered at the bottom of the flow */}
+      <section aria-labelledby="receipt-heading" aria-live="polite">
+        <h2 id="receipt-heading" className="sr-only">
+          Your price
+        </h2>
         {previewMsg && (
-          <p role="alert" className="text-destructive text-sm">
+          <p role="alert" className="text-destructive mb-3 text-sm">
             {previewMsg.text}
           </p>
         )}
-
         {quote ? (
-          <QuotePanel preview={quote} />
+          <QuotePanel
+            preview={quote}
+            onBook={handleBook}
+            bookLabel={isSubmitting ? "Submitting…" : "Book now"}
+            bookDisabled={!bookEnabled}
+            showBook={!submitDone}
+          />
         ) : (
-          <p className="text-muted-foreground text-sm">
+          <div className="border-border bg-card text-muted-foreground rounded-xl border border-dashed p-6 text-center text-sm">
             {isPreviewing
               ? "Calculating…"
-              : "Select a day and time to see your price"}
-          </p>
+              : "Select a day and time to see your price."}
+          </div>
         )}
-
-        {!submitDone && (
-          <Button
-            className="w-full"
-            onClick={handleBook}
-            disabled={!bookEnabled}
-          >
-            {isSubmitting ? "Submitting…" : "Book now"}
-          </Button>
-        )}
-      </aside>
-
-      {/* MOBILE STICKY BOTTOM BAR */}
-      <div className="bg-card border-border fixed inset-x-0 bottom-0 z-30 flex items-center justify-between gap-3 border-t px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:hidden">
-        <div className="min-w-0">
-          {quote ? (
-            <span
-              className="text-brand-strong text-lg"
-              style={{ fontFamily: "var(--font-heading)" }}
-            >
-              {centsToDollars(quote.finalCents)}
-            </span>
-          ) : (
-            <span className="text-muted-foreground text-sm">
-              {isPreviewing ? "Calculating…" : "—"}
-            </span>
-          )}
-        </div>
-        <Button
-          onClick={handleBook}
-          disabled={
-            !hasSelection ||
-            !petsOk ||
-            isSubmitting ||
-            isPreviewing ||
-            submitDone
-          }
-        >
-          {isSubmitting ? "Submitting…" : "Book now"}
-        </Button>
-      </div>
+      </section>
     </div>
   );
 }

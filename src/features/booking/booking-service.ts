@@ -808,7 +808,9 @@ export async function settleDebtCore(
 // Constraints: amounts that multiply into money must be non-negative and sane.
 
 const houseSittingQuantitiesSchema = z.object({
-  dogs: z.number().int().min(1),
+  // Cat-only stays are valid (pricing supports 0 dogs); the ≥1-pet rule is
+  // enforced at the booking layer (petsOk), not here.
+  dogs: z.number().int().min(0),
   cats: z.number().int().min(0),
   nights: z.number().positive(),
   cantBeLeftAloneDays: z.number().int().min(0).optional(),

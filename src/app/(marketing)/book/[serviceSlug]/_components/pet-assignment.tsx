@@ -65,13 +65,13 @@ export function PetAssignment({
       )}
 
       {eligible.length > 0 && (
-        <ul className="flex flex-wrap gap-2.5">
+        <ul className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
           {eligible.map((pet) => {
             const isSelected = selected.includes(pet.id);
             const subtitle =
               pet.breed ?? (pet.species === "dog" ? "Dog" : "Cat");
             return (
-              <li key={pet.id} className="flex-1 basis-40">
+              <li key={pet.id}>
                 <button
                   type="button"
                   onClick={() => toggle(pet.id)}

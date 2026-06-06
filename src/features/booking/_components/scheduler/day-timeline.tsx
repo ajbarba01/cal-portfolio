@@ -25,7 +25,6 @@ import React, {
   useRef,
   useCallback,
   useEffect,
-  useId,
 } from "react";
 import { cn } from "@/lib/utils";
 import { useScheduler } from "@/features/booking/scheduler-context";
@@ -107,83 +106,15 @@ function formatDayHeader(dayKey: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// Parse a typed time string → minutes since midnight, or null
-// ---------------------------------------------------------------------------
-
-/**
- * Accepts "9:00 AM", "9:00am", "9:00", "900", "9" etc.
- * Returns minutes since midnight, or null if unrecognised.
- */
-function parseTimeInput(raw: string): number | null {
-  const s = raw.trim().toLowerCase().replace(/\s+/g, "");
-  if (!s) return null;
-
-  // Detect AM/PM suffix
-  const hasPm = s.endsWith("pm");
-  const hasAm = s.endsWith("am");
-  const digits = s.replace(/[^0-9:]/g, "");
-
-  let h: number;
-  let m: number;
-
-  if (digits.includes(":")) {
-    const [hPart, mPart] = digits.split(":");
-    h = parseInt(hPart, 10);
-    m = parseInt(mPart ?? "0", 10);
-  } else {
-    const n = parseInt(digits, 10);
-    if (isNaN(n)) return null;
-    if (n < 100) {
-      h = n;
-      m = 0;
-    } else {
-      h = Math.floor(n / 100);
-      m = n % 100;
-    }
-  }
-
-  if (isNaN(h) || isNaN(m) || m >= 60) return null;
-
-  if (hasPm && h !== 12) h += 12;
-  if (hasAm && h === 12) h = 0;
-  if (h >= 24) return null;
-
-  return h * 60 + m;
-}
-
-/**
- * Snap to the nearest candidate start at or after `parsedMin`.
- * Falls back to the nearest overall candidate if none is >=.
- */
-function snapToCandidate(
-  parsedMin: number,
-  candidates: number[],
-): number | null {
-  if (candidates.length === 0) return null;
-  const atOrAfter = candidates.find((c) => c >= parsedMin);
-  if (atOrAfter !== undefined) return atOrAfter;
-  // nearest overall
-  return candidates.reduce((best, c) =>
-    Math.abs(c - parsedMin) < Math.abs(best - parsedMin) ? c : best,
-  );
-}
-
-// ---------------------------------------------------------------------------
 // DayTimeline — all hooks declared unconditionally
 // ---------------------------------------------------------------------------
 
 export function DayTimeline({ className }: { className?: string }) {
   const { capabilities, data, selection } = useScheduler();
-  const { state, beginGridDrag } = selection;
+  const { state, beginGridDrag, clearDays } = selection;
   const intervalMinutes = capabilities.intervalMinutes ?? 60;
 
   // ── All hooks (unconditional — WeekGrid pattern) ──────────────────────────
-
-  const inputId = useId();
-
-  // Local input state for "Start at" text field
-  const [inputValue, setInputValue] = useState("");
-  const [inputError, setInputError] = useState(false);
 
   // Drag: which candidate is being dragged (startMin offset)
   const [dragPreviewStart, setDragPreviewStart] = useState<number | null>(null);
@@ -299,6 +230,33 @@ export function DayTimeline({ className }: { className?: string }) {
 
   // The "live" start displayed: drag preview overrides committed draft
   const liveStart: number | null = dragPreviewStart ?? draftForDay;
+
+  // ── Keep the committed selection valid as duration changes ────────────────
+  // When the booking duration grows, the committed start may no longer fit its
+  // window. Snap back to the latest start that still fits; if nothing fits this
+  // day, unselect the day entirely (it also drops out of the month's available
+  // set, which is recomputed for the new duration upstream).
+  // (beginGridDrag / clearDays are context dispatchers, not local setState.)
+  useEffect(() => {
+    if (dayKey === null) return;
+    if (minuteWindows.length === 0) return; // "no availability" handled below
+    if (candidateStarts.length === 0) {
+      clearDays();
+      return;
+    }
+    if (draftForDay === null || candidateStarts.includes(draftForDay)) return;
+    const fit =
+      [...candidateStarts].reverse().find((c) => c <= draftForDay) ??
+      candidateStarts[candidateStarts.length - 1];
+    beginGridDrag(`${dayKey}@${fit}`);
+  }, [
+    dayKey,
+    minuteWindows.length,
+    candidateStarts,
+    draftForDay,
+    beginGridDrag,
+    clearDays,
+  ]);
 
   // ── Pointer drag helpers ──────────────────────────────────────────────────
 
@@ -427,42 +385,6 @@ export function DayTimeline({ className }: { className?: string }) {
       }
     },
     [dayKey, candidateStarts, liveStart, beginGridDrag],
-  );
-
-  // ── Text input handlers ───────────────────────────────────────────────────
-
-  const commitInputValue = useCallback(() => {
-    if (!dayKey || !inputValue.trim()) {
-      setInputError(false);
-      return;
-    }
-    const parsed = parseTimeInput(inputValue);
-    if (parsed === null) {
-      setInputError(true);
-      return;
-    }
-    const snapped = snapToCandidate(parsed, candidateStarts);
-    if (snapped === null) {
-      setInputError(true);
-      return;
-    }
-    setInputError(false);
-    setInputValue("");
-    beginGridDrag(`${dayKey}@${snapped}`);
-  }, [dayKey, inputValue, candidateStarts, beginGridDrag]);
-
-  const handleInputKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        commitInputValue();
-      }
-      if (e.key === "Escape") {
-        setInputValue("");
-        setInputError(false);
-      }
-    },
-    [commitInputValue],
   );
 
   // ── Early return: no day selected ─────────────────────────────────────────
@@ -700,48 +622,6 @@ export function DayTimeline({ className }: { className?: string }) {
               );
             })()}
         </div>
-      </div>
-
-      {/* "Start at" text input */}
-      <div className="flex items-center gap-2">
-        <label
-          htmlFor={inputId}
-          className="text-muted-foreground shrink-0 font-sans text-xs"
-        >
-          Start at
-        </label>
-        <input
-          id={inputId}
-          type="text"
-          aria-label="Type a start time, e.g. 9:00 AM"
-          placeholder="e.g. 9:00 AM"
-          value={inputValue}
-          onChange={(e) => {
-            setInputValue(e.target.value);
-            setInputError(false);
-          }}
-          onKeyDown={handleInputKeyDown}
-          onBlur={commitInputValue}
-          className={cn(
-            "border-input bg-background text-foreground font-sans",
-            "w-32 rounded-md border px-2.5 py-1 text-xs",
-            "placeholder:text-muted-foreground/60",
-            "focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none",
-            "transition-colors duration-150",
-            inputError &&
-              "border-destructive focus-visible:ring-destructive/50",
-          )}
-          autoComplete="off"
-        />
-        {inputError && (
-          <span
-            className="text-destructive font-sans text-xs"
-            role="alert"
-            aria-live="polite"
-          >
-            Not available
-          </span>
-        )}
       </div>
     </div>
   );

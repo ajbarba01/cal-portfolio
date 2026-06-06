@@ -31,6 +31,7 @@
 
 import { denverDayKey, denverMidnight } from "./availability";
 import type { TimeRange, BookingRuleSettings } from "./availability";
+import { startOptions, type MinuteWindow } from "./day-timeline-model";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -166,6 +167,78 @@ export function deriveBookableDays(
 
     return { dayKey, dayStart, state };
   });
+}
+
+// ---------------------------------------------------------------------------
+// hourlyAvailableDayKeys (hourly month view — duration-aware)
+// ---------------------------------------------------------------------------
+
+export interface HourlyAvailableDayKeysArgs {
+  /** One Denver-midnight instant per calendar day to consider. */
+  days: Date[];
+  /** Open availability windows (absolute instants). */
+  windows: TimeRange[];
+  /** Busy ranges (absolute instants) that block candidate starts. */
+  busy: TimeRange[];
+  /** Booking duration in minutes (drives slot fit). */
+  durationMin: number;
+  /** Start-time granularity in minutes. */
+  granularityMin: number;
+}
+
+/**
+ * Day-keys that have at least one bookable start for an hourly service of the
+ * given duration: a granularity-aligned start that fits an open window for that
+ * day AND whose [start, start+duration) does not overlap any busy range.
+ *
+ * Mirrors `Scheduler.DayTimeline`'s candidate-start logic exactly so the month
+ * grid and the day timeline never disagree. Pass this set as `overnightNights`
+ * to {@link deriveBookableDays} to drive the hourly month "available" state, so
+ * changing the duration re-derives which days are open.
+ */
+export function hourlyAvailableDayKeys(
+  args: HourlyAvailableDayKeysArgs,
+): Set<string> {
+  const { days, windows, busy, durationMin, granularityMin } = args;
+  const out = new Set<string>();
+
+  for (const dayStart of days) {
+    const startMs = dayStart.getTime();
+    const endMs = startMs + MS_PER_DAY;
+
+    const minuteWindows: MinuteWindow[] = windows
+      .filter(
+        (w) => w.startsAt.getTime() < endMs && w.endsAt.getTime() > startMs,
+      )
+      .map((w) => {
+        const openMs = Math.max(w.startsAt.getTime(), startMs);
+        const closeMs = Math.min(w.endsAt.getTime(), endMs);
+        return [
+          Math.round((openMs - startMs) / MS_PER_MIN),
+          Math.round((closeMs - startMs) / MS_PER_MIN),
+        ] as MinuteWindow;
+      })
+      .filter(([open, close]) => close > open);
+
+    if (minuteWindows.length === 0) continue;
+
+    const starts = startOptions({
+      windows: minuteWindows,
+      durationMin,
+      granularityMin,
+    });
+    const hasFree = starts.some((s) => {
+      const candidate: TimeRange = {
+        startsAt: new Date(startMs + s * MS_PER_MIN),
+        endsAt: new Date(startMs + (s + durationMin) * MS_PER_MIN),
+      };
+      return !busy.some((b) => overlapsHalfOpen(candidate, b));
+    });
+
+    if (hasFree) out.add(denverDayKey(dayStart));
+  }
+
+  return out;
 }
 
 // ---------------------------------------------------------------------------

@@ -13,6 +13,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { getPublicBusyRanges } from "@/features/booking/busy-ranges";
+import { denverDayKey } from "@/features/booking/availability";
 import {
   ServiceBookingClient,
   type AuthState,
@@ -45,7 +46,7 @@ export default async function ServiceBookingPage({
   // Service.
   const { data: serviceRow } = await svc
     .from("services")
-    .select("slug, name, description, pricing_type, default_duration_min")
+    .select("id, slug, name, description, pricing_type, default_duration_min")
     .eq("slug", serviceSlug)
     .eq("active", true)
     .single();
@@ -103,6 +104,9 @@ export default async function ServiceBookingPage({
 
   let authState: AuthState = "guest";
   let pets: AssignablePet[] = [];
+  // Denver day-keys where this client already has an active booking for THIS
+  // service — drives the "your booking" dot on the month grid (e.g. recurring walks).
+  let myBookingDayKeys: string[] = [];
 
   if (user) {
     const { data: profile } = await svc
@@ -140,6 +144,18 @@ export default async function ServiceBookingPage({
         }),
       );
     }
+
+    const { data: myBookingRows } = await svc
+      .from("bookings")
+      .select("starts_at")
+      .eq("client_id", user.id)
+      .eq("service_id", serviceRow.id as string)
+      .in("status", ["pending_approval", "confirmed"])
+      .gte("ends_at", new Date().toISOString());
+
+    myBookingDayKeys = (myBookingRows ?? []).map((r) =>
+      denverDayKey(new Date(r.starts_at as string)),
+    );
   }
 
   const petsParam = firstParam(sp.pets);
@@ -170,6 +186,7 @@ export default async function ServiceBookingPage({
         authState={authState}
         pets={pets}
         initialSelection={initialSelection}
+        myBookingDayKeys={myBookingDayKeys}
       />
     </main>
   );
