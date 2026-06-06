@@ -301,7 +301,7 @@ const WeekCell = React.memo(function WeekCell({
   // solid commit). Booked slots already have the booking-lift hover.
   const canSelect = cell.role === "paint" || cell.role === "select";
   const hoverClass = canSelect
-    ? "hover:outline-2 hover:outline-dotted hover:outline-primary/50 hover:-outline-offset-2"
+    ? "hover:outline-2 hover:outline-dotted hover:outline-brand/60 hover:-outline-offset-2"
     : "";
   return (
     <button
@@ -495,7 +495,7 @@ function WeekGridInner({ className }: { className?: string }) {
       if (selEdge) {
         selectionOutline = cn(
           runOutlineClasses(selEdge, "vertical", 2, false),
-          pendingRemove ? "border-dashed border-primary/40" : "border-primary",
+          pendingRemove ? "border-dashed border-brand/50" : "border-brand",
         );
       }
 
@@ -507,7 +507,7 @@ function WeekGridInner({ className }: { className?: string }) {
         if (prevEdge) {
           previewOutline = cn(
             runOutlineClasses(prevEdge, "vertical", 2, false),
-            "border-dashed border-primary/50",
+            "border-dashed border-brand/60",
           );
         }
       }

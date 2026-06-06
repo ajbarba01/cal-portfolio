@@ -207,7 +207,7 @@ function SchedulerDayButton({
   // dashed = drag-preview, solid = committed — the three-tier outline language.
   const hoverClass =
     kind === "selectable"
-      ? "hover:outline-2 hover:outline-dotted hover:outline-primary/50 hover:-outline-offset-2"
+      ? "hover:outline-2 hover:outline-dotted hover:outline-brand/60 hover:-outline-offset-2"
       : "";
 
   // Do NOT call setPointerCapture — that redirects all pointer events to this
@@ -227,7 +227,12 @@ function SchedulerDayButton({
   return (
     <button
       {...buttonProps}
-      className={cn(className, fillClassName, hoverClass)}
+      className={cn(
+        className,
+        fillClassName,
+        hoverClass,
+        isSelected && "text-brand-strong font-bold",
+      )}
       aria-pressed={kind === "selectable" ? isSelected : undefined}
       title={kind === "booked" ? "Booked" : undefined}
       style={{ touchAction: "none", userSelect: "none" }}
@@ -467,7 +472,7 @@ export function MonthGrid({ className }: { className?: string }) {
       if (selEdge) {
         outline = cn(
           runOutlineClasses(selEdge, "horizontal", 2),
-          pendingRemove ? "border-dashed border-primary/40" : "border-primary",
+          pendingRemove ? "border-dashed border-brand/50" : "border-brand",
         );
       } else if (previewMode !== "remove" && previewDays.size > 0) {
         // 4. Live ADD preview outline — dashed/half variant for cells not yet
@@ -476,7 +481,7 @@ export function MonthGrid({ className }: { className?: string }) {
         if (prevEdge) {
           outline = cn(
             runOutlineClasses(prevEdge, "horizontal", 2),
-            "border-dashed border-primary/50",
+            "border-dashed border-brand/60",
           );
         }
       }

@@ -35,7 +35,7 @@ const ENTRIES = [
   },
   {
     label: "Selected",
-    swatchClass: "border-2 border-primary bg-transparent",
+    swatchClass: "border-2 border-brand bg-transparent",
   },
 ] as const;
 
