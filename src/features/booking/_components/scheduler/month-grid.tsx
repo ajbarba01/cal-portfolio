@@ -72,7 +72,7 @@ import {
   weekDays,
   sundayWeekStart,
 } from "@/features/booking/schedule-selection";
-import { runEdges, runFillRounding } from "@/features/booking/grid-runs";
+import { runEdges } from "@/features/booking/grid-runs";
 import type { DayButtonProps } from "react-day-picker";
 
 // ---------------------------------------------------------------------------
@@ -349,31 +349,6 @@ export function MonthGrid({ className }: { className?: string }) {
   // hover/preview re-renders don't rebuild them (the drag hot path).
   const orderedDays = useMemo(() => visibleWeeks.flat(), [visibleWeeks]);
 
-  // Fill runs group by STATUS (not just booking id) so a contiguous block of
-  // available days merges into one rounded pill, an unavailable block into
-  // another, and same-booking busy days into theirs. Adjacent DIFFERENT bookings
-  // stay separate (distinct keys); past cells never merge (null).
-  const fillEdgeMap = useMemo(
-    () =>
-      runEdges(orderedDays, (k) => {
-        const da = byKey.get(k);
-        if (!da) return null;
-        switch (da.state) {
-          case "available":
-            return "available";
-          case "busy":
-            return da.bookingId ? `booking:${da.bookingId}` : "busy";
-          case "out-of-window":
-            return "unavailable";
-          case "past":
-            return null;
-          default:
-            return "unavailable";
-        }
-      }),
-    [orderedDays, byKey],
-  );
-
   const previewEdgeMap = useMemo(
     () => runEdges(orderedDays, (k) => (previewDays.has(k) ? "p" : null)),
     [orderedDays, previewDays],
@@ -448,16 +423,7 @@ export function MonthGrid({ className }: { className?: string }) {
           fill = "bg-status-unavailable text-status-unavailable-foreground";
       }
 
-      // 2. Status fill merge — contiguous same-status days share one rounded pill
-      //    (available block, unavailable block, or same-booking busy run); the
-      //    leading rounded-none also resets the base rounded-lg so interiors are
-      //    square and the fill reads as one continuous shape.
-      const fillEdge = fillEdgeMap.get(dayKey);
-      const fillRounding = fillEdge
-        ? runFillRounding(fillEdge, "horizontal")
-        : "";
-
-      // 3. Selection outline (committed) — each selected day gets its own closed
+      // 2. Selection outline (committed) — each selected day gets its own closed
       //    clay box, independent of neighbors. During a REMOVE paint drag,
       //    painted-selected cells render a distinct "pending removal" treatment
       //    (dashed/faded) so removal is visible mid-drag instead of only at commit.
@@ -471,18 +437,17 @@ export function MonthGrid({ className }: { className?: string }) {
           ? "border-2 border-dashed border-brand/50 rounded-lg"
           : "border-2 border-brand rounded-lg";
       } else if (previewMode !== "remove" && previewDays.size > 0) {
-        // 4. Live ADD preview outline — dashed/half variant for cells not yet
+        // 3. Live ADD preview outline — dashed/half variant for cells not yet
         //    committed-selected (only reached when there is no committed outline).
         const prevEdge = previewEdgeMap.get(dayKey);
         if (prevEdge)
           outline = "border-2 border-dashed border-brand/60 rounded-lg";
       }
 
-      return { fill: cn(fill, fillRounding), outline };
+      return { fill, outline };
     },
     [
       byKey,
-      fillEdgeMap,
       previewEdgeMap,
       state.selectedDays,
       previewDays,
@@ -515,7 +480,7 @@ export function MonthGrid({ className }: { className?: string }) {
   const dayButtonBase = useMemo(
     () =>
       cn(
-        "relative inline-flex size-9 items-center justify-center rounded-lg outline-none",
+        "relative inline-flex aspect-square w-full items-center justify-center rounded-lg text-sm outline-none",
         "focus-visible:ring-ring/50 focus-visible:ring-3",
         "disabled:pointer-events-none disabled:opacity-40 aria-selected:opacity-100",
       ),
@@ -811,7 +776,7 @@ export function MonthGrid({ className }: { className?: string }) {
         disabled={isDisabled}
         modifiers={modifiers}
         modifiersClassNames={modifiersClassNames}
-        className="border-border rounded-lg border"
+        className="mx-auto w-full max-w-md"
         // Slot overrides:
         //  selected — neutralize rdp's default bg-primary (solid black on commit);
         //    our selection is the overlay outline, modifier kept only for aria.
