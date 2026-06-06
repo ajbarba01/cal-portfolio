@@ -100,11 +100,11 @@ export function BookingDetailsPanel({ className }: BookingDetailsPanelProps) {
   return (
     <section
       aria-label="Booking details"
-      className={cn("bg-card border-border rounded-lg border p-3", className)}
+      className={cn("bg-card border-border rounded-xl border p-3", className)}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex flex-col gap-1">
-          <h3 className="text-sm font-medium">Booking</h3>
+          <h3 className="text-sm font-semibold">Booking</h3>
           {block.label !== undefined && (
             <p className="text-muted-foreground text-sm">{block.label}</p>
           )}

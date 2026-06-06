@@ -114,6 +114,8 @@ Dark mode provides desaturated fills with lighter foregrounds. Primitives `--gre
 
 **Visual/interaction model.** Cell STATUS is a background fill (available=green, booked=blue, unavailable=neutral — via the status tokens above); SELECTION is a merged OUTLINE overlay (not a fill) composed on top, so a cell can show both at once. Contiguous same-booking cells merge into one rounded fill and contiguous selected cells merge into one outline — run-boundary math is a pure util in `src/features/booking/grid-runs.ts`. Admin paints to select and clicks a booked cell to inspect (opens `Scheduler.BookingDetailsPanel`); status colors are keyed by `Scheduler.Legend`.
 
+**Selection ring (Layer-3 restyle):** selection is a **thick clay (`--brand`) ring with a bold `--brand-strong` day number**, composing over the status fill; hover affordance and drag-preview use `--brand` at reduced opacity. Layers 1–2 are unmodified.
+
 Layer 3 is **wireframe / semantic-token-only** by contract — a design pass later swaps classNames without touching Layers 1–2. `SchedulerCapabilities` is the per-context seam: a plain object (with ADMIN and BOOKING presets) that gates which parts mount and which interactions are enabled, keeping one component tree for both contexts.
 
 > **Wireframe stage.** The calendar-first booking + admin surfaces are built as functional wireframes: full UX/behavior, tokens-only minimal styling, no visual polish. A later overhaul (Claude Design pipeline above) sets the concrete look.

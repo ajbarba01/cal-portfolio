@@ -6,7 +6,7 @@
  * Reads all state from SchedulerContext (via useScheduler) and dispatches back
  * into it. Owns NO selection logic — all day-classification logic lives in
  * calendar-model.ts; all run-edge math lives in grid-runs.ts. Owns NO colours —
- * token-only (status fills + primary outline + muted; no hex).
+ * token-only (status fills + clay (brand) outline + muted; no hex).
  *
  * DAY-KEY BRIDGE
  * The Calendar (react-day-picker v9) yields local-midnight Date objects for
@@ -27,11 +27,11 @@
  *        a week row into one rounded blue pill (runFillRounding). Hovering any
  *        cell of a booking lifts ALL its cells lighter (bg-status-booked/70) via
  *        transient hoveredBookingId state (CSS :hover can't span sibling cells).
- *   3. SELECTION OUTLINE: selected days draw a merged charcoal outline
- *        (border-primary) that joins horizontally-adjacent selected days in the
+ *   3. SELECTION OUTLINE: selected days draw a merged clay outline
+ *        (border-brand) that joins horizontally-adjacent selected days in the
  *        same week row into one rounded pill (runOutlineClasses). A gap or week
  *        boundary caps the run. Live drag preview uses the same mechanism in a
- *        dashed/half-opacity variant (border-primary/50 border-dashed).
+ *        dashed/half-opacity variant (border-brand/60 border-dashed).
  *   State fill and selection outline COMPOSE — a day can be available-green AND
  *   selection-outlined at once.
  *
@@ -201,13 +201,13 @@ function SchedulerDayButton({
   const isSelected = modifiers.selected === true;
   const bookingId = availability?.bookingId;
 
-  // Hover affordance (selectable cells only): a dotted primary outline signalling
+  // Hover affordance (selectable cells only): a dotted clay (brand) outline signalling
   // "this will select". Outline (not border) so it never shifts layout or fights
   // the selection border; inset so it sits inside the cell. Dotted = hover,
   // dashed = drag-preview, solid = committed — the three-tier outline language.
   const hoverClass =
     kind === "selectable"
-      ? "hover:outline-2 hover:outline-dotted hover:outline-primary/50 hover:-outline-offset-2"
+      ? "hover:outline-2 hover:outline-dotted hover:outline-brand/60 hover:-outline-offset-2"
       : "";
 
   // Do NOT call setPointerCapture — that redirects all pointer events to this
@@ -227,7 +227,12 @@ function SchedulerDayButton({
   return (
     <button
       {...buttonProps}
-      className={cn(className, fillClassName, hoverClass)}
+      className={cn(
+        className,
+        fillClassName,
+        hoverClass,
+        isSelected && "text-brand-strong font-bold",
+      )}
       aria-pressed={kind === "selectable" ? isSelected : undefined}
       title={kind === "booked" ? "Booked" : undefined}
       style={{ touchAction: "none", userSelect: "none" }}
@@ -467,7 +472,7 @@ export function MonthGrid({ className }: { className?: string }) {
       if (selEdge) {
         outline = cn(
           runOutlineClasses(selEdge, "horizontal", 2),
-          pendingRemove ? "border-dashed border-primary/40" : "border-primary",
+          pendingRemove ? "border-dashed border-brand/50" : "border-brand",
         );
       } else if (previewMode !== "remove" && previewDays.size > 0) {
         // 4. Live ADD preview outline — dashed/half variant for cells not yet
@@ -476,7 +481,7 @@ export function MonthGrid({ className }: { className?: string }) {
         if (prevEdge) {
           outline = cn(
             runOutlineClasses(prevEdge, "horizontal", 2),
-            "border-dashed border-primary/50",
+            "border-dashed border-brand/60",
           );
         }
       }

@@ -17,6 +17,7 @@
 
 import { useState, useTransition } from "react";
 import { useScheduler } from "@/features/booking/scheduler-context";
+import { Button } from "@/components/ui/button";
 import type { ConflictBooking } from "@/features/admin/overnight-actions";
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -182,7 +183,7 @@ export function DayPanel({ className }: DayPanelProps) {
     <aside
       aria-label="Bulk availability actions"
       className={[
-        "bg-card border-border flex flex-col gap-5 rounded-lg border p-4",
+        "bg-card border-border flex flex-col gap-5 rounded-xl border p-4",
         className ?? "",
       ]
         .join(" ")
@@ -276,14 +277,14 @@ export function DayPanel({ className }: DayPanelProps) {
           </div>
         </div>
 
-        <button
-          type="button"
+        <Button
+          size="sm"
           onClick={handleApplyWindow}
           disabled={disableActions}
-          className="bg-primary text-primary-foreground focus:ring-ring mt-3 rounded px-3 py-1.5 text-sm font-medium focus:ring-2 focus:outline-none disabled:opacity-50"
+          className="mt-3"
         >
           {isPending ? "Applying…" : "Apply window to selected days"}
-        </button>
+        </Button>
       </section>
 
       {/* ── Section 2: Bulk overnight toggle (conditional) ──────────────────── */}
@@ -297,23 +298,22 @@ export function DayPanel({ className }: DayPanelProps) {
           </h3>
 
           <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
+            <Button
+              size="sm"
               onClick={() => handleOvernightToggle(true)}
               disabled={disableActions}
-              className="bg-primary text-primary-foreground focus:ring-ring rounded px-3 py-1.5 text-sm font-medium focus:ring-2 focus:outline-none disabled:opacity-50"
             >
               Mark overnight available
-            </button>
+            </Button>
 
-            <button
-              type="button"
+            <Button
+              size="sm"
+              variant="outline"
               onClick={() => handleOvernightToggle(false)}
               disabled={disableActions}
-              className="border-border bg-background text-foreground focus:ring-ring rounded border px-3 py-1.5 text-sm font-medium focus:ring-2 focus:outline-none disabled:opacity-50"
             >
               Mark overnight unavailable
-            </button>
+            </Button>
           </div>
         </section>
       )}
