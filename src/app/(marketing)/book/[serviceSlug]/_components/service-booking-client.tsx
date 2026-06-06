@@ -432,7 +432,10 @@ export function ServiceBookingClient({
               onSelectionChange={onSelectionChange}
             >
               <Scheduler.MonthGrid />
-              <Scheduler.SelectionSummary />
+              <div className="mt-3 flex items-center justify-between gap-3">
+                <Scheduler.SelectionSummary />
+                <Scheduler.ClearDates />
+              </div>
               <Scheduler.Legend />
               <Scheduler.BookingDetailsPanel />
             </Scheduler>
