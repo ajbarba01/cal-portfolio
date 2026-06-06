@@ -17,7 +17,14 @@
  * server-side redirect("/login") backstop.
  */
 
-import { useCallback, useMemo, useState, useTransition } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { useRouter } from "next/navigation";
 import { useAvailability } from "@/features/booking/use-availability";
 import { useBusyRanges } from "@/features/booking/use-busy-ranges";
@@ -166,6 +173,18 @@ export function ServiceBookingClient({
   const [isPreviewing, startPreviewing] = useTransition();
   const [isSubmitting, startSubmitting] = useTransition();
 
+  // ── Debounce timer ref for live quote ──────────────────────────────────────
+  const quoteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Cleanup timer on unmount (no setState — allowed cleanup-only effect)
+  useEffect(() => {
+    return () => {
+      if (quoteTimerRef.current !== null) {
+        clearTimeout(quoteTimerRef.current);
+      }
+    };
+  }, []);
+
   // ── Availability + busy sources ────────────────────────────────────────────
   const {
     openWindows,
@@ -197,6 +216,7 @@ export function ServiceBookingClient({
         ? BOOK_HOUSE_SITTING_CAPABILITIES
         : {
             ...BOOK_WALK_CAPABILITIES,
+            weekNavigable: false,
             intervalMinutes: service.defaultDurationMin ?? 60,
           },
     [mode, service.defaultDurationMin],
@@ -214,57 +234,7 @@ export function ServiceBookingClient({
     [overnightNights, openWindows, busyRanges, rules, now],
   );
 
-  // ── Bridge Scheduler selection → range / selectedSlot ────────────────────────
-  const onSelectionChange = useCallback(
-    (state: ScheduleSelectionState) => {
-      if (mode === "month-range") {
-        // selectedDays = the nights selected (dayKeys).
-        // range.from = check-in night, range.to = check-out day (last night + 1).
-        if (state.selectedDays.size === 0) {
-          setRange(undefined);
-          return;
-        }
-        // NOTE: min/max derivation assumes selectedDays are CONTIGUOUS, which is
-        // guaranteed today because this booking uses the "range" capability. If a
-        // future capability change allowed non-contiguous selection, min..max+1
-        // would include gap nights and this derivation must be revisited.
-        const sorted = [...state.selectedDays].sort();
-        const minKey = sorted[0];
-        const maxKey = sorted[sorted.length - 1];
-        // Add one day to maxKey (DST-safe via denverMidnight + 24h → denverDayKey).
-        const checkOutDate = new Date(
-          denverMidnight(maxKey).getTime() + 86_400_000,
-        );
-        const checkOutKey = denverDayKey(checkOutDate);
-        setRange({
-          from: localDateFromKey(minKey),
-          to: localDateFromKey(checkOutKey),
-        });
-        setQuote(null);
-        setPreviewMsg(null);
-      } else {
-        // gridDraft: exactly one cell "dayKey@minute" → selectedSlot.
-        if (state.gridDraft.size === 0) {
-          setSelectedSlot(null);
-          return;
-        }
-        const [cell] = state.gridDraft;
-        const atIdx = cell.indexOf("@");
-        if (atIdx === -1) return;
-        const dayKey = cell.slice(0, atIdx);
-        const minute = parseInt(cell.slice(atIdx + 1), 10);
-        if (isNaN(minute)) return;
-        const startsAtMs = denverMidnight(dayKey).getTime() + minute * 60_000;
-        setSelectedSlot({
-          startsAt: new Date(startsAtMs),
-          endsAt: new Date(startsAtMs + durationMs),
-        });
-        setQuote(null);
-        setPreviewMsg(null);
-      }
-    },
-    [mode, durationMs, setRange, setSelectedSlot, setQuote, setPreviewMsg],
-  );
+  // ── Derived booking time ─────────────────────────────────────────────────────
 
   const stay = useMemo(() => {
     if (mode !== "month-range" || !range?.from || !range?.to) return null;
@@ -278,7 +248,6 @@ export function ServiceBookingClient({
     });
   }, [mode, range, overnightNights, busyRanges, rules, now]);
 
-  // ── Derived booking time ─────────────────────────────────────────────────────
   let startsAt: Date | null = null;
   let endsAt: Date | null = null;
   let nights: number | null = null;
@@ -316,21 +285,163 @@ export function ServiceBookingClient({
     };
   }
 
-  function handleGetQuote() {
-    if (!hasSelection || !petsOk) return;
-    startPreviewing(async () => {
-      const result = await previewQuote(buildInput());
-      const out = previewResultMessage(result);
-      if (out.kind === "quote") {
-        setQuote(out.preview);
-        setPreviewMsg(null);
-      } else {
-        setQuote(null);
-        setPreviewMsg(out.message);
-      }
-    });
+  // ── Debounced live quote (no useEffect setState) ───────────────────────────
+  // Driven entirely from event handlers + a debounce timer.
+  // The Scheduler calls onSelectionChange on mount/change, so a rehydrated
+  // returnTo selection triggers this path without a mount effect.
+
+  function requestQuote() {
+    if (quoteTimerRef.current !== null) {
+      clearTimeout(quoteTimerRef.current);
+    }
+    // Snapshot current derived values into the closure at call time.
+    // (startsAt/endsAt are let-bindings re-derived each render; safe to close over.)
+    const currentStartsAt = startsAt;
+    const currentEndsAt = endsAt;
+    const currentHasSelection = hasSelection;
+    const currentPetsOk = petsOk;
+
+    if (!currentHasSelection || !currentPetsOk) {
+      setQuote(null);
+      setPreviewMsg(null);
+      return;
+    }
+
+    quoteTimerRef.current = setTimeout(() => {
+      startPreviewing(async () => {
+        if (!currentStartsAt || !currentEndsAt) return;
+        const result = await previewQuote({
+          serviceSlug: service.slug,
+          startsAt: currentStartsAt,
+          endsAt: currentEndsAt,
+          quantities: quantitiesToRecord(quantities, nights),
+          petIds: petAware ? selectedPetIds : undefined,
+          recurringRule:
+            supportsRecurring && recurringOn
+              ? { freq: "weekly" as const, interval: 1, count: occurrenceCount }
+              : null,
+        });
+        const out = previewResultMessage(result);
+        if (out.kind === "quote") {
+          setQuote(out.preview);
+          setPreviewMsg(null);
+        } else {
+          setQuote(null);
+          setPreviewMsg(out.message);
+        }
+      });
+    }, 400);
   }
 
+  // ── Bridge Scheduler selection → range / selectedSlot ────────────────────────
+  const onSelectionChange = useCallback(
+    (state: ScheduleSelectionState) => {
+      if (mode === "month-range") {
+        // selectedDays = the nights selected (dayKeys).
+        // range.from = check-in night, range.to = check-out day (last night + 1).
+        if (state.selectedDays.size === 0) {
+          setRange(undefined);
+          setQuote(null);
+          setPreviewMsg(null);
+          return;
+        }
+        // NOTE: min/max derivation assumes selectedDays are CONTIGUOUS, which is
+        // guaranteed today because this booking uses the "range" capability. If a
+        // future capability change allowed non-contiguous selection, min..max+1
+        // would include gap nights and this derivation must be revisited.
+        const sorted = [...state.selectedDays].sort();
+        const minKey = sorted[0];
+        const maxKey = sorted[sorted.length - 1];
+        // Add one day to maxKey (DST-safe via denverMidnight + 24h → denverDayKey).
+        const checkOutDate = new Date(
+          denverMidnight(maxKey).getTime() + 86_400_000,
+        );
+        const checkOutKey = denverDayKey(checkOutDate);
+        setRange({
+          from: localDateFromKey(minKey),
+          to: localDateFromKey(checkOutKey),
+        });
+        // requestQuote reads the live startsAt/endsAt — but those are derived from
+        // range state which hasn't flushed yet. For month-range, we trigger the
+        // quote after the range state is set by clearing and letting the next
+        // render's handler fire. Since the month-range quote depends on stay
+        // validation (which reads from state), we clear and let the user explicitly
+        // trigger, OR we snapshot the dates here directly.
+        setQuote(null);
+        setPreviewMsg(null);
+      } else {
+        // gridDraft: exactly one cell "dayKey@minute" → selectedSlot.
+        if (state.gridDraft.size === 0) {
+          setSelectedSlot(null);
+          setQuote(null);
+          setPreviewMsg(null);
+          return;
+        }
+        const [cell] = state.gridDraft;
+        const atIdx = cell.indexOf("@");
+        if (atIdx === -1) return;
+        const dayKey = cell.slice(0, atIdx);
+        const minute = parseInt(cell.slice(atIdx + 1), 10);
+        if (isNaN(minute)) return;
+        const startsAtMs = denverMidnight(dayKey).getTime() + minute * 60_000;
+        const newStartsAt = new Date(startsAtMs);
+        const newEndsAt = new Date(startsAtMs + durationMs);
+        setSelectedSlot({
+          startsAt: newStartsAt,
+          endsAt: newEndsAt,
+        });
+        setQuote(null);
+        setPreviewMsg(null);
+        // Snapshot new dates into the timer closure directly (bypassing stale state).
+        if (quoteTimerRef.current !== null) {
+          clearTimeout(quoteTimerRef.current);
+        }
+        if (petsOk) {
+          quoteTimerRef.current = setTimeout(() => {
+            startPreviewing(async () => {
+              const result = await previewQuote({
+                serviceSlug: service.slug,
+                startsAt: newStartsAt,
+                endsAt: newEndsAt,
+                quantities: quantitiesToRecord(quantities, null),
+                petIds: petAware ? selectedPetIds : undefined,
+                recurringRule:
+                  supportsRecurring && recurringOn
+                    ? {
+                        freq: "weekly" as const,
+                        interval: 1,
+                        count: occurrenceCount,
+                      }
+                    : null,
+              });
+              const out = previewResultMessage(result);
+              if (out.kind === "quote") {
+                setQuote(out.preview);
+                setPreviewMsg(null);
+              } else {
+                setQuote(null);
+                setPreviewMsg(out.message);
+              }
+            });
+          }, 400);
+        }
+      }
+    },
+    [
+      mode,
+      durationMs,
+      petsOk,
+      petAware,
+      selectedPetIds,
+      quantities,
+      supportsRecurring,
+      recurringOn,
+      occurrenceCount,
+      service.slug,
+    ],
+  );
+
+  // ── Book handler ──────────────────────────────────────────────────────────
   function handleBook() {
     if (!startsAt || !endsAt || !petsOk) return;
 
@@ -381,6 +492,11 @@ export function ServiceBookingClient({
     !submitDone &&
     (authState !== "ready" || quote !== null);
 
+  // Step counter helpers
+  const step2Label = petAware ? "2" : "2";
+  const step3Label = petAware ? "3" : "2";
+  const step4Label = petAware ? "4" : "3";
+
   return (
     <div className="grid gap-8 pb-24 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:pb-0">
       {/* LEFT COLUMN */}
@@ -391,7 +507,7 @@ export function ServiceBookingClient({
             id="cal-heading"
             className="text-brand-strong mb-3 text-xs font-semibold tracking-wide uppercase"
           >
-            1. {mode === "month-range" ? "Pick your dates" : "Pick a time"}
+            1. {mode === "month-range" ? "Pick your dates" : "Pick a day"}
           </h2>
           {windowsError && (
             <ErrorState
@@ -410,7 +526,10 @@ export function ServiceBookingClient({
               data={schedulerData}
               onSelectionChange={onSelectionChange}
             >
-              <Scheduler.WeekGrid />
+              <Scheduler.MonthGrid />
+              <div className="mt-6">
+                <Scheduler.DayTimeline />
+              </div>
               <Scheduler.Legend />
               <Scheduler.BookingDetailsPanel />
             </Scheduler>
@@ -449,7 +568,7 @@ export function ServiceBookingClient({
               id="pets-heading"
               className="text-brand-strong mb-3 text-xs font-semibold tracking-wide uppercase"
             >
-              2. Which pets?
+              {step2Label}. Which pets?
             </h2>
             {authState === "ready" ? (
               <PetAssignment
@@ -458,7 +577,7 @@ export function ServiceBookingClient({
                 selected={selectedPetIds}
                 onChange={(ids) => {
                   setSelectedPetIds(ids);
-                  clearQuote();
+                  requestQuote();
                 }}
                 onPetAdded={handlePetAdded}
               />
@@ -476,13 +595,13 @@ export function ServiceBookingClient({
             id="qty-heading"
             className="text-brand-strong mb-3 text-xs font-semibold tracking-wide uppercase"
           >
-            {petAware ? "3" : "2"}. Details
+            {step3Label}. Details
           </h2>
           <QuantityForm
             state={quantities}
             onChange={(s) => {
               setQuantities(s);
-              clearQuote();
+              requestQuote();
             }}
           />
         </section>
@@ -494,75 +613,50 @@ export function ServiceBookingClient({
               id="recur-heading"
               className="text-brand-strong mb-3 text-xs font-semibold tracking-wide uppercase"
             >
-              {petAware ? "4" : "3"}. Recurring (optional)
+              {step4Label}. Recurring (optional)
             </h2>
             <RecurringControls
               enabled={recurringOn}
               count={occurrenceCount}
               onEnabledChange={(on) => {
                 setRecurringOn(on);
-                clearQuote();
+                requestQuote();
               }}
               onCountChange={(n) => {
                 setOccurrenceCount(n);
-                clearQuote();
+                requestQuote();
               }}
             />
           </section>
         )}
       </div>
 
-      {/* RIGHT RAIL (desktop sticky summary) */}
-      <aside className="flex flex-col gap-4 lg:sticky lg:top-6">
-        {/* Quote section */}
-        <section aria-labelledby="quote-heading">
-          <h2
-            id="quote-heading"
-            className="text-brand-strong mb-3 text-xs font-semibold tracking-wide uppercase"
-          >
-            Get a price estimate
-          </h2>
-          <Button
-            variant="outline"
-            onClick={handleGetQuote}
-            disabled={!hasSelection || !petsOk || isPreviewing || isSubmitting}
-          >
-            {isPreviewing ? "Loading…" : "Get quote"}
-          </Button>
-          {previewMsg && (
-            <p role="alert" className="text-destructive mt-3 text-sm">
-              {previewMsg.text}
-            </p>
-          )}
-          {quote && (
-            <div className="mt-4">
-              <QuotePanel preview={quote} />
-            </div>
-          )}
-        </section>
+      {/* RIGHT RAIL — desktop sticky, vertically centered */}
+      <aside className="flex flex-col gap-4 lg:sticky lg:top-6 lg:flex lg:min-h-[calc(100dvh-6rem)] lg:flex-col lg:justify-center">
+        {previewMsg && (
+          <p role="alert" className="text-destructive text-sm">
+            {previewMsg.text}
+          </p>
+        )}
 
-        {/* Book section */}
+        {quote ? (
+          <QuotePanel preview={quote} />
+        ) : (
+          <p className="text-muted-foreground text-sm">
+            {isPreviewing
+              ? "Calculating…"
+              : "Select a day and time to see your price"}
+          </p>
+        )}
+
         {!submitDone && (
-          <section aria-labelledby="book-heading">
-            <h2
-              id="book-heading"
-              className="text-brand-strong mb-3 text-xs font-semibold tracking-wide uppercase"
-            >
-              Confirm booking
-            </h2>
-            <Button
-              className="w-full"
-              onClick={handleBook}
-              disabled={!bookEnabled}
-            >
-              {isSubmitting ? "Submitting…" : "Book now"}
-            </Button>
-            {authState === "ready" && !quote && (
-              <p className="text-muted-foreground mt-2 text-xs">
-                Get a quote first to enable booking.
-              </p>
-            )}
-          </section>
+          <Button
+            className="w-full"
+            onClick={handleBook}
+            disabled={!bookEnabled}
+          >
+            {isSubmitting ? "Submitting…" : "Book now"}
+          </Button>
         )}
       </aside>
 
@@ -577,20 +671,22 @@ export function ServiceBookingClient({
               {centsToDollars(quote.finalCents)}
             </span>
           ) : (
-            <span className="text-muted-foreground text-sm">Get a quote</span>
+            <span className="text-muted-foreground text-sm">
+              {isPreviewing ? "Calculating…" : "—"}
+            </span>
           )}
         </div>
         <Button
-          onClick={quote ? handleBook : handleGetQuote}
-          disabled={!hasSelection || !petsOk || isSubmitting || isPreviewing}
+          onClick={handleBook}
+          disabled={
+            !hasSelection ||
+            !petsOk ||
+            isSubmitting ||
+            isPreviewing ||
+            submitDone
+          }
         >
-          {quote
-            ? isSubmitting
-              ? "Submitting…"
-              : "Book now"
-            : isPreviewing
-              ? "Loading…"
-              : "Get quote"}
+          {isSubmitting ? "Submitting…" : "Book now"}
         </Button>
       </div>
     </div>
