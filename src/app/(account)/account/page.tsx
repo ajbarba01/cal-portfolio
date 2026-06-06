@@ -4,6 +4,7 @@ import { ProfileForm } from "./_components/profile-form";
 import { PasswordForm } from "./_components/password-form";
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default async function AccountPage() {
   const supabase = await createClient();
@@ -26,35 +27,42 @@ export default async function AccountPage() {
         subtitle="Update your contact info. Email is managed through your login."
       />
 
-      <section className="mb-10">
-        <h2 className="text-foreground mb-4 text-base font-medium">
-          Contact info
-        </h2>
+      <div className="flex flex-col gap-5">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Contact info</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            {/* Email is read-only — comes from auth.users, not the profiles table. */}
+            <div className="flex flex-col gap-1.5">
+              <span className="text-muted-foreground text-sm font-medium">
+                Email <span className="font-normal">(read-only)</span>
+              </span>
+              <div className="border-border bg-muted text-muted-foreground rounded-md border px-3 py-2 text-sm">
+                {user.email ?? "—"}
+              </div>
+            </div>
 
-        {/* Email is read-only — comes from auth.users, not the profiles table. */}
-        <div className="mb-6 flex flex-col gap-1">
-          <span className="text-muted-foreground text-sm font-medium">
-            Email (read-only)
-          </span>
-          <span className="text-foreground text-sm">{user.email ?? "—"}</span>
-        </div>
+            <ProfileForm
+              initialValues={{
+                full_name: profile?.full_name ?? "",
+                phone: profile?.phone ?? "",
+                address: profile?.address ?? "",
+                zip: profile?.zip ?? "",
+              }}
+            />
+          </CardContent>
+        </Card>
 
-        <ProfileForm
-          initialValues={{
-            full_name: profile?.full_name ?? "",
-            phone: profile?.phone ?? "",
-            address: profile?.address ?? "",
-            zip: profile?.zip ?? "",
-          }}
-        />
-      </section>
-
-      <section>
-        <h2 className="text-foreground mb-4 text-base font-medium">
-          Change password
-        </h2>
-        <PasswordForm />
-      </section>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Change password</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <PasswordForm />
+          </CardContent>
+        </Card>
+      </div>
     </PageContainer>
   );
 }
