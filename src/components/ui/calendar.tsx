@@ -13,6 +13,7 @@
  * `range_start`) — different from v8's nested `caption`/`head` structure.
  */
 
+import { format } from "date-fns";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
   DayPicker,
@@ -21,6 +22,11 @@ import {
 } from "react-day-picker";
 
 import { cn } from "@/lib/utils";
+
+/** Two-letter weekday labels (Su, Mo, Tu …) — matches the booking mockup. */
+function formatWeekdayName(weekday: Date): string {
+  return format(weekday, "EEEEEE");
+}
 
 export type { DateRange } from "react-day-picker";
 
@@ -51,14 +57,20 @@ export function Calendar({ className, classNames, ...props }: DayPickerProps) {
           defaults.button_next,
           "hover:bg-muted inline-flex size-8 items-center justify-center rounded-lg disabled:opacity-40",
         ),
-        month_grid: cn(defaults.month_grid, "flex w-full flex-col gap-1.5"),
-        weekdays: cn(defaults.weekdays, "grid grid-cols-7 gap-1.5"),
+        // rdp v9 renders a real <table>/<tbody>/<tr>/<td>. Use table-native
+        // border-spacing for EQUAL horizontal + vertical gaps (grid/flex gaps
+        // can't span a tbody), and table-fixed so 7 equal columns fill the width.
+        month_grid: cn(
+          defaults.month_grid,
+          "w-full table-fixed border-separate border-spacing-1",
+        ),
+        weekdays: cn(defaults.weekdays, ""),
         weekday: cn(
           defaults.weekday,
-          "text-muted-foreground text-center text-xs font-medium",
+          "text-muted-foreground pb-1 text-center text-xs font-semibold",
         ),
-        week: cn(defaults.week, "grid grid-cols-7 gap-1.5"),
-        day: cn(defaults.day, "w-full p-0 text-center text-sm"),
+        week: cn(defaults.week, ""),
+        day: cn(defaults.day, "p-0 text-center align-middle"),
         day_button: cn(
           defaults.day_button,
           "hover:bg-muted focus-visible:ring-ring/50 inline-flex aspect-square w-full items-center justify-center rounded-lg outline-none focus-visible:ring-3 disabled:pointer-events-none disabled:opacity-40 aria-selected:opacity-100",
@@ -79,6 +91,7 @@ export function Calendar({ className, classNames, ...props }: DayPickerProps) {
         hidden: cn(defaults.hidden, "invisible"),
         ...classNames,
       }}
+      formatters={{ formatWeekdayName }}
       components={{
         Chevron: ({ orientation }) =>
           orientation === "left" ? (

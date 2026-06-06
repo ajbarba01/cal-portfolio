@@ -40,7 +40,7 @@ const ENTRIES = [
   {
     label: "Your booking",
     swatchClass:
-      "bg-status-available relative after:absolute after:bottom-0.5 after:left-1/2 after:size-1 after:-translate-x-1/2 after:rounded-full after:bg-status-available-foreground after:content-['']",
+      "bg-status-available relative after:absolute after:bottom-0.5 after:left-1/2 after:size-1 after:-translate-x-1/2 after:rounded-full after:bg-brand after:content-['']",
   },
 ] as const;
 

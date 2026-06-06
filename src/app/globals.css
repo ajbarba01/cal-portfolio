@@ -151,7 +151,7 @@
   --status-available-foreground: var(--green-deep);
   --status-booked: var(--blue-soft);
   --status-booked-foreground: var(--blue-deep);
-  --status-unavailable: var(--sand-100);
+  --status-unavailable: var(--sand-200);
   --status-unavailable-foreground: var(--sand-500);
   --sidebar: var(--sand-100);
   --sidebar-foreground: var(--sand-900);
