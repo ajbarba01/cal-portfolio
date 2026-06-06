@@ -4,6 +4,7 @@ import { useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 import {
   createPet,
   updatePet,
@@ -88,37 +89,50 @@ export function PetForm({ initial, onSaved, onCancel }: PetFormProps) {
 
   return (
     <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor={fieldId("name")}>Name *</Label>
-        <Input
-          id={fieldId("name")}
-          name="name"
-          type="text"
-          value={values.name}
-          onChange={(e) => set("name", e.target.value)}
-          required
-          autoComplete="off"
-        />
-      </div>
-
-      <fieldset className="flex flex-col gap-1.5">
-        <legend className="text-sm font-medium">Species</legend>
-        <div className="flex gap-4">
-          {(["dog", "cat"] as const).map((sp) => (
-            <label key={sp} className="flex items-center gap-2 text-sm">
-              <input
-                type="radio"
-                name={fieldId("species")}
-                value={sp}
-                checked={values.species === sp}
-                onChange={() => set("species", sp)}
-                className="accent-foreground"
-              />
-              {sp === "dog" ? "Dog" : "Cat"}
-            </label>
-          ))}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor={fieldId("name")}>Name *</Label>
+          <Input
+            id={fieldId("name")}
+            name="name"
+            type="text"
+            value={values.name}
+            onChange={(e) => set("name", e.target.value)}
+            required
+            autoComplete="off"
+          />
         </div>
-      </fieldset>
+
+        <fieldset className="flex flex-col gap-1.5">
+          <legend className="mb-1.5 text-sm font-medium">Species</legend>
+          <div
+            role="radiogroup"
+            aria-label="Species"
+            className="border-border inline-flex w-fit overflow-hidden rounded-md border"
+          >
+            {(["dog", "cat"] as const).map((sp) => {
+              const active = values.species === sp;
+              return (
+                <button
+                  key={sp}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  onClick={() => set("species", sp)}
+                  className={cn(
+                    "focus-visible:ring-ring px-4 py-2 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset",
+                    active
+                      ? "bg-brand/15 text-brand-strong font-semibold"
+                      : "text-foreground hover:bg-muted",
+                  )}
+                >
+                  {sp === "dog" ? "🐕 Dog" : "🐈 Cat"}
+                </button>
+              );
+            })}
+          </div>
+        </fieldset>
+      </div>
 
       <div className="flex flex-col gap-1.5">
         <Label htmlFor={fieldId("breed")}>Breed</Label>

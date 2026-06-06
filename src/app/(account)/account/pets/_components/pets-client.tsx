@@ -2,11 +2,17 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/feedback/confirm-dialog";
 import { PetForm } from "@/features/accounts/_components/pet-form";
 import { PetAvatar } from "@/features/booking/_components/pet-avatar";
 import { deletePet } from "@/features/accounts/account-actions";
 import type { PetView } from "../page";
+
+// Shared "form section" legend (matches the booking + forms surfaces).
+const LEGEND_CLASS =
+  "text-brand-strong mb-3 text-xs font-semibold tracking-wide uppercase";
 
 // ─── Pet row ──────────────────────────────────────────────────────────────────
 
@@ -14,9 +20,18 @@ function PetItem({ pet, onChanged }: { pet: PetView; onChanged: () => void }) {
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const { confirm, dialog } = useConfirm();
 
-  function handleDelete() {
+  async function handleDelete() {
     setError(null);
+    const ok = await confirm({
+      title: `Remove ${pet.name}?`,
+      description:
+        "This removes the pet from your account. Bookings already placed keep their details.",
+      confirmLabel: "Delete",
+      destructive: true,
+    });
+    if (!ok) return;
     startTransition(async () => {
       const result = await deletePet(pet.id);
       if (result.kind === "success") {
@@ -29,7 +44,8 @@ function PetItem({ pet, onChanged }: { pet: PetView; onChanged: () => void }) {
 
   if (editing) {
     return (
-      <li className="rounded-md border p-4">
+      <li className="border-brand bg-muted/40 rounded-xl border p-4">
+        <p className={LEGEND_CLASS}>Edit pet</p>
         <PetForm
           initial={pet}
           onSaved={() => {
@@ -43,15 +59,16 @@ function PetItem({ pet, onChanged }: { pet: PetView; onChanged: () => void }) {
   }
 
   return (
-    <li className="flex items-start justify-between gap-4 rounded-md border px-4 py-3">
+    <li className="bg-card border-border flex items-start justify-between gap-4 rounded-xl border px-4 py-3">
       <div className="flex items-start gap-3">
         <PetAvatar
           name={pet.name}
           species={pet.species}
           photoUrl={pet.photoUrl}
+          size={36}
         />
         <div className="text-sm">
-          <p className="text-foreground font-medium">
+          <p className="text-foreground font-semibold">
             {pet.name}{" "}
             <span className="text-muted-foreground font-normal">
               ({pet.species})
@@ -79,13 +96,15 @@ function PetItem({ pet, onChanged }: { pet: PetView; onChanged: () => void }) {
         </Button>
         <Button
           size="sm"
-          variant="destructive"
-          onClick={handleDelete}
+          variant="outline"
+          className="text-destructive hover:text-destructive border-destructive/30"
+          onClick={() => void handleDelete()}
           disabled={isPending}
         >
           {isPending ? "Deleting…" : "Delete"}
         </Button>
       </div>
+      {dialog}
     </li>
   );
 }
@@ -102,7 +121,12 @@ export function PetsClient({ pets }: { pets: PetView[] }) {
   return (
     <div className="flex flex-col gap-6">
       {pets.length === 0 && !showAddForm && (
-        <p className="text-muted-foreground text-sm">No pets added yet.</p>
+        <div className="border-border bg-card rounded-xl border border-dashed p-8 text-center">
+          <div aria-hidden="true" className="mb-2 text-3xl">
+            🐾
+          </div>
+          <p className="text-muted-foreground text-sm">No pets added yet.</p>
+        </div>
       )}
 
       {pets.length > 0 && (
@@ -114,10 +138,8 @@ export function PetsClient({ pets }: { pets: PetView[] }) {
       )}
 
       {showAddForm ? (
-        <div className="rounded-md border p-4">
-          <h3 className="text-foreground mb-4 text-sm font-medium">
-            Add a pet
-          </h3>
+        <div className="border-brand bg-muted/40 rounded-xl border p-4">
+          <p className={LEGEND_CLASS}>Add a pet</p>
           <PetForm
             onSaved={() => {
               setShowAddForm(false);
@@ -132,6 +154,7 @@ export function PetsClient({ pets }: { pets: PetView[] }) {
           className="self-start"
           onClick={() => setShowAddForm(true)}
         >
+          <Plus className="size-4" aria-hidden="true" />
           Add a pet
         </Button>
       )}

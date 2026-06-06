@@ -14,6 +14,7 @@ const badgeVariants = cva(
         available: "bg-status-available text-status-available-foreground",
         booked: "bg-status-booked text-status-booked-foreground",
         unavailable: "bg-status-unavailable text-status-unavailable-foreground",
+        pending: "bg-brand/15 text-brand-strong",
         destructive: "bg-destructive/10 text-destructive",
       },
     },
