@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PageContainer } from "@/components/layout/page-container";
+import { PageHeader } from "@/components/layout/page-header";
 
 export default function OnboardingPage() {
   const [error, setError] = useState<string | null>(null);
@@ -53,12 +54,10 @@ export default function OnboardingPage() {
 
   return (
     <PageContainer width="read" className="py-10">
-      <h1 className="text-foreground mb-2 text-2xl font-semibold">
-        Welcome — let&apos;s get you set up
-      </h1>
-      <p className="text-muted-foreground mb-8 text-sm">
-        Fill in your profile and emergency info before making a booking.
-      </p>
+      <PageHeader
+        title="Welcome — let's get you set up"
+        subtitle="Fill in your profile and emergency info before making a booking."
+      />
 
       <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
         {/* Profile */}
