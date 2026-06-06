@@ -8,6 +8,7 @@ import { safeReturnTo } from "@/features/booking/return-to";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Card } from "@/components/ui/card";
 import { PageContainer } from "@/components/layout/page-container";
 
 export default function SignupPage() {
@@ -64,13 +65,18 @@ export default function SignupPage() {
     return (
       <PageContainer width="read" className="py-12">
         <div className="mx-auto w-full max-w-sm">
-          <h1 className="text-foreground mb-4 text-2xl font-semibold">
-            Check your email
-          </h1>
-          <p className="text-muted-foreground text-sm">
-            We sent a confirmation link to <strong>{email}</strong>. Click it to
-            activate your account.
-          </p>
+          <Card className="gap-3 p-6 text-center sm:p-7">
+            <div aria-hidden="true" className="text-3xl">
+              📬
+            </div>
+            <h1 className="text-foreground text-xl font-semibold">
+              Check your email
+            </h1>
+            <p className="text-muted-foreground text-sm">
+              We sent a confirmation link to <strong>{email}</strong>. Click it
+              to activate your account.
+            </p>
+          </Card>
         </div>
       </PageContainer>
     );
@@ -79,54 +85,64 @@ export default function SignupPage() {
   return (
     <PageContainer width="read" className="py-12">
       <div className="mx-auto w-full max-w-sm">
-        <h1 className="text-foreground mb-6 text-2xl font-semibold">
-          Create account
-        </h1>
-
-        <form
-          onSubmit={handleSubmit}
-          noValidate
-          className="flex flex-col gap-4"
-        >
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              autoComplete="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              autoComplete="new-password"
-              required
-              minLength={6}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </div>
-
-          {error && (
-            <p role="alert" className="text-destructive text-sm">
-              {error}
+        <Card className="gap-5 p-6 sm:p-7">
+          <div className="flex flex-col gap-1">
+            <h1 className="text-foreground text-xl font-semibold">
+              Create account
+            </h1>
+            <p className="text-muted-foreground text-sm">
+              Book Cal for walks, check-ins &amp; house-sitting.
             </p>
-          )}
+          </div>
 
-          <Button type="submit" disabled={isLoading} className="mt-2 w-full">
-            {isLoading ? "Creating account…" : "Create account"}
-          </Button>
-        </form>
+          <form
+            onSubmit={handleSubmit}
+            noValidate
+            className="flex flex-col gap-4"
+          >
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
 
-        <p className="text-muted-foreground mt-4 text-sm">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                autoComplete="new-password"
+                required
+                minLength={6}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
+
+            {error && (
+              <p role="alert" className="text-destructive text-sm">
+                {error}
+              </p>
+            )}
+
+            <Button type="submit" disabled={isLoading} className="mt-2 w-full">
+              {isLoading ? "Creating account…" : "Create account"}
+            </Button>
+          </form>
+        </Card>
+
+        <p className="text-muted-foreground mt-4 text-center text-sm">
           Have an account?{" "}
-          <Link href="/login" className="hover:text-foreground underline">
+          <Link
+            href="/login"
+            className="text-brand-strong font-medium hover:underline"
+          >
             Sign in
           </Link>
         </p>
