@@ -297,6 +297,11 @@ export function MonthGrid({ className }: { className?: string }) {
   // since CSS :hover can't span sibling cells.
   const [hoveredBookingId, setHoveredBookingId] = useState<string | null>(null);
 
+  // Range mode (house-sitting): the first of two boundary clicks, armed and
+  // awaiting the second click. While set, hovering dotted-previews the would-be
+  // range; the second click commits it. Either boundary may be clicked first.
+  const [pendingBoundary, setPendingBoundary] = useState<string | null>(null);
+
   // ── Classification ────────────────────────────────────────────────────────
   const days = useMemo(() => {
     const keys = monthDayKeys(userMonth);
@@ -511,15 +516,19 @@ export function MonthGrid({ className }: { className?: string }) {
             return;
           }
           if (isDisabled(date)) return;
-          // Commit clears the live between-clicks preview either way.
-          setPreviewDays(new Set());
-          if (state.anchorDay == null || state.selectedDays.size !== 1) {
-            // First click: drop any existing range, start a fresh anchor.
+          // Two-click BOUNDARY model (either end first):
+          if (pendingBoundary === null) {
+            // First click: arm one boundary; drop any committed range. No commit
+            // or quote yet — just a dotted marker that grows on hover.
             clearDays();
-            toggleDay(k);
+            setPendingBoundary(k);
+            setPreviewDays(new Set([k]));
           } else {
-            // Second click: commit the range anchor→here (any month).
-            setRange(state.anchorDay, k);
+            // Second click: commit the range between the two boundaries
+            // (setRange normalizes order, so either end may be clicked first).
+            setRange(pendingBoundary, k);
+            setPendingBoundary(null);
+            setPreviewDays(new Set());
           }
           break;
         }
@@ -533,8 +542,7 @@ export function MonthGrid({ className }: { className?: string }) {
     },
     [
       capabilities.daySelection,
-      state.anchorDay,
-      state.selectedDays,
+      pendingBoundary,
       isDisabled,
       cellKind,
       byKey,
@@ -630,44 +638,15 @@ export function MonthGrid({ className }: { className?: string }) {
         return;
       }
 
-      if (isRange) {
-        // Contiguous-range drag anchor→current (existing behavior).
-        dragRef.current = {
-          active: true,
-          variant: "range",
-          anchorKey: dayKey,
-          currentKey: dayKey,
-          paintMode: "add",
-          didDrag: false,
-        };
-        suppressNextClick.current = false;
-        setPreviewDays(new Set([dayKey]));
-
-        const endHandler = () => {
-          dragEndHandlerRef.current = null;
-          const drag = dragRef.current;
-          if (!drag) return;
-          setPreviewDays(new Set<string>());
-          if (drag.didDrag) {
-            suppressNextClick.current = true;
-            clearDays();
-            setRange(drag.anchorKey, drag.currentKey);
-          }
-          dragRef.current = null;
-        };
-        installEndHandler(endHandler);
-        return;
-      }
+      // range: pure two-click BOUNDARY model — no press-drag. The click handler
+      // owns it (arm a boundary, dotted-preview on hover, commit on 2nd click).
       // single / none: no drag; click handler owns it.
     },
     [
       isMulti,
-      isRange,
       state.selectedDays,
       inspectBooking,
       paintDays,
-      clearDays,
-      setRange,
       installEndHandler,
       selectableRange,
     ],
@@ -700,19 +679,14 @@ export function MonthGrid({ className }: { className?: string }) {
         return;
       }
 
-      // Two-click range (no button held): after the first click sets an anchor
-      // (exactly one day selected), the cursor "drags" a live preview to the
-      // hovered day until the second click commits. Works across month nav.
-      if (
-        isRange &&
-        state.anchorDay != null &&
-        state.selectedDays.size === 1 &&
-        kind === "selectable"
-      ) {
-        setPreviewDays(new Set(daysInRange(state.anchorDay, dayKey)));
+      // Two-click range: once one boundary is armed, hovering dotted-previews
+      // the would-be range to the cursor until the second click commits. Works
+      // across month navigation (the armed boundary persists).
+      if (isRange && pendingBoundary !== null && kind === "selectable") {
+        setPreviewDays(new Set(daysInRange(pendingBoundary, dayKey)));
       }
     },
-    [selectableRange, isRange, state.anchorDay, state.selectedDays],
+    [selectableRange, isRange, pendingBoundary],
   );
 
   const handleCellPointerLeave = useCallback((kind: CellKind) => {
