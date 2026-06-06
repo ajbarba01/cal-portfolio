@@ -3,6 +3,38 @@ import { redirect } from "next/navigation";
 import { PrepayButton } from "./_components/prepay-button";
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+
+/** Maps a DB booking status to a human label + badge variant. */
+function statusMeta(status: string): {
+  label: string;
+  variant: "available" | "pending" | "unavailable" | "destructive" | "default";
+} {
+  switch (status) {
+    case "confirmed":
+      return { label: "Confirmed", variant: "available" };
+    case "pending_approval":
+      return { label: "Pending approval", variant: "pending" };
+    case "completed":
+      return { label: "Completed", variant: "unavailable" };
+    case "no_show":
+      return { label: "No-show", variant: "unavailable" };
+    case "declined":
+      return { label: "Declined", variant: "destructive" };
+    case "cancelled":
+      return { label: "Cancelled", variant: "destructive" };
+    default:
+      return { label: status.replace(/_/g, " "), variant: "default" };
+  }
+}
 
 /** Money: integer cents → dollars string (e.g. 4500 → "$45.00"). */
 function formatDollars(cents: number): string {
@@ -73,25 +105,36 @@ export default async function BookingsPage() {
       <section className="mb-10">
         <h2 className="text-foreground mb-4 text-base font-medium">Upcoming</h2>
         {upcoming.length === 0 ? (
-          <p className="text-muted-foreground text-sm">No upcoming bookings.</p>
+          <EmptyBookings message="No upcoming bookings." />
         ) : (
-          <BookingList bookings={upcoming} showPayButton />
+          <BookingTable bookings={upcoming} showPayButton />
         )}
       </section>
 
       <section>
         <h2 className="text-foreground mb-4 text-base font-medium">History</h2>
         {history.length === 0 ? (
-          <p className="text-muted-foreground text-sm">No past bookings.</p>
+          <EmptyBookings message="No past bookings." />
         ) : (
-          <BookingList bookings={history} showPayButton={false} />
+          <BookingTable bookings={history} showPayButton={false} />
         )}
       </section>
     </PageContainer>
   );
 }
 
-function BookingList({
+function EmptyBookings({ message }: { message: string }) {
+  return (
+    <div className="border-border bg-card rounded-xl border border-dashed p-8 text-center">
+      <div aria-hidden="true" className="mb-2 text-3xl">
+        🐾
+      </div>
+      <p className="text-muted-foreground text-sm">{message}</p>
+    </div>
+  );
+}
+
+function BookingTable({
   bookings,
   showPayButton,
 }: {
@@ -99,50 +142,53 @@ function BookingList({
   showPayButton: boolean;
 }) {
   return (
-    <ul className="flex flex-col gap-4">
-      {bookings.map((b) => {
-        const owed = amountOwed(b);
-        return (
-          <li key={b.id} className="rounded-md border px-4 py-3">
-            <div className="flex flex-col gap-1">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-foreground text-sm font-medium">
-                    {b.services?.[0]?.name ?? "Service"}
-                  </p>
-                  <p className="text-muted-foreground text-xs">
-                    {formatDenver(b.starts_at)} — {formatDenver(b.ends_at)}
-                  </p>
-                </div>
-                <span className="text-muted-foreground shrink-0 text-xs capitalize">
-                  {b.status.replace(/_/g, " ")}
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Service</TableHead>
+          <TableHead>When</TableHead>
+          <TableHead>Status</TableHead>
+          <TableHead>Total</TableHead>
+          {showPayButton && <TableHead className="text-right">Pay</TableHead>}
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {bookings.map((b) => {
+          const owed = amountOwed(b);
+          const { label, variant } = statusMeta(b.status);
+          return (
+            <TableRow key={b.id}>
+              <TableCell
+                data-label="Service"
+                className="text-foreground font-medium"
+              >
+                {b.services?.[0]?.name ?? "Service"}
+              </TableCell>
+              <TableCell data-label="When" className="text-muted-foreground">
+                {formatDenver(b.starts_at)} — {formatDenver(b.ends_at)}
+              </TableCell>
+              <TableCell data-label="Status">
+                <Badge variant={variant}>{label}</Badge>
+              </TableCell>
+              <TableCell data-label="Total">
+                <span className="text-foreground">
+                  {formatDollars(b.final_cents)}
                 </span>
-              </div>
-
-              <div className="flex items-center justify-between pt-1">
-                <div className="text-sm">
-                  <span className="text-muted-foreground">Total: </span>
-                  <span className="text-foreground">
-                    {formatDollars(b.final_cents)}
+                {owed > 0 && (
+                  <span className="text-brand-strong ml-1.5 font-medium">
+                    · owed {formatDollars(owed)}
                   </span>
-                  {owed > 0 && (
-                    <>
-                      <span className="text-muted-foreground mx-2">·</span>
-                      <span className="text-foreground">
-                        Owed: {formatDollars(owed)}
-                      </span>
-                    </>
-                  )}
-                </div>
-
-                {showPayButton && (
-                  <PrepayButton bookingId={b.id} owedCents={owed} />
                 )}
-              </div>
-            </div>
-          </li>
-        );
-      })}
-    </ul>
+              </TableCell>
+              {showPayButton && (
+                <TableCell data-label="" className="md:text-right">
+                  <PrepayButton bookingId={b.id} owedCents={owed} />
+                </TableCell>
+              )}
+            </TableRow>
+          );
+        })}
+      </TableBody>
+    </Table>
   );
 }
