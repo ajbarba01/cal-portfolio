@@ -3,7 +3,7 @@ import Link from "next/link";
 /** Shared sheet footer. Rendered by PageShell on every zone. */
 export function SiteFooter() {
   return (
-    <footer className="border-border border-t">
+    <footer className="bg-card border-border border-t">
       <div className="mx-auto w-full px-5 py-8 sm:px-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-muted-foreground text-sm">
