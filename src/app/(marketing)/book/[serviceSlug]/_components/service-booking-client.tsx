@@ -47,11 +47,14 @@ import {
 import { QuotePanel } from "./quote-panel";
 import { RecurringControls } from "./recurring-controls";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/feedback/toast";
+import { ErrorState } from "@/components/feedback/error-state";
+import { centsToDollars } from "@/features/booking/format-money";
 import {
   createResultMessage,
   previewResultMessage,
 } from "../../_components/messages";
-import type { UserMessage, MessageTone } from "../../_components/messages";
+import type { UserMessage } from "../../_components/messages";
 import type { DateRange } from "@/components/ui/calendar";
 import type { PricingType } from "@/features/pricing/types";
 import type {
@@ -103,33 +106,6 @@ function localDateFromKey(key: string): Date {
   return new Date(y, m - 1, d);
 }
 
-// ── Message banner ─────────────────────────────────────────────────────────────
-
-function MessageBanner({ message }: { message: UserMessage }) {
-  const base = "rounded-lg border px-4 py-3 text-sm";
-  const classes: Record<MessageTone, string> = {
-    success: `${base} border-border bg-muted text-foreground`,
-    error: `${base} border-destructive/40 bg-destructive/10 text-destructive`,
-    info: `${base} border-border bg-muted text-muted-foreground`,
-  };
-  return (
-    <div role="alert" className={classes[message.tone]}>
-      {message.text}
-      {message.action === "login" && (
-        <>
-          {" "}
-          <a
-            href="/login"
-            className="text-foreground underline underline-offset-2"
-          >
-            Log in
-          </a>
-        </>
-      )}
-    </div>
-  );
-}
-
 // ── Main ────────────────────────────────────────────────────────────────────────
 
 export function ServiceBookingClient({
@@ -141,6 +117,7 @@ export function ServiceBookingClient({
   initialSelection,
 }: ServiceBookingClientProps) {
   const router = useRouter();
+  const toast = useToast();
 
   const mode: "week-slots" | "month-range" =
     service.pricingType === "house_sitting" ? "month-range" : "week-slots";
@@ -184,7 +161,6 @@ export function ServiceBookingClient({
   );
   const [quote, setQuote] = useState<BookingQuotePreview | null>(null);
   const [previewMsg, setPreviewMsg] = useState<UserMessage | null>(null);
-  const [submitMsg, setSubmitMsg] = useState<UserMessage | null>(null);
   const [submitDone, setSubmitDone] = useState(false);
 
   const [isPreviewing, startPreviewing] = useTransition();
@@ -373,11 +349,16 @@ export function ServiceBookingClient({
 
     startSubmitting(async () => {
       const result = await createBooking(buildInput());
-      setSubmitMsg(
-        createResultMessage(result, quote?.requiresApproval ?? true),
-      );
+      const msg = createResultMessage(result, quote?.requiresApproval ?? true);
       if (result.kind === "success") {
+        toast.add({ title: "Booking requested", description: msg.text });
         setSubmitDone(true);
+      } else {
+        toast.add({
+          title: "Couldn't book",
+          description: msg.text,
+          type: "error",
+        });
       }
       // Either way, refresh busy so the calendar reflects the latest state.
       void refreshBusy();
@@ -401,162 +382,217 @@ export function ServiceBookingClient({
     (authState !== "ready" || quote !== null);
 
   return (
-    <div className="flex flex-col gap-8">
-      {/* 1. Calendar */}
-      <section aria-labelledby="cal-heading">
-        <h2 id="cal-heading" className="mb-3 text-sm font-semibold">
-          1. {mode === "month-range" ? "Pick your dates" : "Pick a time"}
-        </h2>
-        {windowsError && (
-          <MessageBanner message={{ tone: "error", text: windowsError }} />
-        )}
-        {windowsLoading && (
-          <p className="text-muted-foreground text-sm">Loading availability…</p>
-        )}
-        {!windowsLoading && !windowsError && mode === "week-slots" && (
-          <Scheduler
-            capabilities={capabilities}
-            data={schedulerData}
-            onSelectionChange={onSelectionChange}
+    <div className="grid gap-8 pb-24 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:pb-0">
+      {/* LEFT COLUMN */}
+      <div className="flex flex-col gap-8">
+        {/* 1. Calendar */}
+        <section aria-labelledby="cal-heading">
+          <h2
+            id="cal-heading"
+            className="text-brand-strong mb-3 text-xs font-semibold tracking-wide uppercase"
           >
-            <Scheduler.WeekGrid />
-            <Scheduler.Legend />
-            <Scheduler.BookingDetailsPanel />
-          </Scheduler>
-        )}
-        {!windowsLoading && !windowsError && mode === "month-range" && (
-          <>
+            1. {mode === "month-range" ? "Pick your dates" : "Pick a time"}
+          </h2>
+          {windowsError && (
+            <ErrorState
+              title="Couldn't load availability"
+              message={windowsError}
+            />
+          )}
+          {windowsLoading && (
+            <p className="text-muted-foreground text-sm">
+              Loading availability…
+            </p>
+          )}
+          {!windowsLoading && !windowsError && mode === "week-slots" && (
             <Scheduler
               capabilities={capabilities}
               data={schedulerData}
               onSelectionChange={onSelectionChange}
             >
-              <Scheduler.MonthGrid />
-              <div className="mt-3 flex items-center justify-between gap-3">
-                <Scheduler.SelectionSummary />
-                <Scheduler.ClearDates />
-              </div>
+              <Scheduler.WeekGrid />
               <Scheduler.Legend />
               <Scheduler.BookingDetailsPanel />
             </Scheduler>
-            {range?.from && range?.to && stay && !stay.ok && (
-              <p className="text-destructive mt-2 text-sm">{stay.reason}</p>
-            )}
-            {stay?.ok && (
-              <p className="text-muted-foreground mt-2 text-sm">
-                {stay.nights} night{stay.nights === 1 ? "" : "s"} selected.
-              </p>
-            )}
-          </>
-        )}
-      </section>
-
-      {/* 2. Pet assignment (pet-aware services) */}
-      {petAware && (
-        <section aria-labelledby="pets-heading">
-          <h2 id="pets-heading" className="mb-3 text-sm font-semibold">
-            2. Which pets?
-          </h2>
-          {authState === "ready" ? (
-            <PetAssignment
-              pets={pets}
-              allowedSpecies={allowedSpecies}
-              selected={selectedPetIds}
-              onChange={(ids) => {
-                setSelectedPetIds(ids);
-                clearQuote();
-              }}
-              onPetAdded={handlePetAdded}
-            />
-          ) : (
-            <p className="text-muted-foreground text-sm">
-              You&apos;ll assign your pets after signing in.
-            </p>
+          )}
+          {!windowsLoading && !windowsError && mode === "month-range" && (
+            <>
+              <Scheduler
+                capabilities={capabilities}
+                data={schedulerData}
+                onSelectionChange={onSelectionChange}
+              >
+                <Scheduler.MonthGrid />
+                <div className="mt-3 flex items-center justify-between gap-3">
+                  <Scheduler.SelectionSummary />
+                  <Scheduler.ClearDates />
+                </div>
+                <Scheduler.Legend />
+                <Scheduler.BookingDetailsPanel />
+              </Scheduler>
+              {range?.from && range?.to && stay && !stay.ok && (
+                <p className="text-destructive mt-2 text-sm">{stay.reason}</p>
+              )}
+              {stay?.ok && (
+                <p className="text-muted-foreground mt-2 text-sm">
+                  {stay.nights} night{stay.nights === 1 ? "" : "s"} selected.
+                </p>
+              )}
+            </>
           )}
         </section>
-      )}
 
-      {/* 3. Quantities */}
-      <section aria-labelledby="qty-heading">
-        <h2 id="qty-heading" className="mb-3 text-sm font-semibold">
-          {petAware ? "3" : "2"}. Details
-        </h2>
-        <QuantityForm
-          state={quantities}
-          onChange={(s) => {
-            setQuantities(s);
-            clearQuote();
-          }}
-        />
-      </section>
+        {/* 2. Pet assignment (pet-aware services) */}
+        {petAware && (
+          <section aria-labelledby="pets-heading">
+            <h2
+              id="pets-heading"
+              className="text-brand-strong mb-3 text-xs font-semibold tracking-wide uppercase"
+            >
+              2. Which pets?
+            </h2>
+            {authState === "ready" ? (
+              <PetAssignment
+                pets={pets}
+                allowedSpecies={allowedSpecies}
+                selected={selectedPetIds}
+                onChange={(ids) => {
+                  setSelectedPetIds(ids);
+                  clearQuote();
+                }}
+                onPetAdded={handlePetAdded}
+              />
+            ) : (
+              <p className="text-muted-foreground text-sm">
+                You&apos;ll assign your pets after signing in.
+              </p>
+            )}
+          </section>
+        )}
 
-      {/* 4. Recurring (time-bounded services only) */}
-      {supportsRecurring && (
-        <section aria-labelledby="recur-heading">
-          <h2 id="recur-heading" className="mb-3 text-sm font-semibold">
-            {petAware ? "4" : "3"}. Recurring (optional)
+        {/* 3. Quantities */}
+        <section aria-labelledby="qty-heading">
+          <h2
+            id="qty-heading"
+            className="text-brand-strong mb-3 text-xs font-semibold tracking-wide uppercase"
+          >
+            {petAware ? "3" : "2"}. Details
           </h2>
-          <RecurringControls
-            enabled={recurringOn}
-            count={occurrenceCount}
-            onEnabledChange={(on) => {
-              setRecurringOn(on);
-              clearQuote();
-            }}
-            onCountChange={(n) => {
-              setOccurrenceCount(n);
+          <QuantityForm
+            state={quantities}
+            onChange={(s) => {
+              setQuantities(s);
               clearQuote();
             }}
           />
         </section>
-      )}
 
-      {/* 5. Quote */}
-      <section aria-labelledby="quote-heading">
-        <h2 id="quote-heading" className="mb-3 text-sm font-semibold">
-          Get a price estimate
-        </h2>
-        <Button
-          variant="outline"
-          onClick={handleGetQuote}
-          disabled={!hasSelection || !petsOk || isPreviewing || isSubmitting}
-        >
-          {isPreviewing ? "Loading…" : "Get quote"}
-        </Button>
-        {previewMsg && (
-          <div className="mt-4">
-            <MessageBanner message={previewMsg} />
-          </div>
+        {/* 4. Recurring (time-bounded services only) */}
+        {supportsRecurring && (
+          <section aria-labelledby="recur-heading">
+            <h2
+              id="recur-heading"
+              className="text-brand-strong mb-3 text-xs font-semibold tracking-wide uppercase"
+            >
+              {petAware ? "4" : "3"}. Recurring (optional)
+            </h2>
+            <RecurringControls
+              enabled={recurringOn}
+              count={occurrenceCount}
+              onEnabledChange={(on) => {
+                setRecurringOn(on);
+                clearQuote();
+              }}
+              onCountChange={(n) => {
+                setOccurrenceCount(n);
+                clearQuote();
+              }}
+            />
+          </section>
         )}
-        {quote && (
-          <div className="mt-4">
-            <QuotePanel preview={quote} />
-          </div>
-        )}
-      </section>
+      </div>
 
-      {/* 6. Book */}
-      {!submitDone && (
-        <section aria-labelledby="book-heading">
-          <h2 id="book-heading" className="mb-3 text-sm font-semibold">
-            Confirm booking
+      {/* RIGHT RAIL (desktop sticky summary) */}
+      <aside className="flex flex-col gap-4 lg:sticky lg:top-6">
+        {/* Quote section */}
+        <section aria-labelledby="quote-heading">
+          <h2
+            id="quote-heading"
+            className="text-brand-strong mb-3 text-xs font-semibold tracking-wide uppercase"
+          >
+            Get a price estimate
           </h2>
-          <Button onClick={handleBook} disabled={!bookEnabled}>
-            {isSubmitting ? "Submitting…" : "Book now"}
+          <Button
+            variant="outline"
+            onClick={handleGetQuote}
+            disabled={!hasSelection || !petsOk || isPreviewing || isSubmitting}
+          >
+            {isPreviewing ? "Loading…" : "Get quote"}
           </Button>
-          {authState === "ready" && !quote && (
-            <p className="text-muted-foreground mt-2 text-xs">
-              Get a quote first to enable booking.
+          {previewMsg && (
+            <p role="alert" className="text-destructive mt-3 text-sm">
+              {previewMsg.text}
             </p>
           )}
+          {quote && (
+            <div className="mt-4">
+              <QuotePanel preview={quote} />
+            </div>
+          )}
         </section>
-      )}
 
-      {submitMsg && (
-        <div role="status" aria-live="polite">
-          <MessageBanner message={submitMsg} />
+        {/* Book section */}
+        {!submitDone && (
+          <section aria-labelledby="book-heading">
+            <h2
+              id="book-heading"
+              className="text-brand-strong mb-3 text-xs font-semibold tracking-wide uppercase"
+            >
+              Confirm booking
+            </h2>
+            <Button
+              className="w-full"
+              onClick={handleBook}
+              disabled={!bookEnabled}
+            >
+              {isSubmitting ? "Submitting…" : "Book now"}
+            </Button>
+            {authState === "ready" && !quote && (
+              <p className="text-muted-foreground mt-2 text-xs">
+                Get a quote first to enable booking.
+              </p>
+            )}
+          </section>
+        )}
+      </aside>
+
+      {/* MOBILE STICKY BOTTOM BAR */}
+      <div className="bg-card border-border fixed inset-x-0 bottom-0 z-30 flex items-center justify-between gap-3 border-t px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:hidden">
+        <div className="min-w-0">
+          {quote ? (
+            <span
+              className="text-brand-strong text-lg"
+              style={{ fontFamily: "var(--font-heading)" }}
+            >
+              {centsToDollars(quote.finalCents)}
+            </span>
+          ) : (
+            <span className="text-muted-foreground text-sm">Get a quote</span>
+          )}
         </div>
-      )}
+        <Button
+          onClick={quote ? handleBook : handleGetQuote}
+          disabled={!hasSelection || !petsOk || isSubmitting || isPreviewing}
+        >
+          {quote
+            ? isSubmitting
+              ? "Submitting…"
+              : "Book now"
+            : isPreviewing
+              ? "Loading…"
+              : "Get quote"}
+        </Button>
+      </div>
     </div>
   );
 }
