@@ -19,6 +19,7 @@ import { WeekActions } from "./week-actions";
 import { Legend } from "./legend";
 import { BookingDetailsPanel } from "./booking-details-panel";
 import { ClearDates } from "./clear-dates";
+import { DayTimeline } from "./day-timeline";
 
 export const Scheduler = Object.assign(SchedulerRoot, {
   SelectionSummary,
@@ -29,6 +30,7 @@ export const Scheduler = Object.assign(SchedulerRoot, {
   Legend,
   BookingDetailsPanel,
   ClearDates,
+  DayTimeline,
 });
 
 // Re-export prop types consumers need when wiring data/callbacks from outside.

@@ -1,0 +1,771 @@
+"use client";
+
+/**
+ * Scheduler.DayTimeline — single-day, duration-accurate time picker (Layer 3).
+ *
+ * Aesthetic: "handwritten appointment book" — warm ruled-line planner feel.
+ * Hour labels in font-heading (Fraunces); ruled hour/quarter-tick marks;
+ * open windows as parchment-washed bg-status-available/50 bands;
+ * the selected block as a clay washi-tape strip (bg-brand, rounded-md).
+ *
+ * Reads state from SchedulerContext (via useScheduler); dispatches back into it
+ * via beginGridDrag. Owns NO selection logic — model lives in day-timeline-model.ts.
+ *
+ * DRAG MECHANICS — matches WeekGrid convention
+ *   No setPointerCapture. One-shot global window pointerup/pointercancel listener;
+ *   unmount cleanup; suppressNextClick swallows the click after a drag.
+ *   touch-action:none on the track.
+ *
+ * HOOKS — all declared unconditionally before any early return (WeekGrid pattern).
+ */
+
+import React, {
+  useState,
+  useMemo,
+  useRef,
+  useCallback,
+  useEffect,
+  useId,
+} from "react";
+import { cn } from "@/lib/utils";
+import { useScheduler } from "@/features/booking/scheduler-context";
+import { denverMidnight } from "@/features/booking/availability";
+import { overlapsHalfOpen } from "@/features/booking/calendar-model";
+import { startOptions, blockSpan } from "@/features/booking/day-timeline-model";
+import type { MinuteWindow } from "@/features/booking/day-timeline-model";
+
+// ---------------------------------------------------------------------------
+// Layout constants
+// ---------------------------------------------------------------------------
+
+/** Vertical pixels per minute of wall-clock time. */
+const PX_PER_MIN = 0.9;
+
+/** Width of the left hour-label gutter in px. */
+const GUTTER_W = 52;
+
+// ---------------------------------------------------------------------------
+// Pure formatting helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Minutes-since-midnight → "H:MM AM/PM" (e.g. "9:00 AM", "1:30 PM").
+ * Uses 12-hour clock for the human-facing label.
+ */
+function formatMinutes12(m: number): string {
+  const totalMin = ((m % 1440) + 1440) % 1440;
+  const h24 = Math.floor(totalMin / 60);
+  const min = totalMin % 60;
+  const suffix = h24 < 12 ? "AM" : "PM";
+  const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+  return `${h12}:${String(min).padStart(2, "0")} ${suffix}`;
+}
+
+/**
+ * Minutes → compact range label, e.g. "9:00 – 10:15 AM".
+ * Single suffix when both are in the same period, else each gets its own.
+ */
+function formatRange(startMin: number, endMin: number): string {
+  const totalStart = ((startMin % 1440) + 1440) % 1440;
+  const totalEnd = ((endMin % 1440) + 1440) % 1440;
+  const hS = Math.floor(totalStart / 60);
+  const hE = Math.floor(totalEnd / 60);
+  const suffS = hS < 12 ? "AM" : "PM";
+  const suffE = hE < 12 ? "AM" : "PM";
+  const h12S = hS % 12 === 0 ? 12 : hS % 12;
+  const h12E = hE % 12 === 0 ? 12 : hE % 12;
+  const minS = String(totalStart % 60).padStart(2, "0");
+  const minE = String(totalEnd % 60).padStart(2, "0");
+  if (suffS === suffE) {
+    return `${h12S}:${minS} – ${h12E}:${minE} ${suffE}`;
+  }
+  return `${h12S}:${minS} ${suffS} – ${h12E}:${minE} ${suffE}`;
+}
+
+/**
+ * intervalMinutes → human label, e.g. 75 → "1h 15m", 60 → "1h", 45 → "45m".
+ */
+function formatDuration(minutes: number): string {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  if (h > 0 && m > 0) return `${h}h ${m}m`;
+  if (h > 0) return `${h}h`;
+  return `${m}m`;
+}
+
+/**
+ * Denver-formatted date header, e.g. "Wed, Jun 3".
+ */
+function formatDayHeader(dayKey: string): string {
+  const d = denverMidnight(dayKey);
+  return d.toLocaleDateString("en-US", {
+    timeZone: "America/Denver",
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Parse a typed time string → minutes since midnight, or null
+// ---------------------------------------------------------------------------
+
+/**
+ * Accepts "9:00 AM", "9:00am", "9:00", "900", "9" etc.
+ * Returns minutes since midnight, or null if unrecognised.
+ */
+function parseTimeInput(raw: string): number | null {
+  const s = raw.trim().toLowerCase().replace(/\s+/g, "");
+  if (!s) return null;
+
+  // Detect AM/PM suffix
+  const hasPm = s.endsWith("pm");
+  const hasAm = s.endsWith("am");
+  const digits = s.replace(/[^0-9:]/g, "");
+
+  let h: number;
+  let m: number;
+
+  if (digits.includes(":")) {
+    const [hPart, mPart] = digits.split(":");
+    h = parseInt(hPart, 10);
+    m = parseInt(mPart ?? "0", 10);
+  } else {
+    const n = parseInt(digits, 10);
+    if (isNaN(n)) return null;
+    if (n < 100) {
+      h = n;
+      m = 0;
+    } else {
+      h = Math.floor(n / 100);
+      m = n % 100;
+    }
+  }
+
+  if (isNaN(h) || isNaN(m) || m >= 60) return null;
+
+  if (hasPm && h !== 12) h += 12;
+  if (hasAm && h === 12) h = 0;
+  if (h >= 24) return null;
+
+  return h * 60 + m;
+}
+
+/**
+ * Snap to the nearest candidate start at or after `parsedMin`.
+ * Falls back to the nearest overall candidate if none is >=.
+ */
+function snapToCandidate(
+  parsedMin: number,
+  candidates: number[],
+): number | null {
+  if (candidates.length === 0) return null;
+  const atOrAfter = candidates.find((c) => c >= parsedMin);
+  if (atOrAfter !== undefined) return atOrAfter;
+  // nearest overall
+  return candidates.reduce((best, c) =>
+    Math.abs(c - parsedMin) < Math.abs(best - parsedMin) ? c : best,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// DayTimeline — all hooks declared unconditionally
+// ---------------------------------------------------------------------------
+
+export function DayTimeline({ className }: { className?: string }) {
+  const { capabilities, data, selection } = useScheduler();
+  const { state, beginGridDrag } = selection;
+  const intervalMinutes = capabilities.intervalMinutes ?? 60;
+
+  // ── All hooks (unconditional — WeekGrid pattern) ──────────────────────────
+
+  const inputId = useId();
+
+  // Local input state for "Start at" text field
+  const [inputValue, setInputValue] = useState("");
+  const [inputError, setInputError] = useState(false);
+
+  // Drag: which candidate is being dragged (startMin offset)
+  const [dragPreviewStart, setDragPreviewStart] = useState<number | null>(null);
+  const suppressNextClick = useRef(false);
+  const dragEndHandlerRef = useRef<(() => void) | null>(null);
+  // Y-coord where the drag block was grabbed (relative to block top), in px
+  const dragGrabOffsetPx = useRef(0);
+  // Ref to track container for pointer-coord math
+  const trackRef = useRef<HTMLDivElement | null>(null);
+
+  // Unmount cleanup — mirror WeekGrid
+  useEffect(() => {
+    return () => {
+      if (dragEndHandlerRef.current) {
+        window.removeEventListener("pointerup", dragEndHandlerRef.current);
+        window.removeEventListener("pointercancel", dragEndHandlerRef.current);
+        dragEndHandlerRef.current = null;
+      }
+    };
+  }, []);
+
+  // ── Derived values ─────────────────────────────────────────────────────────
+
+  const dayKey: string | null = useMemo(() => {
+    if (state.selectedDays.size === 0) return null;
+    return [...state.selectedDays][0];
+  }, [state.selectedDays]);
+
+  /**
+   * Minute-windows for the selected day: filter data.windows to those that
+   * overlap the selected calendar day, then convert each to [openMin,closeMin]
+   * minutes-since-Denver-midnight for that specific day (clamped to [0,1440]).
+   */
+  const minuteWindows = useMemo<MinuteWindow[]>(() => {
+    if (!dayKey) return [];
+    const midnight = denverMidnight(dayKey);
+    const dayStart = midnight.getTime();
+    const dayEnd = dayStart + 24 * 60 * 60 * 1000;
+
+    return data.windows
+      .filter(
+        (w) => w.startsAt.getTime() < dayEnd && w.endsAt.getTime() > dayStart,
+      )
+      .map((w) => {
+        // Clamp to the day's [0, 1440] minute range
+        const openMs = Math.max(w.startsAt.getTime(), dayStart);
+        const closeMs = Math.min(w.endsAt.getTime(), dayEnd);
+        // Convert absolute ms to minutes-since-Denver-midnight for this day
+        const openMin = Math.round((openMs - dayStart) / 60_000);
+        const closeMin = Math.round((closeMs - dayStart) / 60_000);
+        return [openMin, closeMin] as MinuteWindow;
+      })
+      .filter(([open, close]) => close > open);
+  }, [dayKey, data.windows]);
+
+  /**
+   * Candidate starts from day-timeline-model, then busy-filtered:
+   * remove any start whose [start, start+duration) as absolute Dates
+   * overlaps any data.busy block.
+   */
+  const candidateStarts = useMemo<number[]>(() => {
+    if (!dayKey) return [];
+    const allStarts = startOptions({
+      windows: minuteWindows,
+      durationMin: intervalMinutes,
+      granularityMin: 15,
+    });
+    const midnight = denverMidnight(dayKey).getTime();
+    return allStarts.filter((startMin) => {
+      const { endMin } = blockSpan(startMin, intervalMinutes);
+      const candidateRange = {
+        startsAt: new Date(midnight + startMin * 60_000),
+        endsAt: new Date(midnight + endMin * 60_000),
+      };
+      return !data.busy.some((b) => overlapsHalfOpen(candidateRange, b));
+    });
+  }, [dayKey, minuteWindows, intervalMinutes, data.busy]);
+
+  // Track vertical span: min open → max close across all minute-windows
+  const trackBounds = useMemo<{
+    minOpen: number;
+    maxClose: number;
+  } | null>(() => {
+    if (minuteWindows.length === 0) return null;
+    const minOpen = Math.min(...minuteWindows.map(([o]) => o));
+    const maxClose = Math.max(...minuteWindows.map(([, c]) => c));
+    return { minOpen, maxClose };
+  }, [minuteWindows]);
+
+  // Hour labels to render in the gutter (whole hours within the track span)
+  const hourLabels = useMemo<number[]>(() => {
+    if (!trackBounds) return [];
+    const first = Math.floor(trackBounds.minOpen / 60);
+    const last = Math.ceil(trackBounds.maxClose / 60);
+    const labels: number[] = [];
+    for (let h = first; h <= last; h++) {
+      labels.push(h * 60);
+    }
+    return labels;
+  }, [trackBounds]);
+
+  // Current gridDraft parsed back to { dayKey, startMin } if it's for today
+  const draftForDay = useMemo<number | null>(() => {
+    if (!dayKey || state.gridDraft.size === 0) return null;
+    for (const cellId of state.gridDraft) {
+      const [cDay, cMin] = cellId.split("@");
+      if (cDay === dayKey && cMin !== undefined) {
+        return parseInt(cMin, 10);
+      }
+    }
+    return null;
+  }, [dayKey, state.gridDraft]);
+
+  // The "live" start displayed: drag preview overrides committed draft
+  const liveStart: number | null = dragPreviewStart ?? draftForDay;
+
+  // ── Pointer drag helpers ──────────────────────────────────────────────────
+
+  const installEndHandler = useCallback((endHandler: () => void) => {
+    if (dragEndHandlerRef.current) {
+      window.removeEventListener("pointerup", dragEndHandlerRef.current);
+      window.removeEventListener("pointercancel", dragEndHandlerRef.current);
+      dragEndHandlerRef.current = null;
+    }
+    dragEndHandlerRef.current = endHandler;
+    window.addEventListener("pointerup", endHandler, { once: true });
+    window.addEventListener("pointercancel", endHandler, { once: true });
+  }, []);
+
+  /**
+   * Given a pointer Y relative to track top, find the nearest candidate start.
+   */
+  const nearestCandidateFromY = useCallback(
+    (trackYPx: number, bounds: { minOpen: number }): number | null => {
+      if (candidateStarts.length === 0) return null;
+      const minuteFromTop = trackYPx / PX_PER_MIN + bounds.minOpen;
+      return candidateStarts.reduce((best, c) =>
+        Math.abs(c - minuteFromTop) < Math.abs(best - minuteFromTop) ? c : best,
+      );
+    },
+    [candidateStarts],
+  );
+
+  // ── Drag on the committed block (move it among candidates) ────────────────
+
+  const handleBlockPointerDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (!dayKey || !trackBounds || liveStart === null) return;
+      e.preventDefault();
+      suppressNextClick.current = false;
+
+      const trackEl = trackRef.current;
+      if (!trackEl) return;
+
+      // Y relative to the block's top (so block doesn't jump on grab)
+      const trackRect = trackEl.getBoundingClientRect();
+      const blockTopPx = (liveStart - trackBounds.minOpen) * PX_PER_MIN;
+      const pointerYInTrack = e.clientY - trackRect.top;
+      dragGrabOffsetPx.current = pointerYInTrack - blockTopPx;
+
+      const onMove = (me: PointerEvent) => {
+        if (!trackRef.current || !trackBounds) return;
+        const r = trackRef.current.getBoundingClientRect();
+        const rawY = me.clientY - r.top - dragGrabOffsetPx.current;
+        const nearest = nearestCandidateFromY(rawY, trackBounds);
+        if (nearest !== null) {
+          setDragPreviewStart(nearest);
+        }
+      };
+
+      window.addEventListener("pointermove", onMove);
+
+      const endHandler = () => {
+        window.removeEventListener("pointermove", onMove);
+        dragEndHandlerRef.current = null;
+        suppressNextClick.current = true;
+        // Commit to whichever candidate we're at
+        setDragPreviewStart((prev) => {
+          const finalStart = prev ?? liveStart;
+          if (dayKey && finalStart !== null) {
+            beginGridDrag(`${dayKey}@${finalStart}`);
+          }
+          return null;
+        });
+      };
+      installEndHandler(endHandler);
+    },
+    [
+      dayKey,
+      trackBounds,
+      liveStart,
+      nearestCandidateFromY,
+      beginGridDrag,
+      installEndHandler,
+    ],
+  );
+
+  // ── Click in the track (select nearest candidate) ────────────────────────
+
+  const handleTrackClick = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (suppressNextClick.current) {
+        suppressNextClick.current = false;
+        return;
+      }
+      if (!dayKey || !trackBounds || candidateStarts.length === 0) return;
+      const trackEl = trackRef.current;
+      if (!trackEl) return;
+      const rect = trackEl.getBoundingClientRect();
+      const rawY = e.clientY - rect.top;
+      const nearest = nearestCandidateFromY(rawY, trackBounds);
+      if (nearest !== null) {
+        beginGridDrag(`${dayKey}@${nearest}`);
+      }
+    },
+    [
+      dayKey,
+      trackBounds,
+      candidateStarts,
+      nearestCandidateFromY,
+      beginGridDrag,
+    ],
+  );
+
+  // ── Keyboard: arrow up/down on the track moves selection ─────────────────
+
+  const handleTrackKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (!dayKey || candidateStarts.length === 0) return;
+      const currentIdx =
+        liveStart !== null ? candidateStarts.indexOf(liveStart) : -1;
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        const next =
+          candidateStarts[Math.min(candidateStarts.length - 1, currentIdx + 1)];
+        if (next !== undefined) beginGridDrag(`${dayKey}@${next}`);
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        const prev = candidateStarts[Math.max(0, currentIdx - 1)];
+        if (prev !== undefined) beginGridDrag(`${dayKey}@${prev}`);
+      }
+    },
+    [dayKey, candidateStarts, liveStart, beginGridDrag],
+  );
+
+  // ── Text input handlers ───────────────────────────────────────────────────
+
+  const commitInputValue = useCallback(() => {
+    if (!dayKey || !inputValue.trim()) {
+      setInputError(false);
+      return;
+    }
+    const parsed = parseTimeInput(inputValue);
+    if (parsed === null) {
+      setInputError(true);
+      return;
+    }
+    const snapped = snapToCandidate(parsed, candidateStarts);
+    if (snapped === null) {
+      setInputError(true);
+      return;
+    }
+    setInputError(false);
+    setInputValue("");
+    beginGridDrag(`${dayKey}@${snapped}`);
+  }, [dayKey, inputValue, candidateStarts, beginGridDrag]);
+
+  const handleInputKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        commitInputValue();
+      }
+      if (e.key === "Escape") {
+        setInputValue("");
+        setInputError(false);
+      }
+    },
+    [commitInputValue],
+  );
+
+  // ── Early return: no day selected ─────────────────────────────────────────
+  if (!dayKey) {
+    return (
+      <div
+        className={cn(
+          "flex min-h-24 items-center justify-center py-8",
+          className,
+        )}
+      >
+        <p className="text-muted-foreground font-sans text-sm">
+          Pick a day above to choose a time.
+        </p>
+      </div>
+    );
+  }
+
+  // ── No availability this day ──────────────────────────────────────────────
+  if (!trackBounds || minuteWindows.length === 0) {
+    return (
+      <div className={cn("flex flex-col gap-3 select-none", className)}>
+        <DayHeader dayKey={dayKey} intervalMinutes={intervalMinutes} />
+        <div className="flex min-h-20 items-center justify-center py-6">
+          <p className="text-muted-foreground font-sans text-sm">
+            No availability this day.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const { minOpen, maxClose } = trackBounds;
+  const trackHeightPx = (maxClose - minOpen) * PX_PER_MIN;
+
+  return (
+    <div className={cn("flex flex-col gap-4 select-none", className)}>
+      {/* Header: date on left, duration on right */}
+      <DayHeader dayKey={dayKey} intervalMinutes={intervalMinutes} />
+
+      {/* Timeline */}
+      <div className="flex items-stretch gap-0">
+        {/* Left gutter — hour labels */}
+        <div
+          className="relative shrink-0"
+          style={{ width: GUTTER_W, height: trackHeightPx }}
+          aria-hidden="true"
+        >
+          {hourLabels.map((minuteMark) => {
+            const topPx = (minuteMark - minOpen) * PX_PER_MIN;
+            // Clamp so first/last don't bleed outside track
+            if (topPx < 0 || topPx > trackHeightPx) return null;
+            const isHour = minuteMark % 60 === 0;
+            return (
+              <div
+                key={minuteMark}
+                className={cn(
+                  "font-heading absolute right-3 -translate-y-1/2 text-right leading-none",
+                  isHour
+                    ? "text-muted-foreground text-xs font-medium"
+                    : "text-muted-foreground/50 text-[10px]",
+                )}
+                style={{ top: topPx }}
+              >
+                {isHour ? formatMinutes12(minuteMark).replace(":00", "") : "·"}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Track */}
+        <div
+          ref={trackRef}
+          role="slider"
+          tabIndex={0}
+          aria-label={`Time selector for ${formatDayHeader(dayKey)}. Use arrow keys to move selection.`}
+          aria-valuemin={candidateStarts[0] ?? minOpen}
+          aria-valuemax={
+            candidateStarts[candidateStarts.length - 1] ?? maxClose
+          }
+          aria-valuenow={liveStart ?? undefined}
+          aria-valuetext={
+            liveStart !== null
+              ? formatRange(liveStart, liveStart + intervalMinutes)
+              : "No time selected"
+          }
+          className={cn(
+            "relative flex-1 rounded-md",
+            "border-border border",
+            "bg-status-unavailable overflow-hidden",
+            "cursor-pointer",
+            "focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none",
+            // No native drag
+            "touch-action-none",
+          )}
+          style={{
+            height: trackHeightPx,
+            touchAction: "none",
+            userSelect: "none",
+          }}
+          onClick={handleTrackClick}
+          onKeyDown={handleTrackKeyDown}
+          onDragStart={(e) => e.preventDefault()}
+        >
+          {/* Open window bands */}
+          {minuteWindows.map(([open, close], i) => (
+            <div
+              key={i}
+              className="bg-status-available/50 absolute inset-x-0"
+              style={{
+                top: (open - minOpen) * PX_PER_MIN,
+                height: (close - open) * PX_PER_MIN,
+              }}
+              aria-hidden="true"
+            />
+          ))}
+
+          {/* Horizontal hour ruled lines */}
+          {hourLabels.map((minuteMark) => {
+            const topPx = (minuteMark - minOpen) * PX_PER_MIN;
+            if (topPx <= 0 || topPx >= trackHeightPx) return null;
+            const isHour = minuteMark % 60 === 0;
+            return (
+              <div
+                key={minuteMark}
+                className={cn(
+                  "pointer-events-none absolute inset-x-0",
+                  isHour
+                    ? "border-border border-t"
+                    : "border-border/40 border-t border-dashed",
+                )}
+                style={{ top: topPx }}
+                aria-hidden="true"
+              />
+            );
+          })}
+
+          {/* 15-min tick dots in gutter */}
+          {Array.from(
+            { length: Math.ceil((maxClose - minOpen) / 15) },
+            (_, i) => {
+              const min = minOpen + i * 15;
+              if (min % 60 === 0) return null; // hour lines already cover these
+              const topPx = (min - minOpen) * PX_PER_MIN;
+              if (topPx >= trackHeightPx) return null;
+              return (
+                <div
+                  key={min}
+                  className="bg-border/60 pointer-events-none absolute left-1 size-0.5 rounded-full"
+                  style={{ top: topPx - 1 }}
+                  aria-hidden="true"
+                />
+              );
+            },
+          )}
+
+          {/* Candidate start hover zones — thin clickable buttons */}
+          {candidateStarts.map((startMin) => {
+            const topPx = (startMin - minOpen) * PX_PER_MIN;
+            const isActive = startMin === liveStart;
+            return (
+              <button
+                key={startMin}
+                type="button"
+                tabIndex={-1} // track div handles keyboard
+                aria-label={`Start at ${formatMinutes12(startMin)}`}
+                className={cn(
+                  "absolute inset-x-1 cursor-pointer rounded-sm transition-colors duration-100",
+                  "focus-visible:ring-ring focus-visible:ring-1 focus-visible:outline-none",
+                  isActive
+                    ? "pointer-events-none" // block handles its own drag; don't double-fire
+                    : "hover:bg-brand/15 active:bg-brand/25",
+                )}
+                style={{
+                  top: topPx,
+                  height: Math.max(intervalMinutes * PX_PER_MIN, 44), // ≥44px tap target
+                  // visually only a thin affordance, but tap target is full height
+                  minHeight: 44,
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (suppressNextClick.current) {
+                    suppressNextClick.current = false;
+                    return;
+                  }
+                  beginGridDrag(`${dayKey}@${startMin}`);
+                }}
+              />
+            );
+          })}
+
+          {/* Selected / drag-preview block */}
+          {liveStart !== null &&
+            (() => {
+              const topPx = (liveStart - minOpen) * PX_PER_MIN;
+              const heightPx = intervalMinutes * PX_PER_MIN;
+              const endMin = liveStart + intervalMinutes;
+              return (
+                <div
+                  className={cn(
+                    "bg-brand text-brand-foreground absolute inset-x-1 rounded-md",
+                    "flex flex-col justify-between px-2.5 py-1.5",
+                    "shadow-sm",
+                    "cursor-grab active:cursor-grabbing",
+                    "transition-shadow duration-150",
+                    dragPreviewStart !== null && "shadow-md",
+                  )}
+                  style={{
+                    top: topPx,
+                    height: heightPx,
+                    minHeight: 44,
+                    touchAction: "none",
+                    userSelect: "none",
+                  }}
+                  onPointerDown={handleBlockPointerDown}
+                  onDragStart={(e) => e.preventDefault()}
+                >
+                  {/* Time label */}
+                  <span className="font-sans text-xs leading-tight font-semibold tracking-wide">
+                    {formatRange(liveStart, endMin)}
+                  </span>
+
+                  {/* Drag grip dots */}
+                  {heightPx >= 40 && (
+                    <div
+                      className="flex items-center justify-center gap-0.5"
+                      aria-hidden="true"
+                    >
+                      <span className="bg-brand-foreground/40 size-0.5 rounded-full" />
+                      <span className="bg-brand-foreground/40 size-0.5 rounded-full" />
+                      <span className="bg-brand-foreground/40 size-0.5 rounded-full" />
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+        </div>
+      </div>
+
+      {/* "Start at" text input */}
+      <div className="flex items-center gap-2">
+        <label
+          htmlFor={inputId}
+          className="text-muted-foreground shrink-0 font-sans text-xs"
+        >
+          Start at
+        </label>
+        <input
+          id={inputId}
+          type="text"
+          aria-label="Type a start time, e.g. 9:00 AM"
+          placeholder="e.g. 9:00 AM"
+          value={inputValue}
+          onChange={(e) => {
+            setInputValue(e.target.value);
+            setInputError(false);
+          }}
+          onKeyDown={handleInputKeyDown}
+          onBlur={commitInputValue}
+          className={cn(
+            "border-input bg-background text-foreground font-sans",
+            "w-32 rounded-md border px-2.5 py-1 text-xs",
+            "placeholder:text-muted-foreground/60",
+            "focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none",
+            "transition-colors duration-150",
+            inputError &&
+              "border-destructive focus-visible:ring-destructive/50",
+          )}
+          autoComplete="off"
+        />
+        {inputError && (
+          <span
+            className="text-destructive font-sans text-xs"
+            role="alert"
+            aria-live="polite"
+          >
+            Not available
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// DayHeader — extracted sub-component (no hooks, no early return needed)
+// ---------------------------------------------------------------------------
+
+function DayHeader({
+  dayKey,
+  intervalMinutes,
+}: {
+  dayKey: string;
+  intervalMinutes: number;
+}) {
+  return (
+    <div className="flex items-baseline justify-between">
+      <span className="font-heading text-foreground text-sm font-medium">
+        {formatDayHeader(dayKey)}
+      </span>
+      <span className="text-muted-foreground font-sans text-xs">
+        {formatDuration(intervalMinutes)}
+      </span>
+    </div>
+  );
+}
