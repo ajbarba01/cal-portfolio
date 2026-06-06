@@ -3,13 +3,7 @@
 /** Itemized price-estimate panel. Pure presentation of a BookingQuotePreview. */
 
 import type { BookingQuotePreview } from "@/features/booking/booking-service";
-
-function centsToDollars(cents: number): string {
-  return (cents / 100).toLocaleString("en-US", {
-    style: "currency",
-    currency: "USD",
-  });
-}
+import { centsToDollars } from "@/features/booking/format-money";
 
 export function QuotePanel({ preview }: { preview: BookingQuotePreview }) {
   return (
