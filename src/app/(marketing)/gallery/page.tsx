@@ -14,7 +14,7 @@ export default async function GalleryPage() {
   return (
     <PageContainer width="app" className="py-12 sm:py-16">
       <div className="mb-8">
-        <Eyebrow>Out on the trail</Eyebrow>
+        <Eyebrow>[[HEADER: gallery eyebrow]]</Eyebrow>
         <h1 className="font-heading mt-2 text-4xl font-semibold tracking-tight">
           Gallery
         </h1>
