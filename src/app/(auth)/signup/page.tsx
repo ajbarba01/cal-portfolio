@@ -3,12 +3,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { Mail } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { safeReturnTo } from "@/features/booking/return-to";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageContainer } from "@/components/layout/page-container";
 
 export default function SignupPage() {
@@ -73,12 +74,12 @@ export default function SignupPage() {
       <PageContainer width="read" className="py-12">
         <div className="mx-auto w-full max-w-sm">
           <Card className="gap-3 p-6 text-center sm:p-7">
-            <div aria-hidden="true" className="text-3xl">
-              📬
-            </div>
-            <h1 className="text-foreground text-xl font-semibold">
-              Check your email
-            </h1>
+            <Mail
+              aria-hidden="true"
+              className="text-brand mx-auto size-8"
+              strokeWidth={1.5}
+            />
+            <CardTitle>Check your email</CardTitle>
             <p className="text-muted-foreground text-sm">
               We sent a confirmation link to <strong>{email}</strong>. Click it
               to activate your account.
@@ -93,14 +94,12 @@ export default function SignupPage() {
     <PageContainer width="read" className="py-12">
       <div className="mx-auto w-full max-w-sm">
         <Card className="gap-5 p-6 sm:p-7">
-          <div className="flex flex-col gap-1">
-            <h1 className="text-foreground text-xl font-semibold">
-              Create account
-            </h1>
+          <CardHeader>
+            <CardTitle>Create account</CardTitle>
             <p className="text-muted-foreground text-sm">
               Book Cal for walks, check-ins &amp; house-sitting.
             </p>
-          </div>
+          </CardHeader>
 
           <form
             onSubmit={handleSubmit}

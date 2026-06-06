@@ -8,7 +8,7 @@ import { safeReturnTo } from "@/features/booking/return-to";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageContainer } from "@/components/layout/page-container";
 
 export default function LoginPage() {
@@ -48,12 +48,10 @@ export default function LoginPage() {
     <PageContainer width="read" className="py-12">
       <div className="mx-auto w-full max-w-sm">
         <Card className="gap-5 p-6 sm:p-7">
-          <div className="flex flex-col gap-1">
-            <h1 className="text-foreground text-xl font-semibold">Sign in</h1>
-            <p className="text-muted-foreground text-sm">
-              Welcome back to Cal Barba.
-            </p>
-          </div>
+          <CardHeader>
+            <CardTitle>Sign in</CardTitle>
+            <p className="text-muted-foreground text-sm">Welcome back.</p>
+          </CardHeader>
 
           <form
             onSubmit={handleSubmit}
