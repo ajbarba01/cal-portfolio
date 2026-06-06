@@ -25,6 +25,7 @@ export const SEMANTIC_COLORS = [
   "muted",
   "accent",
   "canvas",
+  "section-alt",
   "brand",
   "brand-foreground",
   "brand-strong",

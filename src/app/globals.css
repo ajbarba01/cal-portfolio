@@ -46,6 +46,7 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-canvas: var(--canvas);
+  --color-section-alt: var(--section-alt);
   --color-sidebar-active: var(--sidebar-active);
   --color-brand: var(--brand);
   --color-brand-foreground: var(--brand-foreground);
@@ -128,6 +129,8 @@
   --accent-foreground: var(--sand-900);
   /* Accent "desk" behind the sheet (gutter color) + sidebar active-rect fill */
   --canvas: var(--sand-200);
+  /* Secondary surface for alternating marketing section bands (never the white chrome) */
+  --section-alt: var(--sand-100);
   --sidebar-active: var(--clay-soft);
   /* Brand (clay) — intentional accent, NOT the default action color */
   --brand: var(--clay-fill);
@@ -176,6 +179,7 @@
   --accent: var(--sand-800);
   --accent-foreground: var(--sand-50);
   --canvas: var(--sand-950);
+  --section-alt: var(--sand-800);
   --sidebar-active: var(--clay-deep);
   /* Brand: same clay fill (white text passes), lighter clay for text-on-dark */
   --brand: var(--clay-fill);
@@ -213,10 +217,10 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-canvas text-foreground;
   }
   html {
-    @apply font-sans;
+    @apply bg-canvas font-sans;
     font-optical-sizing: auto;
   }
   h1,
