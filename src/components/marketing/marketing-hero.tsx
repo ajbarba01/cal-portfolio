@@ -1,12 +1,13 @@
 import * as React from "react";
 import Image from "next/image";
+import { cn } from "@/lib/utils";
 import { Eyebrow } from "./eyebrow";
 
 /**
- * Shared marketing hero: a 3:2 photo with copy overlaid on desktop and stacked
- * beneath on mobile (overlaying a short 3:2 band is unreadable at phone width).
- * One `<h1>`; colors + position flip at the `sm` breakpoint. Used by the home
- * and about pages so they read as a consistent front door.
+ * Shared marketing hero: a photo with copy overlaid on desktop and stacked
+ * beneath on mobile (overlaying a short band is unreadable at phone width).
+ * One `<h1>`; colors + position flip at the `sm` breakpoint. `aspect` tunes the
+ * banner height (home = bold 3:2 default; secondary pages pass a flatter ratio).
  */
 export function MarketingHero({
   src,
@@ -15,6 +16,7 @@ export function MarketingHero({
   titleId = "hero-heading",
   body,
   actions,
+  aspect = "aspect-[3/2]",
 }: {
   src: string;
   eyebrow?: React.ReactNode;
@@ -22,10 +24,11 @@ export function MarketingHero({
   titleId?: string;
   body?: React.ReactNode;
   actions?: React.ReactNode;
+  aspect?: string;
 }) {
   return (
     <section aria-labelledby={titleId} className="relative">
-      <div className="relative aspect-[3/2] w-full">
+      <div className={cn("relative w-full", aspect)}>
         <Image
           src={src}
           alt=""

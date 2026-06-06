@@ -32,6 +32,7 @@ export default function AboutPage() {
         eyebrow="[[HEADER: about eyebrow]]"
         title="About"
         body="[[BODY: one-line about summary]]"
+        aspect="aspect-[2/1] lg:aspect-[5/2]"
       />
 
       <PageContainer width="app" className="py-12 sm:py-16">
