@@ -1,5 +1,5 @@
 /**
- * About page — hero + bio/approach/references.
+ * About page — hero + bio/approach/references in alternating section bands.
  * Server component.
  */
 import Link from "next/link";
@@ -35,10 +35,10 @@ export default function AboutPage() {
         aspect="aspect-[2/1] lg:aspect-[5/2]"
       />
 
-      <PageContainer width="app" className="py-12 sm:py-16">
-        {/* Prose kept to a readable measure inside the app-width column */}
-        <div className="max-w-[65ch]">
-          <section aria-labelledby="bio-heading" className="mb-10">
+      {/* Bio — section-alt band */}
+      <section aria-labelledby="bio-heading" className="bg-section-alt">
+        <PageContainer width="app" className="py-12 sm:py-16">
+          <div className="max-w-[65ch]">
             <h2
               id="bio-heading"
               className="font-heading mb-3 text-xl font-semibold"
@@ -50,9 +50,14 @@ export default function AboutPage() {
               <p>[[BODY: bio paragraph 2 — services offered]]</p>
               <p>[[BODY: bio paragraph 3 — additional context]]</p>
             </div>
-          </section>
+          </div>
+        </PageContainer>
+      </section>
 
-          <section aria-labelledby="approach-heading" className="mb-10">
+      {/* Approach — background band */}
+      <section aria-labelledby="approach-heading" className="bg-background">
+        <PageContainer width="app" className="py-12 sm:py-16">
+          <div className="max-w-[65ch]">
             <h2
               id="approach-heading"
               className="font-heading mb-3 text-xl font-semibold"
@@ -67,9 +72,14 @@ export default function AboutPage() {
                 </li>
               ))}
             </ul>
-          </section>
+          </div>
+        </PageContainer>
+      </section>
 
-          <section aria-labelledby="references-heading">
+      {/* References — section-alt band */}
+      <section aria-labelledby="references-heading" className="bg-section-alt">
+        <PageContainer width="app" className="py-12 sm:py-16">
+          <div className="max-w-[65ch]">
             <h2
               id="references-heading"
               className="font-heading mb-3 text-xl font-semibold"
@@ -86,9 +96,9 @@ export default function AboutPage() {
               </Link>{" "}
               [[page]].
             </p>
-          </section>
-        </div>
-      </PageContainer>
+          </div>
+        </PageContainer>
+      </section>
     </>
   );
 }
