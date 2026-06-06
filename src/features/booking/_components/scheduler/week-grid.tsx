@@ -7,7 +7,7 @@
  *
  * Reads all state from SchedulerContext (via useScheduler) and dispatches back
  * into it. Owns NO selection logic — the run-edge math lives in grid-runs.ts.
- * Owns NO colours — token-only (status fills + primary outline; no hex).
+ * Owns NO colours — token-only (status fills + clay (brand) outline; no hex).
  *
  * VISUAL LANGUAGE (token-only, no bespoke colors) — mirrors MonthGrid
  * Each cell composes INDEPENDENT layers so status and selection no longer fight
@@ -23,8 +23,8 @@
  *        Hovering any slot of a booking lifts ALL its slots lighter
  *        (bg-status-booked/70) via transient hoveredBookingId state (CSS :hover
  *        can't span sibling cells).
- *   3. SELECTION OUTLINE: drafted slots draw a merged charcoal outline
- *        (border-primary) joining VERTICALLY-adjacent drafted slots in the same
+ *   3. SELECTION OUTLINE: drafted slots draw a merged clay outline
+ *        (border-brand) joining VERTICALLY-adjacent drafted slots in the same
  *        day column into one rounded block (runOutlineClasses, "vertical").
  *        Interior shared edges show only left+right borders (two straight lines,
  *        no curve); top/bottom caps round. Live drag preview uses the same
