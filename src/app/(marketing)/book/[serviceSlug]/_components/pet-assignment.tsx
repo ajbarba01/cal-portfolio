@@ -8,8 +8,7 @@
  */
 
 import { useState } from "react";
-import { Check } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Check, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   PetAvatar,
@@ -122,7 +121,7 @@ export function PetAssignment({
       )}
 
       {showAdd ? (
-        <div className="border-border rounded-lg border p-4">
+        <div className="border-border rounded-xl border p-4">
           <h3 className="text-foreground mb-3 text-sm font-medium">
             Add a pet
           </h3>
@@ -135,15 +134,14 @@ export function PetAssignment({
           />
         </div>
       ) : (
-        <Button
+        <button
           type="button"
-          variant="outline"
-          size="sm"
-          className="self-start"
           onClick={() => setShowAdd(true)}
+          className="text-muted-foreground hover:border-brand/40 hover:text-brand-strong hover:bg-muted focus-visible:border-ring focus-visible:ring-ring/50 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border-[1.5px] border-dashed px-4 text-sm font-medium transition-colors outline-none focus-visible:ring-3 sm:w-auto sm:self-start sm:px-6"
         >
+          <Plus className="size-4" strokeWidth={2.5} />
           Add a pet
-        </Button>
+        </button>
       )}
     </div>
   );

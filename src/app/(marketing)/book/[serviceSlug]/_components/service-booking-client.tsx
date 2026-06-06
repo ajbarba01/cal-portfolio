@@ -490,21 +490,29 @@ export function ServiceBookingClient({
                 onSelectionChange={onSelectionChange}
               >
                 <Scheduler.MonthGrid />
-                <div className="mt-5 flex items-center justify-between gap-3">
-                  <Scheduler.SelectionSummary />
+                {/* Fixed-height summary row: nights live inline (never a new line)
+                    and the Clear-dates slot is always reserved, so selecting a
+                    range changes only text/opacity — never layout height. */}
+                <div className="mt-5 flex h-8 items-center justify-between gap-3 overflow-hidden">
+                  <div className="flex items-baseline gap-2 whitespace-nowrap">
+                    <Scheduler.SelectionSummary />
+                    {stay?.ok && (
+                      <span className="text-muted-foreground text-sm">
+                        · {stay.nights} night{stay.nights === 1 ? "" : "s"}
+                      </span>
+                    )}
+                  </div>
                   <Scheduler.ClearDates />
                 </div>
                 <Scheduler.Legend className="mt-5" />
                 <Scheduler.BookingDetailsPanel />
               </Scheduler>
-              {range?.from && range?.to && stay && !stay.ok && (
-                <p className="text-destructive mt-2 text-sm">{stay.reason}</p>
-              )}
-              {stay?.ok && (
-                <p className="text-muted-foreground mt-2 text-sm">
-                  {stay.nights} night{stay.nights === 1 ? "" : "s"} selected.
-                </p>
-              )}
+              {/* Reserved-height line for the invalid-range message only. */}
+              <p className="mt-2 min-h-5 text-sm" aria-live="polite">
+                {range?.from && range?.to && stay && !stay.ok && (
+                  <span className="text-destructive">{stay.reason}</span>
+                )}
+              </p>
             </>
           )}
         </section>
