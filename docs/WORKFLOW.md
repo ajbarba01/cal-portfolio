@@ -1,6 +1,6 @@
 # Development Workflow
 
-> Authority for **the dev loop and version control** (general, portable). Always-on governance (doc discipline, hierarchical context, last-reviewed) lives in [CLAUDE.md](../CLAUDE.md). For code structure see [ENGINEERING.md](ENGINEERING.md); conventions [CODE_STYLE.md](CODE_STYLE.md); UI [FRONTEND.md](FRONTEND.md).
+> Authority for **the dev loop, version control, and multi-agent handoff** (general, portable). Always-on governance (doc discipline, hierarchical context, last-reviewed) lives in [AGENTS.md](../AGENTS.md). Roles + inference: [ROLES.md](ROLES.md); model preferences: [ROUTING.md](ROUTING.md). For code structure see [ENGINEERING.md](ENGINEERING.md); conventions [CODE_STYLE.md](CODE_STYLE.md); UI [FRONTEND.md](FRONTEND.md).
 
 **Consult this doc to decide your next move.** Spec-driven and lightweight: the spec is the source artifact, code is generated output. Quality comes from principles + gates, not ceremony.
 
@@ -43,6 +43,51 @@ The loop above maps 1:1 onto the superpowers skill chain — invoke the stage's 
 - **No worktrees.** Subagent execution runs in-session against `main` (consistent with Version control below) — not in a git worktree, unless the maintainer asks.
 - **Skip threshold (knob).** Brainstorm + spec + plan are required for anything non-trivial or scope-uncertain. They are **skipped** for contained edits (typo, one-liner, config, isolated fix) — build + verify directly. The maintainer moves this line per session: "skip the spec" pulls a borderline task below the line; "spec this anyway" pushes it above. When unsure which side a task falls on, ask.
 
+## Portable stage map (model-agnostic)
+
+The loop is tool-independent: each stage is a **role + artifact**; only the _invocation_ differs per tool. The artifact is the handoff — whoever holds the next role reads it cold.
+
+| Stage  | Artifact (the contract)         | Claude invokes          | Codex / other invokes        |
+| ------ | ------------------------------- | ----------------------- | ---------------------------- |
+| Spec   | `specs/<f>.md`                  | `brainstorming`         | plan mode + AGENTS.md        |
+| Plan   | `docs/superpowers/plans/<f>.md` | `writing-plans`         | native planning              |
+| Build  | code + passing gates            | `subagent-driven` + TDD | reads plan, TDD per the plan |
+| Verify | review report                   | `/code-review`          | cross-model review           |
+
+Role contracts for each stage: [ROLES.md](ROLES.md). Who plays each by default: [ROUTING.md](ROUTING.md).
+
+## Handoff contract
+
+A plan is **ready to hand off** when a fresh agent (any model) can run it cold. It MUST contain:
+
+- the spec path and dependency-ordered task groups;
+- **test-first markers** for non-trivial logic;
+- **the gates named explicitly** — `npm run typecheck`, `npm run lint`, core-logic `npm test`, `/code-review`, manual `verify` — because a non-Claude implementer will not auto-fire superpowers; the plan must _name_ the discipline;
+- the Definition of Done.
+
+**Handoff is file + git, not clipboard.** The planner commits the spec + plan; the maintainer gives the implementer a **one-line pointer** ("implement `docs/superpowers/plans/<f>.md`, task group 1"); the implementer reads it off disk. The planner emits this pointer automatically when the plan is complete.
+
+## Escalation protocol
+
+Sequential, file-based handoff has no live agent-to-agent channel: the **maintainer relays** (a ~3-word relay), and escalation is written.
+
+- **Triggers (implementer MUST stop, not improvise):** spec ambiguous; spec contradicts codebase reality; a gate cannot pass; security / data-loss risk; scope creep discovered.
+- **Channel — a running `## Handoff log` at the bottom of the plan file.** The implementer appends an entry, commits, and stops:
+
+  ```
+  ### ESCALATION — blocking
+  Finding: spec assumes pets.owner_id; schema has household_id.
+  Options: (a) join via household (b) add column. Recommend (a). Awaiting designer.
+  ```
+
+  Flow: implementer logs → maintainer tells the designer "critical finding in the handoff log" → designer resolves in spec/plan, commits → maintainer tells the implementer "resolved, continue".
+
+- **Severity tiers:** **Blocking** → stop, escalate, await decision. **Non-blocking minor** → log it, keep going, batch for later.
+
+## Cross-model verification
+
+The author never grades itself — and across models this is stronger: the **planner-model reviews the implementer-model's diff** (Claude `/code-review`s Codex's code, or the reverse). Catches model-specific blind spots. Critical findings flow through the `## Handoff log` above.
+
 ## Working within a task (context tips)
 
 - **Just-in-time:** open a doc when the task needs it, not upfront.
@@ -64,8 +109,8 @@ The loop above maps 1:1 onto the superpowers skill chain — invoke the stage's 
 
 ## Definition of Done
 
-Tests green → types/lint/format clean → `/code-review` clean → manual `verify` of the running feature → conventional commit on `main` → Vercel preview confirmed.
+Tests green → types/lint/format clean → **cross-model `/code-review`** clean (a model other than the author grades it, where practical) → manual `verify` of the running feature → conventional commit on `main` → Vercel preview confirmed.
 
 ---
 
-_Last reviewed: 2026-06-05_
+_Last reviewed: 2026-06-07_
