@@ -12,8 +12,52 @@ import { listActiveServices } from "@/features/booking/services-repo";
 import { headlineRate } from "@/features/pricing/display";
 import type { PublicService } from "@/features/booking/services-repo";
 
+function serviceDescription(service: PublicService): string {
+  if (typeof service.description === "string" && service.description.trim()) {
+    return service.description;
+  }
+
+  const { pricingType } = service;
+
+  switch (pricingType) {
+    case "house_sitting":
+      return "[[BODY: short house-sitting service description]]";
+    case "check_in":
+      return "[[BODY: short check-in service description]]";
+    case "walk":
+      return "[[BODY: short walk service description]]";
+    case "training":
+      return "[[BODY: short training service description]]";
+    default: {
+      const _exhaustive: never = pricingType;
+      throw new Error(`Unknown pricingType: ${String(_exhaustive)}`);
+    }
+  }
+}
+
+function serviceDurationLabel(service: PublicService): string | null {
+  const { pricingType } = service;
+
+  switch (pricingType) {
+    case "house_sitting":
+      return "Overnight";
+    case "check_in":
+    case "walk":
+    case "training":
+      return service.default_duration_min !== null
+        ? `${service.default_duration_min} min`
+        : null;
+    default: {
+      const _exhaustive: never = pricingType;
+      throw new Error(`Unknown pricingType: ${String(_exhaustive)}`);
+    }
+  }
+}
+
 function ServiceCard({ service }: { service: PublicService }) {
   const rate = headlineRate(service.pricingType, service.pricingConfig);
+  const description = serviceDescription(service);
+  const durationLabel = serviceDurationLabel(service);
   return (
     <Link
       href={`/book/${service.slug}`}
@@ -24,19 +68,18 @@ function ServiceCard({ service }: { service: PublicService }) {
           <CardTitle className="font-heading">{service.name}</CardTitle>
           <p className="text-brand-strong text-sm font-medium">{rate}</p>
         </CardHeader>
-        {service.description ? (
+        {description ? (
           <CardContent className="text-muted-foreground leading-relaxed">
-            {service.description}
+            {description}
           </CardContent>
         ) : null}
         <div className="mt-auto flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
-          {service.default_duration_min !== null ||
-          service.max_pets !== null ? (
+          {durationLabel !== null || service.max_pets !== null ? (
             <dl className="text-muted-foreground flex flex-wrap gap-x-6 gap-y-1 text-xs">
-              {service.default_duration_min !== null ? (
+              {durationLabel !== null ? (
                 <>
                   <dt className="sr-only">Default duration</dt>
-                  <dd>{service.default_duration_min} min</dd>
+                  <dd>{durationLabel}</dd>
                 </>
               ) : null}
               {service.max_pets !== null ? (
@@ -77,7 +120,7 @@ export default async function ServicesPage() {
           Services coming soon — check back shortly.
         </p>
       ) : (
-        <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3" role="list">
+        <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-2" role="list">
           {services.map((service) => (
             <li key={service.slug}>
               <ServiceCard service={service} />
