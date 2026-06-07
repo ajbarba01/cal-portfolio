@@ -185,14 +185,16 @@ In `src/app/(marketing)/services/page.tsx`:
 - Remove imports for `buttonVariants` and `cn`.
 - Keep `Link`.
 - Change the page title to `Services & Booking`.
-- Keep real service descriptions; when absent, render a pricing-type-specific short-description `[[BODY: …]]` placeholder.
-- Show `Overnight` as House Sitting's duration label; other services show configured `default_duration_min` when present.
+- Keep real service descriptions via the shared helper; when absent or whitespace-only, render a pricing-type-specific short-description `[[BODY: …]]` placeholder.
+- Show `Overnight` as House Sitting's duration label; other services show configured `default_duration_min` when present and `null` otherwise.
 - Change the responsive grid to one column on mobile and two columns from `sm` upward.
 - Replace `ServiceCard` with:
 
 ```tsx
 function ServiceCard({ service }: { service: PublicService }) {
   const rate = headlineRate(service.pricingType, service.pricingConfig);
+  const description = serviceCardDescription(service);
+  const durationLabel = serviceCardDurationLabel(service);
 
   return (
     <Link
@@ -204,19 +206,16 @@ function ServiceCard({ service }: { service: PublicService }) {
           <CardTitle className="font-heading">{service.name}</CardTitle>
           <p className="text-brand-strong text-sm font-medium">{rate}</p>
         </CardHeader>
-        {service.description ? (
-          <CardContent className="text-muted-foreground leading-relaxed">
-            {service.description}
-          </CardContent>
-        ) : null}
+        <CardContent className="text-muted-foreground leading-relaxed">
+          {description}
+        </CardContent>
         <div className="mt-auto flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
-          {service.default_duration_min !== null ||
-          service.max_pets !== null ? (
+          {durationLabel !== null || service.max_pets !== null ? (
             <dl className="text-muted-foreground flex flex-wrap gap-x-6 gap-y-1 text-xs">
-              {service.default_duration_min !== null ? (
+              {durationLabel !== null ? (
                 <>
                   <dt className="sr-only">Default duration</dt>
-                  <dd>{service.default_duration_min} min</dd>
+                  <dd>{durationLabel}</dd>
                 </>
               ) : null}
               {service.max_pets !== null ? (
@@ -423,7 +422,7 @@ Using the in-app Browser where available, verify desktop and 390px mobile in lig
 - Header and mobile drawer have one service-related item: Services.
 - Services is active on `/services` and `/book/training`.
 - Footer has About and Services, with no Book link.
-- `/services` retains current Trail palette, PageHeader/Card typography, semantic colors, spacing, and responsive 3→2→1 card grid.
+- `/services` retains current Trail palette, PageHeader/Card typography, semantic colors, spacing, and responsive 1→2 card grid.
 - Every service card is keyboard-focusable with a visible focus ring and at least the existing whole-card hit target.
 - Training renders; nullable duration/max-pets metadata does not invent values.
 - `/book` redirects to `/services`.

@@ -9,55 +9,17 @@ import { Eyebrow } from "@/components/marketing/eyebrow";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
 import { listActiveServices } from "@/features/booking/services-repo";
+import {
+  serviceCardDescription,
+  serviceCardDurationLabel,
+} from "@/features/booking/service-card-display";
 import { headlineRate } from "@/features/pricing/display";
 import type { PublicService } from "@/features/booking/services-repo";
 
-function serviceDescription(service: PublicService): string {
-  if (typeof service.description === "string" && service.description.trim()) {
-    return service.description;
-  }
-
-  const { pricingType } = service;
-
-  switch (pricingType) {
-    case "house_sitting":
-      return "[[BODY: short house-sitting service description]]";
-    case "check_in":
-      return "[[BODY: short check-in service description]]";
-    case "walk":
-      return "[[BODY: short walk service description]]";
-    case "training":
-      return "[[BODY: short training service description]]";
-    default: {
-      const _exhaustive: never = pricingType;
-      throw new Error(`Unknown pricingType: ${String(_exhaustive)}`);
-    }
-  }
-}
-
-function serviceDurationLabel(service: PublicService): string | null {
-  const { pricingType } = service;
-
-  switch (pricingType) {
-    case "house_sitting":
-      return "Overnight";
-    case "check_in":
-    case "walk":
-    case "training":
-      return service.default_duration_min !== null
-        ? `${service.default_duration_min} min`
-        : null;
-    default: {
-      const _exhaustive: never = pricingType;
-      throw new Error(`Unknown pricingType: ${String(_exhaustive)}`);
-    }
-  }
-}
-
 function ServiceCard({ service }: { service: PublicService }) {
   const rate = headlineRate(service.pricingType, service.pricingConfig);
-  const description = serviceDescription(service);
-  const durationLabel = serviceDurationLabel(service);
+  const description = serviceCardDescription(service);
+  const durationLabel = serviceCardDurationLabel(service);
   return (
     <Link
       href={`/book/${service.slug}`}
@@ -68,11 +30,9 @@ function ServiceCard({ service }: { service: PublicService }) {
           <CardTitle className="font-heading">{service.name}</CardTitle>
           <p className="text-brand-strong text-sm font-medium">{rate}</p>
         </CardHeader>
-        {description ? (
-          <CardContent className="text-muted-foreground leading-relaxed">
-            {description}
-          </CardContent>
-        ) : null}
+        <CardContent className="text-muted-foreground leading-relaxed">
+          {description}
+        </CardContent>
         <div className="mt-auto flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
           {durationLabel !== null || service.max_pets !== null ? (
             <dl className="text-muted-foreground flex flex-wrap gap-x-6 gap-y-1 text-xs">
