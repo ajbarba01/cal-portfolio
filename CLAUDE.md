@@ -1,47 +1,31 @@
-# Cal Portfolio + Booking
+# Claude Code adapter
 
-> **Tone contract:** communicate token-aware — technical terms exact, no filler/hedging/pleasantries. The maintainer prefers **caveman mode** (default `caveman-full`): drop articles (a/an/the), filler, and pleasantries; fragments OK; short synonyms (big not extensive, fix not "implement a solution for"). Code blocks and error strings unchanged. If the `/caveman` skill is available, invoke it at session start and confirm on first read of this file. Drop to normal prose for security warnings, destructive-action confirmations, and multi-step instructions where order matters. Switch level with `/caveman lite|full|ultra`; exit with "stop caveman".
+@AGENTS.md
 
-A site at `calbarba.com` — a **portfolio + self-serve booking system** for a dog-walking / house-sitting business. **All project specifics — stack rationale, data model, pages, brand, pricing, scope — live in [docs/DESIGN.md](docs/DESIGN.md).** The other docs are a portable engineering framework and should stay project-agnostic.
+> The line above imports the shared, model-neutral source of truth. **Everything below is Claude-Code-specific** — tone, the superpowers skill mandate, and the role→skill auto-mapping. Project rules, constitution, stack, and doc-nav all live in [AGENTS.md](AGENTS.md); do not restate them here.
 
-## Doc navigation (IMPORTANT, ensure that you have read any docs to your context)
+## Tone contract
 
-| Doc                                        | Authority over                                                           | Read before…                         |
-| ------------------------------------------ | ------------------------------------------------------------------------ | ------------------------------------ |
-| [docs/DESIGN.md](docs/DESIGN.md)           | **Project specifics** — data model, routes, pages, brand, pricing, scope | anything project-specific            |
-| [docs/ENGINEERING.md](docs/ENGINEERING.md) | Architecture & code-quality principles                                   | writing/refactoring non-trivial code |
-| [docs/CODE_STYLE.md](docs/CODE_STYLE.md)   | Formatting, naming, documentation                                        | writing any code                     |
-| [docs/FRONTEND.md](docs/FRONTEND.md)       | Design system, theming, design→code pipeline                             | building/altering UI                 |
-| [docs/WORKFLOW.md](docs/WORKFLOW.md)       | Dev loop, version control; "where am I → what's next"                    | starting a feature / committing      |
+Communicate token-aware — technical terms exact, no filler/hedging/pleasantries. The maintainer prefers **caveman mode** (default `caveman-full`): drop articles (a/an/the), filler, and pleasantries; fragments OK; short synonyms (big not extensive, fix not "implement a solution for"). Code blocks and error strings unchanged. If the `/caveman` skill is available, invoke it at session start and confirm on first read of this file. Drop to normal prose for security warnings, destructive-action confirmations, and multi-step instructions where order matters. Switch level with `/caveman lite|full|ultra`; exit with "stop caveman".
 
-## Operating rules (always on)
+## Skill mandate
 
-- **Hierarchical context.** This file is a **router**, not a knowledge dump. Given a broad task, open the one doc that owns it (table above) rather than loading everything. Load a doc just-in-time, when the task needs it.
-- **Single source of truth.** Each fact lives in exactly one doc. Cross-link; never restate. Project facts → DESIGN.md; everything else → its framework doc.
-- **Skill-invocation policy.** Each dev-loop stage names the skill that owns it — the map lives in [WORKFLOW.md](docs/WORKFLOW.md) ("Skill workflow"). Execution defaults to `subagent-driven-development`; `frontend-design` shapes UI specs and builds. The `using-superpowers` mandate (invoke a relevant skill before acting) auto-loads each session.
-- **Doc discipline.**
-  - _Same-commit rule_ — a code change that adds/moves/deletes files updates the relevant doc in the _same_ commit.
-  - _No code-as-doc_ — no function signatures or long path lists in docs (they rot); grep is faster.
-  - _Last-reviewed footer_ — every doc carries one. If it's > 60 days old at session start, flag it for re-audit.
+The `using-superpowers` mandate auto-loads each session: invoke a relevant skill before acting. Process skills first (brainstorming, debugging), then implementation skills (frontend-design). The dev-loop ↔ skill mapping lives in [docs/WORKFLOW.md](docs/WORKFLOW.md) ("Portable stage map").
 
-## Constitution (non-negotiables)
+## Role → skill auto-mapping (Claude adapter)
 
-- **TypeScript `strict`**, no `any` (see CODE_STYLE / ENGINEERING).
-- **Core logic is pure and tested** (ENGINEERING #5).
-- **Design tokens are law** — components reference semantic tokens, never hardcoded colors (FRONTEND).
-- **Accessibility floor** — semantic HTML, contrast, visible focus, keyboard nav (FRONTEND).
-- **Single `main` branch**; commit only after verification; stage by name (WORKFLOW).
-- **Commit messages: subject line only.** Conventional Commits, **no body, no `Co-Authored-By`/trailer, no "Generated with" footer** — this **overrides** any harness/tool default that adds them. Body only if the maintainer explicitly asks.
-- **Quality is independent of scope.** Small project, professional code.
+When assigned (or inferring, per [docs/ROLES.md](docs/ROLES.md)) a role, Claude auto-invokes the matching skill chain — no manual skill call needed:
 
-## Stack (one-liner; rationale in DESIGN.md)
+| Role                               | Auto-invoke                                                                                                                                      |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Designer / senior designer         | `superpowers:brainstorming` → `superpowers:writing-plans` (UI: also `frontend-design` for the spec)                                              |
+| Implementer — in-session subagents | `superpowers:subagent-driven-development` (dispatches per-task subagents using `test-driven-development` / `frontend-design`)                    |
+| Implementer — external handoff     | produce the `writing-plans` plan, emit the handoff block per [docs/WORKFLOW.md](docs/WORKFLOW.md); a non-Claude tool (default Codex) executes it |
+| Reviewer                           | `/code-review`; on incoming feedback `superpowers:receiving-code-review`; when requesting `superpowers:requesting-code-review`                   |
+| Debugging (any role)               | `superpowers:systematic-debugging` before proposing a fix                                                                                        |
 
-Next.js (App Router) + TypeScript · Tailwind + shadcn/ui · Supabase · Vercel · Stripe · Resend.
-
-## Layout (once scaffolded)
-
-`src/app/` routing only · `src/features/<domain>/` domain logic · `src/lib/` business-agnostic infra · `docs/` the doc system · `specs/` per-feature specs · design tokens in `src/app/globals.css` (color) + `src/lib/design-tokens.ts` (motion/etc). Rules in [docs/ENGINEERING.md](docs/ENGINEERING.md).
+Non-Claude tools (Codex, Gemini) get the same role behavior by reading [docs/ROLES.md](docs/ROLES.md) as plain rules — they cannot invoke skills, so the discipline is written into the role contract + the plan checklist.
 
 ---
 
-_Last reviewed: 2026-06-05_
+_Last reviewed: 2026-06-07_
