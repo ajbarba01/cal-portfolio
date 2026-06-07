@@ -16,9 +16,9 @@ Goal: a distinctive, professional UI that **avoids the generic AI look**, with a
    - **Dense prompts win:** name the artifact type, audience, content structure, and constraints. Use chat for layout/structure changes, inline canvas comments for local tweaks.
    - Heavy sessions can burn >50% of a weekly allotment — iterate in wireframe mode, polish sparingly.
 
-3. **"Send to Claude Code" handoff** — exports a bundle: component tree (machine-readable), the tokens actually used, layout hierarchy, and referenced assets. Claude Code builds from the tree and tokens, **not** by inferring from pixels.
+3. **Design-tool handoff** — export a bundle containing the component tree (machine-readable), tokens actually used, layout hierarchy, and referenced assets. The implementing agent builds from the tree and tokens, **not** by inferring from pixels.
 
-4. **Claude Code build** — invoke the `frontend-design` skill to force deliberate aesthetic choices, then implement with **shadcn/ui** + `design-tokens.ts`.
+4. **Agent build** — any agent with `frontend-design` invokes it to force deliberate aesthetic choices, then implements with **shadcn/ui** + `design-tokens.ts`. Agents without it follow the same written design constraints directly.
 
 > **`frontend-design` fires twice for UI features.** First during **brainstorming** (the spec stage — see [WORKFLOW.md](WORKFLOW.md) skill table) so the aesthetic direction is set in the spec before the plan, then again at **build** (step 4) for implementation. Non-UI work skips it.
 

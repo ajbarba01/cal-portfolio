@@ -1,14 +1,26 @@
-- need good mobile
-- account system should have tabs for information (changing info, reset password, delete account, etc...), bookings (current bookings where you can cancel or prepay or modfiy), pets (edit, remove, or add pets), history (completed bookings for information and like to tip), any any others???
+## Now
+
 - cal should have an email created for automated emails
+- return to top button bottom right
+- gallery lightbox still slow
+- contact page
+- redirects to log in/set up account should redirect you back to the page you were at before so you don't have to navigate and enter a booking twice or stuff like that.
+- audit for responsiveness and best performance practices for react.
+- cancel bookings
+- redirect or something after succesful booking, booking button just breaks instead
+- email or text notifications for cal (can come when contact workflow comes)
+- your bookings should show as muted clay in time slots
+- the time based calendar needs a little work: should have somewhere that says where exactly you're current booking is.
+- booking confirmation popup with details about prepaying, and penalty for cancellation
+- ughhh i need a clients page and an admin client view sheesh
+- merge booking and services page
+- meet and greet
+
+## Later
+
 - website logo
 - setup page analytics for vercel
 - email icon footer + change those links in footer
-- return to top button bottom right
-- gallery lightbox still slow
-- maybe combine services and booking
-- contact page
-- house sitting bookings accross months is impossible right now
 
 ## admin UI owed by booking-rules-v2 (see docs/superpowers/plans/2026-06-03-booking-rules-v2.md)
 

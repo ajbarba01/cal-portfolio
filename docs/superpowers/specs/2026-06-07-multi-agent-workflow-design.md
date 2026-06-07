@@ -7,6 +7,13 @@
 > existing Research → Spec → Plan → Build → Verify → Ship loop in
 > [WORKFLOW.md](../../WORKFLOW.md).
 
+> **Capability amendment (2026-06-07):** skill support is capability-specific, not
+> model-specific. Any agent that exposes a relevant skill should invoke it; agents
+> without that capability follow the same role contract and artifact checklist as
+> fallback. This supersedes this document's older claims that Superpowers and
+> `frontend-design` are Claude-only or that Codex/Gemini cannot invoke skills.
+> Current authority: [ROLES.md](../../ROLES.md) and [WORKFLOW.md](../../WORKFLOW.md).
+
 ## Why this exists
 
 The maintainer wants to use more than one coding agent — e.g. Claude (Opus) for

@@ -23,7 +23,7 @@ function Toaster() {
         className={cn(
           "fixed z-[100] flex flex-col gap-2 outline-none",
           "inset-x-0 bottom-0 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]",
-          "sm:inset-x-auto sm:top-0 sm:right-0 sm:bottom-auto sm:w-96",
+          "sm:inset-x-0 sm:top-0 sm:bottom-auto sm:mx-auto sm:w-96",
         )}
       >
         {toasts.map((toast) => {
