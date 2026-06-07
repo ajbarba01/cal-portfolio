@@ -22,3 +22,8 @@ export function isActiveNavItem(pathname: string, item: NavItem): boolean {
     isActiveSection(pathname, section),
   );
 }
+
+/** Current-page matcher: only the section linked by the nav item. */
+export function isCurrentNavItem(pathname: string, item: NavItem): boolean {
+  return isActiveSection(pathname, item.href);
+}

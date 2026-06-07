@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { isActiveNav, isActiveNavItem, isActiveSection } from "./is-active-nav";
+import {
+  isActiveNav,
+  isActiveNavItem,
+  isActiveSection,
+  isCurrentNavItem,
+} from "./is-active-nav";
 
 describe("isActiveNav", () => {
   it("matches the exact route", () => {
@@ -51,5 +56,17 @@ describe("isActiveNavItem", () => {
 
   it("does not match an unrelated section", () => {
     expect(isActiveNavItem("/reviews", servicesItem)).toBe(false);
+  });
+});
+
+describe("isCurrentNavItem", () => {
+  const servicesItem = {
+    href: "/services",
+    label: "Services",
+    activeSections: ["/book"],
+  };
+
+  it("does not mark an aliased section as the current linked section", () => {
+    expect(isCurrentNavItem("/book/training", servicesItem)).toBe(false);
   });
 });

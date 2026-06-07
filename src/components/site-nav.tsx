@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import {
   isActiveNav,
   isActiveNavItem,
+  isCurrentNavItem,
 } from "@/components/layout/is-active-nav";
 import { navUnderline } from "@/components/layout/nav-underline";
 import { SignOutButton } from "@/components/sign-out-button";
@@ -23,11 +24,12 @@ export function SiteNavTabs({ links }: { links: NavItem[] }) {
       <ul className="flex items-center justify-center gap-7 text-sm">
         {links.map((item) => {
           const active = isActiveNavItem(pathname, item);
+          const current = isCurrentNavItem(pathname, item);
           return (
             <li key={item.href}>
               <Link
                 href={item.href}
-                aria-current={active ? "page" : undefined}
+                aria-current={current ? "page" : undefined}
                 className={navUnderline(active)}
               >
                 {item.label}
@@ -144,11 +146,12 @@ function SiteNavMobileDrawer({
               <ul className="flex flex-col">
                 {links.map((item) => {
                   const active = isActiveNavItem(pathname, item);
+                  const current = isCurrentNavItem(pathname, item);
                   return (
                     <li key={item.href}>
                       <Link
                         href={item.href}
-                        aria-current={active ? "page" : undefined}
+                        aria-current={current ? "page" : undefined}
                         className={cn(
                           "border-border flex min-h-11 items-center border-b px-4 text-base",
                           active
