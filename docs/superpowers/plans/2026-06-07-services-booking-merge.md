@@ -185,6 +185,9 @@ In `src/app/(marketing)/services/page.tsx`:
 - Remove imports for `buttonVariants` and `cn`.
 - Keep `Link`.
 - Change the page title to `Services & Booking`.
+- Keep real service descriptions; when absent, render a pricing-type-specific short-description `[[BODY: …]]` placeholder.
+- Show `Overnight` as House Sitting's duration label; other services show configured `default_duration_min` when present.
+- Change the responsive grid to one column on mobile and two columns from `sm` upward.
 - Replace `ServiceCard` with:
 
 ```tsx
@@ -333,6 +336,8 @@ Run `npm run dev` and verify:
 - `/services` title is `Services & Booking`.
 - All active services render, including Training.
 - Rates and nullable metadata match service data.
+- The grid is one column on mobile and two columns at wider breakpoints.
+- House Sitting shows `Overnight`; every card has real or placeholder short-description copy.
 - Every card opens its `/book/[serviceSlug]` page.
 - Card hover/focus behavior matches the former Book cards.
 - Sliding-scale section has no button.
@@ -454,6 +459,7 @@ Report changed behavior, automated gate results, manual route/a11y checks, revie
 - One visible public service hub exists at `/services`.
 - `/book` permanently redirects to `/services`; `/book/[serviceSlug]` remains functional.
 - `/services` dynamically renders all active services as faithful whole-card links, including Training when active.
+- Service cards render 1→2 columns, show House Sitting as `Overnight`, and always include real or placeholder short-description copy.
 - No circular sliding-scale CTA or duplicate adjacent home CTA remains.
 - Services is the only service-related header/mobile/footer nav item and remains active on per-service booking routes.
 - Project-specific documentation matches the new route model.

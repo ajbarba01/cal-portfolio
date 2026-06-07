@@ -53,12 +53,14 @@ Each service card includes:
 
 - service name
 - headline rate
-- optional description
-- optional default duration
+- database description, or a pricing-type-specific short-description `[[BODY: …]]` placeholder when absent
+- default duration when present; House Sitting displays `Overnight`
 - optional max-pets metadata
 - a subtle `View availability →` action cue
 
 The whole card links to `/book/[serviceSlug]`.
+
+Cards render one per row on mobile and two per row from the small breakpoint upward.
 
 The seeded service set includes House Sitting, Check-In, Walk, and Training. The design depends on active service data, so adding or deactivating a service in admin changes the page without code edits.
 
@@ -101,6 +103,9 @@ Do not add new backend behavior for this merge.
 - The header nav has one service-related public item: `Services`.
 - `/services` title reads `Services & Booking`.
 - `/services` renders every active service, including Training when active.
+- Service cards render one per row on mobile and two per row at wider breakpoints.
+- House Sitting shows `Overnight`; other services show their configured default duration when present.
+- Every card shows either its database description or the matching short-description copy placeholder.
 - Each service card links to the correct `/book/[serviceSlug]` route.
 - Service card rates and metadata come from existing service data and display helpers.
 - The sliding-cost-scale section has no circular booking button.
