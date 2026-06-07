@@ -20,11 +20,10 @@ import type { NavItem, ZoneNav } from "@/components/layout/nav-config";
 const navLinks: NavItem[] = [
   { href: "/", label: "Home" },
   { href: "/about", label: "About" },
-  { href: "/services", label: "Services" },
+  { href: "/services", label: "Services", activeSections: ["/book"] },
   { href: "/gallery", label: "Gallery" },
   { href: "/reviews", label: "Reviews" },
   { href: "/resources", label: "Resources" },
-  { href: "/book", label: "Book" },
 ];
 
 export async function SiteHeader({ zoneNav }: { zoneNav?: ZoneNav }) {

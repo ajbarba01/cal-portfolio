@@ -10,19 +10,19 @@
 
 Find your current situation; do the action. (Details for each step are in the next section.)
 
-| Situation                                      | Next move                                                                     | Skill to invoke                                                                                                 |
-| ---------------------------------------------- | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| New, non-trivial feature, nothing written      | **Research**, then write a `specs/<feature>.md` (what & why).                 | `superpowers:brainstorming` — for UI features, also `frontend-design` so aesthetic direction lands in the spec  |
-| Spec exists, no plan                           | **Plan** — turn it into a dependency-ordered technical plan.                  | `superpowers:writing-plans`                                                                                     |
-| Plan approved, not started                     | **Build** — start with tests for the core logic (ENGINEERING #5).             | `superpowers:subagent-driven-development` (default execution — see Skill workflow below)                        |
-| Mid-build, non-trivial logic                   | Test-first, then implement; keep logic pure.                                  | `superpowers:test-driven-development`                                                                           |
-| Mid-build, UI work                             | Wire up IO/UI; keep logic pure; commit nothing yet.                           | `frontend-design`                                                                                               |
-| Think it's done                                | **Verify** — `tsc`/lint/tests, `/code-review`, then `verify` the running app. | `superpowers:verification-before-completion` → `superpowers:requesting-code-review` → `/code-review` → `verify` |
-| Got code-review feedback                       | Triage before implementing — verify, don't perform agreement.                 | `superpowers:receiving-code-review`                                                                             |
-| Verified                                       | **Ship** — conventional commit to `main`; confirm Vercel deploy.              | —                                                                                                               |
-| Hit a bug / unexpected behavior                | Reproduce and find root cause _before_ proposing a fix; don't patch symptoms. | `superpowers:systematic-debugging`                                                                              |
-| Small contained edit (typo, one-liner, config) | Skip spec/plan — build + verify directly.                                     | none — **skip threshold** (see Skill workflow)                                                                  |
-| Unsure what a feature should do                | Stop and ask the maintainer; don't assume scope.                              | —                                                                                                               |
+| Situation                                                  | Next move                                                                                             | Skill to invoke                                                                                                 |
+| ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| New, non-trivial feature, nothing written                  | **Research**, then write a `specs/<feature>.md` (what & why).                                         | `superpowers:brainstorming` — for UI features, also `frontend-design` so aesthetic direction lands in the spec  |
+| Spec exists, no plan                                       | **Plan** — turn it into a dependency-ordered technical plan.                                          | `superpowers:writing-plans`                                                                                     |
+| Plan approved, not started                                 | **Build** — start with tests for the core logic (ENGINEERING #5).                                     | `superpowers:subagent-driven-development` (default execution — see Skill workflow below)                        |
+| Mid-build, non-trivial logic                               | Test-first, then implement; keep logic pure.                                                          | `superpowers:test-driven-development`                                                                           |
+| Mid-build, UI work                                         | Wire up IO/UI; keep logic pure; commit nothing yet.                                                   | `frontend-design`                                                                                               |
+| Think it's done                                            | **Verify** — `tsc`/lint/tests, `/code-review`, then `verify` the running app.                         | `superpowers:verification-before-completion` → `superpowers:requesting-code-review` → `/code-review` → `verify` |
+| Got code-review feedback                                   | Triage before implementing — verify, don't perform agreement.                                         | `superpowers:receiving-code-review`                                                                             |
+| Verified                                                   | **Ship** — conventional commit to `main`; confirm Vercel deploy.                                      | —                                                                                                               |
+| Hit a bug / unexpected behavior                            | Reproduce and find root cause _before_ proposing a fix; don't patch symptoms.                         | `superpowers:systematic-debugging`                                                                              |
+| Sub-spec change (bugfix, lighter refactor, contained edit) | **Lightweight lane** — skip spec/plan/handoff; one agent owns it end-to-end; build + verify directly. | none — see **Lightweight lane**                                                                                 |
+| Unsure what a feature should do                            | Stop and ask the maintainer; don't assume scope.                                                      | —                                                                                                               |
 
 ---
 
@@ -41,7 +41,7 @@ The loop above maps 1:1 onto the superpowers skill chain — invoke the stage's 
 
 - **Execution is sub-agent driven by default.** Build/verify a plan with `superpowers:subagent-driven-development` — it dispatches per-task subagents that themselves invoke `test-driven-development` (non-trivial logic) and `frontend-design` (UI). `superpowers:executing-plans` is used **only if the maintainer opts in that session.** Plan-file headers state this default.
 - **No worktrees.** Subagent execution runs in-session against `main` (consistent with Version control below) — not in a git worktree, unless the maintainer asks.
-- **Skip threshold (knob).** Brainstorm + spec + plan are required for anything non-trivial or scope-uncertain. They are **skipped** for contained edits (typo, one-liner, config, isolated fix) — build + verify directly. The maintainer moves this line per session: "skip the spec" pulls a borderline task below the line; "spec this anyway" pushes it above. When unsure which side a task falls on, ask.
+- **Skip threshold (knob).** Brainstorm + spec + plan are required for anything non-trivial or scope-uncertain. They are **skipped** for sub-spec work — bugfixes, lighter refactors, contained edits (the **Lightweight lane** below). The maintainer moves this line per session: "skip the spec" pulls a borderline task below the line; "spec this anyway" pushes it above. When unsure which side a task falls on, ask.
 
 ## Portable stage map (model-agnostic)
 
@@ -87,6 +87,15 @@ Sequential, file-based handoff has no live agent-to-agent channel: the **maintai
 ## Cross-model verification
 
 The author never grades itself — and across models this is stronger: the **planner-model reviews the implementer-model's diff** (Claude `/code-review`s Codex's code, or the reverse). Catches model-specific blind spots. Critical findings flow through the `## Handoff log` above.
+
+## Lightweight lane (sub-spec work)
+
+> When a change doesn't need a spec, it skips the **ceremony**, not the **gates**.
+
+- **Scope — the whole sub-spec band, not just one-liners.** Bugfixes, small/medium refactors, isolated contained features. The test is "does this need a spec to get right?", not "is it tiny?". Above the line → full Spec → Plan → handoff. Unsure which side → **ask** (skip-threshold knob above).
+- **One agent, end to end.** No spec, no plan, no handoff artifact, no relay — the agent you point at it owns research → fix → verify → commit. Escalation is **direct to the maintainer** (only one agent is in play; nobody to relay to). If it grows past the line mid-task, stop and escalate to a spec.
+- **Gates still apply.** Quality is independent of scope (constitution): `tsc`/lint/tests, **TDD for non-trivial logic**, `systematic-debugging` for bugs (root cause, not symptom), manual `verify`. The Definition of Done holds.
+- **Cross-model review optional.** For a touchy fix you may still ask another model to `/code-review` the diff — recommended, not required.
 
 ## Working within a task (context tips)
 

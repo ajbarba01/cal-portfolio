@@ -168,7 +168,7 @@ export default async function ServiceBookingPage({
   return (
     <main className="mx-auto max-w-2xl px-4 py-12">
       <Link
-        href="/book"
+        href="/services"
         className="text-muted-foreground hover:text-foreground mb-6 inline-block text-sm"
       >
         ← All services

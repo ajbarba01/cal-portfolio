@@ -28,7 +28,7 @@
 
 Infer the role, **announce it in one line, then act**. First signal that fires wins:
 
-1. **Pointer verb** — "design/spec X" → `senior-designer`; "implement X" → `implementer`; "review X" → `reviewer`.
+1. **Pointer verb** — "design/spec X" → `senior-designer`; "implement/build X" → `implementer`; "fix/debug X" → `implementer` (debugging mindset — root cause first, via the Lightweight lane if no spec); "review X" → `reviewer`.
 2. **Repo state** — no spec → `senior-designer`; spec + plan exist, no code → `implementer`; code done, untested → `reviewer`. (Mirrors the [WORKFLOW.md](WORKFLOW.md) "where am I → what's next" table.)
 3. **Routing default** — from [ROUTING.md](ROUTING.md): Claude → `senior-designer`, Codex → `implementer`.
 
@@ -37,6 +37,8 @@ Infer the role, **announce it in one line, then act**. First signal that fires w
 > No role given. Spec + plan exist, no code → adopting `implementer` (ROLES.md). Override?
 
 Silence → proceed. One word from the maintainer → redirect. (Explicit assignment skips inference entirely.)
+
+**Unsure → ask, don't guess.** Announce-and-proceed is only for a _clear_ inference. If no signal cleanly fires, signals conflict, or the role (or lane — see [WORKFLOW.md](WORKFLOW.md) "Lightweight lane") is genuinely ambiguous, **stop and ask the maintainer** instead of picking one.
 
 ## Escalation triggers (implementer)
 

@@ -8,7 +8,8 @@ import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   isActiveNav,
-  isActiveSection,
+  isActiveNavItem,
+  isCurrentNavItem,
 } from "@/components/layout/is-active-nav";
 import { navUnderline } from "@/components/layout/nav-underline";
 import { SignOutButton } from "@/components/sign-out-button";
@@ -21,16 +22,17 @@ export function SiteNavTabs({ links }: { links: NavItem[] }) {
   return (
     <nav aria-label="Main navigation">
       <ul className="flex items-center justify-center gap-7 text-sm">
-        {links.map(({ href, label }) => {
-          const active = isActiveSection(pathname, href);
+        {links.map((item) => {
+          const active = isActiveNavItem(pathname, item);
+          const current = isCurrentNavItem(pathname, item);
           return (
-            <li key={href}>
+            <li key={item.href}>
               <Link
-                href={href}
-                aria-current={active ? "page" : undefined}
+                href={item.href}
+                aria-current={current ? "page" : undefined}
                 className={navUnderline(active)}
               >
-                {label}
+                {item.label}
               </Link>
             </li>
           );
@@ -142,13 +144,14 @@ function SiteNavMobileDrawer({
             {/* Marketing links */}
             <nav aria-label="Site navigation">
               <ul className="flex flex-col">
-                {links.map(({ href, label }) => {
-                  const active = isActiveSection(pathname, href);
+                {links.map((item) => {
+                  const active = isActiveNavItem(pathname, item);
+                  const current = isCurrentNavItem(pathname, item);
                   return (
-                    <li key={href}>
+                    <li key={item.href}>
                       <Link
-                        href={href}
-                        aria-current={active ? "page" : undefined}
+                        href={item.href}
+                        aria-current={current ? "page" : undefined}
                         className={cn(
                           "border-border flex min-h-11 items-center border-b px-4 text-base",
                           active
@@ -156,7 +159,7 @@ function SiteNavMobileDrawer({
                             : "text-foreground",
                         )}
                       >
-                        {label}
+                        {item.label}
                       </Link>
                     </li>
                   );

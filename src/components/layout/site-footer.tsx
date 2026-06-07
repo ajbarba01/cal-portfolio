@@ -28,14 +28,6 @@ export function SiteFooter() {
                   Services
                 </Link>
               </li>
-              <li>
-                <Link
-                  href="/book"
-                  className="text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  Book
-                </Link>
-              </li>
             </ul>
           </nav>
         </div>

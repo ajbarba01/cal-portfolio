@@ -38,22 +38,13 @@ export default function HomePage() {
         actions={
           <>
             <Link
-              href="/book"
+              href="/services"
               className={cn(
                 buttonVariants({ variant: "brand", size: "lg" }),
                 "w-full sm:w-auto",
               )}
             >
-              Book a service
-            </Link>
-            <Link
-              href="/services"
-              className={cn(
-                buttonVariants({ variant: "outline", size: "lg" }),
-                "w-full sm:w-auto sm:border-white/70 sm:bg-transparent sm:text-white sm:hover:bg-white/10",
-              )}
-            >
-              See services
+              Services &amp; booking
             </Link>
           </>
         }
@@ -99,13 +90,13 @@ export default function HomePage() {
             [[BODY: short prompt to book]]
           </p>
           <Link
-            href="/book"
+            href="/services"
             className={cn(
               buttonVariants({ variant: "brand", size: "lg" }),
               "mt-6",
             )}
           >
-            Book a service
+            Services &amp; booking
           </Link>
         </PageContainer>
       </section>
