@@ -73,6 +73,7 @@ It must not include a `Book a service` button, because that would link back to t
 - Remove the separate `Book` item from the desktop and mobile marketing nav.
 - Keep `Services` as the compact nav label.
 - Update the footer and home-page service-booking CTAs that currently point to `/book` so they point to `/services`.
+- Remove the home hero's adjacent `See services` button; after the merge it would duplicate the primary service-hub CTA.
 - Keep per-service booking links on `/book/[serviceSlug]`.
 - `/book` permanently redirects to `/services` as a compatibility fallback for stale links or manually typed URLs.
 - Active navigation should treat `/services` as active on `/services`.
