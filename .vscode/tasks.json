@@ -1,0 +1,41 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "gate: typecheck",
+      "type": "shell",
+      "command": "npm run typecheck",
+      "problemMatcher": []
+    },
+    {
+      "label": "gate: lint",
+      "type": "shell",
+      "command": "npm run lint",
+      "problemMatcher": []
+    },
+    {
+      "label": "gate: test",
+      "type": "shell",
+      "command": "npm test",
+      "problemMatcher": []
+    },
+    {
+      "label": "gate: format check",
+      "type": "shell",
+      "command": "npm run format:check",
+      "problemMatcher": []
+    },
+    {
+      "label": "gate: all",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "gate: typecheck",
+        "gate: lint",
+        "gate: test",
+        "gate: format check"
+      ],
+      "problemMatcher": [],
+      "group": { "kind": "build", "isDefault": true }
+    }
+  ]
+}
