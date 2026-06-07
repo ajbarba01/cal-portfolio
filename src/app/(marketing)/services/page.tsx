@@ -1,5 +1,5 @@
 /**
- * Services page — active services with headline pricing + sliding-scale CTA.
+ * Services page — active services with headline pricing + booking links.
  * Server component.
  */
 import Link from "next/link";
@@ -7,8 +7,6 @@ import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
 import { Eyebrow } from "@/components/marketing/eyebrow";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
 import { listActiveServices } from "@/features/booking/services-repo";
 import { headlineRate } from "@/features/pricing/display";
@@ -17,35 +15,49 @@ import type { PublicService } from "@/features/booking/services-repo";
 function ServiceCard({ service }: { service: PublicService }) {
   const rate = headlineRate(service.pricingType, service.pricingConfig);
   return (
-    <Card className="h-full">
-      <CardHeader>
-        <CardTitle className="font-heading">{service.name}</CardTitle>
-        <p className="text-brand-strong text-sm font-medium">{rate}</p>
-      </CardHeader>
-      {service.description ? (
-        <CardContent className="text-muted-foreground leading-relaxed">
-          {service.description}
-        </CardContent>
-      ) : null}
-      {service.default_duration_min !== null || service.max_pets !== null ? (
-        <dl className="text-muted-foreground mt-auto flex flex-wrap gap-x-6 gap-y-1 text-xs">
-          {service.default_duration_min !== null ? (
-            <>
-              <dt className="sr-only">Default duration</dt>
-              <dd>{service.default_duration_min} min</dd>
-            </>
-          ) : null}
-          {service.max_pets !== null ? (
-            <>
-              <dt className="sr-only">Max pets</dt>
-              <dd>
-                Up to {service.max_pets} pet{service.max_pets !== 1 ? "s" : ""}
-              </dd>
-            </>
-          ) : null}
-        </dl>
-      ) : null}
-    </Card>
+    <Link
+      href={`/book/${service.slug}`}
+      className="focus-visible:ring-ring/50 block h-full rounded-xl outline-none focus-visible:ring-3"
+    >
+      <Card className="hover:border-foreground/40 h-full transition-colors">
+        <CardHeader>
+          <CardTitle className="font-heading">{service.name}</CardTitle>
+          <p className="text-brand-strong text-sm font-medium">{rate}</p>
+        </CardHeader>
+        {service.description ? (
+          <CardContent className="text-muted-foreground leading-relaxed">
+            {service.description}
+          </CardContent>
+        ) : null}
+        <div className="mt-auto flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
+          {service.default_duration_min !== null ||
+          service.max_pets !== null ? (
+            <dl className="text-muted-foreground flex flex-wrap gap-x-6 gap-y-1 text-xs">
+              {service.default_duration_min !== null ? (
+                <>
+                  <dt className="sr-only">Default duration</dt>
+                  <dd>{service.default_duration_min} min</dd>
+                </>
+              ) : null}
+              {service.max_pets !== null ? (
+                <>
+                  <dt className="sr-only">Max pets</dt>
+                  <dd>
+                    Up to {service.max_pets} pet
+                    {service.max_pets !== 1 ? "s" : ""}
+                  </dd>
+                </>
+              ) : null}
+            </dl>
+          ) : (
+            <span />
+          )}
+          <span className="text-brand-strong text-xs font-semibold">
+            View availability →
+          </span>
+        </div>
+      </Card>
+    </Link>
   );
 }
 
@@ -55,7 +67,10 @@ export default async function ServicesPage() {
 
   return (
     <PageContainer width="app" className="py-12 sm:py-16">
-      <PageHeader title="Services" subtitle="[[BODY: services overview]]" />
+      <PageHeader
+        title="Services & Booking"
+        subtitle="[[BODY: services overview]]"
+      />
 
       {services.length === 0 ? (
         <p className="text-muted-foreground">
@@ -82,15 +97,9 @@ export default async function ServicesPage() {
         >
           [[HEADER: pricing flexibility section]]
         </h2>
-        <p className="text-muted-foreground mb-6 max-w-[60ch] text-sm leading-relaxed">
-          [[BODY: pricing accessibility statement]]
+        <p className="text-muted-foreground max-w-[60ch] text-sm leading-relaxed">
+          [[BODY: pricing accessibility statement and how to ask about it]]
         </p>
-        <Link
-          href="/book"
-          className={cn(buttonVariants({ variant: "brand", size: "lg" }))}
-        >
-          Book a service
-        </Link>
       </section>
     </PageContainer>
   );
