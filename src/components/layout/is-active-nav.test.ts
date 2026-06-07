@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isActiveNav, isActiveSection } from "./is-active-nav";
+import { isActiveNav, isActiveNavItem, isActiveSection } from "./is-active-nav";
 
 describe("isActiveNav", () => {
   it("matches the exact route", () => {
@@ -31,5 +31,25 @@ describe("isActiveSection", () => {
   });
   it("trailing-slash insensitive", () => {
     expect(isActiveSection("/account/", "/account")).toBe(true);
+  });
+});
+
+describe("isActiveNavItem", () => {
+  const servicesItem = {
+    href: "/services",
+    label: "Services",
+    activeSections: ["/book"],
+  };
+
+  it("matches the item's primary section", () => {
+    expect(isActiveNavItem("/services", servicesItem)).toBe(true);
+  });
+
+  it("matches a nested aliased section", () => {
+    expect(isActiveNavItem("/book/training", servicesItem)).toBe(true);
+  });
+
+  it("does not match an unrelated section", () => {
+    expect(isActiveNavItem("/reviews", servicesItem)).toBe(false);
   });
 });

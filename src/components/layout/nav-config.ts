@@ -1,4 +1,8 @@
-export type NavItem = { href: string; label: string };
+export type NavItem = {
+  href: string;
+  label: string;
+  activeSections?: string[];
+};
 export type ZoneNav = { zoneLabel: string; items: NavItem[] };
 
 export const accountNav: ZoneNav = {
