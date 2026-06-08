@@ -68,6 +68,7 @@ Next.js App Router, three route groups. Auth-session refresh **and** the auth + 
 | `/gallery`                            | marketing | public                        | Photo grid (`next/image`)                                         |
 | `/reviews`                            | marketing | public                        | Published reviews only                                            |
 | `/resources`                          | marketing | public                        | Info + links                                                      |
+| `/contact`                            | marketing | public                        | Inquiry / contact form                                            |
 | `/book`                               | marketing | public                        | Permanent compatibility redirect to `/services`                   |
 | `/book/[serviceSlug]`                 | marketing | public view, **auth to book** | Calendar-first per-service booking; deferred-auth gate            |
 | `/login`, `/signup`, `/auth/callback` | auth      | public                        | Supabase Auth                                                     |
@@ -77,11 +78,12 @@ Next.js App Router, three route groups. Auth-session refresh **and** the auth + 
 | `/account/forms`                      | account   | client                        | Emergency + service-form status                                   |
 | `/account/bookings`                   | account   | client                        | Upcoming, history, amount owed, pay / prepay                      |
 | `/admin/availability`                 | admin     | admin                         | Calendar: create/resize/block-out windows + manage day's bookings |
-| `/admin/bookings`                     | admin     | admin                         | Approve manual-approval requests                                  |
+| `/admin/bookings`                     | admin     | admin                         | Booking calendar + approvals                                      |
 | `/admin/services`                     | admin     | admin                         | Edit services + rates                                             |
 | `/admin/settings`                     | admin     | admin                         | Origin swap, distance threshold, booking hours, lead time         |
 | `/admin/reviews`                      | admin     | admin                         | Moderate submissions                                              |
-| `/admin/clients`                      | admin     | admin                         | (optional) Client list                                            |
+| `/admin/clients`                      | admin     | admin                         | Client directory + detail                                         |
+| `/admin/inquiries`                    | admin     | admin                         | Inquiry queue + reply handoff                                     |
 
 Full in-app admin so Cal never touches the Supabase dashboard. `/admin/availability` uses the `<Scheduler>` family (ADMIN capabilities preset) to manage windows: pick a day to create a window (Denver wall-time inputs), resize or block-out existing windows (block-out cancels overlapping bookings, keeping the confirm step), and overlay that day's bookings (enriched busy: client name + pet photos). Selecting a booking opens a side panel to cancel, approve/decline a `pending_approval`, or mark a `confirmed` booking `no_show` — all via the existing booking/approval cores; mutations `router.refresh()` the server-loaded windows + busy.
 
@@ -104,6 +106,7 @@ Supabase Postgres. Auth via Supabase `auth.users` (username / password are **not
 - **`form_responses`** — `id` · `client_id` · `form_key` ('emergency' \| service slug) · `booking_id` (nullable; emergency form isn't booking-tied) · `data` (jsonb) · `submitted_at`. Forms are expected to change over time. For MVP, definitions live in a `features/forms/` registry of typed **Zod schemas in code** validating `data` at the edge (YAGNI / rule-of-three, [ENGINEERING.md](ENGINEERING.md) #9). The `data` jsonb already accommodates a future Cal-editable form builder with **no storage change** — only the definition source (code → DB) would move. _Assumption: Cal doesn't need self-serve form editing at launch; flag if wrong._
 - **`payments`** — `id` · `booking_id` · `client_id` · `stripe_payment_intent_id` · `amount_cents` · `currency` · `status` ('requires_payment' \| 'succeeded' \| 'refunded' \| 'failed') · `created_at`. Stripe behind `features/payments/` adapter.
 - **`reviews`** — `id` · `client_id` · `author_name` (snapshot) · `rating` (1–5) · `body` · `status` ('pending' \| 'published' \| 'rejected') · `created_at`. Client-submitted, Cal-moderated.
+- **`inquiries`** — public contact-form submissions. `id` · `client_id` (nullable FK→profiles; null = guest, set = signed-in submitter) · `name` · `email` · `phone` (nullable) · `subject` (nullable) · `message` · `status` ('new' \| 'resolved') · `replied_at` (nullable; stamped when Cal opens an email/SMS reply — a timestamp, not a state) · `resolved_at` (nullable) · `created_at`. RLS: anyone may insert (guest submit; app-level honeypot + per-email rate-limit guard it), owner/admin read, admin update.
 - **`booking_series`** — durable rule for a weekly recurrence (so open-ended "no end" series can be materialized forward by a cron instead of inserting infinite rows up front). `id` · `client_id` · `service_id` · `freq` ('weekly') · `step_interval` (the rule's interval; `interval` is a Postgres keyword) · `count` (nullable) · `until` (nullable) · `open_ended` (bool — true ⇒ neither `count` nor `until`) · `template_starts_at` · `duration_min` · `quote_inputs` (jsonb — **frozen** at submit so every occurrence re-quotes identically) · `active` · `created_at`. `bookings.series_id` FKs here. See **Recurrence** below.
 - **`client_debits`** — outstanding balances that gate re-booking. `id` · `client_id` · `booking_id` · `amount_cents` · `reason` ('late_cancel' \| 'no_show') · `settled_at` (nullable) · `created_at`. Outstanding balance = Σ `amount_cents` where `settled_at is null`; a positive balance **blocks new bookings** (see Booking state machine, cancellation/refund). **System/admin-set, never client-writable** (same column-guard rule as `bookings.status`).
 
@@ -111,6 +114,7 @@ Supabase Postgres. Auth via Supabase `auth.users` (username / password are **not
 
 - Per-client tables (`profiles`, `pets`, `bookings`, `form_responses`, `payments`): row readable/writable only when `client_id = auth.uid()`. `booking_pets` is readable when the joined booking is the caller's.
 - `booking_series`: client reads own; series rows created/updated by server actions + the series-roll cron under the service role (clients never write the rule directly). `client_debits`: client reads own; **admin/system write only** (debits and settlements move via admin actions, never client SQL).
+- `inquiries`: anyone may insert; signed-in clients read their own; admin reads and updates all. App-level honeypot + per-email rate-limit guard public submission.
 - Public-read tables (`services`, `availability_windows`, `overnight_nights`): anon read, admin-only write. `reviews`: anon read where `status='published'`; clients insert their own (status forced `pending`); admin updates status.
 - `settings`: authed read, admin write.
 - **Busy-range exposure (two trust levels).** The customer calendar reads busy ranges through a service-role server action that projects **only** start/end + pet thumbnails (species + signed photo URL) — **no owner name/id**, by construction (identity-free result type + a dedicated repo method). The admin calendar uses a separate **admin-gated** action that joins owner + status for management. Pet photos live in a private bucket, served via short-lived signed URLs. Pet photos are intentionally client-visible (a photo is not a privacy concern); client identity is not.
@@ -251,4 +255,4 @@ Marketing copy that Cal must write is stubbed with double-square-bracket markers
 
 ---
 
-_Last reviewed: 2026-06-07_ (services/booking merge: /services hub + /book compatibility redirect)
+_Last reviewed: 2026-06-08_ (admin capabilities: contact, clients, bookings, inquiries)
