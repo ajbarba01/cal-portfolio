@@ -1,51 +1,40 @@
-/**
- * Admin booking approvals queue — server component.
- */
-
-import { createServiceClient } from "@/lib/supabase/service";
-import { createClient } from "@/lib/supabase/server";
-import { listPendingBookingsCore } from "@/features/admin/approval-actions";
-import { BookingsClient } from "./_components/bookings-client";
 import { ErrorState } from "@/components/feedback/error-state";
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
+import { listBookingsInRange } from "@/features/admin/bookings-calendar-actions";
+
+import { BookingsCalendarClient } from "./_components/bookings-calendar-client";
+
+function monthRange(now: Date): { startIso: string; endIso: string } {
+  const year = now.getUTCFullYear();
+  const month = now.getUTCMonth();
+  return {
+    startIso: new Date(Date.UTC(year, month, 1)).toISOString(),
+    endIso: new Date(Date.UTC(year, month + 1, 1)).toISOString(),
+  };
+}
 
 export default async function AdminBookingsPage() {
-  const authClient = await createClient();
-  const {
-    data: { user },
-  } = await authClient.auth.getUser();
-
-  const serviceClient = createServiceClient();
-  const result = await listPendingBookingsCore({
-    serviceClient,
-    actorUserId: user!.id,
-  });
-
-  if (result.kind === "forbidden") {
+  const range = monthRange(new Date());
+  const result = await listBookingsInRange(range);
+  if (result.kind !== "success") {
     return (
-      <ErrorState
-        title="Access denied"
-        message="You don't have permission to view this."
-      />
+      <PageContainer width="app">
+        <PageHeader title="Bookings" />
+        <ErrorState
+          title="Couldn't load bookings"
+          message="Please try again shortly."
+        />
+      </PageContainer>
     );
   }
-
-  if (result.kind === "error") {
-    return (
-      <ErrorState
-        title="Couldn't load this"
-        message="We couldn't load this right now. Please try again."
-      />
-    );
-  }
-
   return (
     <PageContainer width="app">
-      <PageHeader
-        title={`Pending Booking Approvals (${result.bookings.length})`}
+      <PageHeader title="Bookings" subtitle="Calendar of booked time." />
+      <BookingsCalendarClient
+        bookings={result.bookings}
+        monthStartIso={range.startIso}
       />
-      <BookingsClient initialBookings={result.bookings} />
     </PageContainer>
   );
 }
