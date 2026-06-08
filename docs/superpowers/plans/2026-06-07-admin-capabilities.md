@@ -2748,6 +2748,19 @@ All green. Then the maintainer's browser walk (not headless): desktop + 390px on
 
 ---
 
+## Handoff log
+
+### ESCALATION - blocking
+
+Finding: baseline `npx vitest run` cannot pass because the local Supabase stack at
+`127.0.0.1:54321` is stopped, and `npx supabase start` cannot start it because
+Docker Desktop is not running. Task 4 also requires the local stack to apply and
+verify the new migration.
+
+Options: (a) start Docker Desktop, then resume baseline verification and execution;
+(b) explicitly authorize execution without the full baseline and local migration
+verification. Recommend (a). Awaiting maintainer.
+
 ## Self-review notes (author)
 
 - **Spec coverage:** Clients index+detail (T6, T11, T12) · Kiche toggle (T6, T12) · debit settle (T6, T12) · inline booking actions (T12, reused cores) · booking calendar (T7, T13) · dashboard (T14) · inquiries table+RLS (T4) · `/contact` honeypot+rate-limit (T5, T9) · admin inquiries + mailto/sms handoff (T3, T5, T10) · new→resolved + replied_at (T4, T5) · nav (T8) · docs (T4, T11). Deferred items (input humanization, pickers, manual booking) are explicitly out of scope per the spec — no tasks, by design.
