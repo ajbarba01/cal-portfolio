@@ -8,7 +8,7 @@
 
 A site at `calbarba.com` for **Cal**'s unofficial dog-walking / house-sitting business. Two products in one:
 
-- **Portfolio** — About, Services & Rates, Gallery, Reviews, Resources.
+- **Portfolio** — About, Services & Booking, Gallery, Reviews, Resources.
 - **Self-serve scheduling** — clients see availability, book, manage an account, complete forms, and prepay; quotes adjust by distance.
 
 Goal: Cal redirects clients to the site to save both sides time. Budget is slim — hosting only (domain already owned).

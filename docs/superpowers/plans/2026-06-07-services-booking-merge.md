@@ -28,9 +28,11 @@
 - `src/app/(marketing)/book/page.tsx` — become a permanent redirect to `/services`.
 - `src/app/(marketing)/book/[serviceSlug]/page.tsx` — send the “All services” back link to `/services`.
 - `src/app/(marketing)/page.tsx` — consolidate the now-duplicate hero CTAs and route service-hub CTAs to `/services`.
+- `src/features/booking/service-card-display.ts` — pure service-card display labels for description fallback and duration metadata.
+- `src/features/booking/service-card-display.test.ts` — focused coverage for service-card display labels.
 - `docs/DESIGN.md` — update project-specific routes and booking-flow description.
 
-**No new production files.** Existing `/book/[serviceSlug]` components, booking return-to validation, pricing, Scheduler, and auth gates remain untouched.
+Existing `/book/[serviceSlug]` components, booking return-to validation, pricing, Scheduler, and auth gates remain untouched.
 
 ---
 
