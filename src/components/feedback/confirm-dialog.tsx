@@ -38,7 +38,10 @@ export function useConfirm() {
       }}
     >
       <AlertDialog.Portal>
-        <AlertDialog.Backdrop className="bg-foreground/20 fixed inset-0 z-50 backdrop-blur-[1px]" />
+        <AlertDialog.Backdrop
+          onClick={() => settle(false)}
+          className="bg-foreground/20 fixed inset-0 z-50 backdrop-blur-[1px]"
+        />
         <AlertDialog.Popup
           data-slot="confirm-dialog"
           className={cn(
