@@ -23,6 +23,12 @@ import {
 import { updateServiceCore, listServicesCore } from "./services-actions";
 import { updateSettingsCore } from "./settings-actions";
 import { moderateReviewCore, listReviewsCore } from "./reviews-actions";
+import {
+  listClientsCore,
+  setKicheAllowedCore,
+  settleDebitCore,
+} from "./clients-actions";
+import { submitInquiryCore } from "@/features/inquiries/inquiry-actions";
 
 const url = process.env.SUPABASE_TEST_URL!;
 const serviceKey = process.env.SUPABASE_TEST_SERVICE_ROLE_KEY!;
@@ -50,6 +56,9 @@ let clientUserId: string; // owns test bookings
 const createdBookingIds: string[] = [];
 const createdWindowIds: string[] = [];
 const createdReviewIds: string[] = [];
+const createdDebitIds: string[] = [];
+const createdPetIds: string[] = [];
+const inquiryEmails: string[] = [];
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -174,13 +183,28 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  // Delete in order: reviews, bookings, availability windows, then users.
+  // Delete in dependency order, then users.
+  if (inquiryEmails.length > 0) {
+    await serviceClient.from("inquiries").delete().in("email", inquiryEmails);
+  }
+
   if (createdReviewIds.length > 0) {
     await serviceClient.from("reviews").delete().in("id", createdReviewIds);
   }
 
+  if (createdDebitIds.length > 0) {
+    await serviceClient
+      .from("client_debits")
+      .delete()
+      .in("id", createdDebitIds);
+  }
+
   if (createdBookingIds.length > 0) {
     await serviceClient.from("bookings").delete().in("id", createdBookingIds);
+  }
+
+  if (createdPetIds.length > 0) {
+    await serviceClient.from("pets").delete().in("id", createdPetIds);
   }
 
   if (createdWindowIds.length > 0) {
@@ -597,5 +621,146 @@ describe("moderateReviewCore", () => {
     expect(result.reviews.length).toBeGreaterThan(0);
     const found = result.reviews.find((r) => r.id === reviewId);
     expect(found).toBeDefined();
+  });
+});
+
+describe("admin client capability cores", () => {
+  it("admin flips Kiche eligibility and non-admin is forbidden", async () => {
+    const forbidden = await setKicheAllowedCore(
+      nonAdminDeps(),
+      clientUserId,
+      true,
+    );
+    expect(forbidden.kind).toBe("forbidden");
+
+    const result = await setKicheAllowedCore(adminDeps(), clientUserId, true);
+    expect(result.kind).toBe("success");
+
+    const { data } = await serviceClient
+      .from("profiles")
+      .select("kiche_allowed")
+      .eq("id", clientUserId)
+      .single();
+    expect(data?.kiche_allowed).toBe(true);
+  });
+
+  it("settles a debit and a second settle is a no-op", async () => {
+    const { data: debit, error } = await serviceClient
+      .from("client_debits")
+      .insert({
+        client_id: clientUserId,
+        amount_cents: 1234,
+        reason: "late_cancel",
+      })
+      .select("id")
+      .single();
+    if (error || !debit)
+      throw new Error(`debit insert failed: ${error?.message}`);
+    createdDebitIds.push(debit.id);
+
+    const first = await settleDebitCore(adminDeps(), debit.id);
+    const second = await settleDebitCore(adminDeps(), debit.id);
+    expect(first.kind).toBe("success");
+    expect(second.kind).toBe("success");
+
+    const { data } = await serviceClient
+      .from("client_debits")
+      .select("settled_at")
+      .eq("id", debit.id)
+      .single();
+    expect(data?.settled_at).not.toBeNull();
+  });
+
+  it("lists client aggregates including pets, bookings, and outstanding balance", async () => {
+    const { data: pet, error: petError } = await serviceClient
+      .from("pets")
+      .insert({
+        client_id: clientUserId,
+        name: "Aggregate Test Pet",
+        species: "dog",
+      })
+      .select("id")
+      .single();
+    if (petError || !pet)
+      throw new Error(`pet insert failed: ${petError?.message}`);
+    createdPetIds.push(pet.id);
+
+    const start = futureDate(110);
+    await createBookingFixture({
+      clientId: clientUserId,
+      startsAt: start,
+      endsAt: new Date(start.getTime() + 60 * 60 * 1000),
+      status: "pending_approval",
+    });
+
+    const { data: debit, error: debitError } = await serviceClient
+      .from("client_debits")
+      .insert({
+        client_id: clientUserId,
+        amount_cents: 2345,
+        reason: "no_show",
+      })
+      .select("id")
+      .single();
+    if (debitError || !debit)
+      throw new Error(`debit insert failed: ${debitError?.message}`);
+    createdDebitIds.push(debit.id);
+
+    const result = await listClientsCore(adminDeps());
+    expect(result.kind).toBe("success");
+    if (result.kind !== "success") return;
+    const client = result.clients.find((row) => row.id === clientUserId);
+    expect(client).toBeDefined();
+    expect(client?.petCount).toBeGreaterThanOrEqual(1);
+    expect(client?.bookingCount).toBeGreaterThanOrEqual(1);
+    expect(client?.outstandingCents).toBe(2345);
+  });
+});
+
+describe("submitInquiryCore", () => {
+  it("inserts, silently drops honeypot, and rate-limits repeated email", async () => {
+    const email = `inquiry-${ts}@example.invalid`;
+    const honeypotEmail = `honeypot-${ts}@example.invalid`;
+    inquiryEmails.push(email, honeypotEmail);
+    const input = {
+      name: "Inquiry Test",
+      email,
+      phone: "",
+      subject: "Test subject",
+      message: "Test message",
+      company: "",
+    };
+
+    const inserted = await submitInquiryCore(
+      serviceClient,
+      clientUserId,
+      input,
+    );
+    expect(inserted).toEqual({ ok: true });
+
+    const repeated = await submitInquiryCore(
+      serviceClient,
+      clientUserId,
+      input,
+    );
+    expect(repeated.ok).toBe(false);
+
+    const honeypot = await submitInquiryCore(serviceClient, null, {
+      ...input,
+      email: honeypotEmail,
+      company: "Bot Company",
+    });
+    expect(honeypot).toEqual({ ok: true });
+
+    const { count: insertedCount } = await serviceClient
+      .from("inquiries")
+      .select("id", { count: "exact", head: true })
+      .eq("email", email);
+    const { count: honeypotCount } = await serviceClient
+      .from("inquiries")
+      .select("id", { count: "exact", head: true })
+      .eq("email", honeypotEmail);
+    expect(insertedCount).toBe(1);
+    expect(honeypotCount).toBe(0);
   });
 });
