@@ -377,7 +377,7 @@ describe("applyStripeEvent — webhook projection", () => {
   it("charge.refunded accepts an expanded payment_intent object", async () => {
     const expandedIntentId = `pi_expanded_${ts}`;
     // Far-future window to avoid the no_same_class_overlap exclusion constraint.
-    const expandedBooking = await seedBooking(userId1, 4000, 30);
+    const expandedBooking = await seedBooking(userId1, 4000, 400);
     await seedPayment(
       expandedBooking,
       userId1,
