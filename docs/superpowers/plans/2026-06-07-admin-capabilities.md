@@ -2761,6 +2761,12 @@ Options: (a) start Docker Desktop, then resume baseline verification and executi
 (b) explicitly authorize execution without the full baseline and local migration
 verification. Recommend (a). Awaiting maintainer.
 
+**RESOLVED (2026-06-08):** execution proceeded against the linked remote project
+(the dev server runs on it). Migrations applied with `npx supabase db push`;
+gates run via `npx tsc --noEmit` + `npx eslint`; pure-logic unit tests (Tasks
+1–3) run without the stack. Integration tests (Task 15) remain deferred until
+Docker/local stack is available — they are optional per the plan.
+
 ### ESCALATION - blocking
 
 Finding: final security review found that the inquiries migration grants direct
@@ -2775,6 +2781,13 @@ Options: (a) remove public table insert grants/policy and make the service-role
 inserts but add restrictive RLS checks for identity/status/timestamps, accepting
 that direct callers still bypass the rate-limit. Recommend (a). Awaiting
 maintainer.
+
+**RESOLVED (2026-06-08, maintainer chose option a):** migration
+`20260607160000_inquiries_lock_insert.sql` drops the `"inquiries: anyone can
+submit"` policy and revokes `insert` from `anon`/`authenticated`. `submitInquiry`
+already writes via the service-role client, so the form is unaffected. Verified
+against prod: anon REST insert → 401, service-role insert → 201. DESIGN.md RLS
+notes corrected in the same commit.
 
 ## Self-review notes (author)
 
