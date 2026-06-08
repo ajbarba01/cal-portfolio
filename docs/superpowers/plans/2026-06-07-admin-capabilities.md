@@ -2761,6 +2761,21 @@ Options: (a) start Docker Desktop, then resume baseline verification and executi
 (b) explicitly authorize execution without the full baseline and local migration
 verification. Recommend (a). Awaiting maintainer.
 
+### ESCALATION - blocking
+
+Finding: final security review found that the inquiries migration grants direct
+`anon`/`authenticated` inserts with `with check (true)`. A caller can bypass the
+server-action honeypot and rate-limit entirely through the public REST API, and
+can submit arbitrary `client_id`, `status`, `replied_at`, and `resolved_at`
+values. This contradicts the spec's app-guard requirement and makes the stated
+defense-in-depth ineffective.
+
+Options: (a) remove public table insert grants/policy and make the service-role
+`submitInquiry` server action the sole public write edge; (b) keep direct public
+inserts but add restrictive RLS checks for identity/status/timestamps, accepting
+that direct callers still bypass the rate-limit. Recommend (a). Awaiting
+maintainer.
+
 ## Self-review notes (author)
 
 - **Spec coverage:** Clients index+detail (T6, T11, T12) · Kiche toggle (T6, T12) · debit settle (T6, T12) · inline booking actions (T12, reused cores) · booking calendar (T7, T13) · dashboard (T14) · inquiries table+RLS (T4) · `/contact` honeypot+rate-limit (T5, T9) · admin inquiries + mailto/sms handoff (T3, T5, T10) · new→resolved + replied_at (T4, T5) · nav (T8) · docs (T4, T11). Deferred items (input humanization, pickers, manual booking) are explicitly out of scope per the spec — no tasks, by design.
