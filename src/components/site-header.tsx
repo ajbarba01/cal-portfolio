@@ -24,6 +24,7 @@ const navLinks: NavItem[] = [
   { href: "/gallery", label: "Gallery" },
   { href: "/reviews", label: "Reviews" },
   { href: "/resources", label: "Resources" },
+  { href: "/contact", label: "Contact" },
 ];
 
 export async function SiteHeader({ zoneNav }: { zoneNav?: ZoneNav }) {

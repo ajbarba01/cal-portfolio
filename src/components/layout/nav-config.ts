@@ -18,10 +18,13 @@ export const accountNav: ZoneNav = {
 export const adminNav: ZoneNav = {
   zoneLabel: "Admin",
   items: [
+    { href: "/admin", label: "Dashboard" },
     { href: "/admin/availability", label: "Availability" },
     { href: "/admin/bookings", label: "Bookings" },
+    { href: "/admin/clients", label: "Clients" },
     { href: "/admin/services", label: "Services" },
     { href: "/admin/settings", label: "Settings" },
     { href: "/admin/reviews", label: "Reviews" },
+    { href: "/admin/inquiries", label: "Inquiries" },
   ],
 };
