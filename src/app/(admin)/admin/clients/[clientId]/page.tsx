@@ -28,7 +28,9 @@ export default async function AdminClientDetailPage({
   }
   return (
     <PageContainer width="app">
-      <PageHeader title={result.client.full_name ?? "Client"} />
+      <PageHeader
+        title={result.client.full_name ?? result.client.email ?? "Client"}
+      />
       <ClientDetailClient client={result.client} />
     </PageContainer>
   );
