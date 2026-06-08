@@ -1,0 +1,373 @@
+"use server";
+
+/**
+ * Admin clients directory: index aggregates, client detail, Kiche eligibility,
+ * and offline debit settlement. Service-role access follows an admin check.
+ */
+
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { revalidatePath } from "next/cache";
+import { z } from "zod";
+
+import { createServiceClient } from "@/lib/supabase/service";
+
+import { assertActorIsAdmin } from "./admin-guard";
+import { getActorOrRedirect } from "./admin-session";
+import { outstandingBalanceCents } from "./client-balance";
+
+const SIGNED_URL_TTL_SECONDS = 60 * 60;
+
+export interface AdminDeps {
+  serviceClient: SupabaseClient;
+  actorUserId: string;
+}
+
+export interface ClientListRow {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+  phone: string | null;
+  petCount: number;
+  bookingCount: number;
+  outstandingCents: number;
+  onboardingComplete: boolean;
+}
+
+export type ListClientsResult =
+  | { kind: "success"; clients: ClientListRow[] }
+  | { kind: "forbidden" }
+  | { kind: "error"; message: string };
+
+export async function listClientsCore(
+  deps: AdminDeps,
+): Promise<ListClientsResult> {
+  if (!(await assertActorIsAdmin(deps.serviceClient, deps.actorUserId))) {
+    return { kind: "forbidden" };
+  }
+  const serviceClient = deps.serviceClient;
+
+  const { data: profiles, error: profileError } = await serviceClient
+    .from("profiles")
+    .select("id, full_name, email, phone, onboarding_complete")
+    .eq("role", "client")
+    .order("created_at", { ascending: false });
+  if (profileError) return { kind: "error", message: profileError.message };
+
+  const { data: pets, error: petError } = await serviceClient
+    .from("pets")
+    .select("client_id");
+  if (petError) return { kind: "error", message: petError.message };
+
+  const { data: bookings, error: bookingError } = await serviceClient
+    .from("bookings")
+    .select("client_id");
+  if (bookingError) return { kind: "error", message: bookingError.message };
+
+  const { data: debits, error: debitError } = await serviceClient
+    .from("client_debits")
+    .select("client_id, amount_cents, settled_at");
+  if (debitError) return { kind: "error", message: debitError.message };
+
+  const countByClient = (rows: { client_id: string }[]) => {
+    const counts = new Map<string, number>();
+    for (const row of rows) {
+      counts.set(row.client_id, (counts.get(row.client_id) ?? 0) + 1);
+    }
+    return counts;
+  };
+  const petCounts = countByClient((pets ?? []) as { client_id: string }[]);
+  const bookingCounts = countByClient(
+    (bookings ?? []) as { client_id: string }[],
+  );
+
+  const debitsByClient = new Map<
+    string,
+    { amount_cents: number; settled_at: string | null }[]
+  >();
+  for (const debit of (debits ?? []) as {
+    client_id: string;
+    amount_cents: number;
+    settled_at: string | null;
+  }[]) {
+    const clientDebits = debitsByClient.get(debit.client_id) ?? [];
+    clientDebits.push({
+      amount_cents: debit.amount_cents,
+      settled_at: debit.settled_at,
+    });
+    debitsByClient.set(debit.client_id, clientDebits);
+  }
+
+  const clients: ClientListRow[] = (profiles ?? []).map((profile) => ({
+    id: profile.id as string,
+    full_name: (profile.full_name as string | null) ?? null,
+    email: (profile.email as string | null) ?? null,
+    phone: (profile.phone as string | null) ?? null,
+    petCount: petCounts.get(profile.id as string) ?? 0,
+    bookingCount: bookingCounts.get(profile.id as string) ?? 0,
+    outstandingCents: outstandingBalanceCents(
+      debitsByClient.get(profile.id as string) ?? [],
+    ),
+    onboardingComplete: Boolean(profile.onboarding_complete),
+  }));
+
+  return { kind: "success", clients };
+}
+
+export interface ClientPet {
+  id: string;
+  name: string;
+  species: "dog" | "cat";
+  breed: string | null;
+  notes: string | null;
+  photoUrl: string | null;
+}
+
+export interface ClientFormResponse {
+  id: string;
+  form_key: string;
+  booking_id: string | null;
+  data: unknown;
+  submitted_at: string;
+}
+
+export interface ClientBookingRow {
+  id: string;
+  service_name: string | null;
+  status: string;
+  starts_at: string;
+  ends_at: string;
+  final_cents: number;
+}
+
+export interface ClientDebitRow {
+  id: string;
+  booking_id: string | null;
+  amount_cents: number;
+  reason: string;
+  settled_at: string | null;
+  created_at: string;
+}
+
+export interface ClientDetailView {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  zip: string | null;
+  avatar_url: string | null;
+  kiche_allowed: boolean;
+  onboarding_complete: boolean;
+  created_at: string;
+  pets: ClientPet[];
+  forms: ClientFormResponse[];
+  bookings: ClientBookingRow[];
+  debits: ClientDebitRow[];
+  outstandingCents: number;
+}
+
+export type GetClientDetailResult =
+  | { kind: "success"; client: ClientDetailView }
+  | { kind: "forbidden" }
+  | { kind: "not_found" }
+  | { kind: "error"; message: string };
+
+export async function getClientDetailCore(
+  deps: AdminDeps,
+  clientId: string,
+): Promise<GetClientDetailResult> {
+  if (!(await assertActorIsAdmin(deps.serviceClient, deps.actorUserId))) {
+    return { kind: "forbidden" };
+  }
+  const serviceClient = deps.serviceClient;
+
+  const { data: profile, error: profileError } = await serviceClient
+    .from("profiles")
+    .select(
+      "id, full_name, email, phone, address, zip, avatar_url, kiche_allowed, onboarding_complete, created_at, role",
+    )
+    .eq("id", clientId)
+    .single();
+  if (profileError || !profile) return { kind: "not_found" };
+
+  const { data: pets } = await serviceClient
+    .from("pets")
+    .select("id, name, species, breed, notes, photo_url")
+    .eq("client_id", clientId)
+    .order("created_at", { ascending: true });
+
+  const signPhoto = async (path: string): Promise<string | null> => {
+    const { data } = await serviceClient.storage
+      .from("pet-photos")
+      .createSignedUrl(path, SIGNED_URL_TTL_SECONDS);
+    return data?.signedUrl ?? null;
+  };
+  const petViews: ClientPet[] = await Promise.all(
+    (pets ?? []).map(async (pet) => ({
+      id: pet.id as string,
+      name: pet.name as string,
+      species: pet.species as "dog" | "cat",
+      breed: (pet.breed as string | null) ?? null,
+      notes: (pet.notes as string | null) ?? null,
+      photoUrl: pet.photo_url ? await signPhoto(pet.photo_url as string) : null,
+    })),
+  );
+
+  const { data: forms } = await serviceClient
+    .from("form_responses")
+    .select("id, form_key, booking_id, data, submitted_at")
+    .eq("client_id", clientId)
+    .order("submitted_at", { ascending: false });
+
+  const { data: bookings } = await serviceClient
+    .from("bookings")
+    .select("id, status, starts_at, ends_at, final_cents, services(name)")
+    .eq("client_id", clientId)
+    .order("starts_at", { ascending: false });
+
+  const { data: debits } = await serviceClient
+    .from("client_debits")
+    .select("id, booking_id, amount_cents, reason, settled_at, created_at")
+    .eq("client_id", clientId)
+    .order("created_at", { ascending: false });
+
+  const debitRows: ClientDebitRow[] = (debits ?? []).map((debit) => ({
+    id: debit.id as string,
+    booking_id: (debit.booking_id as string | null) ?? null,
+    amount_cents: debit.amount_cents as number,
+    reason: debit.reason as string,
+    settled_at: (debit.settled_at as string | null) ?? null,
+    created_at: debit.created_at as string,
+  }));
+
+  const client: ClientDetailView = {
+    id: profile.id as string,
+    full_name: (profile.full_name as string | null) ?? null,
+    email: (profile.email as string | null) ?? null,
+    phone: (profile.phone as string | null) ?? null,
+    address: (profile.address as string | null) ?? null,
+    zip: (profile.zip as string | null) ?? null,
+    avatar_url: (profile.avatar_url as string | null) ?? null,
+    kiche_allowed: Boolean(profile.kiche_allowed),
+    onboarding_complete: Boolean(profile.onboarding_complete),
+    created_at: profile.created_at as string,
+    pets: petViews,
+    forms: (forms ?? []).map((form) => ({
+      id: form.id as string,
+      form_key: form.form_key as string,
+      booking_id: (form.booking_id as string | null) ?? null,
+      data: form.data,
+      submitted_at: form.submitted_at as string,
+    })),
+    bookings: (bookings ?? []).map((booking) => {
+      const serviceJoin = booking.services as
+        | { name: string }
+        | { name: string }[]
+        | null;
+      const serviceName = Array.isArray(serviceJoin)
+        ? (serviceJoin[0]?.name ?? null)
+        : (serviceJoin?.name ?? null);
+      return {
+        id: booking.id as string,
+        service_name: serviceName,
+        status: booking.status as string,
+        starts_at: booking.starts_at as string,
+        ends_at: booking.ends_at as string,
+        final_cents: booking.final_cents as number,
+      };
+    }),
+    debits: debitRows,
+    outstandingCents: outstandingBalanceCents(debitRows),
+  };
+
+  return { kind: "success", client };
+}
+
+export type ClientMutationResult =
+  | { kind: "success" }
+  | { kind: "forbidden" }
+  | { kind: "validation_error"; message: string }
+  | { kind: "error"; message: string };
+
+const uuidSchema = z.string().uuid();
+
+export async function setKicheAllowedCore(
+  deps: AdminDeps,
+  clientId: string,
+  isAllowed: boolean,
+): Promise<ClientMutationResult> {
+  if (!(await assertActorIsAdmin(deps.serviceClient, deps.actorUserId))) {
+    return { kind: "forbidden" };
+  }
+  if (!uuidSchema.safeParse(clientId).success) {
+    return { kind: "validation_error", message: "Invalid client id" };
+  }
+  const { error } = await deps.serviceClient
+    .from("profiles")
+    .update({ kiche_allowed: isAllowed })
+    .eq("id", clientId)
+    .eq("role", "client");
+  if (error) return { kind: "error", message: error.message };
+  return { kind: "success" };
+}
+
+export async function settleDebitCore(
+  deps: AdminDeps,
+  debitId: string,
+): Promise<ClientMutationResult> {
+  if (!(await assertActorIsAdmin(deps.serviceClient, deps.actorUserId))) {
+    return { kind: "forbidden" };
+  }
+  if (!uuidSchema.safeParse(debitId).success) {
+    return { kind: "validation_error", message: "Invalid debit id" };
+  }
+  const { error } = await deps.serviceClient
+    .from("client_debits")
+    .update({ settled_at: new Date().toISOString() })
+    .eq("id", debitId)
+    .is("settled_at", null);
+  if (error) return { kind: "error", message: error.message };
+  return { kind: "success" };
+}
+
+export async function listClients(): Promise<ListClientsResult> {
+  const actorUserId = await getActorOrRedirect();
+  return listClientsCore({ serviceClient: createServiceClient(), actorUserId });
+}
+
+export async function getClientDetail(
+  clientId: string,
+): Promise<GetClientDetailResult> {
+  const actorUserId = await getActorOrRedirect();
+  return getClientDetailCore(
+    { serviceClient: createServiceClient(), actorUserId },
+    clientId,
+  );
+}
+
+export async function setKicheAllowed(
+  clientId: string,
+  isAllowed: boolean,
+): Promise<ClientMutationResult> {
+  const actorUserId = await getActorOrRedirect();
+  const result = await setKicheAllowedCore(
+    { serviceClient: createServiceClient(), actorUserId },
+    clientId,
+    isAllowed,
+  );
+  if (result.kind === "success") revalidatePath(`/admin/clients/${clientId}`);
+  return result;
+}
+
+export async function settleDebit(
+  debitId: string,
+  clientId: string,
+): Promise<ClientMutationResult> {
+  const actorUserId = await getActorOrRedirect();
+  const result = await settleDebitCore(
+    { serviceClient: createServiceClient(), actorUserId },
+    debitId,
+  );
+  if (result.kind === "success") revalidatePath(`/admin/clients/${clientId}`);
+  return result;
+}
