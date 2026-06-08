@@ -12,16 +12,17 @@ export default async function ContactPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  let defaults = { name: "", email: "" };
+  let defaults = { name: "", email: "", phone: "" };
   if (user) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("full_name, email")
+      .select("full_name, email, phone")
       .eq("id", user.id)
       .maybeSingle();
     defaults = {
       name: profile?.full_name ?? "",
       email: profile?.email ?? user.email ?? "",
+      phone: profile?.phone ?? "",
     };
   }
 
@@ -31,7 +32,11 @@ export default async function ContactPage() {
         title="[[HEADER: Contact]]"
         subtitle="[[BODY: what the contact form is for]]"
       />
-      <ContactForm defaultName={defaults.name} defaultEmail={defaults.email} />
+      <ContactForm
+        defaultName={defaults.name}
+        defaultEmail={defaults.email}
+        defaultPhone={defaults.phone}
+      />
     </PageContainer>
   );
 }

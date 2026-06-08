@@ -11,9 +11,11 @@ import { submitInquiry } from "@/features/inquiries/inquiry-actions";
 export function ContactForm({
   defaultName,
   defaultEmail,
+  defaultPhone,
 }: {
   defaultName: string;
   defaultEmail: string;
+  defaultPhone: string;
 }) {
   const toast = useToast();
   const [isPending, startTransition] = useTransition();
@@ -77,8 +79,14 @@ export function ContactForm({
         />
       </div>
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="phone">Phone (optional)</Label>
-        <Input id="phone" name="phone" type="tel" />
+        <Label htmlFor="phone">Phone</Label>
+        <Input
+          id="phone"
+          name="phone"
+          type="tel"
+          defaultValue={defaultPhone}
+          required
+        />
       </div>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="subject">Subject (optional)</Label>
