@@ -10,18 +10,18 @@
 
 Find your current situation; do the action. (Details for each step are in the next section.)
 
-| Situation                                                  | Next move                                                                                             | Skill to invoke                                                                                                 |
+| Situation                                                  | Next move                                                                                             | Preferred skill/capability                                                                                      |
 | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
 | New, non-trivial feature, nothing written                  | **Research**, then write a `specs/<feature>.md` (what & why).                                         | `superpowers:brainstorming` — for UI features, also `frontend-design` so aesthetic direction lands in the spec  |
 | Spec exists, no plan                                       | **Plan** — turn it into a dependency-ordered technical plan.                                          | `superpowers:writing-plans`                                                                                     |
-| Plan approved, not started                                 | **Build** — start with tests for the core logic (ENGINEERING #5).                                     | `superpowers:subagent-driven-development` (default execution — see Skill workflow below)                        |
+| Plan approved, not started                                 | **Build** — start with tests for the core logic (ENGINEERING #5).                                     | `superpowers:subagent-driven-development` if requested/available; otherwise `executing-plans` or native tasks   |
 | Mid-build, non-trivial logic                               | Test-first, then implement; keep logic pure.                                                          | `superpowers:test-driven-development`                                                                           |
 | Mid-build, UI work                                         | Wire up IO/UI; keep logic pure; commit nothing yet.                                                   | `frontend-design`                                                                                               |
 | Think it's done                                            | **Verify** — `tsc`/lint/tests, `/code-review`, then `verify` the running app.                         | `superpowers:verification-before-completion` → `superpowers:requesting-code-review` → `/code-review` → `verify` |
 | Got code-review feedback                                   | Triage before implementing — verify, don't perform agreement.                                         | `superpowers:receiving-code-review`                                                                             |
 | Verified                                                   | **Ship** — conventional commit to `main`; confirm Vercel deploy.                                      | —                                                                                                               |
 | Hit a bug / unexpected behavior                            | Reproduce and find root cause _before_ proposing a fix; don't patch symptoms.                         | `superpowers:systematic-debugging`                                                                              |
-| Sub-spec change (bugfix, lighter refactor, contained edit) | **Lightweight lane** — skip spec/plan/handoff; one agent owns it end-to-end; build + verify directly. | none — see **Lightweight lane**                                                                                 |
+| Sub-spec change (bugfix, lighter refactor, contained edit) | **Lightweight lane** — skip spec/plan/handoff; one agent owns it end-to-end; build + verify directly. | role-appropriate debugging/TDD/UI skills if relevant                                                            |
 | Unsure what a feature should do                            | Stop and ask the maintainer; don't assume scope.                                                      | —                                                                                                               |
 
 ---
@@ -37,22 +37,23 @@ Find your current situation; do the action. (Details for each step are in the ne
 
 ## Skill workflow (execution policy)
 
-The loop above maps 1:1 onto the superpowers skill chain — invoke the stage's skill **before** acting (the `using-superpowers` mandate auto-loads each session). Process skills first (brainstorming, debugging), then implementation skills (frontend-design).
+The loop maps onto the preferred skill chain, but skills are **capabilities, not model identities**. Any agent with a matching skill invokes it before acting; an agent without it follows the role contract and artifact checklist directly. Process skills come first (brainstorming, debugging), then implementation skills (frontend-design).
 
-- **Execution is sub-agent driven by default.** Build/verify a plan with `superpowers:subagent-driven-development` — it dispatches per-task subagents that themselves invoke `test-driven-development` (non-trivial logic) and `frontend-design` (UI). `superpowers:executing-plans` is used **only if the maintainer opts in that session.** Plan-file headers state this default.
-- **No worktrees.** Subagent execution runs in-session against `main` (consistent with Version control below) — not in a git worktree, unless the maintainer asks.
+- **Execution may be subagent-driven.** When the active agent exposes subagents and the maintainer requests in-session execution, use `superpowers:subagent-driven-development`; its task agents use `test-driven-development` for non-trivial logic and `frontend-design` for UI. Otherwise use `superpowers:executing-plans` when available or execute the plan sequentially with native task tracking.
+- **Subagent support is surface-dependent.** If a tool needs an explicit feature flag or plugin for subagents, enable/use it only when already available or when the maintainer asks. Without it, use the sequential fallback.
+- **No worktrees.** Execution runs against `main` (consistent with Version control below), not in a git worktree unless the maintainer asks. This repo rule overrides skill defaults.
 - **Skip threshold (knob).** Brainstorm + spec + plan are required for anything non-trivial or scope-uncertain. They are **skipped** for sub-spec work — bugfixes, lighter refactors, contained edits (the **Lightweight lane** below). The maintainer moves this line per session: "skip the spec" pulls a borderline task below the line; "spec this anyway" pushes it above. When unsure which side a task falls on, ask.
 
 ## Portable stage map (model-agnostic)
 
-The loop is tool-independent: each stage is a **role + artifact**; only the _invocation_ differs per tool. The artifact is the handoff — whoever holds the next role reads it cold.
+The loop is tool-independent: each stage is a **role + artifact**. Preferred skills accelerate and standardize the behavior; the fallback produces the same artifact without them. The artifact is the handoff — whoever holds the next role reads it cold.
 
-| Stage  | Artifact (the contract)         | Claude invokes          | Codex / other invokes        |
-| ------ | ------------------------------- | ----------------------- | ---------------------------- |
-| Spec   | `specs/<f>.md`                  | `brainstorming`         | plan mode + AGENTS.md        |
-| Plan   | `docs/superpowers/plans/<f>.md` | `writing-plans`         | native planning              |
-| Build  | code + passing gates            | `subagent-driven` + TDD | reads plan, TDD per the plan |
-| Verify | review report                   | `/code-review`          | cross-model review           |
+| Stage  | Artifact (the contract)         | Role              | Preferred skill(s)                                                            | Fallback                    |
+| ------ | ------------------------------- | ----------------- | ----------------------------------------------------------------------------- | --------------------------- |
+| Spec   | `specs/<f>.md`                  | `senior-designer` | `brainstorming`; UI also `frontend-design`                                    | native planning + AGENTS.md |
+| Plan   | `docs/superpowers/plans/<f>.md` | `senior-designer` | `writing-plans`                                                               | native dependency planning  |
+| Build  | code + passing gates            | `implementer`     | `subagent-driven-development` or `executing-plans`; TDD/UI skills as relevant | read plan and execute gates |
+| Verify | review report                   | `reviewer`        | `requesting-code-review` / native code review                                 | independent diff review     |
 
 Role contracts for each stage: [ROLES.md](ROLES.md). Who plays each by default: [ROUTING.md](ROUTING.md).
 
@@ -62,7 +63,7 @@ A plan is **ready to hand off** when a fresh agent (any model) can run it cold. 
 
 - the spec path and dependency-ordered task groups;
 - **test-first markers** for non-trivial logic;
-- **the gates named explicitly** — `npm run typecheck`, `npm run lint`, core-logic `npm test`, `/code-review`, manual `verify` — because a non-Claude implementer will not auto-fire superpowers; the plan must _name_ the discipline;
+- **the gates named explicitly** — `npm run typecheck`, `npm run lint`, core-logic `npm test`, `/code-review`, manual `verify` — because the next implementer may not expose the same skills; the plan must _name_ the discipline;
 - the Definition of Done.
 
 **Handoff is file + git, not clipboard.** The planner commits the spec + plan; the maintainer gives the implementer a **one-line pointer** ("implement `docs/superpowers/plans/<f>.md`, task group 1"); the implementer reads it off disk. The planner emits this pointer automatically when the plan is complete.
@@ -95,7 +96,7 @@ The author never grades itself — and across models this is stronger: the **pla
 - **Scope — the whole sub-spec band, not just one-liners.** Bugfixes, small/medium refactors, isolated contained features. The test is "does this need a spec to get right?", not "is it tiny?". Above the line → full Spec → Plan → handoff. Unsure which side → **ask** (skip-threshold knob above).
 - **One agent, end to end.** No spec, no plan, no handoff artifact, no relay — the agent you point at it owns research → fix → verify → commit. Escalation is **direct to the maintainer** (only one agent is in play; nobody to relay to). If it grows past the line mid-task, stop and escalate to a spec.
 - **Gates still apply.** Quality is independent of scope (constitution): `tsc`/lint/tests, **TDD for non-trivial logic**, `systematic-debugging` for bugs (root cause, not symptom), manual `verify`. The Definition of Done holds.
-- **Cross-model review optional.** For a touchy fix you may still ask another model to `/code-review` the diff — recommended, not required.
+- **Independent review optional.** For a touchy fix you may still ask another agent or model to `/code-review` the diff — recommended, not required.
 
 ## Working within a task (context tips)
 
@@ -114,7 +115,7 @@ The author never grades itself — and across models this is stronger: the **pla
 - **Gates before commit:** `tsc --strict` + ESLint + Prettier + tests on core logic + `/code-review` + manual `verify`.
 - **Subject line only — no body.** Subject is the entire message. Never add bullet points, description paragraphs, or multi-line content after the subject. Single imperative sentence.
 - **Don't reference specific implementation plans** (phase 1a, etc).
-- **No Claude attribution** in messages unless explicitly requested.
+- **No AI attribution** in messages unless explicitly requested.
 
 ## Definition of Done
 
