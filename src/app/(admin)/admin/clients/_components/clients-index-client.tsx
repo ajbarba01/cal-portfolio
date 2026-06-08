@@ -54,7 +54,7 @@ export function ClientsIndexClient({ clients }: { clients: ClientListRow[] }) {
                         href={`/admin/clients/${client.id}`}
                         className="text-brand-strong font-medium underline-offset-2 hover:underline"
                       >
-                        {client.full_name ?? "(no name)"}
+                        {client.full_name ?? client.email ?? "(no name)"}
                       </Link>
                     </td>
                     <td className="text-muted-foreground py-2 pr-4">
@@ -92,7 +92,7 @@ export function ClientsIndexClient({ clients }: { clients: ClientListRow[] }) {
                   href={`/admin/clients/${client.id}`}
                   className="text-brand-strong font-medium"
                 >
-                  {client.full_name ?? "(no name)"}
+                  {client.full_name ?? client.email ?? "(no name)"}
                 </Link>
                 <p className="text-muted-foreground text-xs">
                   {client.email ?? "-"}
