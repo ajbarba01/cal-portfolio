@@ -5,18 +5,26 @@ import type { PaymentGateway, CreateIntentArgs, CreatedIntent } from "./types";
 
 /** Production adapter: delegates to Stripe PaymentIntents API. */
 export class StripeGateway implements PaymentGateway {
-  private readonly stripe: Stripe;
+  private client: Stripe | null = null;
 
-  constructor() {
+  /**
+   * Lazily build the Stripe client. Constructing a StripeGateway is always safe;
+   * the missing-key error is deferred until an actual API call is made. This lets
+   * code paths that pass the gateway but never charge/refund (e.g. cancelling an
+   * unpaid booking, or any flow in a dev env without Stripe configured) run fine.
+   */
+  private get stripe(): Stripe {
+    if (this.client) return this.client;
     const secretKey = process.env.STRIPE_SECRET_KEY;
     if (!secretKey) {
       throw new Error(
         "Missing STRIPE_SECRET_KEY — set it in .env.local before starting the server.",
       );
     }
-    this.stripe = new Stripe(secretKey, {
+    this.client = new Stripe(secretKey, {
       apiVersion: "2026-05-27.dahlia",
     });
+    return this.client;
   }
 
   async createIntent(args: CreateIntentArgs): Promise<CreatedIntent> {
