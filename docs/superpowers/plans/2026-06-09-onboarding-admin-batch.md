@@ -1283,6 +1283,11 @@ git commit -m "feat: RefreshOnInterval polling helper"
 
 - [ ] **Step 1: Create `meet-greet-step.tsx`**
 
+> **Emoji scope correction (2026-06-09):** the maintainer's "no emojis" note was
+> about the **sidebar only**. KEEP the existing 🐾 (intro), ✓ (confirmed), and
+> ⏳ (awaiting) emojis from the original onboarding page rather than swapping
+> them for the lucide icons shown below. Drop the lucide import accordingly.
+
 ```tsx
 "use client";
 
@@ -2061,7 +2066,7 @@ C1 → D1 → D2 → D3 → D5 → E1 → E2 under the narrowed gate.
 
 ## Self-Review Notes
 
-- **Spec coverage:** #1+#2 → Cluster A; #3 → B2; #3b → B1/B2; #4 → D5/D6; #5 (de-list) → C1, (embed) → D1–D6, (modularize) → D1–D3, (retire route) → D7; #6 → E1–E5; no-emoji → D6 (PawPrint/CalendarCheck/Clock) + B2 (Lock); tokens → status dots in E3, semantic classes throughout; DESIGN.md → F1. All covered.
+- **Spec coverage:** #1+#2 → Cluster A; #3 → B2; #3b → B1/B2; #4 → D5/D6; #5 (de-list) → C1, (embed) → D1–D6, (modularize) → D1–D3, (retire route) → D7; #6 → E1–E5; sidebar-icon (no emoji) → B2 (`Lock`); D6 keeps existing emojis (scope corrected 2026-06-09); tokens → status dots in E3, semantic classes throughout; DESIGN.md → F1. All covered.
 - **Type consistency:** `OnboardingFormState`, `parseOnboardingForm`, `activeNavHref`, `hourlySchedulerData`, `loadBookingFormData`, `deriveMeetGreetUpcoming`, `meetGreetUpcoming` (on both `ClientListRow` and `ClientDetailView`), and `OnboardingStatusSelect` props are named consistently across the tasks that define and consume them.
 - **Open verification points flagged inline:** base-ui `Select` controlled prop names (E3 Step 2); React 19 `useActionState` availability (A3 — standard in current Next App Router).
 
