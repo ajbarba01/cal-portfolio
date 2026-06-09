@@ -4,12 +4,15 @@
 
 ## Artifacts
 
-| File                          | Role                                                 | Authority                        |
-| ----------------------------- | ---------------------------------------------------- | -------------------------------- |
-| `docs/content/cal-source.md`  | Cal's verbatim text, by ID.                          | **Source of truth**              |
-| `src/content/marketing.ts`    | Typed registry: ID → live string. Components import. | Render target (built separately) |
-| `docs/content/copy-ledger.md` | Per-ID status/provenance/diff state.                 | Bridge                           |
-| `docs/CONTENT.md`             | This protocol.                                       | Process SoT                      |
+| File                          | Role                                               | Authority                        |
+| ----------------------------- | -------------------------------------------------- | -------------------------------- |
+| `docs/content/cal-source.md`  | Cal's verbatim text, by ID.                        | **Source of truth**              |
+| `src/content/marketing.ts`    | Typed registry: ID → live string (links inline).   | Render target (built separately) |
+| `src/content/linkify.ts`      | Pure `segmentCopy` — parses a body's link markers. | Inline-link engine               |
+| `docs/content/copy-ledger.md` | Per-ID status/provenance/diff state.               | Bridge                           |
+| `docs/CONTENT.md`             | This protocol.                                     | Process SoT                      |
+
+**Inline links.** A copy body is **one string** in `marketing.ts` — never split into `.pre`/`.link`/`.post` IDs. An inline link is written **into the body** with **markdown syntax**: `[label](href)` (e.g. `…through the [resources](/resources) available…`). The marker encodes the link's exact position, so duplicate labels are unambiguous, and it cannot collide with the `[[ ... ]]` placeholder grammar (a link needs `](` adjacency; `[[ ... ]]` never has it). The `MarketingCopy` component (`src/components/marketing/marketing-copy.tsx`) parses the body with the pure `segmentCopy` and renders each marker as a `next/link`; a body with no markers renders as plain prose. **Every marketing copy slot is rendered through `MarketingCopy`** (by ID), not raw `{copy[id]}` — so a marker added to any slot just works. The exceptions are plain string attributes (`alt`, `aria-label`) and copy nested inside an `<a>`/`<button>` (a link can't nest there), which stay raw `copy[id]`.
 
 ## Stable IDs
 
@@ -34,10 +37,10 @@
 3. **Capture** — write the confirmed chunks verbatim into `cal-source.md` under their IDs. Authority is now locked.
 4. **Diff** — per touched ID, compare `cal-source` text vs ledger `applied-from`: new / changed / unchanged. Also run drift detection: if the live registry string ≠ ledger `live-text`, the code was hand-edited — flag it, do not silently overwrite.
 5. **Transform + confirm gate** — auto-allowed without asking: capitalization and punctuation to fit the slot. Everything else STOPS:
-   - action item (e.g. `(<-- hyperlink)`) → resolve the target, then confirm the target with the user;
+   - action item (e.g. `(<-- hyperlink)`) → resolve the target, then confirm the target with the user. A resolved inline link is written **into the body** as a `[label](href)` markdown marker, **not** by splitting the body: strip the directive note, wrap the link word in the marker, and keep the body one string. `label` stays Cal's verbatim word(s);
    - any grammar or wording concern → ask and confirm before changing;
    - unsure whether text is literal copy or a directive → ask.
-     Record every confirmed change as a `transform` in the ledger.
+     Record every confirmed change as a `transform` in the ledger (for links: `agent-resolved`, naming the `[label](href)` marker).
 6. **Apply** — write the final string into `marketing.ts` for the ID. If the ID is not in the registry yet (extraction pending), leave the ledger entry `status: placeholder`, record the captured source, and report it — do not fail.
 7. **Verify + report** — typecheck/build, run `rg "\[\["` for remaining stubs, and report per ID: placed / still-placeholder / flagged / drift.
 
@@ -50,7 +53,7 @@
 ## Edge cases
 
 - **Missing registry ID:** record in source + ledger as pending, report; never fail the run.
-- **Split-JSX prose** (text wrapping a link, e.g. about-page references): decompose into sub-IDs (`.pre` / `.link` / `.post`) or a single templated entry; keep it consistent across runs.
+- **Inline-link prose** (text wrapping a link, e.g. about-page references): keep the body **one entry** and write the link inline as a `[label](href)` marker (see _Inline links_ above). Do **not** split into `.pre`/`.link`/`.post` sub-IDs — that fragments the verbatim block and breaks the Step 4 diff. While a slot is still a `[[ ... ]]` placeholder there is no marker yet; the marker is added when Cal's real copy lands.
 
 ## Invocation (Claude)
 

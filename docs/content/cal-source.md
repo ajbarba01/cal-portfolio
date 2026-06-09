@@ -10,10 +10,56 @@
 
 ## Entries
 
-### example.id.slot
-
-> Replace this example once real copy arrives.
+### home.hero.hook
 
 ```
-Verbatim text exactly as Cal supplied it, including (<-- hyperlink) notes.
+Reliable dog walking and pet care on the Front Range
+```
+
+### home.hero.body
+
+```
+Highly individualized drop-in visits, walks, house sitting, and training from a local animal-lover
+```
+
+### home.trust.1.title
+
+```
+Safety first
+```
+
+### home.trust.1.body
+
+```
+Through my experiences as an EMT, Wilderness First Responder (WFR), and veterinary shadow, I've learned a great deal about pet safety, health, and risk prevention. I incorporate this knowledge into every walk, visit, and house sit, helping keep pets safe, healthy, and happy. I also hope to help pet owners learn more about keeping their animals safe through the resources (<-- hyperlink) available on this site.
+```
+
+### home.trust.2.title
+
+```
+Well-trusted
+```
+
+### home.trust.2.body
+
+```
+I work hard to earn the trust of both pets and their people. I'm grateful for the many kind reviews and recommendations I've received over the years, and I approach every visit, walk, and house sit with the same level of care and attention. You can read reviews and references from past clients here.
+```
+
+### home.trust.3.title
+
+```
+Experienced
+```
+
+### home.trust.3.body
+
+```
+I've been working in the pet care industry since 2021 and have cared for hundreds of animals with a wide range of personalities, ages, and needs. While most of my experience is with large-breed dogs, I've worked with all kinds of pets—from chickens and tortoises to senior Chihuahuas and energetic puppies. Every animal is different, and I enjoy getting to know each one as an individual.
+```
+
+### home.cta.header
+
+```
+Think we might be a good fit?
 ```
