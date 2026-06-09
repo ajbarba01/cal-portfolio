@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  activeNavHref,
   isActiveNav,
   isActiveNavItem,
   isActiveSection,
@@ -36,6 +37,31 @@ describe("isActiveSection", () => {
   });
   it("trailing-slash insensitive", () => {
     expect(isActiveSection("/account/", "/account")).toBe(true);
+  });
+});
+
+const ACCOUNT = [
+  "/account",
+  "/account/pets",
+  "/account/forms",
+  "/account/bookings",
+];
+const ADMIN = ["/admin", "/admin/clients", "/admin/bookings"];
+
+describe("activeNavHref", () => {
+  it("picks the most specific matching href", () => {
+    expect(activeNavHref("/account/pets", ACCOUNT)).toBe("/account/pets");
+  });
+  it("matches the index route exactly", () => {
+    expect(activeNavHref("/account", ACCOUNT)).toBe("/account");
+  });
+  it("stays active on a nested detail route", () => {
+    expect(activeNavHref("/admin/clients/abc-123", ADMIN)).toBe(
+      "/admin/clients",
+    );
+  });
+  it("returns null when nothing matches", () => {
+    expect(activeNavHref("/services", ACCOUNT)).toBeNull();
   });
 });
 
