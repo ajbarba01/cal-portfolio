@@ -4,7 +4,6 @@ import { useState } from "react";
 import { MeetGreetScheduler } from "@/features/accounts/_components/meet-greet-scheduler";
 import { RefreshOnInterval } from "@/components/util/refresh-on-interval";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import type { BookingRuleSettings } from "@/features/booking/availability";
 import type { PublicBusyRange } from "@/features/booking/busy-ranges";
 
@@ -31,10 +30,13 @@ function formatDenver(iso: string): string {
 export function MeetGreetStep({
   rules,
   initialBusy,
+  bookingId,
   bookingStartsAt,
 }: {
   rules: BookingRuleSettings;
   initialBusy: PublicBusyRange[];
+  /** Id of the active meet-greet booking, or null if none yet (drives reschedule). */
+  bookingId: string | null;
   /** ISO start of the active meet-greet booking, or null if none yet. */
   bookingStartsAt: string | null;
 }) {
@@ -69,22 +71,18 @@ export function MeetGreetStep({
             </div>
             <div>
               <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
-                Meet &amp; greet booked
+                Meet &amp; greet confirmed
               </p>
               <p className="font-heading text-foreground text-lg font-semibold">
                 {formatDenver(bookingStartsAt)}
               </p>
             </div>
           </div>
-          <div>
-            <Badge variant="pending">
-              <span aria-hidden="true">⏳</span> Awaiting Cal&apos;s
-              confirmation
-            </Badge>
-          </div>
           <p className="text-muted-foreground text-sm leading-relaxed">
-            After your visit, Cal will confirm you and your booking opens up.
-            We&apos;ll email you.
+            Your visit is on Cal&apos;s calendar.{" "}
+            <span aria-hidden="true">⏳</span> After you meet in person, Cal
+            approves your account and full booking opens up — we&apos;ll email
+            you.
           </p>
           <Button
             variant="outline"
@@ -100,6 +98,11 @@ export function MeetGreetStep({
         <MeetGreetScheduler
           rules={rules}
           initialBusy={initialBusy}
+          reschedule={
+            bookingId && bookingStartsAt
+              ? { bookingId, fromStartsAt: bookingStartsAt }
+              : undefined
+          }
           onBooked={() => setRescheduling(false)}
         />
       ) : null}

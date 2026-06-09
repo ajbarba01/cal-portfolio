@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { useAvailability } from "@/features/booking/use-availability";
 import { useBusyRanges } from "@/features/booking/use-busy-ranges";
 import { hourlySchedulerData } from "@/features/booking/hourly-scheduler-data";
-import { denverMidnight } from "@/features/booking/availability";
-import { createBooking } from "@/features/booking/actions";
+import { denverMidnight, denverDayKey } from "@/features/booking/availability";
+import { createBooking, rescheduleBooking } from "@/features/booking/actions";
 import { Scheduler } from "@/features/booking/_components/scheduler";
 import { BOOK_WALK_CAPABILITIES } from "@/features/booking/schedule-capabilities";
 import { ErrorState } from "@/components/feedback/error-state";
@@ -22,22 +22,39 @@ import type { PublicBusyRange } from "@/features/booking/busy-ranges";
 
 const MEET_GREET_SLUG = "meet-greet";
 
+/** UTC ISO → friendly America/Denver date+time. */
+function formatDenver(d: Date): string {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Denver",
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).format(d);
+}
+
 /**
  * Slim meet-and-greet scheduler. Reuses the same <Scheduler> (week-slots, same
- * day/time UI as walks) + availability/busy hooks + createBooking, but drops the
- * paid-booking machinery (pets, pricing/quote, recurring, deferred-auth gate) —
- * the meet-and-greet is free. Used inside onboarding step 2.
+ * day/time UI as walks) + availability/busy hooks, but drops the paid-booking
+ * machinery (pets, pricing/quote, recurring, deferred-auth gate). When `reschedule`
+ * is passed it pre-selects the existing slot, shows the your-booking dot + a
+ * from→to summary, and calls rescheduleBooking instead of createBooking.
  */
 export function MeetGreetScheduler({
   rules,
   initialBusy,
   durationMin = 30,
+  reschedule,
   onBooked,
 }: {
   rules: BookingRuleSettings;
   initialBusy: PublicBusyRange[];
   durationMin?: number;
-  /** Called after a successful booking (parent re-renders into booked state). */
+  /** Reschedule mode: the existing booking id + its current start (ISO). */
+  reschedule?: { bookingId: string; fromStartsAt: string };
+  /** Called after a successful book/reschedule (parent re-renders into booked state). */
   onBooked?: () => void;
 }) {
   const router = useRouter();
@@ -54,6 +71,18 @@ export function MeetGreetScheduler({
     initialBusy,
   );
 
+  // Pre-select the existing slot when rescheduling: drives the Scheduler's
+  // initial selection (muted/selected block) and the your-booking dot.
+  const initialSlot = useMemo(() => {
+    if (!reschedule) return undefined;
+    const from = new Date(reschedule.fromStartsAt);
+    const dayKey = denverDayKey(from);
+    const minute = Math.round(
+      (from.getTime() - denverMidnight(dayKey).getTime()) / 60_000,
+    );
+    return { dayKey, minute };
+  }, [reschedule]);
+
   const busyRanges = useMemo<BusyBlock[]>(
     () =>
       busy.map((b) => ({
@@ -64,6 +93,11 @@ export function MeetGreetScheduler({
     [busy],
   );
 
+  const myBookings = useMemo(
+    () => (initialSlot ? new Set([initialSlot.dayKey]) : new Set<string>()),
+    [initialSlot],
+  );
+
   const data = useMemo<SchedulerData>(
     () =>
       hourlySchedulerData({
@@ -72,9 +106,9 @@ export function MeetGreetScheduler({
         busy: busyRanges,
         durationMin,
         rules,
-        myBookings: new Set<string>(),
+        myBookings,
       }),
-    [now, openWindows, busyRanges, durationMin, rules],
+    [now, openWindows, busyRanges, durationMin, rules, myBookings],
   );
 
   const capabilities = useMemo(
@@ -110,22 +144,28 @@ export function MeetGreetScheduler({
     const startsAt = selectedStart;
     const endsAt = new Date(startsAt.getTime() + durationMs);
     startSubmitting(async () => {
-      const result = await createBooking({
-        serviceSlug: MEET_GREET_SLUG,
-        startsAt,
-        endsAt,
-        quantities: {},
-        recurringRule: null,
-      });
+      const result = reschedule
+        ? await rescheduleBooking({ bookingId: reschedule.bookingId, startsAt })
+        : await createBooking({
+            serviceSlug: MEET_GREET_SLUG,
+            startsAt,
+            endsAt,
+            quantities: {},
+            recurringRule: null,
+          });
       if (result.kind === "success") {
-        toast.add({ title: "Meet & greet booked" });
+        toast.add({
+          title: reschedule
+            ? "Meet & greet rescheduled"
+            : "Meet & greet booked",
+        });
         void refreshBusy();
         onBooked?.();
         router.refresh();
       } else {
         toast.add({
-          title: "Couldn't book",
-          description: `Please try another time (${result.kind}).`,
+          title: "Couldn't save your time",
+          description: `Please try another slot (${result.kind}).`,
           type: "error",
         });
       }
@@ -147,6 +187,7 @@ export function MeetGreetScheduler({
         capabilities={capabilities}
         data={data}
         onSelectionChange={onSelectionChange}
+        initialSlot={initialSlot}
       >
         <Scheduler.MonthGrid />
         <Scheduler.Legend className="mt-5" />
@@ -155,12 +196,32 @@ export function MeetGreetScheduler({
         </div>
         <Scheduler.BookingDetailsPanel />
       </Scheduler>
+
+      {reschedule && selectedStart ? (
+        <p className="text-muted-foreground text-sm" aria-live="polite">
+          Rescheduling from{" "}
+          <span className="text-foreground font-medium">
+            {formatDenver(new Date(reschedule.fromStartsAt))}
+          </span>{" "}
+          to{" "}
+          <span className="text-foreground font-medium">
+            {formatDenver(selectedStart)}
+          </span>
+        </p>
+      ) : null}
+
       <Button
         onClick={handleConfirm}
         disabled={!selectedStart || isSubmitting}
         className="w-full sm:w-auto"
       >
-        {isSubmitting ? "Booking…" : "Confirm meet & greet"}
+        {isSubmitting
+          ? reschedule
+            ? "Rescheduling…"
+            : "Booking…"
+          : reschedule
+            ? "Confirm"
+            : "Confirm meet & greet"}
       </Button>
     </div>
   );

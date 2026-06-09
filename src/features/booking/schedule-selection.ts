@@ -267,12 +267,16 @@ export function mergeDraftToRanges(
 export function createInitialSelectionState(args: {
   todayKey: string;
   focusedWeekStart?: string;
+  /** Pre-seed the selected day(s) — used to rehydrate a reschedule. */
+  selectedDays?: Set<string>;
+  /** Pre-seed the time-grid draft cells ("dayKey@minute") — reschedule rehydrate. */
+  gridDraft?: Set<string>;
 }): ScheduleSelectionState {
   return {
-    selectedDays: new Set<string>(),
+    selectedDays: new Set<string>(args.selectedDays ?? []),
     anchorDay: null,
     focusedWeekStart: args.focusedWeekStart ?? sundayWeekStart(args.todayKey),
-    gridDraft: new Set<string>(),
+    gridDraft: new Set<string>(args.gridDraft ?? []),
     inspectedBookingId: null,
   };
 }

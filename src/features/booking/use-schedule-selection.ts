@@ -24,6 +24,7 @@ import {
   createInitialSelectionState,
   collapseRuns,
   weekDays,
+  sundayWeekStart,
   isPast as isPastPure,
 } from "./schedule-selection";
 import type { ScheduleSelectionState } from "./schedule-selection";
@@ -60,11 +61,20 @@ export interface UseScheduleSelectionResult {
 export function useScheduleSelection(args: {
   todayKey: string;
   initialFocusedWeek?: string;
+  /** Pre-select an existing time slot (e.g. rescheduling): seeds the day, the
+   *  grid cell, and the focused week so the slot renders selected on mount. */
+  initialSlot?: { dayKey: string; minute: number };
 }): UseScheduleSelectionResult {
   const [state, dispatch] = useReducer(scheduleSelectionReducer, args, (a) =>
     createInitialSelectionState({
       todayKey: a.todayKey,
-      focusedWeekStart: a.initialFocusedWeek,
+      focusedWeekStart:
+        a.initialFocusedWeek ??
+        (a.initialSlot ? sundayWeekStart(a.initialSlot.dayKey) : undefined),
+      selectedDays: a.initialSlot ? new Set([a.initialSlot.dayKey]) : undefined,
+      gridDraft: a.initialSlot
+        ? new Set([`${a.initialSlot.dayKey}@${a.initialSlot.minute}`])
+        : undefined,
     }),
   );
 
