@@ -344,6 +344,26 @@ export interface BookingRepository {
   updateBookingStatus(id: string, status: BookingStatusDb): Promise<void>;
 
   /**
+   * Fetch ownership + status + current time range for a reschedule. The range is
+   * needed to preserve the booking's duration (only the start moves). Null if
+   * not found.
+   */
+  getBookingTimes(id: string): Promise<{
+    id: string;
+    client_id: string;
+    status: BookingStatusDb;
+    startsAt: Date;
+    endsAt: Date;
+  } | null>;
+
+  /**
+   * Move a booking to a new time range in place (status/price unchanged). Throws
+   * on the `no_same_class_overlap` exclusion violation with `code = '23P01'` so
+   * the core can surface it as `slot_taken` — the same arbiter as insert.
+   */
+  updateBookingTimes(id: string, startsAt: Date, endsAt: Date): Promise<void>;
+
+  /**
    * Fetch all open availability windows (ends_at >= now).
    * `now` is injected (no clock read inside the repo) for testability and to
    * match the booking core's "inject now" contract.
@@ -573,6 +593,46 @@ export function createSupabaseBookingRepository(
         throw new Error(
           `Failed to update booking '${id}' status to '${status}': ${error.message}`,
         );
+      }
+    },
+
+    async getBookingTimes(id) {
+      const { data, error } = await client
+        .from("bookings")
+        .select("id, client_id, status, starts_at, ends_at")
+        .eq("id", id)
+        .single();
+
+      if (error) {
+        if (error.code === "PGRST116") return null;
+        throw new Error(`Failed to load booking '${id}': ${error.message}`);
+      }
+
+      return {
+        id: data.id as string,
+        client_id: data.client_id as string,
+        status: data.status as BookingStatusDb,
+        startsAt: new Date(data.starts_at as string),
+        endsAt: new Date(data.ends_at as string),
+      };
+    },
+
+    async updateBookingTimes(id, startsAt, endsAt) {
+      const { error } = await client
+        .from("bookings")
+        .update({
+          starts_at: startsAt.toISOString(),
+          ends_at: endsAt.toISOString(),
+        })
+        .eq("id", id);
+
+      if (error) {
+        // Propagate the Postgres SQLSTATE so the core can map 23P01 → slot_taken.
+        const err = new Error(
+          `Failed to reschedule booking '${id}': ${error.message}`,
+        ) as Error & { code?: string };
+        if (error.code) err.code = error.code;
+        throw err;
       }
     },
 
