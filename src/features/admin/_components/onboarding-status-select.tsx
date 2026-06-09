@@ -8,23 +8,23 @@ import {
   SelectItem,
   SelectTrigger,
 } from "@/components/ui/select";
+import { badgeVariants } from "@/components/ui/badge";
 import { useConfirm } from "@/components/feedback/confirm-dialog";
 import { useToast } from "@/components/feedback/toast";
 import { setOnboardingStatus } from "@/features/admin/clients-actions";
-import { onboardingStatusLabel } from "@/features/admin/onboarding-badge";
+import {
+  onboardingStatusLabel,
+  onboardingStatusBadgeVariant,
+} from "@/features/admin/onboarding-badge";
 import { cn } from "@/lib/utils";
 import type { OnboardingStatus } from "@/features/booking/booking-repository";
 
 /** The three admin-settable statuses (info_pending is client-driven, not settable). */
 const SETTABLE = [
-  { value: "meet_greet_pending", label: "Pending", dot: "bg-status-pending" },
+  { value: "meet_greet_pending", label: "Pending", dot: "bg-brand" },
   { value: "approved", label: "Approved", dot: "bg-status-available" },
   { value: "declined", label: "Declined", dot: "bg-destructive" },
 ] as const;
-
-function dotFor(status: OnboardingStatus): string {
-  return SETTABLE.find((s) => s.value === status)?.dot ?? "bg-muted-foreground";
-}
 
 export function OnboardingStatusSelect({
   clientId,
@@ -47,14 +47,11 @@ export function OnboardingStatusSelect({
     return (
       <span
         className={cn(
-          "text-muted-foreground inline-flex items-center gap-2 text-sm",
+          badgeVariants({ variant: "default" }),
+          "text-muted-foreground",
           className,
         )}
       >
-        <span
-          className="bg-muted-foreground size-2 rounded-full"
-          aria-hidden="true"
-        />
         Profile pending
       </span>
     );
@@ -86,21 +83,23 @@ export function OnboardingStatusSelect({
     });
   }
 
+  // Trigger reuses the status Badge styling (same variant mapping as everywhere
+  // else) so the control reads as an editable status pill, not a form field.
   return (
     <>
       {dialog}
       <Select value={status} onValueChange={onChange} disabled={isPending}>
         <SelectTrigger
-          className={cn("w-44", className)}
           aria-label="Onboarding status"
+          className={cn(
+            badgeVariants({
+              variant: onboardingStatusBadgeVariant(status),
+            }),
+            "h-auto w-fit cursor-pointer gap-1 border-0 py-1 pr-1.5 pl-2.5 shadow-none focus-visible:ring-2 disabled:opacity-60 [&_svg]:size-3.5 [&_svg]:opacity-60",
+            className,
+          )}
         >
-          <span className="flex items-center gap-2">
-            <span
-              className={cn("size-2 rounded-full", dotFor(status))}
-              aria-hidden="true"
-            />
-            {onboardingStatusLabel(status)}
-          </span>
+          {onboardingStatusLabel(status)}
         </SelectTrigger>
         <SelectContent>
           {SETTABLE.map((opt) => (
