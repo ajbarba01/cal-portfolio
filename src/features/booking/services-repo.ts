@@ -55,6 +55,8 @@ export async function listActiveServices(
       "slug, name, description, pricing_type, pricing_config, concurrency, default_duration_min, max_pets",
     )
     .eq("active", true)
+    // Meet-and-greet is scheduled only within onboarding, not public services.
+    .neq("pricing_type", "meet_greet")
     .order("sort_order");
 
   if (error || !data) return [];
