@@ -25,6 +25,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { createSupabaseBookingRepository } from "./booking-repository";
 import {
   createBookingCore,
+  rescheduleBookingCore,
   cancelBookingCore,
   grantFullRefundCore,
   markNoShowCore,
@@ -35,6 +36,7 @@ import { ResendMailer } from "@/features/notifications/resend-mailer";
 import { sendBookingConfirmation } from "@/features/notifications/send-booking-emails";
 import type {
   CreateBookingResult,
+  RescheduleBookingResult,
   CancelBookingResult,
   CreateBookingInput,
   CancelBookingInput,
@@ -120,6 +122,33 @@ export async function createBooking(
   }
 
   return result;
+}
+
+/**
+ * Server action: reschedule a booking to a new start time. The booking's
+ * duration, status, and price are preserved — only the time moves. Ownership is
+ * verified in the core against the authenticated user id.
+ */
+export async function rescheduleBooking(input: {
+  bookingId: string;
+  startsAt: Date;
+}): Promise<RescheduleBookingResult> {
+  const authClient = await createClient();
+  const {
+    data: { user },
+  } = await authClient.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  const serviceClient = createServiceClient();
+  const repo = createSupabaseBookingRepository(serviceClient);
+
+  return rescheduleBookingCore(
+    { repo, now: new Date() },
+    { bookingId: input.bookingId, userId: user.id, startsAt: input.startsAt },
+  );
 }
 
 /**
