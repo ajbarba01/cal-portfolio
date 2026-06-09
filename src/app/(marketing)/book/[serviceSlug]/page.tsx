@@ -12,7 +12,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { getPublicBusyRanges } from "@/features/booking/busy-ranges";
+import { loadBookingFormData } from "@/features/booking/booking-form-data";
 import { denverDayKey } from "@/features/booking/availability";
 import {
   ServiceBookingClient,
@@ -20,7 +20,6 @@ import {
   type ServiceDetail,
 } from "./_components/service-booking-client";
 import type { AssignablePet } from "./_components/pet-assignment";
-import type { BookingRuleSettings } from "@/features/booking/availability";
 import type { OnboardingStatus } from "@/features/booking/booking-repository";
 import type { PricingType } from "@/features/pricing/types";
 import type { PetSpecies } from "@/features/booking/_components/pet-avatar";
@@ -68,16 +67,9 @@ export default async function ServiceBookingPage({
         : null,
   };
 
-  // Settings → booking rules.
-  const { data: settingsData, error: settingsError } = await svc
-    .from("settings")
-    .select(
-      "booking_open_minute, booking_close_minute, min_lead_time_hours, hard_max_advance_days",
-    )
-    .limit(1)
-    .single();
-
-  if (settingsError || !settingsData) {
+  // Booking-rule settings + initial public busy ranges (shared loader).
+  const loaded = await loadBookingFormData(serviceSlug);
+  if (!loaded.ok) {
     return (
       <main className="mx-auto max-w-2xl px-4 py-12">
         <p className="text-destructive">
@@ -86,16 +78,7 @@ export default async function ServiceBookingPage({
       </main>
     );
   }
-
-  const rules: BookingRuleSettings = {
-    bookingOpenMinute: settingsData.booking_open_minute as number,
-    bookingCloseMinute: settingsData.booking_close_minute as number,
-    minLeadTimeHours: settingsData.min_lead_time_hours as number,
-    hardMaxAdvanceDays: settingsData.hard_max_advance_days as number,
-  };
-
-  // Initial public busy ranges (identity-free) for this service's class.
-  const initialBusy = await getPublicBusyRanges(serviceSlug);
+  const { rules, initialBusy } = loaded.data;
 
   // Auth state + pets.
   const authClient = await createClient();
