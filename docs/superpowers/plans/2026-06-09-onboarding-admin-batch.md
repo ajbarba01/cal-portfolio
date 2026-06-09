@@ -2003,10 +2003,22 @@ with no visual-design decision, and each keeps the build green on its own commit
   data change described in E4 Step 1 — it is data, not UI)
 
 **Gates (run before each commit; the next reader may not expose the same skills):**
-`npm run typecheck` · `npm run lint` · `npx vitest run`. Use the exact per-task
-commit messages already written in each task. Do **not** start any task outside
-the list above — those are reserved for Claude's UX pass and several depend on
-your helpers.
+`npm run typecheck` · `npm run lint` · and the **task's own test file(s)** via
+`npx vitest run <path>` (e.g. `npx vitest run src/components/layout/is-active-nav.test.ts`).
+
+> **Do NOT gate on the full `npx vitest run` suite.** Several existing suites
+> (`admin.test.ts`, `onboarding-action.test.ts`, and other `*.test.ts` whose
+> header says "Prerequisites: local Supabase stack running") are **integration
+> tests** that connect to a local Supabase instance via `.env.test`. Without that
+> stack they fail (e.g. `listServicesCore` non-success, `submitInquiryCore`
+> "Phone is required") — independent of any change in Codex's scope, which only
+> adds pure unit tests + pure refactors. The full integration suite is a separate
+> release gate, run by the maintainer/CI where the stack is up; it is **out of
+> scope for these foundation tasks.**
+
+Use the exact per-task commit messages already written in each task. Do **not**
+start any task outside the list above — those are reserved for Claude's UX pass
+and several depend on your helpers.
 
 ### Reserved for Claude (do NOT implement)
 
@@ -2027,6 +2039,23 @@ and stop.** Do not improvise. The maintainer relays criticals back to Claude.
 
 Finding: B1 targeted test passed after adding `activeNavHref`, but the required pre-commit full gate `npx vitest run` fails in existing `src/features/admin/admin.test.ts`: `listServicesCore` setup returns non-success, and `submitInquiryCore` rejects the fixture with "Phone is required". `npm run typecheck` passed; `npm run lint` returned 0 errors and one existing warning in `src/features/pricing/quote.ts`.
 Options: (a) maintainer fixes or updates the existing admin integration fixtures, then Codex resumes B1 commit and remaining scope; (b) maintainer explicitly narrows the gate for this Codex batch. Recommend (a). Awaiting maintainer.
+
+### RESOLUTION — designer (Claude), 2026-06-09
+
+Root cause = **my plan named the wrong gate**, not a code problem. `admin.test.ts`
+(and `onboarding-action.test.ts`, etc.) are **integration tests** requiring a
+running local Supabase stack via `.env.test` ("Prerequisites: local Supabase stack
+running" in their headers). The `listServicesCore` / `submitInquiryCore` failures
+are that live-DB suite failing with no stack — unrelated to B1 (a pure
+`is-active-nav` helper). Chose option (b): the gate is now narrowed.
+
+**Gate change (see `## Handoff` → Gates):** for every Codex task, gate on
+`npm run typecheck` · `npm run lint` · `npx vitest run <the task's own test file>`
+— NOT the full suite. The integration suite is a separate release gate the
+maintainer/CI runs where the stack is up.
+
+**Codex: resume.** Commit B1 (its targeted test already passed), then continue
+C1 → D1 → D2 → D3 → D5 → E1 → E2 under the narrowed gate.
 
 ---
 
