@@ -13,6 +13,7 @@ import type {
   CheckInConfig,
   WalkConfig,
   TrainingConfig,
+  MeetGreetConfig,
 } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -55,6 +56,8 @@ const trainingConfigSchema = z.object({
   rate_cents_per_hour: centsSchema,
 });
 
+const meetGreetConfigSchema = z.object({}).strict();
+
 // ---------------------------------------------------------------------------
 // Discriminated dispatcher
 // ---------------------------------------------------------------------------
@@ -67,7 +70,9 @@ type ConfigForType<T extends PricingType> = T extends "house_sitting"
       ? WalkConfig
       : T extends "training"
         ? TrainingConfig
-        : never;
+        : T extends "meet_greet"
+          ? MeetGreetConfig
+          : never;
 
 /**
  * Parses and validates a raw `pricing_config` JSON object for the given
@@ -90,6 +95,8 @@ export function parsePricingConfig<T extends PricingType>(
       return walkConfigSchema.parse(raw) as ConfigForType<T>;
     case "training":
       return trainingConfigSchema.parse(raw) as ConfigForType<T>;
+    case "meet_greet":
+      return meetGreetConfigSchema.parse(raw) as ConfigForType<T>;
     default: {
       // Exhaustiveness check — TypeScript will error here if a new
       // PricingType is added without a corresponding case.

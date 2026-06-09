@@ -5,12 +5,30 @@
  * schemas here (those live in config-schemas.ts).
  */
 
-/** The four service pricing types (closed union). */
-export type PricingType = "house_sitting" | "check_in" | "walk" | "training";
+/** The pricing types (closed union). meet_greet is the free onboarding visit. */
+export type PricingType =
+  | "house_sitting"
+  | "check_in"
+  | "walk"
+  | "training"
+  | "meet_greet";
 
 // ---------------------------------------------------------------------------
 // Validated config shapes (one per PricingType)
 // ---------------------------------------------------------------------------
+
+/**
+ * Validated pricing_config for the meet-and-greet (no priced fields).
+ * `Record<never, never>` (an empty object) rather than `interface {}` so it
+ * matches what `z.object({}).strict()` infers (single-cast, like the other
+ * config types) without imposing a `never` value on every string key the way
+ * `Record<string, never>` would — which would break the QuoteInputModifiers
+ * intersection in QuoteInput.
+ */
+export type MeetGreetConfig = Record<never, never>;
+
+/** Quantities for a meet-and-greet (none — it is free and unpriced). */
+export type MeetGreetQuantities = Record<never, never>;
 
 /** Validated pricing_config for house_sitting. */
 export interface HouseSittingConfig {
@@ -123,6 +141,11 @@ export type QuoteInput =
       pricingType: "training";
       pricingConfig: TrainingConfig;
     } & TrainingQuantities &
+      QuoteInputModifiers)
+  | ({
+      pricingType: "meet_greet";
+      pricingConfig: MeetGreetConfig;
+    } & MeetGreetQuantities &
       QuoteInputModifiers);
 
 // ---------------------------------------------------------------------------

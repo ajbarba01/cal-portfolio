@@ -346,6 +346,17 @@ function quoteTraining(
 }
 
 // ---------------------------------------------------------------------------
+// meet_greet
+// ---------------------------------------------------------------------------
+
+function quoteMeetGreet(
+  _input: Extract<QuoteInput, { pricingType: "meet_greet" }>,
+): QuoteBreakdown {
+  // A free service is never discounted or travel-charged — no modifiers applied.
+  return { lines: [], finalCents: 0 };
+}
+
+// ---------------------------------------------------------------------------
 // Public dispatcher
 // ---------------------------------------------------------------------------
 
@@ -368,6 +379,8 @@ export function quote(input: QuoteInput): QuoteBreakdown {
       return quoteWalk(input);
     case "training":
       return quoteTraining(input);
+    case "meet_greet":
+      return quoteMeetGreet(input);
     default: {
       // Exhaustiveness check — TS errors here if a new PricingType is added
       // without a corresponding case.

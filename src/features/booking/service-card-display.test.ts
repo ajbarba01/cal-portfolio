@@ -5,6 +5,21 @@ import {
   serviceCardDurationLabel,
 } from "./service-card-display";
 
+// ---------------------------------------------------------------------------
+// meet_greet fixture (mirrors check_in shape — single-day timed visit)
+// ---------------------------------------------------------------------------
+
+const MEET_GREET_SERVICE = {
+  slug: "meet-greet",
+  name: "Meet & Greet",
+  description: null,
+  concurrency: "exclusive",
+  default_duration_min: 30,
+  max_pets: null,
+  pricingType: "meet_greet",
+  pricingConfig: {},
+} satisfies PublicService;
+
 const HOUSE_SITTING_SERVICE = {
   slug: "house-sitting",
   name: "House Sitting",
@@ -128,5 +143,41 @@ describe("serviceCardDurationLabel", () => {
     { ...TRAINING_SERVICE, default_duration_min: null },
   ])("returns null when no duration is configured for %s", (service) => {
     expect(serviceCardDurationLabel(service)).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// meet_greet — behaves like check_in (single-day timed visit)
+// ---------------------------------------------------------------------------
+
+describe("serviceCardDescription meet_greet", () => {
+  it("falls back to a placeholder description", () => {
+    expect(serviceCardDescription(MEET_GREET_SERVICE)).toBe(
+      "[[BODY: short meet-and-greet service description]]",
+    );
+  });
+
+  it("preserves a real non-empty description", () => {
+    expect(
+      serviceCardDescription({
+        ...MEET_GREET_SERVICE,
+        description: "A free intro visit.",
+      }),
+    ).toBe("A free intro visit.");
+  });
+});
+
+describe("serviceCardDurationLabel meet_greet", () => {
+  it("returns the configured duration in minutes", () => {
+    expect(serviceCardDurationLabel(MEET_GREET_SERVICE)).toBe("30 min");
+  });
+
+  it("returns null when no duration is configured", () => {
+    expect(
+      serviceCardDurationLabel({
+        ...MEET_GREET_SERVICE,
+        default_duration_min: null,
+      }),
+    ).toBeNull();
   });
 });

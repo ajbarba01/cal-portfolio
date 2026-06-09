@@ -11,6 +11,7 @@ import type {
   CheckInConfig,
   WalkConfig,
   TrainingConfig,
+  MeetGreetConfig,
 } from "./types";
 
 type ConfigForType<T extends PricingType> = T extends "house_sitting"
@@ -21,7 +22,9 @@ type ConfigForType<T extends PricingType> = T extends "house_sitting"
       ? WalkConfig
       : T extends "training"
         ? TrainingConfig
-        : never;
+        : T extends "meet_greet"
+          ? MeetGreetConfig
+          : never;
 
 /**
  * Formats integer cents as a dollar string.
@@ -61,6 +64,8 @@ export function headlineRate<T extends PricingType>(
       const cfg = pricingConfig as TrainingConfig;
       return `${formatCents(cfg.rate_cents_per_hour)} / hour`;
     }
+    case "meet_greet":
+      return "Free";
     default: {
       // Exhaustiveness check.
       const _exhaustive: never = pricingType;

@@ -10,6 +10,7 @@ import type {
   CheckInConfig,
   WalkConfig,
   TrainingConfig,
+  MeetGreetConfig,
 } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -91,5 +92,9 @@ describe("headlineRate", () => {
   it("check_in: reflects fractional rate", () => {
     const cfg: CheckInConfig = { rate_cents_per_hour: 3250, minimum_cents: 0 };
     expect(headlineRate("check_in", cfg)).toBe("$32.50 / hour");
+  });
+
+  it("meet_greet headline rate is Free", () => {
+    expect(headlineRate("meet_greet", {} as MeetGreetConfig)).toBe("Free");
   });
 });

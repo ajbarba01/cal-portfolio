@@ -26,7 +26,8 @@ export type QuantityState =
   | { type: "house_sitting"; qty: HouseSittingExtras }
   | { type: "check_in"; qty: HoursQty }
   | { type: "walk"; qty: HoursQty }
-  | { type: "training"; qty: HoursQty };
+  | { type: "training"; qty: HoursQty }
+  | { type: "meet_greet"; qty: Record<never, never> };
 
 export function defaultQuantities(pricingType: PricingType): QuantityState {
   switch (pricingType) {
@@ -41,6 +42,8 @@ export function defaultQuantities(pricingType: PricingType): QuantityState {
       return { type: "walk", qty: { hours: 1 } };
     case "training":
       return { type: "training", qty: { hours: 1 } };
+    case "meet_greet":
+      return { type: "meet_greet", qty: {} };
   }
 }
 
@@ -67,6 +70,8 @@ export function quantitiesToRecord(
     case "training":
     case "walk":
       return { hours: qs.qty.hours };
+    case "meet_greet":
+      return {};
   }
 }
 
@@ -165,8 +170,13 @@ export function QuantityForm({
     );
   }
 
+  // meet_greet has no quantity inputs — it is a free, unpriced service.
+  if (state.type === "meet_greet") {
+    return null;
+  }
+
   // Hours-based services (check_in / walk / training).
-  const idMap: Record<typeof state.type, string> = {
+  const idMap: Record<"check_in" | "walk" | "training", string> = {
     check_in: "checkin-hours",
     walk: "walk-hours",
     training: "training-hours",

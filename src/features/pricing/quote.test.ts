@@ -5,6 +5,7 @@ import type {
   CheckInConfig,
   WalkConfig,
   TrainingConfig,
+  MeetGreetConfig,
 } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -431,6 +432,23 @@ describe("quote training", () => {
       });
       expect(result.finalCents, `hours=${hours}`).toBe(expected);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// meet_greet
+// ---------------------------------------------------------------------------
+
+describe("quote meet_greet", () => {
+  it("meet_greet quote is free with no lines", () => {
+    const result = quote({
+      pricingType: "meet_greet",
+      pricingConfig: {} as MeetGreetConfig,
+      recurringDiscountApplies: false,
+      recurringDiscountPct: 10,
+      applyKiche: false,
+    });
+    expect(result).toEqual({ lines: [], finalCents: 0 });
   });
 });
 

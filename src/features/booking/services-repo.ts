@@ -14,6 +14,7 @@ import type {
   CheckInConfig,
   WalkConfig,
   TrainingConfig,
+  MeetGreetConfig,
 } from "@/features/pricing/types";
 
 // ---------------------------------------------------------------------------
@@ -24,7 +25,8 @@ export type ServicePricingConfig =
   | { pricingType: "house_sitting"; pricingConfig: HouseSittingConfig }
   | { pricingType: "check_in"; pricingConfig: CheckInConfig }
   | { pricingType: "walk"; pricingConfig: WalkConfig }
-  | { pricingType: "training"; pricingConfig: TrainingConfig };
+  | { pricingType: "training"; pricingConfig: TrainingConfig }
+  | { pricingType: "meet_greet"; pricingConfig: MeetGreetConfig };
 
 export type PublicService = {
   slug: string;
