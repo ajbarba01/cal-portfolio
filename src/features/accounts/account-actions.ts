@@ -8,7 +8,7 @@
  * Identity always comes from getUser() (session cookie), never from payload.
  *
  * Column grant on profiles.UPDATE allows ONLY: full_name, email, phone, avatar_url, address, zip.
- * role, lat, lng, kiche_allowed, onboarding_complete are system-set and blocked at the DB level.
+ * role, lat, lng, kiche_allowed, onboarding_status are system-set and blocked at the DB level.
  */
 
 import { createClient } from "@/lib/supabase/server";
@@ -72,7 +72,7 @@ async function requireUserId(client: SupabaseClient): Promise<string> {
 
 /**
  * Core: update profile fields via a session-scoped client (RLS + column grant enforced).
- * Does NOT write role/lat/lng/kiche_allowed/onboarding_complete — those are blocked by the grant.
+ * Does NOT write role/lat/lng/kiche_allowed/onboarding_status — those are blocked by the grant.
  */
 export async function runUpdateProfile(
   sessionClient: SupabaseClient,
