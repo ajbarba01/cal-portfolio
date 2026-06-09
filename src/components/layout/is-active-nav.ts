@@ -16,6 +16,21 @@ export function isActiveSection(pathname: string, href: string): boolean {
   return a === b || a.startsWith(b + "/");
 }
 
+/**
+ * Returns the href that should be highlighted for `pathname`, choosing the most
+ * specific matching section. Returns null if no item matches.
+ */
+export function activeNavHref(
+  pathname: string,
+  hrefs: string[],
+): string | null {
+  const matches = hrefs.filter((href) => isActiveSection(pathname, href));
+  if (matches.length === 0) return null;
+  return matches.reduce((best, href) =>
+    href.length > best.length ? href : best,
+  );
+}
+
 /** Marketing-nav matcher: primary section plus any explicitly owned route sections. */
 export function isActiveNavItem(pathname: string, item: NavItem): boolean {
   return [item.href, ...(item.activeSections ?? [])].some((section) =>
