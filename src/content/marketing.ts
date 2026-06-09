@@ -32,19 +32,31 @@ export const copy = {
 
   // About — src/app/(marketing)/about/page.tsx
   "about.eyebrow": "[[HEADER: about eyebrow]]",
-  "about.summary": "[[BODY: one-line about summary]]",
-  "about.bio.p1": "[[BODY: bio paragraph 1 — background/experience]]",
-  "about.bio.p2": "[[BODY: bio paragraph 2 — services offered]]",
-  "about.bio.p3": "[[BODY: bio paragraph 3 — additional context]]",
-  "about.approach.1.title": "[[Item 1: approach principle]]",
-  "about.approach.1.detail": "[[Item 1: detail]]",
-  "about.approach.2.title": "[[Item 2: approach principle]]",
-  "about.approach.2.detail": "[[Item 2: detail]]",
-  "about.approach.3.title": "[[Item 3: approach principle]]",
-  "about.approach.3.detail": "[[Item 3: detail]]",
-  // Inline /reviews link: when Cal's real copy lands, write it into the body as
-  // a `[Reviews](/reviews)` markdown marker (rendered by MarketingCopy).
-  "about.references": "[[BODY: pointer to references and the reviews page]]",
+  "about.summary": "Hi! I'm Cal.",
+  "about.bio.p1":
+    "I recently graduated from Colorado College with a degree in Anthropology and currently live in Lakewood—though I also spend time in Boulder and throughout the Front Range.",
+  "about.bio.p2":
+    "Animals have been a part of my life for as long as I can remember. Growing up, my family had three cats and three dogs, and I now have my own husky mix (named Kiche), who is rarely far from my side.",
+  "about.bio.p3":
+    "Over the years, I've had the opportunity to work with hundreds of pets. My experience includes caring for puppies, senior pets, highly anxious dogs, reactive dogs, and multi-pet households, with much of my work centered around large-breed dogs. Beyond hands-on pet care, I've shadowed a veterinarian and have human-focused medical training as well (EMT and WFR). With my own dogs, I've explored activities such as agility, scent work, canicross, and bikejoring, and I enjoy continuing to learn about animal behavior, health, and enrichment.",
+  "about.bio.p4":
+    "When I'm not working, I like to spend my time outdoors or practicing sports. I enjoy climbing, hiking, running, lifting, and martial arts. My own husky mix, Kiche, has accompanied me on eight Colorado fourteeners so far and we plan to do many more!",
+  "about.approach.p1":
+    "Every pet has different needs, and every household has different routines, preferences, and expectations. My goal is to provide thoughtful, individualized care that helps both pets and their people feel comfortable and supported. I welcome clients from all backgrounds and strive to create an experience that is respectful, inclusive, and free of judgment.",
+  "about.approach.p2":
+    "Whether I'm taking your dog on a walk, stopping by for a visit, or caring for your pets and your home while you're away, I aim to provide the same level of attention, reliability, and compassion that I would want for my own animals.",
+  // References intro + named clients. Contact info is intentionally NOT published
+  // (privacy) — it's "available on request" via the reach-out line in the intro.
+  "about.references":
+    "The following clients have graciously agreed to serve as references. Please feel free to reach out if you have any questions about their experience working with me.",
+  "about.references.1": "Ginna, Bill and Niko",
+  "about.references.2": "Simone and Splash",
+  "about.references.3": "Carol and Millie",
+  "about.references.4": "Claudia and Sophie",
+  "about.references.5": "Abby and Sloane",
+  "about.references.6": "Kula and Lila",
+  "about.references.7": "Madeleine, Apollo, Anabella",
+  "about.references.8": "Bugaboo",
 
   // Services — src/app/(marketing)/services/page.tsx
   "services.overview": "[[BODY: services overview]]",
@@ -56,29 +68,72 @@ export const copy = {
   "reviews.purpose": "[[BODY: reviews section purpose]]",
 
   // Resources — src/app/(marketing)/resources/page.tsx
-  // (r3/r4 are real public-fact entries kept inline in the page, not here.)
-  "resources.1.name": "[[Resource 1: name]]",
-  "resources.1.desc": "[[Resource 1: one-line description]]",
-  "resources.2.name": "[[Resource 2: name]]",
-  "resources.2.desc": "[[Resource 2: one-line description]]",
-  "resources.faq.1.q": "[[FAQ 1: question]]",
-  "resources.faq.1.a": "[[FAQ 1: answer]]",
-  "resources.faq.2.q": "[[FAQ 2: question]]",
-  "resources.faq.2.a": "[[FAQ 2: answer]]",
-  "resources.faq.3.q": "[[FAQ 3: question]]",
-  "resources.faq.3.a": "[[FAQ 3: answer]]",
-  "resources.faq.4.q": "[[FAQ 4: question]]",
-  "resources.faq.4.a": "[[FAQ 4: answer]]",
-  "resources.faq.5.q": "[[FAQ 5: question]]",
-  "resources.faq.5.a": "[[FAQ 5: answer]]",
+  // Names link to the external URL Cal supplied; href lives in the page data, the
+  // name stays raw copy (a link can't nest in the <a>). Section headings are
+  // hardcoded structural labels, not copy IDs. Tools/Enrichment are names only.
+  "resources.intro":
+    "Over the years, I've spent a lot of time learning about animal health, behavior, training, and safety. The resources below cover topics I frequently discuss with clients, including several hazards that are particularly common in Colorado.",
+
+  // Health & Safety
+  "resources.health.1.name": "Animal CPR",
+  "resources.health.1.desc":
+    "Animal CPR is similar to human CPR, but differs in technique due to differences in anatomy. While we hope to never need this skill, knowing the basics can make a critical difference in an emergency and can provide valuable peace of mind.",
+  "resources.health.2.name": "Animal Poison Control",
+  "resources.health.2.desc":
+    "If you suspect your pet has ingested or come into contact with a toxic substance, animal poison hotlines can help assess the situation and provide guidance. They will typically ask for information such as your pet's weight, age, medical history, medications, and details about the suspected toxin.",
+  "resources.health.3.name": "Bloat/GVD",
+  "resources.health.3.desc":
+    'Gastric dilatation volvulus (GDV), also known as "bloat" is a life-threatening condition pet owners, especially large-chested dog owners, should be aware of. To reduce the risk of bloat, I recommend that you avoid feeding your dogs in the hour preceding walks or other physical activity.',
+  "resources.health.4.name": "Heat stroke",
+  "resources.health.4.desc":
+    "Heat stroke is a serious risk for dogs in Colorado (especially for brachiocephalic/short-snouted breeds) and can become life-threatening very quickly. On hot days I pay extra attention to changes in behavior, energy levels, and body language.",
+  "resources.health.5.name": "Hot Pavement",
+  "resources.health.5.desc":
+    "When temperatures are above 80°F, I recommend checking surface temperatures before walking your dog. I test this by putting the back of my hand on a sunny patch of pavement for 10–15 seconds—if it's too hot for my hand, it's probably too hot for a dog's paws. Keep in mind that some surfaces, including certain patios, concrete, artificial turf, and dark-colored materials, can become even hotter than asphalt.",
+  "resources.health.6.name": "Parvovirus",
+  "resources.health.6.desc":
+    "Parvo is a highly contagious and often-fatal virus that is especially concerning for puppies. While early socialization is important, I caution against taking puppies to places frequented by unknown dogs—such as dog parks, pet store floors, or other high-traffic dog areas—until they have completed their vaccination series.",
+  "resources.health.7.name": "Foxtails",
+  "resources.health.7.desc":
+    "Foxtails are common throughout Colorado and can cause minor to severe health problems if they become lodged in a dog's eyes, ears, nose, paws, or skin. If your dog enjoys running through tall grass or off-trail areas, I recommend learning how to identify foxtails and considering the use of a protective field guard (such as an OutFox® hood) in high-risk areas.",
+  "resources.health.8.name": "Algae Blooms",
+  "resources.health.8.desc":
+    "Harmful algae blooms are not rare in Colorado and occur regularly in ponds, lakes, reservoirs, and slow-moving water during the warmer months. Because exposure can be rapidly fatal, I recommend keeping dogs out of any unfamiliar body of water, especially those that appear unusually green, blue-green, murky, or covered in surface scum.",
+  "resources.health.9.name": "Household Toxins",
+  "resources.health.9.desc":
+    "While most pet owners know about hazards like chocolate and grapes, toxins such as minoxidil (Rogaine), xylitol/sugar alcohols, cannabis, and caffeine are often overlooked. It's worth familiarizing yourself with common household hazards, understanding the potential severity of reactions (such as those caused by grapes/raisins/wine), and keeping potentially toxic substances out of reach of pets.",
+
+  // Tools & Training (names only — links/descriptions may come later)
+  "resources.tools.1.name": "E collars",
+  "resources.tools.2.name": "Harness vs collar",
+  "resources.tools.3.name": "Recall Training",
+  "resources.tools.4.name": "Loose-leash walking",
+
+  // Enrichment & Well-Being (names only)
+  "resources.enrichment.1.name": "Doggy consent",
+  "resources.enrichment.2.name": "Puppy socialization checklist",
+  "resources.enrichment.3.name": "Mental stimulation ideas",
+  "resources.enrichment.4.name": "Raw food",
+
+  "resources.closing":
+    "Please let me know if there are other resources you think I should share. I'm always learning, and I'd love to continue expanding this list with helpful information!",
+
+  // FAQ
+  "resources.faq.1.q":
+    "Can you watch my animal at your house?/Can you board my animal?",
+  "resources.faq.1.a":
+    "Unfortunately, I'm unable to care for clients' pets in my own home at this time due to housing restrictions and the needs of my own dog. I am, however, happy to take your pup on walks, hikes, and other adventures outside of your home!",
+  "resources.faq.2.q": "Will I receive updates while I'm away?",
+  "resources.faq.2.a":
+    "Yes! I'm happy to send updates and photos as often as you'd like. I know it can be difficult to be away from your pets, and I strive to provide clear communication and timely responses throughout your booking.",
 
   // Gallery — src/app/(marketing)/gallery/page.tsx
   "gallery.eyebrow": "[[HEADER: gallery eyebrow]]",
   "gallery.body": "[[BODY: one line about the photos]]",
 
   // Contact — src/app/(marketing)/contact/page.tsx
-  "contact.header": "[[HEADER: Contact]]",
-  "contact.subtitle": "[[BODY: what the contact form is for]]",
+  // No subtitle: Cal dropped it ("actually i don't think we need this") — 2026-06-09.
+  "contact.header": "Contact Me",
 
   // Footer — src/components/layout/site-footer.tsx
   "footer.tagline": "[[Pet care tagline]]",

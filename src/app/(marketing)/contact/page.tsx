@@ -29,10 +29,7 @@ export default async function ContactPage() {
 
   return (
     <PageContainer width="read" className="py-12 sm:py-16">
-      <PageHeader
-        title={<MarketingCopy id="contact.header" />}
-        subtitle={<MarketingCopy id="contact.subtitle" />}
-      />
+      <PageHeader title={<MarketingCopy id="contact.header" />} />
       <ContactForm
         defaultName={defaults.name}
         defaultEmail={defaults.email}
