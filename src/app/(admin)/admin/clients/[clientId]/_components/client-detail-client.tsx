@@ -13,10 +13,10 @@ import {
 } from "@/features/admin/approval-actions";
 import {
   setKicheAllowed,
-  setOnboardingStatus,
   settleDebit,
   type ClientDetailView,
 } from "@/features/admin/clients-actions";
+import { OnboardingStatusSelect } from "@/features/admin/_components/onboarding-status-select";
 import {
   onboardingStatusLabel,
   onboardingStatusBadgeVariant,
@@ -102,19 +102,6 @@ export function ClientDetailClient({ client }: { client: ClientDetailView }) {
   const meetGreetBooking =
     client.bookings.find((b) => b.service_name === "Meet & Greet") ?? null;
 
-  async function onApprove() {
-    if (meetGreetBooking && new Date(meetGreetBooking.starts_at) > new Date()) {
-      const isConfirmed = await confirm({
-        title: "Approve before the visit?",
-        description: `Meet & greet is scheduled for ${denver(meetGreetBooking.starts_at)} and hasn't happened yet. Approve anyway?`,
-        confirmLabel: "Approve anyway",
-      });
-      if (!isConfirmed) return;
-    }
-    // No booking or past booking: deliberate no-confirmation approval (not a missing guard).
-    run(() => setOnboardingStatus(client.id, "approved"));
-  }
-
   return (
     <div className="flex flex-col gap-4">
       {dialog}
@@ -172,54 +159,11 @@ export function ClientDetailClient({ client }: { client: ClientDetailView }) {
             Awaiting profile/forms from client.
           </p>
         ) : null}
-        {client.onboarding_status === "meet_greet_pending" ? (
-          <div className="flex flex-wrap gap-2">
-            <Button size="sm" disabled={isPending} onClick={onApprove}>
-              Approve client
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={isPending}
-              onClick={() =>
-                run(() => setOnboardingStatus(client.id, "declined"))
-              }
-            >
-              Decline
-            </Button>
-          </div>
-        ) : null}
-        {client.onboarding_status === "approved" ? (
-          <div className="flex flex-wrap gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={isPending}
-              onClick={() =>
-                run(() => setOnboardingStatus(client.id, "declined"))
-              }
-            >
-              Revoke approval
-            </Button>
-          </div>
-        ) : null}
-        {client.onboarding_status === "declined" ? (
-          <div className="flex flex-wrap gap-2">
-            <Button size="sm" disabled={isPending} onClick={onApprove}>
-              Approve client
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={isPending}
-              onClick={() =>
-                run(() => setOnboardingStatus(client.id, "meet_greet_pending"))
-              }
-            >
-              Re-open for review
-            </Button>
-          </div>
-        ) : null}
+        <OnboardingStatusSelect
+          clientId={client.id}
+          status={client.onboarding_status}
+          meetGreetUpcoming={client.meetGreetUpcoming}
+        />
       </section>
 
       <section className={SECTION}>
