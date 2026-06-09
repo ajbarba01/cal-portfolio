@@ -64,6 +64,12 @@ export function createResultMessage(
         text: `You have an outstanding balance of ${formatCents(result.owedCents)}. Please settle it before booking.`,
       };
 
+    case "onboarding_incomplete":
+      return {
+        tone: "info",
+        text: "Complete your onboarding before booking.",
+      };
+
     case "validation_error":
       return { tone: "error", text: result.message };
 
@@ -121,6 +127,15 @@ export function previewResultMessage(
         message: {
           tone: "error",
           text: `You have an outstanding balance of ${formatCents(result.owedCents)}. Please settle it before booking.`,
+        },
+      };
+
+    case "onboarding_incomplete":
+      return {
+        kind: "message",
+        message: {
+          tone: "info",
+          text: "Complete your onboarding before booking.",
         },
       };
 

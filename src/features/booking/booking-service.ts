@@ -67,6 +67,9 @@ import type { BookingRuleSettings } from "./availability";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
+/** Slug of the meet-and-greet service — the only service a meet_greet_pending client may book. */
+const MEET_GREET_SLUG = "meet-greet";
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Input Zod schemas (validate at the boundary — ENGINEERING #11)
 // ──────────────────────────────────────────────────────────────────────────────
@@ -126,6 +129,7 @@ export type CreateBookingResult =
   | { kind: "slot_taken" }
   | { kind: "unavailable"; reason: string }
   | { kind: "blocked_debt"; owedCents: number }
+  | { kind: "onboarding_incomplete" }
   | { kind: "validation_error"; message: string }
   | { kind: "error"; message: string };
 
@@ -159,6 +163,7 @@ export type PreviewResult =
   | { kind: "success"; preview: BookingQuotePreview }
   | { kind: "refuse"; reason: string }
   | { kind: "blocked_debt"; owedCents: number }
+  | { kind: "onboarding_incomplete" }
   | { kind: "validation_error"; message: string }
   | { kind: "error"; message: string };
 
@@ -214,6 +219,7 @@ type ArtifactsResult =
   | { kind: "success"; artifacts: BookingQuoteArtifacts }
   | { kind: "refuse"; reason: string }
   | { kind: "blocked_debt"; owedCents: number }
+  | { kind: "onboarding_incomplete" }
   | { kind: "validation_error"; message: string }
   | { kind: "error"; message: string };
 
@@ -250,6 +256,25 @@ async function computeBookingArtifacts(
   const outstandingDebtCents = await repo.getOutstandingDebtCents(input.userId);
   if (outstandingDebtCents > 0) {
     return { kind: "blocked_debt", owedCents: outstandingDebtCents };
+  }
+
+  // Onboarding gate (DESIGN: meet-and-greet). A client may book paid services
+  // only once approved; a meet_greet_pending client may book ONLY the
+  // meet-and-greet, and only one at a time. info_pending / declined book nothing.
+  const onboardingStatus = await repo.getOnboardingStatus(input.userId);
+  if (onboardingStatus !== "approved") {
+    const isMeetGreet = input.serviceSlug === MEET_GREET_SLUG;
+    // A non-approved client is blocked unless they are meet_greet_pending AND
+    // booking the meet-greet AND have no active meet-greet yet (one at a time).
+    // The hasActiveBooking check short-circuits — it only runs for the allowed
+    // meet_greet_pending + meet-greet combination.
+    if (
+      onboardingStatus !== "meet_greet_pending" ||
+      !isMeetGreet ||
+      (await repo.hasActiveBookingForServiceSlug(input.userId, MEET_GREET_SLUG))
+    ) {
+      return { kind: "onboarding_incomplete" };
+    }
   }
 
   // 2. Load from DB
@@ -481,6 +506,9 @@ export async function createBookingCore(
   }
   if (result.kind === "blocked_debt") {
     return { kind: "blocked_debt", owedCents: result.owedCents };
+  }
+  if (result.kind === "onboarding_incomplete") {
+    return { kind: "onboarding_incomplete" };
   }
 
   const { repo, now } = deps;

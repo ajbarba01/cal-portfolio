@@ -30,6 +30,7 @@ import {
   settleDebtCore,
 } from "./booking-service";
 import { createSupabaseBookingRepository } from "./booking-repository";
+import type { OnboardingStatus } from "./booking-repository";
 import { quote } from "@/features/pricing/quote";
 import type { WalkConfig } from "@/features/pricing/types";
 
@@ -66,6 +67,9 @@ let farUserId: string;
 let refuseUserId: string;
 let debtorUserId: string;
 let noShowUserId: string;
+let meetGreetPendingUserId: string;
+let infoPendingUserId: string;
+let declinedUserId: string;
 let coveringWindowId: string;
 
 // A future start time well within the booking window. We offset a fixed number
@@ -97,10 +101,12 @@ async function createTestUser(
     throw new Error(`Failed to create test user: ${error?.message}`);
   }
   const userId = data.user.id;
-  // Set lat/lng on the profile (the trigger creates the row without coordinates).
+  // Set lat/lng and onboarding_status on the profile (the trigger creates the
+  // row with onboarding_status='info_pending'; override to 'approved' so existing
+  // booking tests represent already-onboarded clients and pass the gate).
   const { error: profileErr } = await serviceClient
     .from("profiles")
-    .update({ lat, lng })
+    .update({ lat, lng, onboarding_status: "approved" })
     .eq("id", userId);
   if (profileErr) {
     throw new Error(`Failed to set profile lat/lng: ${profileErr.message}`);
@@ -139,6 +145,33 @@ beforeAll(async () => {
         NEAR_LNG,
       ),
     ]);
+
+  // Create onboarding-gate test users (NEAR coords so distance never refuses).
+  // createTestUser sets onboarding_status='approved'; override to the desired
+  // statuses via setOnboarding so the gate tests exercise non-approved paths.
+  [meetGreetPendingUserId, infoPendingUserId, declinedUserId] =
+    await Promise.all([
+      createTestUser(
+        `test-booking-mgpending-${ts}@example.invalid`,
+        NEAR_LAT,
+        NEAR_LNG,
+      ),
+      createTestUser(
+        `test-booking-infopending-${ts}@example.invalid`,
+        NEAR_LAT,
+        NEAR_LNG,
+      ),
+      createTestUser(
+        `test-booking-declined-${ts}@example.invalid`,
+        NEAR_LAT,
+        NEAR_LNG,
+      ),
+    ]);
+  await Promise.all([
+    setOnboarding(meetGreetPendingUserId, "meet_greet_pending"),
+    setOnboarding(infoPendingUserId, "info_pending"),
+    setOnboarding(declinedUserId, "declined"),
+  ]);
 
   // Verify seeded services exist (used via slug in createBookingCore).
   const { data: services, error } = await serviceClient
@@ -189,6 +222,9 @@ afterAll(async () => {
     refuseUserId,
     debtorUserId,
     noShowUserId,
+    meetGreetPendingUserId,
+    infoPendingUserId,
+    declinedUserId,
   ].filter(Boolean);
 
   await serviceClient.from("bookings").delete().in("client_id", allUserIds);
@@ -253,6 +289,19 @@ async function countRows(clientId: string): Promise<number> {
     .select("id")
     .eq("client_id", clientId);
   return data?.length ?? 0;
+}
+
+/** Override a profile's onboarding_status for gate tests. */
+async function setOnboarding(
+  userId: string,
+  status: OnboardingStatus,
+): Promise<void> {
+  const { error } = await serviceClient
+    .from("profiles")
+    .update({ onboarding_status: status })
+    .eq("id", userId);
+  if (error)
+    throw new Error(`Failed to set onboarding_status: ${error.message}`);
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -1069,5 +1118,89 @@ describe("createBookingCore: pet assignment", () => {
       recurringRule: null,
     });
     expect(result.kind).toBe("validation_error");
+  });
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Onboarding gate
+// ──────────────────────────────────────────────────────────────────────────────
+
+describe("createBookingCore: onboarding gate", () => {
+  it("meet_greet_pending user booking walk → onboarding_incomplete", async () => {
+    const start = futureStart(60);
+    const result = await createBookingCore(deps(), {
+      userId: meetGreetPendingUserId,
+      serviceSlug: "walk",
+      startsAt: start,
+      endsAt: futureEnd(start),
+      quantities: { hours: 1, dogs: 1 },
+      recurringRule: null,
+    });
+    expect(result.kind).toBe("onboarding_incomplete");
+  });
+
+  it("meet_greet_pending: first meet-greet succeeds, second is blocked (one at a time)", async () => {
+    // Self-contained: book one meet-greet (succeeds), then a second is blocked
+    // by the one-at-a-time rule. No dependency on other tests' DB side-effects.
+    const start1 = futureStart(61);
+    const first = await createBookingCore(deps(), {
+      userId: meetGreetPendingUserId,
+      serviceSlug: "meet-greet",
+      startsAt: start1,
+      endsAt: futureEnd(start1),
+      quantities: {},
+      recurringRule: null,
+    });
+    expect(first.kind).toBe("success");
+
+    const start2 = futureStart(62);
+    const second = await createBookingCore(deps(), {
+      userId: meetGreetPendingUserId,
+      serviceSlug: "meet-greet",
+      startsAt: start2,
+      endsAt: futureEnd(start2),
+      quantities: {},
+      recurringRule: null,
+    });
+    expect(second.kind).toBe("onboarding_incomplete");
+  });
+
+  it("info_pending user booking meet-greet → onboarding_incomplete", async () => {
+    const start = futureStart(63);
+    const result = await createBookingCore(deps(), {
+      userId: infoPendingUserId,
+      serviceSlug: "meet-greet",
+      startsAt: start,
+      endsAt: futureEnd(start),
+      quantities: {},
+      recurringRule: null,
+    });
+    expect(result.kind).toBe("onboarding_incomplete");
+  });
+
+  it("declined user booking meet-greet → onboarding_incomplete", async () => {
+    const start = futureStart(64);
+    const result = await createBookingCore(deps(), {
+      userId: declinedUserId,
+      serviceSlug: "meet-greet",
+      startsAt: start,
+      endsAt: futureEnd(start),
+      quantities: {},
+      recurringRule: null,
+    });
+    expect(result.kind).toBe("onboarding_incomplete");
+  });
+
+  it("approved near user booking walk → success (regression)", async () => {
+    const start = futureStart(65);
+    const result = await createBookingCore(deps(), {
+      userId: nearUserId,
+      serviceSlug: "walk",
+      startsAt: start,
+      endsAt: futureEnd(start),
+      quantities: { hours: 1, dogs: 1 },
+      recurringRule: null,
+    });
+    expect(result.kind).toBe("success");
   });
 });
