@@ -1980,6 +1980,53 @@ Expected: PASS.
 
 ---
 
+## Handoff
+
+**Split handoff (maintainer directive 2026-06-09): Codex implements the non-UX
+foundation; Claude (senior-designer) implements the UX-design surfaces.**
+
+### Codex scope — implement these tasks only
+
+Order: **B1 → C1 → D1 → D2 → D3 → D5 → E1 → E2.** Each is logic/data/refactor
+with no visual-design decision, and each keeps the build green on its own commit
+(new helpers/fields stay unconsumed until Claude's UX tasks wire them in).
+
+- **B1** — `activeNavHref` pure helper + test
+- **C1** — exclude `meet_greet` from `listActiveServices` + test
+- **D1** — pure `hourlySchedulerData` + test
+- **D2** — refactor `service-booking-client.tsx` to use `hourlySchedulerData`
+- **D3** — `booking-form-data` loader; use it in the book page
+- **D5** — `RefreshOnInterval` utility
+- **E1** — pure `deriveMeetGreetUpcoming` + test
+- **E2** — add `meetGreetUpcoming` to `ClientListRow` + `listClientsCore`
+  (also do the `ClientDetailView` / `getClientDetailCore` `meetGreetUpcoming`
+  data change described in E4 Step 1 — it is data, not UI)
+
+**Gates (run before each commit; the next reader may not expose the same skills):**
+`npm run typecheck` · `npm run lint` · `npx vitest run`. Use the exact per-task
+commit messages already written in each task. Do **not** start any task outside
+the list above — those are reserved for Claude's UX pass and several depend on
+your helpers.
+
+### Reserved for Claude (do NOT implement)
+
+A (onboarding form UI), B2 (sidebar locked visual), D4 (MeetGreetScheduler),
+D6 (MeetGreetStep card), D7 (retire `/book/meet-greet` — lands with D6),
+E3–E5 (status dropdown UI + wiring), F (docs). These need design judgment and/or
+land the user-facing surfaces; Claude picks them up after Codex's foundation.
+
+### Escalation
+
+If a spec/plan detail is ambiguous, contradicts the codebase, a gate cannot pass,
+or scope creep appears: **stop, append an entry to `## Handoff log` below, commit,
+and stop.** Do not improvise. The maintainer relays criticals back to Claude.
+
+## Handoff log
+
+_(empty — implementers append escalations here, newest last)_
+
+---
+
 ## Self-Review Notes
 
 - **Spec coverage:** #1+#2 → Cluster A; #3 → B2; #3b → B1/B2; #4 → D5/D6; #5 (de-list) → C1, (embed) → D1–D6, (modularize) → D1–D3, (retire route) → D7; #6 → E1–E5; no-emoji → D6 (PawPrint/CalendarCheck/Clock) + B2 (Lock); tokens → status dots in E3, semantic classes throughout; DESIGN.md → F1. All covered.
