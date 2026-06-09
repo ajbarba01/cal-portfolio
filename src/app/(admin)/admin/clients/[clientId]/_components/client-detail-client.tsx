@@ -13,9 +13,14 @@ import {
 } from "@/features/admin/approval-actions";
 import {
   setKicheAllowed,
+  setOnboardingStatus,
   settleDebit,
   type ClientDetailView,
 } from "@/features/admin/clients-actions";
+import {
+  onboardingStatusLabel,
+  onboardingStatusBadgeVariant,
+} from "@/features/admin/onboarding-badge";
 import { PetAvatar } from "@/features/booking/_components/pet-avatar";
 import { cancelBooking, markNoShow } from "@/features/booking/actions";
 
@@ -94,6 +99,22 @@ export function ClientDetailClient({ client }: { client: ClientDetailView }) {
     run(() => markNoShow(id));
   }
 
+  const meetGreetBooking =
+    client.bookings.find((b) => b.service_name === "Meet & Greet") ?? null;
+
+  async function onApprove() {
+    if (meetGreetBooking && new Date(meetGreetBooking.starts_at) > new Date()) {
+      const isConfirmed = await confirm({
+        title: "Approve before the visit?",
+        description: `Meet & greet is scheduled for ${denver(meetGreetBooking.starts_at)} and hasn't happened yet. Approve anyway?`,
+        confirmLabel: "Approve anyway",
+      });
+      if (!isConfirmed) return;
+    }
+    // No booking or past booking: deliberate no-confirmation approval (not a missing guard).
+    run(() => setOnboardingStatus(client.id, "approved"));
+  }
+
   return (
     <div className="flex flex-col gap-4">
       {dialog}
@@ -114,8 +135,6 @@ export function ClientDetailClient({ client }: { client: ClientDetailView }) {
           <dd>
             {[client.address, client.zip].filter(Boolean).join(", ") || "-"}
           </dd>
-          <dt className="text-muted-foreground">Onboarded</dt>
-          <dd>{client.onboarding_complete ? "Yes" : "No"}</dd>
           <dt className="text-muted-foreground">Joined</dt>
           <dd>{denver(client.created_at)}</dd>
         </dl>
@@ -128,6 +147,79 @@ export function ClientDetailClient({ client }: { client: ClientDetailView }) {
           />
           Kiche discount eligible
         </label>
+      </section>
+
+      <section className={SECTION}>
+        <p className={LEGEND}>Onboarding</p>
+        <div className="flex items-center gap-2 text-sm">
+          <Badge
+            variant={onboardingStatusBadgeVariant(client.onboarding_status)}
+          >
+            {onboardingStatusLabel(client.onboarding_status)}
+          </Badge>
+        </div>
+        {meetGreetBooking ? (
+          <p className="text-muted-foreground text-sm">
+            Meet &amp; greet:{" "}
+            <span className="text-foreground font-medium">
+              {denver(meetGreetBooking.starts_at)}
+            </span>{" "}
+            &middot; {meetGreetBooking.status}
+          </p>
+        ) : null}
+        {client.onboarding_status === "info_pending" ? (
+          <p className="text-muted-foreground text-sm">
+            Awaiting profile/forms from client.
+          </p>
+        ) : null}
+        {client.onboarding_status === "meet_greet_pending" ? (
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" disabled={isPending} onClick={onApprove}>
+              Approve client
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={isPending}
+              onClick={() =>
+                run(() => setOnboardingStatus(client.id, "declined"))
+              }
+            >
+              Decline
+            </Button>
+          </div>
+        ) : null}
+        {client.onboarding_status === "approved" ? (
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={isPending}
+              onClick={() =>
+                run(() => setOnboardingStatus(client.id, "declined"))
+              }
+            >
+              Revoke approval
+            </Button>
+          </div>
+        ) : null}
+        {client.onboarding_status === "declined" ? (
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" disabled={isPending} onClick={onApprove}>
+              Approve client
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={isPending}
+              onClick={() =>
+                run(() => setOnboardingStatus(client.id, "meet_greet_pending"))
+              }
+            >
+              Re-open for review
+            </Button>
+          </div>
+        ) : null}
       </section>
 
       <section className={SECTION}>

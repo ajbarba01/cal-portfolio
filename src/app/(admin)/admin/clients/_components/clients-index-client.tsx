@@ -8,6 +8,10 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import type { ClientListRow } from "@/features/admin/clients-actions";
 import { matchesClientQuery } from "@/features/admin/client-search";
+import {
+  onboardingStatusLabel,
+  onboardingStatusBadgeVariant,
+} from "@/features/admin/onboarding-badge";
 
 function dollars(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
@@ -43,7 +47,7 @@ export function ClientsIndexClient({ clients }: { clients: ClientListRow[] }) {
                   <th className="py-2 pr-4 font-medium">Pets</th>
                   <th className="py-2 pr-4 font-medium">Bookings</th>
                   <th className="py-2 pr-4 font-medium">Balance</th>
-                  <th className="py-2 font-medium">Onboarded</th>
+                  <th className="py-2 font-medium">Onboarding</th>
                 </tr>
               </thead>
               <tbody>
@@ -75,7 +79,13 @@ export function ClientsIndexClient({ clients }: { clients: ClientListRow[] }) {
                       )}
                     </td>
                     <td className="py-2">
-                      {client.onboardingComplete ? "Yes" : "No"}
+                      <Badge
+                        variant={onboardingStatusBadgeVariant(
+                          client.onboardingStatus,
+                        )}
+                      >
+                        {onboardingStatusLabel(client.onboardingStatus)}
+                      </Badge>
                     </td>
                   </tr>
                 ))}
@@ -101,6 +111,13 @@ export function ClientsIndexClient({ clients }: { clients: ClientListRow[] }) {
                 <div className="mt-1 flex flex-wrap gap-2 text-xs">
                   <Badge>{client.petCount} pets</Badge>
                   <Badge>{client.bookingCount} bookings</Badge>
+                  <Badge
+                    variant={onboardingStatusBadgeVariant(
+                      client.onboardingStatus,
+                    )}
+                  >
+                    {onboardingStatusLabel(client.onboardingStatus)}
+                  </Badge>
                   {client.outstandingCents > 0 ? (
                     <Badge variant="destructive">
                       {dollars(client.outstandingCents)} owed
