@@ -2,7 +2,8 @@
 
 /**
  * Admin clients directory: index aggregates, client detail, Kiche eligibility,
- * and offline debit settlement. Service-role access follows an admin check.
+ * onboarding status, and offline debit settlement. Service-role access follows
+ * an admin check.
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -10,6 +11,10 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { createServiceClient } from "@/lib/supabase/service";
+import {
+  onboardingStatusSchema,
+  type OnboardingStatus,
+} from "@/features/booking/booking-repository";
 
 import { assertActorIsAdmin } from "./admin-guard";
 import { getActorOrRedirect } from "./admin-session";
@@ -30,7 +35,7 @@ export interface ClientListRow {
   petCount: number;
   bookingCount: number;
   outstandingCents: number;
-  onboardingComplete: boolean;
+  onboardingStatus: OnboardingStatus;
 }
 
 export type ListClientsResult =
@@ -48,7 +53,7 @@ export async function listClientsCore(
 
   const { data: profiles, error: profileError } = await serviceClient
     .from("profiles")
-    .select("id, full_name, email, phone, onboarding_complete")
+    .select("id, full_name, email, phone, onboarding_status")
     .eq("role", "client")
     .order("created_at", { ascending: false });
   if (profileError) return { kind: "error", message: profileError.message };
@@ -107,7 +112,8 @@ export async function listClientsCore(
     outstandingCents: outstandingBalanceCents(
       debitsByClient.get(profile.id as string) ?? [],
     ),
-    onboardingComplete: Boolean(profile.onboarding_complete),
+    onboardingStatus:
+      (profile.onboarding_status as OnboardingStatus) ?? "info_pending",
   }));
 
   return { kind: "success", clients };
@@ -157,7 +163,7 @@ export interface ClientDetailView {
   zip: string | null;
   avatar_url: string | null;
   kiche_allowed: boolean;
-  onboarding_complete: boolean;
+  onboarding_status: OnboardingStatus;
   created_at: string;
   pets: ClientPet[];
   forms: ClientFormResponse[];
@@ -184,7 +190,7 @@ export async function getClientDetailCore(
   const { data: profile, error: profileError } = await serviceClient
     .from("profiles")
     .select(
-      "id, full_name, email, phone, address, zip, avatar_url, kiche_allowed, onboarding_complete, created_at, role",
+      "id, full_name, email, phone, address, zip, avatar_url, kiche_allowed, onboarding_status, created_at, role",
     )
     .eq("id", clientId)
     .single();
@@ -249,7 +255,8 @@ export async function getClientDetailCore(
     zip: (profile.zip as string | null) ?? null,
     avatar_url: (profile.avatar_url as string | null) ?? null,
     kiche_allowed: Boolean(profile.kiche_allowed),
-    onboarding_complete: Boolean(profile.onboarding_complete),
+    onboarding_status:
+      (profile.onboarding_status as OnboardingStatus) ?? "info_pending",
     created_at: profile.created_at as string,
     pets: petViews,
     forms: (forms ?? []).map((form) => ({
@@ -367,6 +374,44 @@ export async function settleDebit(
   const result = await settleDebitCore(
     { serviceClient: createServiceClient(), actorUserId },
     debitId,
+  );
+  if (result.kind === "success") revalidatePath(`/admin/clients/${clientId}`);
+  return result;
+}
+
+export async function setOnboardingStatusCore(
+  deps: AdminDeps,
+  clientId: string,
+  status: string,
+): Promise<ClientMutationResult> {
+  if (!(await assertActorIsAdmin(deps.serviceClient, deps.actorUserId))) {
+    return { kind: "forbidden" };
+  }
+  if (!uuidSchema.safeParse(clientId).success) {
+    return { kind: "validation_error", message: "Invalid client id" };
+  }
+  const parsed = onboardingStatusSchema.safeParse(status);
+  if (!parsed.success) {
+    return { kind: "validation_error", message: "Invalid onboarding status" };
+  }
+  const { error } = await deps.serviceClient
+    .from("profiles")
+    .update({ onboarding_status: parsed.data })
+    .eq("id", clientId)
+    .eq("role", "client");
+  if (error) return { kind: "error", message: error.message };
+  return { kind: "success" };
+}
+
+export async function setOnboardingStatus(
+  clientId: string,
+  status: string,
+): Promise<ClientMutationResult> {
+  const actorUserId = await getActorOrRedirect();
+  const result = await setOnboardingStatusCore(
+    { serviceClient: createServiceClient(), actorUserId },
+    clientId,
+    status,
   );
   if (result.kind === "success") revalidatePath(`/admin/clients/${clientId}`);
   return result;

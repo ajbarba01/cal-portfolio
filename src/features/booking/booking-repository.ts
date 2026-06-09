@@ -21,7 +21,7 @@ import type { PricingType } from "@/features/pricing/types";
 export type ConcurrencyClass = "exclusive" | "resident";
 
 /** Onboarding lifecycle status. Schema + type single-sourced so they stay in sync. */
-const onboardingStatusSchema = z.enum([
+export const onboardingStatusSchema = z.enum([
   "info_pending",
   "meet_greet_pending",
   "approved",
