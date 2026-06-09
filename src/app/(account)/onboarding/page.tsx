@@ -86,12 +86,13 @@ export default async function OnboardingPage({
   }
 
   // For meet_greet_pending: check for an active (pending or confirmed) meet-and-greet booking.
+  let activeBookingId: string | null = null;
   let activeBookingStartsAt: string | null = null;
 
   if (status === "meet_greet_pending") {
     const { data: bookingRow } = await svc
       .from("bookings")
-      .select("starts_at, services!inner(slug)")
+      .select("id, starts_at, services!inner(slug)")
       .eq("client_id", user.id)
       .eq("services.slug", "meet-greet")
       .in("status", ["pending_approval", "confirmed"])
@@ -100,6 +101,7 @@ export default async function OnboardingPage({
       .limit(1)
       .single();
 
+    activeBookingId = typeof bookingRow?.id === "string" ? bookingRow.id : null;
     activeBookingStartsAt =
       typeof bookingRow?.starts_at === "string" ? bookingRow.starts_at : null;
   }
@@ -148,6 +150,7 @@ export default async function OnboardingPage({
         <MeetGreetStep
           rules={meetGreetFormData.data.rules}
           initialBusy={meetGreetFormData.data.initialBusy}
+          bookingId={activeBookingId}
           bookingStartsAt={activeBookingStartsAt}
         />
       </PageContainer>

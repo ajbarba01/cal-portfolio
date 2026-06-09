@@ -31,10 +31,13 @@ function formatDenver(iso: string): string {
 export function MeetGreetStep({
   rules,
   initialBusy,
+  bookingId,
   bookingStartsAt,
 }: {
   rules: BookingRuleSettings;
   initialBusy: PublicBusyRange[];
+  /** Id of the active meet-greet booking, or null if none yet (drives reschedule). */
+  bookingId: string | null;
   /** ISO start of the active meet-greet booking, or null if none yet. */
   bookingStartsAt: string | null;
 }) {
@@ -100,6 +103,11 @@ export function MeetGreetStep({
         <MeetGreetScheduler
           rules={rules}
           initialBusy={initialBusy}
+          reschedule={
+            bookingId && bookingStartsAt
+              ? { bookingId, fromStartsAt: bookingStartsAt }
+              : undefined
+          }
           onBooked={() => setRescheduling(false)}
         />
       ) : null}

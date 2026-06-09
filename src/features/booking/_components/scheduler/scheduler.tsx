@@ -37,6 +37,8 @@ export interface SchedulerProps {
   data: SchedulerData;
   callbacks?: SchedulerCallbacks;
   onSelectionChange?: (state: ScheduleSelectionState) => void;
+  /** Pre-select an existing time slot on mount (e.g. rescheduling). */
+  initialSlot?: { dayKey: string; minute: number };
   children: ReactNode;
 }
 
@@ -49,11 +51,12 @@ export function Scheduler({
   data,
   callbacks,
   onSelectionChange,
+  initialSlot,
   children,
 }: SchedulerProps) {
   const todayKey = denverDayKey(data.now);
 
-  const selection = useScheduleSelection({ todayKey });
+  const selection = useScheduleSelection({ todayKey, initialSlot });
 
   useEffect(() => {
     onSelectionChange?.(selection.state);
