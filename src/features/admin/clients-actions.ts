@@ -19,6 +19,7 @@ import {
 import { assertActorIsAdmin } from "./admin-guard";
 import { getActorOrRedirect } from "./admin-session";
 import { outstandingBalanceCents } from "./client-balance";
+import { deriveMeetGreetUpcoming } from "./meet-greet-upcoming";
 
 const SIGNED_URL_TTL_SECONDS = 60 * 60;
 
@@ -36,6 +37,8 @@ export interface ClientListRow {
   bookingCount: number;
   outstandingCents: number;
   onboardingStatus: OnboardingStatus;
+  /** Has a future, non-terminal meet-greet booking (drives the pre-visit approve confirm). */
+  meetGreetUpcoming: boolean;
 }
 
 export type ListClientsResult =
@@ -72,6 +75,22 @@ export async function listClientsCore(
     .from("client_debits")
     .select("client_id, amount_cents, settled_at");
   if (debitError) return { kind: "error", message: debitError.message };
+
+  const { data: mgBookings, error: mgError } = await serviceClient
+    .from("bookings")
+    .select("client_id, starts_at, status, services!inner(slug)")
+    .eq("services.slug", "meet-greet")
+    .in("status", ["pending_approval", "confirmed"]);
+  if (mgError) return { kind: "error", message: mgError.message };
+
+  const meetGreetUpcoming = deriveMeetGreetUpcoming(
+    (mgBookings ?? []).map((b) => ({
+      client_id: b.client_id as string,
+      starts_at: b.starts_at as string,
+      status: b.status as string,
+    })),
+    new Date(),
+  );
 
   const countByClient = (rows: { client_id: string }[]) => {
     const counts = new Map<string, number>();
@@ -114,6 +133,7 @@ export async function listClientsCore(
     ),
     onboardingStatus:
       (profile.onboarding_status as OnboardingStatus) ?? "info_pending",
+    meetGreetUpcoming: meetGreetUpcoming.has(profile.id as string),
   }));
 
   return { kind: "success", clients };
@@ -170,6 +190,8 @@ export interface ClientDetailView {
   bookings: ClientBookingRow[];
   debits: ClientDebitRow[];
   outstandingCents: number;
+  /** Has a future, non-terminal meet-greet booking (drives the pre-visit approve confirm). */
+  meetGreetUpcoming: boolean;
 }
 
 export type GetClientDetailResult =
@@ -246,6 +268,21 @@ export async function getClientDetailCore(
     created_at: debit.created_at as string,
   }));
 
+  const detailNow = new Date();
+  const meetGreetUpcoming = (bookings ?? []).some((booking) => {
+    const join = booking.services as
+      | { name: string }
+      | { name: string }[]
+      | null;
+    const name = Array.isArray(join) ? join[0]?.name : join?.name;
+    return (
+      name === "Meet & Greet" &&
+      (booking.status === "pending_approval" ||
+        booking.status === "confirmed") &&
+      new Date(booking.starts_at as string) > detailNow
+    );
+  });
+
   const client: ClientDetailView = {
     id: profile.id as string,
     full_name: (profile.full_name as string | null) ?? null,
@@ -285,6 +322,7 @@ export async function getClientDetailCore(
     }),
     debits: debitRows,
     outstandingCents: outstandingBalanceCents(debitRows),
+    meetGreetUpcoming,
   };
 
   return { kind: "success", client };
