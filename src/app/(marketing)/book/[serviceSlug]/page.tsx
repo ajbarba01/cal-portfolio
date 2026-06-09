@@ -8,7 +8,7 @@
  * rehydrates a returnTo selection from the query string.
  */
 
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
@@ -39,6 +39,12 @@ export default async function ServiceBookingPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { serviceSlug } = await params;
+
+  // Meet-and-greet is scheduled only within onboarding (see DESIGN.md).
+  if (serviceSlug === "meet-greet") {
+    redirect("/onboarding");
+  }
+
   const sp = await searchParams;
 
   const svc = createServiceClient();
