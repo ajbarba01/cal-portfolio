@@ -25,14 +25,15 @@ export default async function AccountLayout({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name")
+    .select("full_name, onboarding_status")
     .eq("id", user.id)
     .single();
   const identity = profile?.full_name ?? user.email ?? "Signed in";
+  const locked = profile?.onboarding_status !== "approved";
 
   return (
     <PageShell zoneNav={accountNav}>
-      <AppShell nav={accountNav} identity={identity}>
+      <AppShell nav={accountNav} identity={identity} locked={locked}>
         {children}
       </AppShell>
     </PageShell>
