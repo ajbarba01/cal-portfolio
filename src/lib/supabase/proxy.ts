@@ -72,10 +72,10 @@ export async function updateSession(request: NextRequest) {
     // Self-read of onboarding status (RLS permits a user to read their own row).
     const { data: profile } = await supabase
       .from("profiles")
-      .select("onboarding_complete")
+      .select("onboarding_status")
       .eq("id", claims.sub)
       .single();
-    const onboarded = profile?.onboarding_complete === true;
+    const onboarded = profile?.onboarding_status === "approved";
 
     // Un-onboarded users are confined to /onboarding; onboarded users never see it.
     if (!onboarded && isAccountArea) {
