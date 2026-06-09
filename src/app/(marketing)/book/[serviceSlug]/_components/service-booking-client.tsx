@@ -30,11 +30,9 @@ import { useRouter } from "next/navigation";
 import { useAvailability } from "@/features/booking/use-availability";
 import { useBusyRanges } from "@/features/booking/use-busy-ranges";
 import { useOvernightNights } from "@/features/booking/use-overnight-nights";
-import {
-  validateStayRange,
-  hourlyAvailableDayKeys,
-} from "@/features/booking/calendar-model";
+import { validateStayRange } from "@/features/booking/calendar-model";
 import { denverMidnight, denverDayKey } from "@/features/booking/availability";
+import { hourlySchedulerData } from "@/features/booking/hourly-scheduler-data";
 import { buildReturnTo } from "@/features/booking/return-to";
 import { previewQuote } from "@/features/booking/quote-action";
 import { createBooking } from "@/features/booking/actions";
@@ -255,56 +253,36 @@ export function ServiceBookingClient({
   // Hourly month availability: a day is "available" only if it has ≥1 open start
   // for the chosen duration (busy-filtered) — so changing duration re-derives it.
   // Fed to deriveBookableDays via overnightNights (which keys "available").
-  const availableDayKeys = useMemo(() => {
-    if (mode !== "week-slots") return overnightNights;
-    const days: Date[] = [];
-    const seen = new Set<string>();
-    for (let i = 0; i <= rules.hardMaxAdvanceDays; i++) {
-      const key = denverDayKey(new Date(now.getTime() + i * 86_400_000));
-      if (seen.has(key)) continue;
-      seen.add(key);
-      days.push(denverMidnight(key));
+  const schedulerData = useMemo<SchedulerData>(() => {
+    if (mode === "week-slots") {
+      return hourlySchedulerData({
+        now,
+        openWindows,
+        busy: busyRanges,
+        durationMin,
+        rules,
+        myBookings,
+      });
     }
-    return hourlyAvailableDayKeys({
-      days,
+    return {
+      overnightNights,
       windows: openWindows,
       busy: busyRanges,
-      durationMin,
-      granularityMin: 15,
-    });
+      busyResident: busyRanges,
+      myBookings,
+      rules,
+      now,
+    };
   }, [
     mode,
     overnightNights,
     openWindows,
     busyRanges,
     durationMin,
-    rules.hardMaxAdvanceDays,
+    rules,
+    myBookings,
     now,
   ]);
-
-  const schedulerData = useMemo<SchedulerData>(
-    () => ({
-      overnightNights:
-        mode === "week-slots" ? availableDayKeys : overnightNights,
-      windows: openWindows,
-      busy: busyRanges,
-      // Hourly days are never whole-day "busy"; busyRanges only block time slots.
-      busyResident: mode === "week-slots" ? [] : busyRanges,
-      myBookings,
-      rules,
-      now,
-    }),
-    [
-      mode,
-      availableDayKeys,
-      overnightNights,
-      openWindows,
-      busyRanges,
-      myBookings,
-      rules,
-      now,
-    ],
-  );
 
   // ── Derived booking time ─────────────────────────────────────────────────────
 
