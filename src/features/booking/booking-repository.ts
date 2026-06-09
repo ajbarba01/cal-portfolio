@@ -19,6 +19,16 @@ import type { PricingType } from "@/features/pricing/types";
 // ──────────────────────────────────────────────────────────────────────────────
 
 export type ConcurrencyClass = "exclusive" | "resident";
+
+/** Onboarding lifecycle status. Schema + type single-sourced so they stay in sync. */
+const onboardingStatusSchema = z.enum([
+  "info_pending",
+  "meet_greet_pending",
+  "approved",
+  "declined",
+]);
+export type OnboardingStatus = z.infer<typeof onboardingStatusSchema>;
+
 export type BookingStatusDb =
   | "pending_approval"
   | "confirmed"
@@ -144,7 +154,13 @@ const settingsRowSchema = z.object({
 const serviceRowSchema = z.object({
   id: z.string(),
   slug: z.string(),
-  pricing_type: z.enum(["house_sitting", "check_in", "walk", "training"]),
+  pricing_type: z.enum([
+    "house_sitting",
+    "check_in",
+    "walk",
+    "training",
+    "meet_greet",
+  ]),
   pricing_config: z.unknown(),
   concurrency: z.enum(["exclusive", "resident"]),
   requires_approval: z.boolean(),
@@ -383,6 +399,19 @@ export interface BookingRepository {
 
   /** Active busy ranges for the ADMIN calendar — enriched with owner + status. */
   getActiveBusyRangesEnriched(now: Date): Promise<AdminBusyRange[]>;
+
+  /** The caller's onboarding lifecycle status (gate input). */
+  getOnboardingStatus(userId: string): Promise<OnboardingStatus>;
+
+  /**
+   * True when the user already has a NON-TERMINAL booking (pending_approval |
+   * confirmed) for the given service slug — used to enforce one meet-and-greet
+   * at a time.
+   */
+  hasActiveBookingForServiceSlug(
+    userId: string,
+    slug: string,
+  ): Promise<boolean>;
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -821,6 +850,46 @@ export function createSupabaseBookingRepository(
             })),
         };
       });
+    },
+
+    async getOnboardingStatus(userId) {
+      const { data, error } = await client
+        .from("profiles")
+        .select("onboarding_status")
+        .eq("id", userId)
+        .single();
+      if (error) {
+        if (error.code === "PGRST116") return "info_pending";
+        throw new Error(
+          `Failed to load onboarding_status for '${userId}': ${error.message}`,
+        );
+      }
+      // Parse at the edge (ENGINEERING #11): the column is a Postgres enum, but a
+      // future enum value the app doesn't model must not flow through silently and
+      // be misread by gate logic as a non-gating status.
+      const parsed = onboardingStatusSchema.safeParse(data.onboarding_status);
+      if (!parsed.success) {
+        throw new Error(
+          `Unexpected onboarding_status '${String(data.onboarding_status)}' for '${userId}'`,
+        );
+      }
+      return parsed.data;
+    },
+
+    async hasActiveBookingForServiceSlug(userId, slug) {
+      const { data, error } = await client
+        .from("bookings")
+        .select("id, services!inner(slug)")
+        .eq("client_id", userId)
+        .eq("services.slug", slug)
+        .in("status", [...ACTIVE_BUSY_STATUSES])
+        .limit(1);
+      if (error) {
+        throw new Error(
+          `Failed to check active '${slug}' booking for '${userId}': ${error.message}`,
+        );
+      }
+      return (data ?? []).length > 0;
     },
   };
 }
