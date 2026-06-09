@@ -2023,7 +2023,10 @@ and stop.** Do not improvise. The maintainer relays criticals back to Claude.
 
 ## Handoff log
 
-_(empty — implementers append escalations here, newest last)_
+### ESCALATION - blocking
+
+Finding: B1 targeted test passed after adding `activeNavHref`, but the required pre-commit full gate `npx vitest run` fails in existing `src/features/admin/admin.test.ts`: `listServicesCore` setup returns non-success, and `submitInquiryCore` rejects the fixture with "Phone is required". `npm run typecheck` passed; `npm run lint` returned 0 errors and one existing warning in `src/features/pricing/quote.ts`.
+Options: (a) maintainer fixes or updates the existing admin integration fixtures, then Codex resumes B1 commit and remaining scope; (b) maintainer explicitly narrows the gate for this Codex batch. Recommend (a). Awaiting maintainer.
 
 ---
 
