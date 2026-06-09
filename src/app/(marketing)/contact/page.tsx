@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { createClient } from "@/lib/supabase/server";
 
 import { ContactForm } from "./_components/contact-form";
+import { copy } from "@/content/marketing";
 
 export const metadata = { title: "Contact" };
 
@@ -29,8 +30,8 @@ export default async function ContactPage() {
   return (
     <PageContainer width="read" className="py-12 sm:py-16">
       <PageHeader
-        title="[[HEADER: Contact]]"
-        subtitle="[[BODY: what the contact form is for]]"
+        title={copy["contact.header"]}
+        subtitle={copy["contact.subtitle"]}
       />
       <ContactForm
         defaultName={defaults.name}

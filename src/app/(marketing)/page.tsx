@@ -8,22 +8,23 @@ import { Eyebrow } from "@/components/marketing/eyebrow";
 import { PageContainer } from "@/components/layout/page-container";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { copy } from "@/content/marketing";
 
 const trustPoints = [
   {
     id: "trust-1",
-    title: "[[HEADER: trust point 1]]",
-    body: "[[BODY: trust point 1 detail]]",
+    title: copy["home.trust.1.title"],
+    body: copy["home.trust.1.body"],
   },
   {
     id: "trust-2",
-    title: "[[HEADER: trust point 2]]",
-    body: "[[BODY: trust point 2 detail]]",
+    title: copy["home.trust.2.title"],
+    body: copy["home.trust.2.body"],
   },
   {
     id: "trust-3",
-    title: "[[HEADER: trust point 3]]",
-    body: "[[BODY: trust point 3 detail]]",
+    title: copy["home.trust.3.title"],
+    body: copy["home.trust.3.body"],
   },
 ];
 
@@ -33,8 +34,8 @@ export default function HomePage() {
       <MarketingHero
         src="/bg/IMG_7869.JPG"
         eyebrow="Dog walking · house sitting · Colorado"
-        title="[[HEADER: hero hook]]"
-        body="[[BODY: services overview and what sets Cal apart]]"
+        title={copy["home.hero.hook"]}
+        body={copy["home.hero.body"]}
         actions={
           <>
             <Link
@@ -59,7 +60,7 @@ export default function HomePage() {
               id="why-heading"
               className="font-heading mt-2 text-2xl font-semibold sm:text-3xl"
             >
-              [[HEADER: why-Cal section]]
+              {copy["home.why.header"]}
             </h2>
           </div>
           <ul className="grid gap-10 sm:grid-cols-3" role="list">
@@ -84,10 +85,10 @@ export default function HomePage() {
       <section aria-label="Get started" className="bg-background">
         <PageContainer width="read" className="py-12 text-center sm:py-16">
           <h2 className="font-heading text-2xl font-semibold sm:text-3xl">
-            [[HEADER: closing CTA]]
+            {copy["home.cta.header"]}
           </h2>
           <p className="text-muted-foreground mx-auto mt-3 max-w-[44ch] leading-relaxed">
-            [[BODY: short prompt to book]]
+            {copy["home.cta.body"]}
           </p>
           <Link
             href="/services"

@@ -4,6 +4,7 @@ import {
   serviceCardDescription,
   serviceCardDurationLabel,
 } from "./service-card-display";
+import { copy } from "@/content/marketing";
 
 // ---------------------------------------------------------------------------
 // meet_greet fixture (mirrors check_in shape — single-day timed visit)
@@ -95,25 +96,19 @@ describe("serviceCardDescription", () => {
   });
 
   it.each([
-    [
-      HOUSE_SITTING_SERVICE,
-      "[[BODY: short house-sitting service description]]",
-    ],
-    [CHECK_IN_SERVICE, "[[BODY: short check-in service description]]"],
-    [WALK_SERVICE, "[[BODY: short walk service description]]"],
-    [TRAINING_SERVICE, "[[BODY: short training service description]]"],
+    [HOUSE_SITTING_SERVICE, copy["service.house_sitting.card.body"]],
+    [CHECK_IN_SERVICE, copy["service.check_in.card.body"]],
+    [WALK_SERVICE, copy["service.walk.card.body"]],
+    [TRAINING_SERVICE, copy["service.training.card.body"]],
   ])("falls back for an absent description on %s", (service, expected) => {
     expect(serviceCardDescription(service)).toBe(expected);
   });
 
   it.each([
-    [
-      HOUSE_SITTING_SERVICE,
-      "[[BODY: short house-sitting service description]]",
-    ],
-    [CHECK_IN_SERVICE, "[[BODY: short check-in service description]]"],
-    [WALK_SERVICE, "[[BODY: short walk service description]]"],
-    [TRAINING_SERVICE, "[[BODY: short training service description]]"],
+    [HOUSE_SITTING_SERVICE, copy["service.house_sitting.card.body"]],
+    [CHECK_IN_SERVICE, copy["service.check_in.card.body"]],
+    [WALK_SERVICE, copy["service.walk.card.body"]],
+    [TRAINING_SERVICE, copy["service.training.card.body"]],
   ])(
     "falls back for whitespace-only description on %s",
     (service, expected) => {
@@ -153,7 +148,7 @@ describe("serviceCardDurationLabel", () => {
 describe("serviceCardDescription meet_greet", () => {
   it("falls back to a placeholder description", () => {
     expect(serviceCardDescription(MEET_GREET_SERVICE)).toBe(
-      "[[BODY: short meet-and-greet service description]]",
+      copy["service.meet_greet.card.body"],
     );
   });
 

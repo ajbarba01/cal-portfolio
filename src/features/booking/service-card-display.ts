@@ -1,19 +1,20 @@
 import type { PublicService } from "@/features/booking/services-repo";
+import { copy } from "@/content/marketing";
 
 function descriptionFallback(
   pricingType: PublicService["pricingType"],
 ): string {
   switch (pricingType) {
     case "house_sitting":
-      return "[[BODY: short house-sitting service description]]";
+      return copy["service.house_sitting.card.body"];
     case "check_in":
-      return "[[BODY: short check-in service description]]";
+      return copy["service.check_in.card.body"];
     case "walk":
-      return "[[BODY: short walk service description]]";
+      return copy["service.walk.card.body"];
     case "training":
-      return "[[BODY: short training service description]]";
+      return copy["service.training.card.body"];
     case "meet_greet":
-      return "[[BODY: short meet-and-greet service description]]";
+      return copy["service.meet_greet.card.body"];
     default: {
       const _exhaustive: never = pricingType;
       throw new Error(`Unknown pricingType: ${String(_exhaustive)}`);

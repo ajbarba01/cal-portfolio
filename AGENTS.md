@@ -13,6 +13,7 @@ A site at `calbarba.com` — a **portfolio + self-serve booking system** for a d
 | [docs/CODE_STYLE.md](docs/CODE_STYLE.md)   | Formatting, naming, documentation                                        | writing any code                     |
 | [docs/FRONTEND.md](docs/FRONTEND.md)       | Design system, theming, design→code pipeline                             | building/altering UI                 |
 | [docs/WORKFLOW.md](docs/WORKFLOW.md)       | Dev loop, version control, handoff & escalation                          | starting a feature / committing      |
+| [docs/CONTENT.md](docs/CONTENT.md)         | Copy-sync protocol — transplanting Cal's marketing text                  | placing/updating site copy           |
 | [docs/ROUTING.md](docs/ROUTING.md)         | Model preferences per work-type; the override knob                       | choosing who plans / implements      |
 | [docs/ROLES.md](docs/ROLES.md)             | Role contracts (designer/implementer/reviewer); role inference           | acting as any agent in this repo     |
 
@@ -44,7 +45,7 @@ Next.js (App Router) + TypeScript · Tailwind + shadcn/ui · Supabase · Vercel 
 
 ## Layout (once scaffolded)
 
-`src/app/` routing only · `src/features/<domain>/` domain logic · `src/lib/` business-agnostic infra · `docs/` the doc system · `specs/` per-feature specs · design tokens in `src/app/globals.css` (color) + `src/lib/design-tokens.ts` (motion/etc). Rules in [docs/ENGINEERING.md](docs/ENGINEERING.md).
+`src/app/` routing only · `src/features/<domain>/` domain logic · `src/lib/` business-agnostic infra · `src/content/` Cal-owned copy registry (copy-sync target, see [docs/CONTENT.md](docs/CONTENT.md)) · `docs/` the doc system · `specs/` per-feature specs · design tokens in `src/app/globals.css` (color) + `src/lib/design-tokens.ts` (motion/etc). Rules in [docs/ENGINEERING.md](docs/ENGINEERING.md).
 
 ---
 

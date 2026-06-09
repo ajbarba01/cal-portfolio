@@ -7,6 +7,7 @@ import { Eyebrow } from "@/components/marketing/eyebrow";
 import { getGalleryImages } from "@/features/gallery/gallery-images";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { GalleryGrid } from "./_components/gallery-grid";
+import { copy } from "@/content/marketing";
 
 export default async function GalleryPage() {
   const images = await getGalleryImages();
@@ -14,12 +15,12 @@ export default async function GalleryPage() {
   return (
     <PageContainer width="app" className="py-12 sm:py-16">
       <div className="mb-8">
-        <Eyebrow>[[HEADER: gallery eyebrow]]</Eyebrow>
+        <Eyebrow>{copy["gallery.eyebrow"]}</Eyebrow>
         <h1 className="font-heading mt-2 text-4xl font-semibold tracking-tight">
           Gallery
         </h1>
         <p className="text-muted-foreground mt-2 max-w-[60ch] leading-relaxed">
-          [[BODY: one line about the photos]]
+          {copy["gallery.body"]}
         </p>
       </div>
 

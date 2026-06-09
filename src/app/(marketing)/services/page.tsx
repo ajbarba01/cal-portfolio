@@ -15,6 +15,7 @@ import {
 } from "@/features/booking/service-card-display";
 import { headlineRate } from "@/features/pricing/display";
 import type { PublicService } from "@/features/booking/services-repo";
+import { copy } from "@/content/marketing";
 
 function ServiceCard({ service }: { service: PublicService }) {
   const rate = headlineRate(service.pricingType, service.pricingConfig);
@@ -72,7 +73,7 @@ export default async function ServicesPage() {
     <PageContainer width="app" className="py-12 sm:py-16">
       <PageHeader
         title="Services & Booking"
-        subtitle="[[BODY: services overview]]"
+        subtitle={copy["services.overview"]}
       />
 
       {services.length === 0 ? (
@@ -98,10 +99,10 @@ export default async function ServicesPage() {
           id="sliding-scale-heading"
           className="font-heading mt-2 mb-2 text-xl font-semibold"
         >
-          [[HEADER: pricing flexibility section]]
+          {copy["services.pricing.header"]}
         </h2>
         <p className="text-muted-foreground max-w-[60ch] text-sm leading-relaxed">
-          [[BODY: pricing accessibility statement and how to ask about it]]
+          {copy["services.pricing.body"]}
         </p>
       </section>
     </PageContainer>
