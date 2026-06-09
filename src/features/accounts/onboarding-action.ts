@@ -30,12 +30,12 @@ export interface OnboardingDeps {
 /**
  * Core onboarding logic, extracted for testability (dependency injection).
  * Validates input, writes profile fields, inserts the emergency form_response,
- * and flips onboarding_complete via the service role.
+ * and advances onboarding_status to 'meet_greet_pending' via the service role.
  *
  * Non-atomicity concern: these are three sequential DB writes. A failure mid-way
  * (after profile update but before form insert, or after form insert but before
- * onboarding_complete flip) leaves a partial state. Mitigation: the guard checks
- * onboarding_complete, so a user whose update succeeded but flip failed will be
+ * the status advance) leaves a partial state. Mitigation: the guard checks
+ * onboarding_status, so a user whose update succeeded but advance failed will be
  * re-presented the form. Phase 3+ can wrap these in a Postgres function/transaction.
  */
 export async function runOnboarding(
@@ -93,14 +93,16 @@ export async function runOnboarding(
     throw new Error(`Emergency form insert failed: ${formError.message}`);
   }
 
-  // 3. Flip onboarding_complete — single writer (service role only; RLS + column grant blocks client writes)
+  // 3. Advance onboarding to the meet-and-greet stage — single writer (service
+  // role only; RLS + column grant blocks client writes). This NO LONGER unlocks
+  // booking; the client must now book + attend a meet-and-greet, then Cal approves.
   const { error: flagError } = await serviceClient
     .from("profiles")
-    .update({ onboarding_complete: true })
+    .update({ onboarding_status: "meet_greet_pending" })
     .eq("id", userId);
 
   if (flagError) {
-    throw new Error(`onboarding_complete flip failed: ${flagError.message}`);
+    throw new Error(`onboarding_status advance failed: ${flagError.message}`);
   }
 }
 

@@ -78,7 +78,7 @@ describe("runOnboarding", () => {
     },
   };
 
-  it("flips onboarding_complete to true", async () => {
+  it("advances onboarding_status to meet_greet_pending", async () => {
     await runOnboarding(
       { serviceClient, userId: testUserId, geocoder: stubGeocoder },
       validInput,
@@ -86,11 +86,11 @@ describe("runOnboarding", () => {
 
     const { data: profile } = await serviceClient
       .from("profiles")
-      .select("onboarding_complete")
+      .select("onboarding_status")
       .eq("id", testUserId)
       .single();
 
-    expect(profile?.onboarding_complete).toBe(true);
+    expect(profile?.onboarding_status).toBe("meet_greet_pending");
   });
 
   it("inserts an emergency form_responses row", async () => {
