@@ -212,19 +212,20 @@ action — the same pattern as the Kiche toggle. No new client-side patterns.
 
 ## Cross-cutting
 
-### No emojis
+### Sidebar uses an icon, not an emoji (scope corrected 2026-06-09)
 
-Replace emoji with lucide icons on every surface this batch touches:
+The maintainer's "no emojis" note applied to the **sidebar only** — not a
+site-wide purge. So:
 
-| Surface                       | Was | Becomes (lucide)          |
-| ----------------------------- | --- | ------------------------- |
-| Step 2 intro card             | 🐾  | `PawPrint`                |
-| Booked-state card (confirmed) | ✓   | `CalendarCheck` / `Check` |
-| Booked-state card (awaiting)  | ⏳  | `Clock`                   |
-| Locked sidebar tabs           | —   | `Lock`                    |
-| Admin status                  | —   | colored dot (token-based) |
+| Surface                       | Treatment                 |
+| ----------------------------- | ------------------------- |
+| Locked sidebar tabs           | lucide `Lock` (no emoji)  |
+| Admin status                  | colored dot (token-based) |
+| Step 2 intro card             | **keep** existing 🐾      |
+| Booked-state card (confirmed) | **keep** existing ✓       |
+| Booked-state card (awaiting)  | **keep** existing ⏳      |
 
-Emoji on surfaces outside this batch (e.g. other empty states) are left alone.
+Existing emoji elsewhere (empty states, meet-greet cards) are left as-is.
 
 ### Tokens are law
 
