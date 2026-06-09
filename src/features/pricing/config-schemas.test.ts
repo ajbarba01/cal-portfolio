@@ -134,6 +134,20 @@ describe("parsePricingConfig walk", () => {
 });
 
 // ---------------------------------------------------------------------------
+// meet_greet
+// ---------------------------------------------------------------------------
+
+describe("parsePricingConfig meet_greet", () => {
+  it("meet_greet config is an empty object", () => {
+    expect(parsePricingConfig("meet_greet", {})).toEqual({});
+  });
+
+  it("throws when unexpected keys are present (strict schema)", () => {
+    expect(() => parsePricingConfig("meet_greet", { rate: 100 })).toThrow();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // training
 // ---------------------------------------------------------------------------
 

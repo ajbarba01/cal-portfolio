@@ -180,7 +180,9 @@ export function ServiceBookingClient({
   const durationMin = useMemo(() => {
     if (mode !== "week-slots") return service.defaultDurationMin ?? 60;
     const hours =
-      quantities.type === "house_sitting" ? 1 : quantities.qty.hours;
+      quantities.type === "house_sitting" || quantities.type === "meet_greet"
+        ? 1
+        : quantities.qty.hours;
     return Math.max(15, Math.round(hours * 60));
   }, [mode, service.defaultDurationMin, quantities]);
   const durationMs = durationMin * 60_000;

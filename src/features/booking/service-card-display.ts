@@ -12,6 +12,8 @@ function descriptionFallback(
       return "[[BODY: short walk service description]]";
     case "training":
       return "[[BODY: short training service description]]";
+    case "meet_greet":
+      return "[[BODY: short meet-and-greet service description]]";
     default: {
       const _exhaustive: never = pricingType;
       throw new Error(`Unknown pricingType: ${String(_exhaustive)}`);
@@ -46,6 +48,7 @@ export function serviceCardDurationLabel(
     case "check_in":
     case "walk":
     case "training":
+    case "meet_greet":
       return service.default_duration_min !== null
         ? `${service.default_duration_min} min`
         : null;

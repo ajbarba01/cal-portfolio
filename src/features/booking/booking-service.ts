@@ -831,6 +831,9 @@ const trainingQuantitiesSchema = z.object({
   hours: z.number().positive(),
 });
 
+const meetGreetQuantitiesSchema = z.object({}).strict();
+type MeetGreetQty = z.infer<typeof meetGreetQuantitiesSchema>;
+
 type HouseSittingQty = z.infer<typeof houseSittingQuantitiesSchema>;
 type CheckInQty = z.infer<typeof checkInQuantitiesSchema>;
 type WalkQty = z.infer<typeof walkQuantitiesSchema>;
@@ -840,7 +843,8 @@ type ParsedQuantities =
   | { pricingType: "house_sitting"; data: HouseSittingQty }
   | { pricingType: "check_in"; data: CheckInQty }
   | { pricingType: "walk"; data: WalkQty }
-  | { pricingType: "training"; data: TrainingQty };
+  | { pricingType: "training"; data: TrainingQty }
+  | { pricingType: "meet_greet"; data: MeetGreetQty };
 
 type ParseQuantitiesResult =
   | ({ success: true } & ParsedQuantities)
@@ -875,6 +879,11 @@ function parseQuantities(
       const r = trainingQuantitiesSchema.safeParse(raw);
       if (!r.success) return { success: false, message: r.error.message };
       return { success: true, pricingType: "training", data: r.data };
+    }
+    case "meet_greet": {
+      const r = meetGreetQuantitiesSchema.safeParse(raw);
+      if (!r.success) return { success: false, message: r.error.message };
+      return { success: true, pricingType: "meet_greet", data: r.data };
     }
     default:
       return { success: false, message: `Unknown pricingType: ${pricingType}` };
@@ -941,6 +950,13 @@ function buildQuoteInput(opts: {
         pricingType: "training",
         pricingConfig: opts.pricingConfig as QuoteInput["pricingConfig"],
         hours: q.data.hours,
+        ...shared,
+      } as QuoteInput;
+
+    case "meet_greet":
+      return {
+        pricingType: "meet_greet",
+        pricingConfig: opts.pricingConfig as QuoteInput["pricingConfig"],
         ...shared,
       } as QuoteInput;
 
