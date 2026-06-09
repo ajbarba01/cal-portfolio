@@ -10,6 +10,7 @@ import { createClient } from "@/lib/supabase/server";
 import { listPublishedReviews } from "@/features/reviews/reviews-repo";
 import { ReviewForm } from "./_components/review-form";
 import type { PublishedReview } from "@/features/reviews/reviews-repo";
+import { copy } from "@/content/marketing";
 
 function StarRating({ rating }: { rating: number }) {
   return (
@@ -64,10 +65,7 @@ export default async function ReviewsPage() {
 
   return (
     <PageContainer width="read" className="py-12 sm:py-16">
-      <PageHeader
-        title="Reviews"
-        subtitle="[[BODY: reviews section purpose]]"
-      />
+      <PageHeader title="Reviews" subtitle={copy["reviews.purpose"]} />
 
       <section aria-labelledby="reviews-list-heading" className="mb-14">
         <h2 id="reviews-list-heading" className="sr-only">

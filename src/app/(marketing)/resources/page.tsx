@@ -5,18 +5,19 @@ import { Accordion } from "@base-ui/react/accordion";
 
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
+import { copy } from "@/content/marketing";
 
 const localResources = [
   {
     id: "r1",
-    title: "[[Resource 1: name]]",
-    description: "[[Resource 1: one-line description]]",
+    title: copy["resources.1.name"],
+    description: copy["resources.1.desc"],
     href: "#",
   },
   {
     id: "r2",
-    title: "[[Resource 2: name]]",
-    description: "[[Resource 2: one-line description]]",
+    title: copy["resources.2.name"],
+    description: copy["resources.2.desc"],
     href: "#",
   },
   {
@@ -36,28 +37,28 @@ const localResources = [
 const faqItems = [
   {
     id: "faq-1",
-    question: "[[FAQ 1: question]]",
-    answer: "[[FAQ 1: answer]]",
+    question: copy["resources.faq.1.q"],
+    answer: copy["resources.faq.1.a"],
   },
   {
     id: "faq-2",
-    question: "[[FAQ 2: question]]",
-    answer: "[[FAQ 2: answer]]",
+    question: copy["resources.faq.2.q"],
+    answer: copy["resources.faq.2.a"],
   },
   {
     id: "faq-3",
-    question: "[[FAQ 3: question]]",
-    answer: "[[FAQ 3: answer]]",
+    question: copy["resources.faq.3.q"],
+    answer: copy["resources.faq.3.a"],
   },
   {
     id: "faq-4",
-    question: "[[FAQ 4: question]]",
-    answer: "[[FAQ 4: answer]]",
+    question: copy["resources.faq.4.q"],
+    answer: copy["resources.faq.4.a"],
   },
   {
     id: "faq-5",
-    question: "[[FAQ 5: question]]",
-    answer: "[[FAQ 5: answer]]",
+    question: copy["resources.faq.5.q"],
+    answer: copy["resources.faq.5.a"],
   },
 ];
 

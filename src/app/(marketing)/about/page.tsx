@@ -5,22 +5,23 @@
 import Link from "next/link";
 import { MarketingHero } from "@/components/marketing/marketing-hero";
 import { PageContainer } from "@/components/layout/page-container";
+import { copy } from "@/content/marketing";
 
 const approach = [
   {
     id: "a1",
-    title: "[[Item 1: approach principle]]",
-    detail: "[[Item 1: detail]]",
+    title: copy["about.approach.1.title"],
+    detail: copy["about.approach.1.detail"],
   },
   {
     id: "a2",
-    title: "[[Item 2: approach principle]]",
-    detail: "[[Item 2: detail]]",
+    title: copy["about.approach.2.title"],
+    detail: copy["about.approach.2.detail"],
   },
   {
     id: "a3",
-    title: "[[Item 3: approach principle]]",
-    detail: "[[Item 3: detail]]",
+    title: copy["about.approach.3.title"],
+    detail: copy["about.approach.3.detail"],
   },
 ];
 
@@ -29,9 +30,9 @@ export default function AboutPage() {
     <>
       <MarketingHero
         src="/bg/IMG_0048.JPG"
-        eyebrow="[[HEADER: about eyebrow]]"
+        eyebrow={copy["about.eyebrow"]}
         title="About"
-        body="[[BODY: one-line about summary]]"
+        body={copy["about.summary"]}
         aspect="aspect-[2/1] lg:aspect-[5/2]"
       />
 
@@ -46,9 +47,9 @@ export default function AboutPage() {
               What I do
             </h2>
             <div className="text-muted-foreground flex flex-col gap-4 leading-relaxed">
-              <p>[[BODY: bio paragraph 1 — background/experience]]</p>
-              <p>[[BODY: bio paragraph 2 — services offered]]</p>
-              <p>[[BODY: bio paragraph 3 — additional context]]</p>
+              <p>{copy["about.bio.p1"]}</p>
+              <p>{copy["about.bio.p2"]}</p>
+              <p>{copy["about.bio.p3"]}</p>
             </div>
           </div>
         </PageContainer>
@@ -87,14 +88,14 @@ export default function AboutPage() {
               References
             </h2>
             <p className="text-muted-foreground leading-relaxed">
-              [[BODY: pointer to references — see the]]{" "}
+              {copy["about.references.pre"]}{" "}
               <Link
                 href="/reviews"
                 className="text-brand-strong underline underline-offset-4 hover:opacity-70"
               >
                 Reviews
               </Link>{" "}
-              [[page]].
+              {copy["about.references.post"]}
             </p>
           </div>
         </PageContainer>

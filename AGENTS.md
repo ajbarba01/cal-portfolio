@@ -45,7 +45,7 @@ Next.js (App Router) + TypeScript · Tailwind + shadcn/ui · Supabase · Vercel 
 
 ## Layout (once scaffolded)
 
-`src/app/` routing only · `src/features/<domain>/` domain logic · `src/lib/` business-agnostic infra · `docs/` the doc system · `specs/` per-feature specs · design tokens in `src/app/globals.css` (color) + `src/lib/design-tokens.ts` (motion/etc). Rules in [docs/ENGINEERING.md](docs/ENGINEERING.md).
+`src/app/` routing only · `src/features/<domain>/` domain logic · `src/lib/` business-agnostic infra · `src/content/` Cal-owned copy registry (copy-sync target, see [docs/CONTENT.md](docs/CONTENT.md)) · `docs/` the doc system · `specs/` per-feature specs · design tokens in `src/app/globals.css` (color) + `src/lib/design-tokens.ts` (motion/etc). Rules in [docs/ENGINEERING.md](docs/ENGINEERING.md).
 
 ---
 
