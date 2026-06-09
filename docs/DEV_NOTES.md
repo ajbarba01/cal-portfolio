@@ -1,15 +1,3 @@
-## In progress
-
-**Onboarding + admin patch batch** — spec: docs/superpowers/specs/2026-06-09-onboarding-admin-batch-design.md
-
-- NEXT_REDIRECT on onboarding step 1 → step 2 (form-action / useActionState fix)
-- onboarding error messages → inline per-field
-- account sidebar tabs locked + grayed during onboarding ("Onboarding" entry on top; clears when approved)
-- meet & greet "awaiting confirmation" doesn't clear after Cal approves (poll → redirect)
-- meet & greet off the services page; scheduling embedded in onboarding step 2; retire /book/meet-greet
-- admin onboarding status → single dropdown (Pending/Approved/Declined), inline-editable in list + detail
-- admin sidebar: highlight Clients tab on a specific-client detail route (prefix-aware active-nav)
-
 ## Now
 
 - cal should have an email created for automated emails
