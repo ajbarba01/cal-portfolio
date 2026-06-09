@@ -4,7 +4,6 @@ import { useState } from "react";
 import { MeetGreetScheduler } from "@/features/accounts/_components/meet-greet-scheduler";
 import { RefreshOnInterval } from "@/components/util/refresh-on-interval";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import type { BookingRuleSettings } from "@/features/booking/availability";
 import type { PublicBusyRange } from "@/features/booking/busy-ranges";
 
@@ -72,22 +71,18 @@ export function MeetGreetStep({
             </div>
             <div>
               <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
-                Meet &amp; greet booked
+                Meet &amp; greet confirmed
               </p>
               <p className="font-heading text-foreground text-lg font-semibold">
                 {formatDenver(bookingStartsAt)}
               </p>
             </div>
           </div>
-          <div>
-            <Badge variant="pending">
-              <span aria-hidden="true">⏳</span> Awaiting Cal&apos;s
-              confirmation
-            </Badge>
-          </div>
           <p className="text-muted-foreground text-sm leading-relaxed">
-            After your visit, Cal will confirm you and your booking opens up.
-            We&apos;ll email you.
+            Your visit is on Cal&apos;s calendar.{" "}
+            <span aria-hidden="true">⏳</span> After you meet in person, Cal
+            approves your account and full booking opens up — we&apos;ll email
+            you.
           </p>
           <Button
             variant="outline"
