@@ -5,15 +5,14 @@
  * with the book page pattern) and renders the step that matches:
  *
  *   info_pending         → Step 1: profile + emergency info form (InfoStep client component)
- *   meet_greet_pending   → Step 2a (no active booking): schedule-your-meet-greet CTA
- *                          Step 2b (booking exists):    status card with date/time + reschedule link
+ *   meet_greet_pending   → Step 2: MeetGreetStep — embedded meet-greet scheduler
+ *                          (collapses to a booked status card once a visit exists;
+ *                          "View / reschedule" re-opens it inline)
  *   approved             → defensive redirect to /account (middleware handles this normally)
  *   declined             → polite "reach out" panel
  *
- * RETURNTO NOTE: safeReturnTo only allows paths under /book/. A returnTo=/onboarding
- * passed from the meet-greet booking flow would be rejected. After booking the
- * meet-greet, the user lands on the default post-booking page. When they next visit
- * /onboarding the status-card (Step 2b) renders automatically. See return-to.ts.
+ * The booked card polls (RefreshOnInterval) so that once Cal approves, the next
+ * server render hits the approved → /account redirect and moves the client on.
  */
 
 import { redirect } from "next/navigation";
@@ -23,9 +22,10 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
 import { buttonVariants } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { InfoStep } from "./_components/info-step";
+import { MeetGreetStep } from "./_components/meet-greet-step";
+import { loadBookingFormData } from "@/features/booking/booking-form-data";
 
 // ── Progress indicator ────────────────────────────────────────────────────────
 
@@ -46,21 +46,6 @@ function StepBar({ step }: { step: 1 | 2 }) {
       </span>
     </div>
   );
-}
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-/** Format a UTC ISO string to a human-friendly date+time in America/Denver. */
-function formatDenver(iso: string): string {
-  return new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Denver",
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  }).format(new Date(iso));
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
@@ -119,6 +104,14 @@ export default async function OnboardingPage({
       typeof bookingRow?.starts_at === "string" ? bookingRow.starts_at : null;
   }
 
+  // Load booking rules + busy ranges for the embedded meet-greet scheduler.
+  let meetGreetFormData: Awaited<
+    ReturnType<typeof loadBookingFormData>
+  > | null = null;
+  if (status === "meet_greet_pending") {
+    meetGreetFormData = await loadBookingFormData("meet-greet");
+  }
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   if (status === "info_pending") {
@@ -134,101 +127,29 @@ export default async function OnboardingPage({
     );
   }
 
-  if (status === "meet_greet_pending" && !activeBookingStartsAt) {
+  if (status === "meet_greet_pending") {
+    if (!meetGreetFormData || !meetGreetFormData.ok) {
+      return (
+        <PageContainer width="app" className="py-10">
+          <StepBar step={2} />
+          <p className="text-destructive">
+            Could not load scheduling. Please try again later.
+          </p>
+        </PageContainer>
+      );
+    }
     return (
-      <PageContainer width="read" className="py-10">
+      <PageContainer width="app" className="py-10">
         <StepBar step={2} />
         <PageHeader
           title="Schedule your meet &amp; greet"
           subtitle="Before your first booking, Cal comes by to meet you and your pets in person."
         />
-
-        <div className="bg-card border-border flex flex-col gap-4 rounded-xl border p-6">
-          {/* Paw icon accent */}
-          <div
-            aria-hidden="true"
-            className="bg-section-alt text-brand flex h-14 w-14 items-center justify-center rounded-full text-2xl"
-          >
-            🐾
-          </div>
-
-          <p className="text-foreground text-sm leading-relaxed">
-            It&apos;s a free, ~30-minute in-person visit so Cal can meet you and
-            your pets before your first booking. Pick any open slot that works
-            for you.
-          </p>
-
-          <Link
-            href="/book/meet-greet"
-            className={cn(buttonVariants(), "mt-2 w-full sm:w-auto")}
-          >
-            Pick a time →
-          </Link>
-
-          <p className="text-muted-foreground text-xs">
-            After the visit, Cal will confirm you and your bookings will open
-            up.
-          </p>
-        </div>
-      </PageContainer>
-    );
-  }
-
-  if (status === "meet_greet_pending" && activeBookingStartsAt) {
-    const formattedDate = formatDenver(activeBookingStartsAt);
-
-    return (
-      <PageContainer width="read" className="py-10">
-        <StepBar step={2} />
-        <PageHeader
-          title="You're booked"
-          subtitle="Cal will confirm you after the visit — then your bookings open up."
+        <MeetGreetStep
+          rules={meetGreetFormData.data.rules}
+          initialBusy={meetGreetFormData.data.initialBusy}
+          bookingStartsAt={activeBookingStartsAt}
         />
-
-        {/* Status card */}
-        <div className="bg-card border-border flex flex-col gap-5 rounded-xl border p-6">
-          {/* Confirmation row */}
-          <div className="flex items-center gap-3">
-            <div
-              aria-hidden="true"
-              className="bg-status-available text-status-available-foreground flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-base"
-            >
-              ✓
-            </div>
-            <div>
-              <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
-                Meet &amp; greet booked
-              </p>
-              <p className="font-heading text-foreground text-lg font-semibold">
-                {formattedDate}
-              </p>
-            </div>
-          </div>
-
-          {/* Awaiting badge */}
-          <div>
-            <Badge variant="pending">
-              <span aria-hidden="true">⏳</span> Awaiting Cal&apos;s
-              confirmation
-            </Badge>
-          </div>
-
-          <p className="text-muted-foreground text-sm leading-relaxed">
-            After your visit, Cal will confirm you and your booking opens up.
-            We&apos;ll email you.
-          </p>
-
-          {/* Reschedule link */}
-          <Link
-            href="/account/bookings"
-            className={cn(
-              buttonVariants({ variant: "outline" }),
-              "w-full sm:w-auto",
-            )}
-          >
-            View or reschedule
-          </Link>
-        </div>
       </PageContainer>
     );
   }
