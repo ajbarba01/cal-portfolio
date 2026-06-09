@@ -1,0 +1,60 @@
+import { profileSchema, type ProfileInput } from "./profile-schema";
+import {
+  emergencySchema,
+  type EmergencyInput,
+} from "@/features/forms/emergency-schema";
+
+export interface OnboardingInput {
+  profile: ProfileInput;
+  emergency: EmergencyInput;
+}
+
+/** Result state returned to the onboarding form via useActionState. */
+export type OnboardingFormState =
+  | { status: "idle" }
+  | { status: "error"; fieldErrors: Record<string, string> };
+
+/**
+ * Pure: read + validate the onboarding form fields. Returns either the parsed
+ * OnboardingInput or per-field error messages (first message per field). No IO,
+ * no auth — lives outside the "use server" action module so it can be a sync
+ * export and unit-tested directly.
+ */
+export function parseOnboardingForm(
+  formData: FormData,
+):
+  | { ok: true; input: OnboardingInput }
+  | { ok: false; fieldErrors: Record<string, string> } {
+  const str = (k: string) => String(formData.get(k) ?? "");
+
+  const profile = profileSchema.safeParse({
+    full_name: str("full_name"),
+    phone: str("phone"),
+    address: str("address"),
+    zip: str("zip"),
+  });
+  const emergency = emergencySchema.safeParse({
+    contact_name: str("contact_name"),
+    contact_phone: str("contact_phone"),
+    contact_relationship: str("contact_relationship"),
+    vet_name: str("vet_name"),
+    vet_phone: str("vet_phone"),
+  });
+
+  if (profile.success && emergency.success) {
+    return {
+      ok: true,
+      input: { profile: profile.data, emergency: emergency.data },
+    };
+  }
+
+  const fieldErrors: Record<string, string> = {};
+  const collect = (errs: Record<string, string[] | undefined>) => {
+    for (const [k, msgs] of Object.entries(errs)) {
+      if (msgs && msgs[0]) fieldErrors[k] = msgs[0];
+    }
+  };
+  if (!profile.success) collect(profile.error.flatten().fieldErrors);
+  if (!emergency.success) collect(emergency.error.flatten().fieldErrors);
+  return { ok: false, fieldErrors };
+}
