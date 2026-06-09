@@ -8,19 +8,26 @@
  *
  * Values start as `[[ ... ]]` placeholders until Cal supplies real text. Grep
  * remaining stubs with `rg "\[\["`.
+ *
+ * Inline links are written into a body with markdown syntax — `[label](href)` —
+ * and rendered by the `MarketingCopy` component (see `src/content/linkify.ts`).
  */
 export const copy = {
   // Home — src/app/(marketing)/page.tsx
-  "home.hero.hook": "[[HEADER: hero hook]]",
-  "home.hero.body": "[[BODY: services overview and what sets Cal apart]]",
+  "home.hero.hook": "Reliable dog walking and pet care on the Front Range",
+  "home.hero.body":
+    "Highly individualized drop-in visits, walks, house sitting, and training from a local animal-lover",
   "home.why.header": "[[HEADER: why-Cal section]]",
-  "home.trust.1.title": "[[HEADER: trust point 1]]",
-  "home.trust.1.body": "[[BODY: trust point 1 detail]]",
-  "home.trust.2.title": "[[HEADER: trust point 2]]",
-  "home.trust.2.body": "[[BODY: trust point 2 detail]]",
-  "home.trust.3.title": "[[HEADER: trust point 3]]",
-  "home.trust.3.body": "[[BODY: trust point 3 detail]]",
-  "home.cta.header": "[[HEADER: closing CTA]]",
+  "home.trust.1.title": "Safety first",
+  "home.trust.1.body":
+    "Through my experiences as an EMT, Wilderness First Responder (WFR), and veterinary shadow, I've learned a great deal about pet safety, health, and risk prevention. I incorporate this knowledge into every walk, visit, and house sit, helping keep pets safe, healthy, and happy. I also hope to help pet owners learn more about keeping their animals safe through the [resources](/resources) available on this site.",
+  "home.trust.2.title": "Well-trusted",
+  "home.trust.2.body":
+    "I work hard to earn the trust of both pets and their people. I'm grateful for the many kind reviews and recommendations I've received over the years, and I approach every visit, walk, and house sit with the same level of care and attention. You can read reviews and references from past clients [here](/reviews).",
+  "home.trust.3.title": "Experienced",
+  "home.trust.3.body":
+    "I've been working in the pet care industry since 2021 and have cared for hundreds of animals with a wide range of personalities, ages, and needs. While most of my experience is with large-breed dogs, I've worked with all kinds of pets—from chickens and tortoises to senior Chihuahuas and energetic puppies. Every animal is different, and I enjoy getting to know each one as an individual.",
+  "home.cta.header": "Think we might be a good fit?",
   "home.cta.body": "[[BODY: short prompt to book]]",
 
   // About — src/app/(marketing)/about/page.tsx
@@ -35,9 +42,9 @@ export const copy = {
   "about.approach.2.detail": "[[Item 2: detail]]",
   "about.approach.3.title": "[[Item 3: approach principle]]",
   "about.approach.3.detail": "[[Item 3: detail]]",
-  // Split-JSX: prose wraps an inline link to /reviews (label "Reviews" is real).
-  "about.references.pre": "[[BODY: pointer to references — see the]]",
-  "about.references.post": "[[page]].",
+  // Inline /reviews link: when Cal's real copy lands, write it into the body as
+  // a `[Reviews](/reviews)` markdown marker (rendered by MarketingCopy).
+  "about.references": "[[BODY: pointer to references and the reviews page]]",
 
   // Services — src/app/(marketing)/services/page.tsx
   "services.overview": "[[BODY: services overview]]",

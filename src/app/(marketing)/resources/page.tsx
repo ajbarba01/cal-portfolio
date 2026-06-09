@@ -5,6 +5,7 @@ import { Accordion } from "@base-ui/react/accordion";
 
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
+import { MarketingCopy } from "@/components/marketing/marketing-copy";
 import { copy } from "@/content/marketing";
 
 const localResources = [
@@ -34,33 +35,36 @@ const localResources = [
   },
 ];
 
+// Answers render through MarketingCopy (may carry inline links); questions live
+// inside the accordion trigger button, so they stay raw strings — a link can't
+// nest in a button.
 const faqItems = [
   {
     id: "faq-1",
     question: copy["resources.faq.1.q"],
-    answer: copy["resources.faq.1.a"],
+    answerId: "resources.faq.1.a",
   },
   {
     id: "faq-2",
     question: copy["resources.faq.2.q"],
-    answer: copy["resources.faq.2.a"],
+    answerId: "resources.faq.2.a",
   },
   {
     id: "faq-3",
     question: copy["resources.faq.3.q"],
-    answer: copy["resources.faq.3.a"],
+    answerId: "resources.faq.3.a",
   },
   {
     id: "faq-4",
     question: copy["resources.faq.4.q"],
-    answer: copy["resources.faq.4.a"],
+    answerId: "resources.faq.4.a",
   },
   {
     id: "faq-5",
     question: copy["resources.faq.5.q"],
-    answer: copy["resources.faq.5.a"],
+    answerId: "resources.faq.5.a",
   },
-];
+] as const;
 
 export default function ResourcesPage() {
   return (
@@ -116,7 +120,7 @@ export default function ResourcesPage() {
                 </Accordion.Trigger>
               </Accordion.Header>
               <Accordion.Panel className="text-muted-foreground pb-4 text-sm leading-relaxed">
-                {item.answer}
+                <MarketingCopy id={item.answerId} />
               </Accordion.Panel>
             </Accordion.Item>
           ))}

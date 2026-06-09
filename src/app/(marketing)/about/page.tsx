@@ -2,37 +2,36 @@
  * About page — hero + bio/approach/references in alternating section bands.
  * Server component.
  */
-import Link from "next/link";
 import { MarketingHero } from "@/components/marketing/marketing-hero";
+import { MarketingCopy } from "@/components/marketing/marketing-copy";
 import { PageContainer } from "@/components/layout/page-container";
-import { copy } from "@/content/marketing";
 
 const approach = [
   {
     id: "a1",
-    title: copy["about.approach.1.title"],
-    detail: copy["about.approach.1.detail"],
+    titleId: "about.approach.1.title",
+    detailId: "about.approach.1.detail",
   },
   {
     id: "a2",
-    title: copy["about.approach.2.title"],
-    detail: copy["about.approach.2.detail"],
+    titleId: "about.approach.2.title",
+    detailId: "about.approach.2.detail",
   },
   {
     id: "a3",
-    title: copy["about.approach.3.title"],
-    detail: copy["about.approach.3.detail"],
+    titleId: "about.approach.3.title",
+    detailId: "about.approach.3.detail",
   },
-];
+] as const;
 
 export default function AboutPage() {
   return (
     <>
       <MarketingHero
         src="/bg/IMG_0048.JPG"
-        eyebrow={copy["about.eyebrow"]}
+        eyebrow={<MarketingCopy id="about.eyebrow" />}
         title="About"
-        body={copy["about.summary"]}
+        body={<MarketingCopy id="about.summary" />}
         aspect="aspect-[2/1] lg:aspect-[5/2]"
       />
 
@@ -47,9 +46,15 @@ export default function AboutPage() {
               What I do
             </h2>
             <div className="text-muted-foreground flex flex-col gap-4 leading-relaxed">
-              <p>{copy["about.bio.p1"]}</p>
-              <p>{copy["about.bio.p2"]}</p>
-              <p>{copy["about.bio.p3"]}</p>
+              <p>
+                <MarketingCopy id="about.bio.p1" />
+              </p>
+              <p>
+                <MarketingCopy id="about.bio.p2" />
+              </p>
+              <p>
+                <MarketingCopy id="about.bio.p3" />
+              </p>
             </div>
           </div>
         </PageContainer>
@@ -68,8 +73,10 @@ export default function AboutPage() {
             <ul className="text-muted-foreground flex flex-col gap-3 leading-relaxed">
               {approach.map((a) => (
                 <li key={a.id}>
-                  <strong className="text-foreground">{a.title}</strong> —{" "}
-                  {a.detail}
+                  <strong className="text-foreground">
+                    <MarketingCopy id={a.titleId} />
+                  </strong>{" "}
+                  — <MarketingCopy id={a.detailId} />
                 </li>
               ))}
             </ul>
@@ -88,14 +95,7 @@ export default function AboutPage() {
               References
             </h2>
             <p className="text-muted-foreground leading-relaxed">
-              {copy["about.references.pre"]}{" "}
-              <Link
-                href="/reviews"
-                className="text-brand-strong underline underline-offset-4 hover:opacity-70"
-              >
-                Reviews
-              </Link>{" "}
-              {copy["about.references.post"]}
+              <MarketingCopy id="about.references" />
             </p>
           </div>
         </PageContainer>
