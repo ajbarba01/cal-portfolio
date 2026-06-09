@@ -6,33 +6,80 @@ import { Accordion } from "@base-ui/react/accordion";
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
 import { MarketingCopy } from "@/components/marketing/marketing-copy";
-import { copy } from "@/content/marketing";
+import { copy, type CopyId } from "@/content/marketing";
 
-const localResources = [
+// Health & Safety — each topic links out to an external resource Cal supplied.
+// The name renders raw inside the <a> (a link can't nest in MarketingCopy); the
+// description renders through MarketingCopy. `detail` is verbatim contact info
+// Cal attached to the entry (poison-control hotlines).
+const healthResources: ReadonlyArray<{
+  nameId: CopyId;
+  descId: CopyId;
+  href: string;
+  detail?: string;
+}> = [
   {
-    id: "r1",
-    title: copy["resources.1.name"],
-    description: copy["resources.1.desc"],
-    href: "#",
+    nameId: "resources.health.1.name",
+    descId: "resources.health.1.desc",
+    href: "https://www.redcross.org/take-a-class/cpr/performing-cpr/pet-cpr",
   },
   {
-    id: "r2",
-    title: copy["resources.2.name"],
-    description: copy["resources.2.desc"],
-    href: "#",
+    nameId: "resources.health.2.name",
+    descId: "resources.health.2.desc",
+    href: "https://www.aspca.org/pet-care/aspca-poison-control",
+    detail: "(888) 426-4435 or (855) 764-7661",
   },
   {
-    id: "r3",
-    title: "Animal Emergency & Referral Center of Northern Colorado",
-    description: "24/7 emergency veterinary care in Colorado.",
-    href: "https://aercnc.com",
+    nameId: "resources.health.3.name",
+    descId: "resources.health.3.desc",
+    href: "https://www.vet.cornell.edu/departments-centers-and-institutes/riney-canine-health-center/canine-health-topics/gastric-dilatation-volvulus-gdv-or-bloat",
   },
   {
-    id: "r4",
-    title: "ASPCA Poison Control Hotline",
-    description: "(888) 426-4435 — available 24/7 for pet poison emergencies.",
-    href: "https://www.aspca.org/pet-care/animal-poison-control",
+    nameId: "resources.health.4.name",
+    descId: "resources.health.4.desc",
+    href: "https://www.rspca.org.uk/adviceandwelfare/pets/dogs/health/heatstroke",
   },
+  {
+    nameId: "resources.health.5.name",
+    descId: "resources.health.5.desc",
+    href: "https://www.akc.org/expert-advice/health/dog-paws-hot-pavement/",
+  },
+  {
+    nameId: "resources.health.6.name",
+    descId: "resources.health.6.desc",
+    href: "https://www.avma.org/resources-tools/pet-owners/petcare/canine-parvovirus",
+  },
+  {
+    nameId: "resources.health.7.name",
+    descId: "resources.health.7.desc",
+    href: "https://www.sfspca.org/blog/protect-your-pet-from-the-dangers-of-foxtails/",
+  },
+  {
+    nameId: "resources.health.8.name",
+    descId: "resources.health.8.desc",
+    href: "https://www.cdc.gov/harmful-algal-blooms/prevention/preventing-pet-and-livestock-illnesses.html",
+  },
+  {
+    nameId: "resources.health.9.name",
+    descId: "resources.health.9.desc",
+    href: "https://www.aspca.org/news/top-10-toxins-2025",
+  },
+];
+
+// Topic-only sections — names Cal listed without links/descriptions yet. Render
+// through MarketingCopy so a future inline link "just works".
+const toolsTopics: readonly CopyId[] = [
+  "resources.tools.1.name",
+  "resources.tools.2.name",
+  "resources.tools.3.name",
+  "resources.tools.4.name",
+];
+
+const enrichmentTopics: readonly CopyId[] = [
+  "resources.enrichment.1.name",
+  "resources.enrichment.2.name",
+  "resources.enrichment.3.name",
+  "resources.enrichment.4.name",
 ];
 
 // Answers render through MarketingCopy (may carry inline links); questions live
@@ -49,53 +96,88 @@ const faqItems = [
     question: copy["resources.faq.2.q"],
     answerId: "resources.faq.2.a",
   },
-  {
-    id: "faq-3",
-    question: copy["resources.faq.3.q"],
-    answerId: "resources.faq.3.a",
-  },
-  {
-    id: "faq-4",
-    question: copy["resources.faq.4.q"],
-    answerId: "resources.faq.4.a",
-  },
-  {
-    id: "faq-5",
-    question: copy["resources.faq.5.q"],
-    answerId: "resources.faq.5.a",
-  },
 ] as const;
+
+function TopicChips({ topics }: { topics: readonly CopyId[] }) {
+  return (
+    <ul className="flex flex-wrap gap-2" role="list">
+      {topics.map((id) => (
+        <li
+          key={id}
+          className="border-border text-foreground rounded-full border px-3 py-1 text-sm"
+        >
+          <MarketingCopy id={id} />
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 export default function ResourcesPage() {
   return (
     <PageContainer width="read" className="py-12 sm:py-16">
-      <PageHeader title="Resources" />
+      <PageHeader
+        title="Resources"
+        subtitle={<MarketingCopy id="resources.intro" />}
+      />
 
-      <section aria-labelledby="local-resources-heading" className="mb-12">
+      <section aria-labelledby="health-heading" className="mb-12">
         <h2
-          id="local-resources-heading"
+          id="health-heading"
           className="font-heading mb-4 text-xl font-semibold"
         >
-          Local dog resources
+          Health &amp; Safety
         </h2>
         <ul className="flex flex-col gap-4" role="list">
-          {localResources.map(({ id, title, description, href }) => (
-            <li key={id} className="border-border border-b pb-4 last:border-0">
+          {healthResources.map(({ nameId, descId, href, detail }) => (
+            <li
+              key={nameId}
+              className="border-border border-b pb-4 last:border-0"
+            >
               <a
                 href={href}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-brand-strong font-medium underline underline-offset-4 hover:opacity-70"
               >
-                {title}
+                {copy[nameId]}
               </a>
-              <p className="text-muted-foreground mt-0.5 text-sm">
-                {description}
+              {detail ? (
+                <span className="text-muted-foreground ml-2 text-sm">
+                  {detail}
+                </span>
+              ) : null}
+              <p className="text-muted-foreground mt-0.5 text-sm leading-relaxed">
+                <MarketingCopy id={descId} />
               </p>
             </li>
           ))}
         </ul>
       </section>
+
+      <section aria-labelledby="tools-heading" className="mb-12">
+        <h2
+          id="tools-heading"
+          className="font-heading mb-4 text-xl font-semibold"
+        >
+          Tools &amp; Training
+        </h2>
+        <TopicChips topics={toolsTopics} />
+      </section>
+
+      <section aria-labelledby="enrichment-heading" className="mb-12">
+        <h2
+          id="enrichment-heading"
+          className="font-heading mb-4 text-xl font-semibold"
+        >
+          Enrichment &amp; Well-Being
+        </h2>
+        <TopicChips topics={enrichmentTopics} />
+      </section>
+
+      <p className="text-muted-foreground mb-12 leading-relaxed">
+        <MarketingCopy id="resources.closing" />
+      </p>
 
       <section aria-labelledby="faq-heading">
         <h2

@@ -3,18 +3,25 @@
 - cal should have an email created for automated emails
 - return to top button bottom right
 - gallery lightbox still slow
-- contact page
 - redirects to log in/set up account should redirect you back to the page you were at before so you don't have to navigate and enter a booking twice or stuff like that.
 - audit for responsiveness and best performance practices for react.
 - cancel bookings
 - redirect or something after succesful booking, booking button just breaks instead
 - email or text notifications for cal (can come when contact workflow comes)
 - your bookings should show as muted clay in time slots
-- the time based calendar needs a little work: should have somewhere that says where exactly you're current booking is.
+- the time based calendar needs a little work: should have somewhere that says where exactly your current booking is.
 - booking confirmation popup with details about prepaying, and penalty for cancellation
-- ughhh i need a clients page and an admin client view sheesh
-- merge booking and services page
 - meet and greet
+- wordmark should have a notification badge next to it for admins. as well as admin tabs?
+- restyle pop-ups
+- cal needs a way to manually input bookings
+- more information for services inside each booking
+
+## Larger categories
+
+- notification system (dedicated email address, )
+- admin + contact page redesign
+- meet and greet system
 
 ## Later
 
