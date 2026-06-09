@@ -3,20 +3,17 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { profileSchema, type ProfileInput } from "./profile-schema";
+import { profileSchema } from "./profile-schema";
+import { emergencySchema } from "@/features/forms/emergency-schema";
 import {
-  emergencySchema,
-  type EmergencyInput,
-} from "@/features/forms/emergency-schema";
+  parseOnboardingForm,
+  type OnboardingInput,
+  type OnboardingFormState,
+} from "./onboarding-form";
 import { type SupabaseClient } from "@supabase/supabase-js";
 import { defaultGeocoder } from "@/features/pricing/geocoding/zip-centroid-geocoder";
 import { type Geocoder } from "@/features/pricing/geocoding/geocoder";
 import { safeReturnTo } from "@/features/booking/return-to";
-
-export interface OnboardingInput {
-  profile: ProfileInput;
-  emergency: EmergencyInput;
-}
 
 export interface OnboardingDeps {
   /** Service-role client — bypasses RLS + column grants. Required for writing system columns. */
@@ -107,16 +104,19 @@ export async function runOnboarding(
 }
 
 /**
- * Server action entry point. Authenticates the caller, then delegates to runOnboarding.
- * Input is expected as a plain object matching OnboardingInput (e.g. from a form).
+ * Server action bound via useActionState. Authenticates, validates the form,
+ * runs onboarding, then redirects on success. On validation failure it returns
+ * field errors as state (NO throw), so the client never try/catches a redirect —
+ * which is what surfaced the NEXT_REDIRECT error string in the old version.
  *
- * `returnTo` (deferred-auth round-trip) is validated against the open-redirect
- * guard; on success the user lands back on their booking selection, else /account.
+ * `returnTo` (deferred-auth round-trip) rides along as a hidden form field and is
+ * validated against the open-redirect guard; on success the user lands back on
+ * their booking selection, else /account.
  */
 export async function completeOnboarding(
-  input: OnboardingInput,
-  returnTo?: string,
-): Promise<void> {
+  _prevState: OnboardingFormState,
+  formData: FormData,
+): Promise<OnboardingFormState> {
   const authClient = await createClient();
   const {
     data: { user },
@@ -126,12 +126,20 @@ export async function completeOnboarding(
     redirect("/login");
   }
 
-  const serviceClient = createServiceClient();
+  const parsed = parseOnboardingForm(formData);
+  if (!parsed.ok) {
+    return { status: "error", fieldErrors: parsed.fieldErrors };
+  }
 
+  const serviceClient = createServiceClient();
   await runOnboarding(
     { serviceClient, userId: user.id, geocoder: defaultGeocoder },
-    input,
+    parsed.input,
   );
 
-  redirect(safeReturnTo(returnTo) ?? "/account");
+  const returnTo = formData.get("returnTo");
+  redirect(
+    safeReturnTo(typeof returnTo === "string" ? returnTo : undefined) ??
+      "/account",
+  );
 }

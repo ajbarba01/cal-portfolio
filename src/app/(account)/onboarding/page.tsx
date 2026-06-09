@@ -65,7 +65,16 @@ function formatDenver(iso: string): string {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-export default async function OnboardingPage() {
+export default async function OnboardingPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const sp = await searchParams;
+  const returnToParam = sp.returnTo;
+  const returnTo =
+    typeof returnToParam === "string" ? returnToParam : undefined;
+
   // Auth check — mirror account layout pattern.
   const authClient = await createClient();
   const {
@@ -120,7 +129,7 @@ export default async function OnboardingPage() {
           title="Welcome — let's get you set up"
           subtitle="Fill in your profile and emergency info before booking."
         />
-        <InfoStep />
+        <InfoStep returnTo={returnTo} />
       </PageContainer>
     );
   }
