@@ -8,10 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import type { ClientListRow } from "@/features/admin/clients-actions";
 import { matchesClientQuery } from "@/features/admin/client-search";
-import {
-  onboardingStatusLabel,
-  onboardingStatusBadgeVariant,
-} from "@/features/admin/onboarding-badge";
+import { OnboardingStatusSelect } from "@/features/admin/_components/onboarding-status-select";
 
 function dollars(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
@@ -79,13 +76,11 @@ export function ClientsIndexClient({ clients }: { clients: ClientListRow[] }) {
                       )}
                     </td>
                     <td className="py-2">
-                      <Badge
-                        variant={onboardingStatusBadgeVariant(
-                          client.onboardingStatus,
-                        )}
-                      >
-                        {onboardingStatusLabel(client.onboardingStatus)}
-                      </Badge>
+                      <OnboardingStatusSelect
+                        clientId={client.id}
+                        status={client.onboardingStatus}
+                        meetGreetUpcoming={client.meetGreetUpcoming}
+                      />
                     </td>
                   </tr>
                 ))}
@@ -111,13 +106,11 @@ export function ClientsIndexClient({ clients }: { clients: ClientListRow[] }) {
                 <div className="mt-1 flex flex-wrap gap-2 text-xs">
                   <Badge>{client.petCount} pets</Badge>
                   <Badge>{client.bookingCount} bookings</Badge>
-                  <Badge
-                    variant={onboardingStatusBadgeVariant(
-                      client.onboardingStatus,
-                    )}
-                  >
-                    {onboardingStatusLabel(client.onboardingStatus)}
-                  </Badge>
+                  <OnboardingStatusSelect
+                    clientId={client.id}
+                    status={client.onboardingStatus}
+                    meetGreetUpcoming={client.meetGreetUpcoming}
+                  />
                   {client.outstandingCents > 0 ? (
                     <Badge variant="destructive">
                       {dollars(client.outstandingCents)} owed
