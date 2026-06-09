@@ -158,19 +158,37 @@ Server component reads `onboarding_status` and renders the matching step:
 
 ## Admin — approve / decline
 
-On `/admin/clients/[clientId]`, a new **Onboarding** card:
+This is **woven into the existing admin clients views**, not a new route. Both
+already surface onboarding as a binary "Onboarded Yes/No"; that binary becomes
+the 4-state status plus the approve/decline controls.
+
+**Clients index** (`clients-index-client.tsx` + `ListClientsRow` /
+`listClientsCore`): the existing "Onboarded" column (`onboardingComplete`
+boolean) becomes an `onboarding_status` badge with 4 states. The row field is
+renamed `onboardingComplete → onboardingStatus`; `listClientsCore` selects
+`onboarding_status`. (Optional, low-priority: a status filter in
+`client-search.ts` — defer unless Cal wants it.)
+
+**Client detail** (`client-detail-client.tsx` + `ClientDetailView` /
+`getClientDetailCore`): the Account section's "Onboarded: Yes/No" row becomes
+the status, and an **Onboarding** control block is added (its own `SECTION`
+right after Account, or inline in Account):
 
 - Shows current `onboarding_status` and the client's meet-and-greet booking
   (date + booking status) when present.
 - **Approve** → set `approved`. **Decline** → set `declined`. Because Cal may
-  override at any time, the card always offers the transitions that differ from
-  the current status (e.g. an `approved` client shows a "Revoke / set declined"
-  control; a `declined` client shows "Approve").
+  override at any time, the block always offers the transitions that differ from
+  the current status (an `approved` client shows "Revoke → declined"; a
+  `declined` client shows "Approve" + "Reset → meet_greet_pending").
 - **Pre-visit confirm (UX guard):** if Approve is clicked while the
   meet-and-greet booking's `starts_at` is still in the future, show a confirm
   dialog: "Meet & greet is scheduled for {date} and hasn't happened yet.
-  Approve anyway?" Past/completed visit or no booking → no extra confirm. Reuses
-  the repo's existing confirm-dialog pattern.
+  Approve anyway?" Past/completed visit or no booking → no extra confirm.
+
+Reuses the component's existing plumbing verbatim: the `useConfirm` hook (already
+imported), the `run<T>()` transition+`router.refresh()` helper, and the toast —
+the same pattern as the Kiche toggle and per-booking approve/decline. No new
+client-side patterns introduced.
 
 New core action `setOnboardingStatusCore(deps, clientId, status)` in
 `clients-actions.ts`, mirroring `setKicheAllowedCore`: admin-guard, service-role
