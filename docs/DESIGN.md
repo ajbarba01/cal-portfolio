@@ -58,36 +58,38 @@ Cal's stated intent: **"simple and straightforward."** No brand assets yet (no l
 
 ## Route map
 
-Next.js App Router, three route groups. Auth-session refresh **and** the auth + onboarding gate live in middleware (`src/proxy.ts` → `src/lib/supabase/proxy.ts`), which reads the canonical pathname and redirects un-onboarded users to /onboarding; group layouts keep only a thin auth backstop. `role` guards sit at the group layouts. Architecture rules in [ENGINEERING.md](ENGINEERING.md).
+Next.js App Router, three route groups. Auth-session refresh **and** the auth + onboarding gate live in middleware (`src/proxy.ts` → `src/lib/supabase/proxy.ts`), which reads the canonical pathname and redirects users whose `onboarding_status` ≠ `approved` to /onboarding; group layouts keep only a thin auth backstop. `role` guards sit at the group layouts. Architecture rules in [ENGINEERING.md](ENGINEERING.md).
 
-| Route                                 | Group     | Access                        | Notes                                                             |
-| ------------------------------------- | --------- | ----------------------------- | ----------------------------------------------------------------- |
-| `/`                                   | marketing | public                        | Home / landing                                                    |
-| `/about`                              | marketing | public                        | Blurb + references                                                |
-| `/services`                           | marketing | public                        | Services, rates, and booking chooser hub                          |
-| `/gallery`                            | marketing | public                        | Photo grid (`next/image`)                                         |
-| `/reviews`                            | marketing | public                        | Published reviews only                                            |
-| `/resources`                          | marketing | public                        | Info + links                                                      |
-| `/contact`                            | marketing | public                        | Inquiry / contact form                                            |
-| `/book`                               | marketing | public                        | Permanent compatibility redirect to `/services`                   |
-| `/book/[serviceSlug]`                 | marketing | public view, **auth to book** | Calendar-first per-service booking; deferred-auth gate            |
-| `/login`, `/signup`, `/auth/callback` | auth      | public                        | Supabase Auth                                                     |
-| `/onboarding`                         | account   | client                        | First-time gate: profile + emergency form before booking          |
-| `/account`                            | account   | client                        | Profile (name / email / phone / avatar / password)                |
-| `/account/pets`                       | account   | client                        | Pets CRUD (species, photo)                                        |
-| `/account/forms`                      | account   | client                        | Emergency + service-form status                                   |
-| `/account/bookings`                   | account   | client                        | Upcoming, history, amount owed, pay / prepay                      |
-| `/admin/availability`                 | admin     | admin                         | Calendar: create/resize/block-out windows + manage day's bookings |
-| `/admin/bookings`                     | admin     | admin                         | Booking calendar + approvals                                      |
-| `/admin/services`                     | admin     | admin                         | Edit services + rates                                             |
-| `/admin/settings`                     | admin     | admin                         | Origin swap, distance threshold, booking hours, lead time         |
-| `/admin/reviews`                      | admin     | admin                         | Moderate submissions                                              |
-| `/admin/clients`                      | admin     | admin                         | Client directory + detail                                         |
-| `/admin/inquiries`                    | admin     | admin                         | Inquiry queue + reply handoff                                     |
+| Route                                 | Group     | Access                        | Notes                                                                                   |
+| ------------------------------------- | --------- | ----------------------------- | --------------------------------------------------------------------------------------- |
+| `/`                                   | marketing | public                        | Home / landing                                                                          |
+| `/about`                              | marketing | public                        | Blurb + references                                                                      |
+| `/services`                           | marketing | public                        | Services, rates, and booking chooser hub                                                |
+| `/gallery`                            | marketing | public                        | Photo grid (`next/image`)                                                               |
+| `/reviews`                            | marketing | public                        | Published reviews only                                                                  |
+| `/resources`                          | marketing | public                        | Info + links                                                                            |
+| `/contact`                            | marketing | public                        | Inquiry / contact form                                                                  |
+| `/book`                               | marketing | public                        | Permanent compatibility redirect to `/services`                                         |
+| `/book/[serviceSlug]`                 | marketing | public view, **auth to book** | Calendar-first per-service booking; deferred-auth gate                                  |
+| `/login`, `/signup`, `/auth/callback` | auth      | public                        | Supabase Auth                                                                           |
+| `/onboarding`                         | account   | client                        | Stateful gate wizard: profile + emergency form → schedule meet & greet → await approval |
+| `/account`                            | account   | client                        | Profile (name / email / phone / avatar / password)                                      |
+| `/account/pets`                       | account   | client                        | Pets CRUD (species, photo)                                                              |
+| `/account/forms`                      | account   | client                        | Emergency + service-form status                                                         |
+| `/account/bookings`                   | account   | client                        | Upcoming, history, amount owed, pay / prepay                                            |
+| `/admin/availability`                 | admin     | admin                         | Calendar: create/resize/block-out windows + manage day's bookings                       |
+| `/admin/bookings`                     | admin     | admin                         | Booking calendar + approvals                                                            |
+| `/admin/services`                     | admin     | admin                         | Edit services + rates                                                                   |
+| `/admin/settings`                     | admin     | admin                         | Origin swap, distance threshold, booking hours, lead time                               |
+| `/admin/reviews`                      | admin     | admin                         | Moderate submissions                                                                    |
+| `/admin/clients`                      | admin     | admin                         | Client directory + detail; onboarding approve / decline control                         |
+| `/admin/inquiries`                    | admin     | admin                         | Inquiry queue + reply handoff                                                           |
 
 Full in-app admin so Cal never touches the Supabase dashboard. `/admin/availability` uses the `<Scheduler>` family (ADMIN capabilities preset) to manage windows: pick a day to create a window (Denver wall-time inputs), resize or block-out existing windows (block-out cancels overlapping bookings, keeping the confirm step), and overlay that day's bookings (enriched busy: client name + pet photos). Selecting a booking opens a side panel to cancel, approve/decline a `pending_approval`, or mark a `confirmed` booking `no_show` — all via the existing booking/approval cores; mutations `router.refresh()` the server-loaded windows + busy.
 
 **Booking flow + deferred-auth gate.** `/services` is the public chooser hub; each active service card opens `/book/[serviceSlug]`, where the `<Scheduler>` family (BOOKING capabilities preset) drives selection — **month-range** (check-in/out dates) for house-sitting, and a **month→day-timeline** flow (`week-slots` mode) for the hourly services: the month picks the day, then a duration-accurate single-day timeline picks/types the start time. A live receipt auto-updates as the selection changes (no "Get quote" button). Anyone may browse and pick; sign-in is deferred to the **Book action**. A guest who clicks Book is sent to `/login?returnTo=…`, a signed-in-but-un-onboarded user to `/onboarding?returnTo=…`; on success they land back on their exact selection. `returnTo` encodes the selection (slug in the path; resolved start/end ISO + assigned pet ids in the query) and is validated by a same-origin open-redirect guard (relative, must start `/book/`). `createBooking` keeps its own server-side `redirect("/login")` backstop. Pet-aware services (house-sitting, walk) assign **real pets** from the profile; dog/cat counts are derived server-side from the assignment, never typed in.
+
+**Onboarding gate (meet & greet).** Booking is gated on `profiles.onboarding_status` (see Data model). `createBookingCore` is the authoritative server-side gate: an `approved` client may book any active service; a `meet_greet_pending` client may book **only** the free `meet-greet` service (one at a time); `info_pending` / `declined` may book nothing — blocked submits return `onboarding_incomplete`. The book page mirrors this with per-state panels (`needs-info` / `needs-meet-greet` / `declined`). New clients finish the intro form (→ `meet_greet_pending`), book + attend an in-person meet & greet, and Cal then **manually approves** them from `/admin/clients/[id]` (any-direction override; a confirm warns if approving before the visit's scheduled time).
 
 ## Data model
 
@@ -95,7 +97,7 @@ Supabase Postgres. Auth via Supabase `auth.users` (username / password are **not
 
 **Tables** (column → purpose):
 
-- **`profiles`** (1:1 `auth.users`) — `id` (=auth.uid) · `full_name` · `email` · `phone` · `avatar_url` (single now; gallery later) · `address`, `zip` · `lat`, `lng` (geocoded once at signup) · `kiche_allowed` (set at first booking → discount) · `onboarding_complete` (booking gate — single setter: flips true when the onboarding flow finishes; criteria = required profile fields + emergency form present) · `role` ('client' \| 'admin') · `created_at`.
+- **`profiles`** (1:1 `auth.users`) — `id` (=auth.uid) · `full_name` · `email` · `phone` · `avatar_url` (single now; gallery later) · `address`, `zip` · `lat`, `lng` (geocoded once at signup) · `kiche_allowed` (set at first booking → discount) · `onboarding_status` (enum `info_pending` → `meet_greet_pending` → `approved`, plus `declined`; the booking gate = `approved`. `info_pending` finishing the intro form advances to `meet_greet_pending`; `approved` / `declined` are **admin-set** by Cal after the in-person meet & greet, any-direction override. Replaces the former `onboarding_complete` boolean) · `role` ('client' \| 'admin') · `created_at`.
 - **`pets`** (was `dogs`) — `id` · `client_id`→profiles · `name` · `species` ('dog' \| 'cat') · `breed` · `photo_url` (optional; object path in the private `pet-photos` storage bucket, served via short-lived signed URLs) · `notes` (extra per-pet fields — vet / meds / feeding; structured fields planned, see Open questions + Forms) · `created_at`.
 - **`booking_pets`** — join (`booking_id`→bookings, `pet_id`→pets, PK both). Which specific pets are on a booking. Written by the service role at booking creation; clients read their own. Pricing still derives counts from the assigned pets and snapshots them into `quote_inputs`.
 - **`services`** — `id` · `slug` · `name` · `description` · `pricing_type` ('house_sitting' \| 'check_in' \| 'walk' \| 'training') · `pricing_config` (jsonb — Cal-editable rates/surcharges, validated by a per-type Zod schema) · `default_duration_min` · `max_pets` (capacity; training = 1) · `concurrency` ('exclusive' \| 'resident' — house-sitting = resident) · `form_key` (nullable → service-specific form) · `requires_approval` (force manual review) · `active` · `sort_order`. See **Pricing model** below.
@@ -119,7 +121,7 @@ Supabase Postgres. Auth via Supabase `auth.users` (username / password are **not
 - `settings`: authed read, admin write.
 - **Busy-range exposure (two trust levels).** The customer calendar reads busy ranges through a service-role server action that projects **only** start/end + pet thumbnails (species + signed photo URL) — **no owner name/id**, by construction (identity-free result type + a dedicated repo method). The admin calendar uses a separate **admin-gated** action that joins owner + status for management. Pet photos live in a private bucket, served via short-lived signed URLs. Pet photos are intentionally client-visible (a photo is not a privacy concern); client identity is not.
 - Admin (`role='admin'`) override expressed in each policy.
-- **Column-level guard (security).** The client `UPDATE` policy on `profiles` whitelists only self-editable columns. `role`, `lat`, `lng`, `kiche_allowed`, and `onboarding_complete` are **system/admin-set, never client-writable** — otherwise a client could `SET role='admin'` and self-promote. Likewise clients never write `bookings.status` / `final_cents` / `payment_status` or `payments` rows by SQL; those move only through server actions and the Stripe webhook under the service role.
+- **Column-level guard (security).** The client `UPDATE` policy on `profiles` whitelists only self-editable columns. `role`, `lat`, `lng`, `kiche_allowed`, and `onboarding_status` are **system/admin-set, never client-writable** — otherwise a client could `SET role='admin'` and self-promote, or `SET onboarding_status='approved'` and self-approve past the meet & greet. Likewise clients never write `bookings.status` / `final_cents` / `payment_status` or `payments` rows by SQL; those move only through server actions and the Stripe webhook under the service role.
 
 **Assumptions & boundaries:**
 
@@ -139,6 +141,7 @@ Pricing is **rule-based per service**, not a flat rate. Each `services` row carr
 | Check-ins     | `check_in`      | $30/hour incl. driving time, **$15 minimum**; pet count not a factor.                                                                                                                                                                                                                                                                                                                         |
 | Walks         | `walk`          | $25/hour + $10/dog (behavior; Cal may discount well-behaved).                                                                                                                                                                                                                                                                                                                                 |
 | Training      | `training`      | $35/hour, **one dog at a time** (`max_pets` = 1).                                                                                                                                                                                                                                                                                                                                             |
+| Meet & Greet  | `meet_greet`    | **Free** ($0), `concurrency='exclusive'`, onboarding-only. A required in-person introduction booked + attended before a new client's first paid booking; not offered to already-approved clients as a paid service. See **Onboarding gate** under Route map.                                                                                                                                  |
 
 **Modifiers** (after base; all configurable):
 
@@ -257,4 +260,4 @@ Marketing copy that Cal must write is stubbed with double-square-bracket markers
 
 ---
 
-_Last reviewed: 2026-06-08_ (admin capabilities: contact, clients, bookings, inquiries)
+_Last reviewed: 2026-06-09_ (meet & greet onboarding gate: `onboarding_status`, `meet_greet` service)
