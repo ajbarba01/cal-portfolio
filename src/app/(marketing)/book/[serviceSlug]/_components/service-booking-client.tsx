@@ -59,6 +59,8 @@ import { QuotePanel } from "./quote-panel";
 import { RecurringControls } from "./recurring-controls";
 import { useToast } from "@/components/feedback/toast";
 import { ErrorState } from "@/components/feedback/error-state";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   createResultMessage,
   previewResultMessage,
@@ -74,7 +76,12 @@ import type { PetSpecies } from "@/features/booking/_components/pet-avatar";
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
-export type AuthState = "guest" | "needs-info" | "needs-meet-greet" | "ready";
+export type AuthState =
+  | "guest"
+  | "needs-info"
+  | "needs-meet-greet"
+  | "declined"
+  | "ready";
 
 export interface ServiceDetail {
   slug: string;
@@ -670,70 +677,43 @@ export function ServiceBookingClient({
 
       {/* ── Gate panels — shown instead of the price box when not ready ── */}
       {authState === "guest" && (
-        <section aria-labelledby="gate-guest-heading">
-          <div className="bg-card border-border rounded-xl border p-6">
-            <h2
-              id="gate-guest-heading"
-              className="font-heading text-foreground mb-1 text-base font-semibold"
-            >
-              Sign in to book
-            </h2>
-            <p className="text-muted-foreground mb-4 text-sm">
-              Log in to get a quote and complete your booking.
-            </p>
-            <Link
-              href={guestLoginHref}
-              className="bg-brand text-brand-foreground focus-visible:ring-brand inline-flex items-center rounded-lg px-4 py-2 text-sm font-medium transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
-            >
-              Log in →
-            </Link>
-          </div>
-        </section>
+        <GatePanel
+          labelledById="gate-guest-heading"
+          title="Sign in to book"
+          body="Log in to get a quote and complete your booking."
+          ctaHref={guestLoginHref}
+          ctaLabel="Log in →"
+        />
       )}
 
       {authState === "needs-info" && (
-        <section aria-labelledby="gate-info-heading">
-          <div className="bg-card border-border rounded-xl border p-6">
-            <h2
-              id="gate-info-heading"
-              className="font-heading text-foreground mb-1 text-base font-semibold"
-            >
-              Finish setting up your profile
-            </h2>
-            <p className="text-muted-foreground mb-4 text-sm">
-              Finish your profile and emergency info to book.
-            </p>
-            <Link
-              href="/onboarding"
-              className="bg-brand text-brand-foreground focus-visible:ring-brand inline-flex items-center rounded-lg px-4 py-2 text-sm font-medium transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
-            >
-              Complete profile →
-            </Link>
-          </div>
-        </section>
+        <GatePanel
+          labelledById="gate-info-heading"
+          title="Finish setting up your profile"
+          body="Finish your profile and emergency info to book."
+          ctaHref="/onboarding"
+          ctaLabel="Complete profile →"
+        />
       )}
 
       {authState === "needs-meet-greet" && (
-        <section aria-labelledby="gate-mg-heading">
-          <div className="bg-card border-border rounded-xl border p-6">
-            <h2
-              id="gate-mg-heading"
-              className="font-heading text-foreground mb-1 text-base font-semibold"
-            >
-              Meet &amp; greet required
-            </h2>
-            <p className="text-muted-foreground mb-4 text-sm">
-              Book your free meet &amp; greet first — Cal meets you and your
-              pets in person before your first booking.
-            </p>
-            <Link
-              href="/onboarding"
-              className="bg-brand text-brand-foreground focus-visible:ring-brand inline-flex items-center rounded-lg px-4 py-2 text-sm font-medium transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
-            >
-              Schedule meet &amp; greet →
-            </Link>
-          </div>
-        </section>
+        <GatePanel
+          labelledById="gate-mg-heading"
+          title="Meet & greet required"
+          body="A free, in-person meet & greet is required before your first booking — a chance to get introduced before any pet care."
+          ctaHref="/onboarding"
+          ctaLabel="Schedule meet & greet →"
+        />
+      )}
+
+      {authState === "declined" && (
+        <GatePanel
+          labelledById="gate-declined-heading"
+          title="Your account needs attention"
+          body="We need to sort out your account before you can book. Please get in touch and we'll help."
+          ctaHref="/onboarding"
+          ctaLabel="View details →"
+        />
       )}
 
       {/* Receipt + Book — only for ready users */}
@@ -765,5 +745,46 @@ export function ServiceBookingClient({
         </section>
       )}
     </div>
+  );
+}
+
+// ── Gate panel ──────────────────────────────────────────────────────────────
+// Shared CTA card shown (instead of the price box) when the viewer can't book
+// yet: guest, needs-info, needs-meet-greet, or declined. One structure so the
+// four states stay visually + a11y consistent.
+function GatePanel({
+  labelledById,
+  title,
+  body,
+  ctaHref,
+  ctaLabel,
+}: {
+  labelledById: string;
+  title: string;
+  body: string;
+  ctaHref: string;
+  ctaLabel: string;
+}) {
+  return (
+    <section aria-labelledby={labelledById}>
+      <div className="bg-card border-border rounded-xl border p-6">
+        <h2
+          id={labelledById}
+          className="font-heading text-foreground mb-1 text-base font-semibold"
+        >
+          {title}
+        </h2>
+        <p className="text-muted-foreground mb-4 text-sm">{body}</p>
+        <Link
+          href={ctaHref}
+          className={cn(
+            buttonVariants({ variant: "brand" }),
+            "w-full sm:w-auto",
+          )}
+        >
+          {ctaLabel}
+        </Link>
+      </div>
+    </section>
   );
 }

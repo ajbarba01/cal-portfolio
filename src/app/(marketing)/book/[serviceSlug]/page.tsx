@@ -21,6 +21,7 @@ import {
 } from "./_components/service-booking-client";
 import type { AssignablePet } from "./_components/pet-assignment";
 import type { BookingRuleSettings } from "@/features/booking/availability";
+import type { OnboardingStatus } from "@/features/booking/booking-repository";
 import type { PricingType } from "@/features/pricing/types";
 import type { PetSpecies } from "@/features/booking/_components/pet-avatar";
 
@@ -115,19 +116,17 @@ export default async function ServiceBookingPage({
       .eq("id", user.id)
       .single();
 
-    const status = profile?.onboarding_status as
-      | "info_pending"
-      | "meet_greet_pending"
-      | "approved"
-      | "declined"
-      | undefined;
+    const status = profile?.onboarding_status as OnboardingStatus | undefined;
 
     if (status === "approved") {
       authState = "ready";
     } else if (status === "meet_greet_pending") {
       authState = serviceSlug === "meet-greet" ? "ready" : "needs-meet-greet";
+    } else if (status === "declined") {
+      // Profile is complete but Cal declined — distinct panel, not "finish profile".
+      authState = "declined";
     } else {
-      // info_pending, declined, or undefined → send to onboarding info step
+      // info_pending or undefined → send to the onboarding info step.
       authState = "needs-info";
     }
 
