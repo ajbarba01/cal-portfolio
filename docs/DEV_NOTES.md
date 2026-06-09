@@ -1,5 +1,6 @@
 ## Now
 
+- generalize reschedule to paid bookings: a reschedule entry point on /account/bookings, house-sitting month-range mode, and recurring-series "this occurrence vs series" semantics. Core `rescheduleBookingCore` (in-place time move + re-validation) already exists; meet-greet is its first consumer.
 - cal should have an email created for automated emails
 - return to top button bottom right
 - gallery lightbox still slow
