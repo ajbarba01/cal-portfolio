@@ -74,7 +74,7 @@ import type { PetSpecies } from "@/features/booking/_components/pet-avatar";
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
-export type AuthState = "guest" | "needs-onboarding" | "ready";
+export type AuthState = "guest" | "needs-info" | "needs-meet-greet" | "ready";
 
 export interface ServiceDetail {
   slug: string;
@@ -179,10 +179,13 @@ export function ServiceBookingClient({
   // AND which month days read as available. House-sitting uses the service default.
   const durationMin = useMemo(() => {
     if (mode !== "week-slots") return service.defaultDurationMin ?? 60;
+    if (quantities.type === "meet_greet") {
+      // Use the service's own default_duration_min (30 min for meet-greet), not a
+      // hardcoded 1-hour fallback.
+      return service.defaultDurationMin ?? 30;
+    }
     const hours =
-      quantities.type === "house_sitting" || quantities.type === "meet_greet"
-        ? 1
-        : quantities.qty.hours;
+      quantities.type === "house_sitting" ? 1 : quantities.qty.hours;
     return Math.max(15, Math.round(hours * 60));
   }, [mode, service.defaultDurationMin, quantities]);
   const durationMs = durationMin * 60_000;
@@ -465,8 +468,13 @@ export function ServiceBookingClient({
       return;
     }
 
+    // Submit — mid-session onboarding_incomplete routes to /onboarding.
     startSubmitting(async () => {
       const result = await createBooking(buildInput());
+      if (result.kind === "onboarding_incomplete") {
+        router.push("/onboarding");
+        return;
+      }
       const msg = createResultMessage(result, quote?.requiresApproval ?? true);
       if (result.kind === "success") {
         toast.add({ title: "Booking requested", description: msg.text });
@@ -499,18 +507,16 @@ export function ServiceBookingClient({
     !submitDone &&
     (authState !== "ready" || quote !== null);
 
-  // Auth-prompt link shown in the price box for non-ready users. Mirrors the
-  // deferred-auth gate in handleBook so the destination + returnTo match.
-  const authPromptHref = (() => {
-    const base = authState === "guest" ? "/login" : "/onboarding";
-    if (!startsAt || !endsAt) return base;
+  // Auth-prompt href for guest — login with returnTo so the user lands back here.
+  const guestLoginHref = (() => {
+    if (!startsAt || !endsAt) return "/login";
     const returnTo = buildReturnTo({
       serviceSlug: service.slug,
       start: startsAt.toISOString(),
       end: endsAt.toISOString(),
       petIds: petAware ? selectedPetIds : undefined,
     });
-    return `${base}?returnTo=${encodeURIComponent(returnTo)}`;
+    return `/login?returnTo=${encodeURIComponent(returnTo)}`;
   })();
 
   // Step counter helpers
@@ -662,45 +668,102 @@ export function ServiceBookingClient({
         </section>
       )}
 
-      {/* Receipt + Book — live, centered at the bottom of the flow */}
-      <section aria-labelledby="receipt-heading" aria-live="polite">
-        <h2 id="receipt-heading" className="sr-only">
-          Your price
-        </h2>
-        {previewMsg && (
-          <p role="alert" className="text-destructive mb-3 text-sm">
-            {previewMsg.text}
-          </p>
-        )}
-        {authState !== "ready" ? (
-          <div className="border-border bg-card text-muted-foreground rounded-xl border border-dashed p-6 text-center text-sm">
-            Please{" "}
-            <Link
-              href={authPromptHref}
-              className="text-foreground font-medium underline-offset-4 hover:underline focus-visible:underline focus-visible:outline-none"
+      {/* ── Gate panels — shown instead of the price box when not ready ── */}
+      {authState === "guest" && (
+        <section aria-labelledby="gate-guest-heading">
+          <div className="bg-card border-border rounded-xl border p-6">
+            <h2
+              id="gate-guest-heading"
+              className="font-heading text-foreground mb-1 text-base font-semibold"
             >
-              {authState === "guest"
-                ? "log in"
-                : "finish setting up your account"}
-            </Link>{" "}
-            to get a quote.
+              Sign in to book
+            </h2>
+            <p className="text-muted-foreground mb-4 text-sm">
+              Log in to get a quote and complete your booking.
+            </p>
+            <Link
+              href={guestLoginHref}
+              className="bg-brand text-brand-foreground focus-visible:ring-brand inline-flex items-center rounded-lg px-4 py-2 text-sm font-medium transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+            >
+              Log in →
+            </Link>
           </div>
-        ) : quote ? (
-          <QuotePanel
-            preview={quote}
-            onBook={handleBook}
-            bookLabel={isSubmitting ? "Submitting…" : "Book now"}
-            bookDisabled={!bookEnabled}
-            showBook={!submitDone}
-          />
-        ) : (
-          <div className="border-border bg-card text-muted-foreground rounded-xl border border-dashed p-6 text-center text-sm">
-            {isPreviewing
-              ? "Calculating…"
-              : "Select a day and time to see your price."}
+        </section>
+      )}
+
+      {authState === "needs-info" && (
+        <section aria-labelledby="gate-info-heading">
+          <div className="bg-card border-border rounded-xl border p-6">
+            <h2
+              id="gate-info-heading"
+              className="font-heading text-foreground mb-1 text-base font-semibold"
+            >
+              Finish setting up your profile
+            </h2>
+            <p className="text-muted-foreground mb-4 text-sm">
+              Finish your profile and emergency info to book.
+            </p>
+            <Link
+              href="/onboarding"
+              className="bg-brand text-brand-foreground focus-visible:ring-brand inline-flex items-center rounded-lg px-4 py-2 text-sm font-medium transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+            >
+              Complete profile →
+            </Link>
           </div>
-        )}
-      </section>
+        </section>
+      )}
+
+      {authState === "needs-meet-greet" && (
+        <section aria-labelledby="gate-mg-heading">
+          <div className="bg-card border-border rounded-xl border p-6">
+            <h2
+              id="gate-mg-heading"
+              className="font-heading text-foreground mb-1 text-base font-semibold"
+            >
+              Meet &amp; greet required
+            </h2>
+            <p className="text-muted-foreground mb-4 text-sm">
+              Book your free meet &amp; greet first — Cal meets you and your
+              pets in person before your first booking.
+            </p>
+            <Link
+              href="/onboarding"
+              className="bg-brand text-brand-foreground focus-visible:ring-brand inline-flex items-center rounded-lg px-4 py-2 text-sm font-medium transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+            >
+              Schedule meet &amp; greet →
+            </Link>
+          </div>
+        </section>
+      )}
+
+      {/* Receipt + Book — only for ready users */}
+      {authState === "ready" && (
+        <section aria-labelledby="receipt-heading" aria-live="polite">
+          <h2 id="receipt-heading" className="sr-only">
+            Your price
+          </h2>
+          {previewMsg && (
+            <p role="alert" className="text-destructive mb-3 text-sm">
+              {previewMsg.text}
+            </p>
+          )}
+          {quote ? (
+            <QuotePanel
+              preview={quote}
+              onBook={handleBook}
+              bookLabel={isSubmitting ? "Submitting…" : "Book now"}
+              bookDisabled={!bookEnabled}
+              showBook={!submitDone}
+            />
+          ) : (
+            <div className="border-border bg-card text-muted-foreground rounded-xl border border-dashed p-6 text-center text-sm">
+              {isPreviewing
+                ? "Calculating…"
+                : "Select a day and time to see your price."}
+            </div>
+          )}
+        </section>
+      )}
     </div>
   );
 }
