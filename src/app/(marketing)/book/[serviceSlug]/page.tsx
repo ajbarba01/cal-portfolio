@@ -2,8 +2,8 @@
  * /book/[serviceSlug] — per-service booking page (server component).
  *
  * Loads the one service + booking-rule settings + initial public busy ranges via
- * the service role, plus the viewer's auth state (guest | needs-onboarding |
- * ready) and — when ready — their pets (with signed photo URLs). The deferred-auth
+ * the service role, plus the viewer's auth state (guest | needs-info |
+ * needs-meet-greet | ready) and — when ready — their pets (with signed photo URLs). The deferred-auth
  * gate itself lives in the client; this page only supplies the inputs and
  * rehydrates a returnTo selection from the query string.
  */
@@ -111,11 +111,25 @@ export default async function ServiceBookingPage({
   if (user) {
     const { data: profile } = await svc
       .from("profiles")
-      .select("onboarding_complete")
+      .select("onboarding_status")
       .eq("id", user.id)
       .single();
 
-    authState = profile?.onboarding_complete ? "ready" : "needs-onboarding";
+    const status = profile?.onboarding_status as
+      | "info_pending"
+      | "meet_greet_pending"
+      | "approved"
+      | "declined"
+      | undefined;
+
+    if (status === "approved") {
+      authState = "ready";
+    } else if (status === "meet_greet_pending") {
+      authState = serviceSlug === "meet-greet" ? "ready" : "needs-meet-greet";
+    } else {
+      // info_pending, declined, or undefined → send to onboarding info step
+      authState = "needs-info";
+    }
 
     if (authState === "ready") {
       const { data: petRows } = await svc
