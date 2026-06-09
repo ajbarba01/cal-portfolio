@@ -1,3 +1,15 @@
+## In progress
+
+**Onboarding + admin patch batch** — spec: docs/superpowers/specs/2026-06-09-onboarding-admin-batch-design.md
+
+- NEXT_REDIRECT on onboarding step 1 → step 2 (form-action / useActionState fix)
+- onboarding error messages → inline per-field
+- account sidebar tabs locked + grayed during onboarding ("Onboarding" entry on top; clears when approved)
+- meet & greet "awaiting confirmation" doesn't clear after Cal approves (poll → redirect)
+- meet & greet off the services page; scheduling embedded in onboarding step 2; retire /book/meet-greet
+- admin onboarding status → single dropdown (Pending/Approved/Declined), inline-editable in list + detail
+- admin sidebar: highlight Clients tab on a specific-client detail route (prefix-aware active-nav)
+
 ## Now
 
 - cal should have an email created for automated emails
@@ -11,17 +23,20 @@
 - your bookings should show as muted clay in time slots
 - the time based calendar needs a little work: should have somewhere that says where exactly your current booking is.
 - booking confirmation popup with details about prepaying, and penalty for cancellation
-- meet and greet
 - wordmark should have a notification badge next to it for admins. as well as admin tabs?
 - restyle pop-ups
 - cal needs a way to manually input bookings
 - more information for services inside each booking
+- inquiries tab for account - cancel, view status, view message, maybe edit?
+- ensure text wrapping for any area where text could overflow (like sending a long contact message overflows). also the inquiry view could just show the first like few lines of the inquiry and then allow cal to click on it to create a popup that has the actual options for email, text, and resolution (better for mobile too)
 
 ## Larger categories
 
 - notification system (dedicated email address, )
 - admin + contact page redesign
-- meet and greet system
+- admin input bookings
+- whole site cohesiveness pass
+- performance and responsiveness pass
 
 ## Later
 
