@@ -308,6 +308,8 @@ export function AdminCreateBookingClient({
             setQuote(null);
             setErrorMsg("Admin session expired — refresh the page.");
             break;
+          // Unreachable under ADMIN_POLICY (these gates warn-don't-block for admins);
+          // kept as defensive fallbacks.
           case "refuse":
             setQuote(null);
             setErrorMsg(result.reason);

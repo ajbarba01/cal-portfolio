@@ -247,7 +247,7 @@ Some fields are **per-dog** (leash/harness, greeting behavior, restraint) vs **p
 
 ## Copy placeholders
 
-> Filling these in is governed by the **copy-sync protocol** ([docs/CONTENT.md](../CONTENT.md)): Cal's verbatim text is captured in `docs/content/cal-source.md`, tracked in `docs/content/copy-ledger.md`, and rendered from `src/content/marketing.ts`. This section remains the marker-grammar reference.
+> Filling these in is governed by the **copy-sync protocol** ([docs/CONTENT.md](CONTENT.md)): Cal's verbatim text is captured in `docs/content/cal-source.md`, tracked in `docs/content/copy-ledger.md`, and rendered from `src/content/marketing.ts`. This section remains the marker-grammar reference.
 
 Marketing copy that Cal must write is stubbed with double-square-bracket markers. Keep the structure in code; Cal owns the voice and substantive claims.
 

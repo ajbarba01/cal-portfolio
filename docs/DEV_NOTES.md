@@ -21,6 +21,10 @@
 - Toasts are like a set length. idk should be redesigned slightly
 - use of "we" and cal third person throughout the site. idk need cals opinion
 - onboarding page should be part of account (this is why the account underline doesn't work in the nav bar when in onboarding)
+- "more lead time required" should never be an error, it should just mean those days are unavailable for booking (or ig it could say somewhere to contact cal for really soon bookings)
+- cal should also have a way to ban a user from scheduling meet and greets (does rejected do this?)
+- cancel booking should allow a reason (which should be included in the email notif)
+- admin booking on behalf add pet button adds a pet for admin not for the client (maybe we could just remove the add pet button here and allow it to be editable in the admin client view)
 
 ## Larger categories
 
@@ -29,7 +33,8 @@
 - admin input bookings and account bookings reschedule (admin should also be able to edit booking through reschedule)
 - whole site cohesiveness pass
 - performance and responsiveness pass
-- inquiries page for account and inquiry view for both account and admin
+- payment system
+- recurring bookings rework
 
 ## Later
 
