@@ -1,6 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
+import {
+  createSupabaseBookingRepository,
+  type BookingStatusDb,
+} from "@/features/booking/booking-repository";
 import { redirect } from "next/navigation";
 import { PrepayButton } from "./_components/prepay-button";
+import { EditCell } from "./_components/edit-cell";
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +20,7 @@ import {
 } from "@/components/ui/table";
 
 /** Maps a DB booking status to a human label + badge variant. */
-function statusMeta(status: string): {
+function statusMeta(status: BookingStatusDb): {
   label: string;
   variant: "available" | "pending" | "unavailable" | "destructive" | "default";
 } {
@@ -31,8 +37,6 @@ function statusMeta(status: string): {
       return { label: "Declined", variant: "destructive" };
     case "cancelled":
       return { label: "Cancelled", variant: "destructive" };
-    default:
-      return { label: status.replace(/_/g, " "), variant: "default" };
   }
 }
 
@@ -59,10 +63,10 @@ interface BookingRow {
   id: string;
   starts_at: string;
   ends_at: string;
-  status: string;
+  status: BookingStatusDb;
   final_cents: number;
   payments: PaymentRow[];
-  services: { name: string }[] | null;
+  services: { name: string; slug: string }[] | null;
 }
 
 /** Amount owed = final_cents − sum of succeeded payments. */
@@ -81,19 +85,24 @@ export default async function BookingsPage() {
 
   if (!user) redirect("/login");
 
-  const now = new Date().toISOString();
+  const now = new Date();
+  const nowIso = now.toISOString();
+
+  const repo = createSupabaseBookingRepository(createServiceClient());
+  const settings = await repo.getSettings();
+  const cancellationFullRefundHours = settings.cancellation_full_refund_hours;
 
   const { data: bookings } = await supabase
     .from("bookings")
     .select(
-      "id, starts_at, ends_at, status, final_cents, payments(amount_cents, status), services(name)",
+      "id, starts_at, ends_at, status, final_cents, payments(amount_cents, status), services(name, slug)",
     )
     .eq("client_id", user.id)
     .order("starts_at", { ascending: false });
 
   const rows = (bookings as BookingRow[]) ?? [];
-  const upcoming = rows.filter((b) => b.ends_at >= now);
-  const history = rows.filter((b) => b.ends_at < now);
+  const upcoming = rows.filter((b) => b.ends_at >= nowIso);
+  const history = rows.filter((b) => b.ends_at < nowIso);
 
   return (
     <PageContainer width="app">
@@ -107,7 +116,12 @@ export default async function BookingsPage() {
         {upcoming.length === 0 ? (
           <EmptyBookings message="No upcoming bookings." />
         ) : (
-          <BookingTable bookings={upcoming} showPayButton />
+          <BookingTable
+            bookings={upcoming}
+            showPayButton
+            now={now}
+            cancellationFullRefundHours={cancellationFullRefundHours}
+          />
         )}
       </section>
 
@@ -116,7 +130,12 @@ export default async function BookingsPage() {
         {history.length === 0 ? (
           <EmptyBookings message="No past bookings." />
         ) : (
-          <BookingTable bookings={history} showPayButton={false} />
+          <BookingTable
+            bookings={history}
+            showPayButton={false}
+            now={now}
+            cancellationFullRefundHours={cancellationFullRefundHours}
+          />
         )}
       </section>
     </PageContainer>
@@ -137,9 +156,13 @@ function EmptyBookings({ message }: { message: string }) {
 function BookingTable({
   bookings,
   showPayButton,
+  now,
+  cancellationFullRefundHours,
 }: {
   bookings: BookingRow[];
   showPayButton: boolean;
+  now: Date;
+  cancellationFullRefundHours: number;
 }) {
   return (
     <Table>
@@ -150,11 +173,15 @@ function BookingTable({
           <TableHead>Status</TableHead>
           <TableHead>Total</TableHead>
           {showPayButton && <TableHead className="text-right">Pay</TableHead>}
+          {showPayButton && <TableHead className="text-right">Edit</TableHead>}
         </TableRow>
       </TableHeader>
       <TableBody>
         {bookings.map((b) => {
           const owed = amountOwed(b);
+          const paidCents = b.payments
+            .filter((p) => p.status === "succeeded")
+            .reduce((acc, p) => acc + p.amount_cents, 0);
           const { label, variant } = statusMeta(b.status);
           return (
             <TableRow key={b.id}>
@@ -183,6 +210,21 @@ function BookingTable({
               {showPayButton && (
                 <TableCell data-label="" className="md:text-right">
                   <PrepayButton bookingId={b.id} owedCents={owed} />
+                </TableCell>
+              )}
+              {showPayButton && (
+                <TableCell data-label="Edit" className="md:text-right">
+                  <EditCell
+                    bookingId={b.id}
+                    booking={{
+                      status: b.status,
+                      startsAt: new Date(b.starts_at),
+                      paidCents,
+                      serviceSlug: b.services?.[0]?.slug ?? "",
+                    }}
+                    now={now}
+                    cancellationFullRefundHours={cancellationFullRefundHours}
+                  />
                 </TableCell>
               )}
             </TableRow>
