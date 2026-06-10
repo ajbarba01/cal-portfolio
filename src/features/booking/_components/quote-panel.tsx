@@ -2,6 +2,7 @@
 
 /** Itemized price-estimate receipt. Pure presentation of a BookingQuotePreview. */
 
+import type { ReactNode } from "react";
 import type { BookingQuotePreview } from "@/features/booking/booking-service";
 import { centsToDollars } from "@/features/booking/format-money";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,10 @@ interface QuotePanelProps {
   priorFinalCents?: number;
   /** When true, show "this change needs Cal's approval again". */
   approvalWillReReview?: boolean;
+  /** Warn-don't-block override notices (admin). Rendered as an amber block above the CTA. */
+  warnings?: string[];
+  /** Optional control rendered directly above the CTA (e.g. admin force-confirm). */
+  footer?: ReactNode;
 }
 
 export function QuotePanel({
@@ -27,6 +32,8 @@ export function QuotePanel({
   showBook,
   priorFinalCents,
   approvalWillReReview,
+  warnings,
+  footer,
 }: QuotePanelProps) {
   return (
     <section
@@ -91,6 +98,21 @@ export function QuotePanel({
           Requires Cal&apos;s approval before it is confirmed.
         </p>
       )}
+
+      {warnings && warnings.length > 0 && (
+        <div className="bg-warning border-warning-foreground/30 text-warning-foreground mt-3 rounded-md border p-2.5 text-sm">
+          <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold tracking-wide uppercase">
+            <span aria-hidden="true">⚠</span> Overrides in effect — you can
+            still save
+          </p>
+          <ul className="list-disc space-y-0.5 pl-4">
+            {warnings.map((w, i) => (
+              <li key={i}>{w}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {footer && <div className="mt-3">{footer}</div>}
 
       {showBook && onBook && (
         <Button
