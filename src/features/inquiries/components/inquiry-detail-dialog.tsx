@@ -22,7 +22,7 @@ export function InquiryDetailDialog({
   renderExtraActions,
   onOpenChange,
   onResolveClick,
-  onToggleEdit,
+  onStartEdit,
   onCancelEdit,
   onSave,
 }: {
@@ -34,16 +34,17 @@ export function InquiryDetailDialog({
   renderExtraActions?: (inquiry: InquiryRow) => React.ReactNode;
   onOpenChange: (open: boolean) => void;
   onResolveClick: (inquiry: InquiryRow) => void;
-  onToggleEdit: () => void;
+  /** Enter edit mode (one-way; leaving edit mode is onCancelEdit/onSave). */
+  onStartEdit: () => void;
   onCancelEdit: () => void;
   onSave: (patch: { subject: string | null; message: string }) => void;
 }) {
   const open = inquiry !== null;
 
-  // Seed edit fields whenever the edited inquiry changes. Keying the fields by
-  // id avoids set-state-in-effect (the inputs remount with fresh defaults).
   const showEdit = inquiry !== null && editable && canEditInquiry(inquiry);
   const showResolve = inquiry !== null && inquiry.status === "new";
+  // Read-mode footer is only rendered when it would carry an action.
+  const hasReadActions = Boolean(renderExtraActions) || showEdit || showResolve;
 
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
@@ -101,7 +102,7 @@ export function InquiryDetailDialog({
                       defaultValue={inquiry.message}
                       maxLength={4000}
                       key={`message-${inquiry.id}`}
-                      className="border-input bg-background focus-visible:border-ring focus-visible:ring-ring/50 min-h-32 w-full rounded-md border px-3 py-2 text-sm whitespace-pre-wrap outline-none focus-visible:ring-3"
+                      className="border-input bg-background focus-visible:border-ring focus-visible:ring-ring/50 min-h-32 w-full rounded-md border px-3 py-2 text-sm outline-none focus-visible:ring-3"
                     />
                   </div>
                 </div>
@@ -111,66 +112,69 @@ export function InquiryDetailDialog({
                 </div>
               )}
 
-              <div className="border-border bg-background/60 flex flex-col gap-2 border-t px-6 py-4 sm:flex-row sm:items-center">
-                {editing ? (
-                  <>
-                    <Button
-                      variant="ghost"
-                      className="w-full sm:w-auto"
-                      onClick={onCancelEdit}
-                      disabled={pending}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      className="w-full sm:ml-auto sm:w-auto"
-                      disabled={pending}
-                      onClick={() => {
-                        const subjectEl = document.getElementById(
-                          "inquiry-edit-subject",
-                        ) as HTMLInputElement | null;
-                        const messageEl = document.getElementById(
-                          "inquiry-edit-message",
-                        ) as HTMLTextAreaElement | null;
-                        const subject = subjectEl?.value.trim() ?? "";
-                        onSave({
-                          subject: subject ? subject : null,
-                          message: messageEl?.value ?? "",
-                        });
-                      }}
-                    >
-                      <Save className="size-3.5" />{" "}
-                      {pending ? "Saving…" : "Save changes"}
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    {renderExtraActions ? (
-                      <div className="flex flex-wrap gap-2">
-                        {renderExtraActions(inquiry)}
-                      </div>
-                    ) : null}
-                    {showEdit ? (
+              {editing || hasReadActions ? (
+                <div className="border-border bg-background/60 flex flex-col gap-2 border-t px-6 py-4 sm:flex-row sm:items-center">
+                  {editing ? (
+                    <>
                       <Button
                         variant="ghost"
                         className="w-full sm:w-auto"
-                        onClick={onToggleEdit}
+                        onClick={onCancelEdit}
+                        disabled={pending}
                       >
-                        <Pencil className="size-3.5" /> Edit
+                        Cancel
                       </Button>
-                    ) : null}
-                    {showResolve ? (
                       <Button
-                        variant="brand"
                         className="w-full sm:ml-auto sm:w-auto"
-                        onClick={() => onResolveClick(inquiry)}
+                        disabled={pending}
+                        onClick={() => {
+                          const subjectEl = document.getElementById(
+                            "inquiry-edit-subject",
+                          ) as HTMLInputElement | null;
+                          const messageEl = document.getElementById(
+                            "inquiry-edit-message",
+                          ) as HTMLTextAreaElement | null;
+                          if (!messageEl) return;
+                          const subject = subjectEl?.value.trim() ?? "";
+                          onSave({
+                            subject: subject ? subject : null,
+                            message: messageEl.value,
+                          });
+                        }}
                       >
-                        Mark resolved
+                        <Save className="size-3.5" />{" "}
+                        {pending ? "Saving…" : "Save changes"}
                       </Button>
-                    ) : null}
-                  </>
-                )}
-              </div>
+                    </>
+                  ) : (
+                    <>
+                      {renderExtraActions ? (
+                        <div className="flex flex-wrap gap-2">
+                          {renderExtraActions(inquiry)}
+                        </div>
+                      ) : null}
+                      {showEdit ? (
+                        <Button
+                          variant="ghost"
+                          className="w-full sm:w-auto"
+                          onClick={onStartEdit}
+                        >
+                          <Pencil className="size-3.5" /> Edit
+                        </Button>
+                      ) : null}
+                      {showResolve ? (
+                        <Button
+                          variant="brand"
+                          className="w-full sm:ml-auto sm:w-auto"
+                          onClick={() => onResolveClick(inquiry)}
+                        >
+                          Mark resolved
+                        </Button>
+                      ) : null}
+                    </>
+                  )}
+                </div>
+              ) : null}
             </>
           ) : null}
         </Dialog.Popup>
