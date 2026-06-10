@@ -79,6 +79,8 @@ Admin-powers inventory: all 17 expected powers exist in code with UI (approve/de
 | U9  | m   | Return-to-top button (bottom-right) on long pages.                                                                                                                                                  |
 | U10 | m   | Booking detail: show fuller service info per booking.                                                                                                                                               |
 | U11 | m   | Empty/overflow/confusing states sitewide sweep at desktop + mobile + breakpoint transition — full walk with `busy-week` scenario. **(live-verify — this is the SP6 entry activity)**                |
+| U12 | m   | Footer social/email icon links are placeholders — add correct email icon + update all footer links before launch. **(live-verify targets with Cal)**                                                |
+| U13 | m   | "Contact page?" open question from DEV_NOTES — decide whether a dedicated /contact route is needed (Cal decision); current contact flow is the inquiry form on the home/admin surface.              |
 
 ## SP7 — performance
 
