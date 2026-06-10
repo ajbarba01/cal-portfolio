@@ -18,7 +18,6 @@
  * the core's ownership check.
  */
 
-import { z } from "zod";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
@@ -34,10 +33,8 @@ import {
 } from "./booking-service";
 import { CLIENT_POLICY, ADMIN_POLICY } from "./mutation-policy";
 import { StripeGateway } from "@/features/payments";
-import {
-  ResendMailer,
-  sendBookingConfirmation,
-} from "@/features/notifications";
+import { ResendMailer } from "@/features/notifications";
+import { createBookingMutation } from "./mutations/create-booking.mutation";
 import type {
   CreateBookingResult,
   RescheduleBookingResult,
@@ -48,14 +45,6 @@ import type {
   EditBookingPatch,
   EditBookingResult,
 } from "./booking-service";
-
-/** Shape of the booking row read back for the confirmation email (DB edge). */
-const confirmationRowSchema = z.object({
-  starts_at: z.string(),
-  ends_at: z.string(),
-  final_cents: z.number(),
-  services: z.object({ name: z.string() }).nullable(),
-});
 
 // NOTE: result types are intentionally NOT re-exported here. A "use server"
 // module may export ONLY async functions; a `export type { … }` re-export is
@@ -83,51 +72,24 @@ export async function createBooking(
 
   const serviceClient = createServiceClient();
   const repo = createSupabaseBookingRepository(serviceClient);
+  const mailer = new ResendMailer();
 
-  const result = await createBookingCore(
-    { repo, now: new Date() },
-    { ...input, userId: user.id },
-  );
-
-  // Best-effort confirmation email — a failed send NEVER alters the result.
-  // For a multi-occurrence series we send one confirmation for the first
-  // occurrence (the series, not each individual row) — this is intentional.
-  if (result.kind === "success") {
-    try {
-      const firstBookingId = result.bookingIds[0];
-      if (firstBookingId && user.email) {
-        const { data: bookingRow } = await serviceClient
+  return createBookingMutation(
+    {
+      repo,
+      mailer,
+      loadConfirmationRow: async (bookingId) => {
+        const { data } = await serviceClient
           .from("bookings")
           .select("starts_at, ends_at, final_cents, services(name)")
-          .eq("id", firstBookingId)
+          .eq("id", bookingId)
           .single();
-
-        const parsed = confirmationRowSchema.safeParse(bookingRow);
-        if (parsed.success) {
-          const row = parsed.data;
-          const serviceName = row.services?.name ?? "Booking";
-          const mailer = new ResendMailer();
-          const sendResult = await sendBookingConfirmation(mailer, {
-            to: user.email,
-            serviceName,
-            startsAt: new Date(row.starts_at),
-            endsAt: new Date(row.ends_at),
-            finalCents: row.final_cents,
-          });
-          if (!sendResult.ok) {
-            console.error(
-              "createBooking: confirmation email failed:",
-              sendResult.error,
-            );
-          }
-        }
-      }
-    } catch (e: unknown) {
-      console.error("createBooking: error sending confirmation email:", e);
-    }
-  }
-
-  return result;
+        return data;
+      },
+      now: new Date(),
+    },
+    { ...input, userId: user.id, userEmail: user.email ?? undefined },
+  );
 }
 
 /**
