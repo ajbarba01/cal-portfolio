@@ -17,7 +17,7 @@ import {
   onboardingStatusBadgeVariant,
 } from "@/features/admin/onboarding-badge";
 import { cn } from "@/lib/utils";
-import type { OnboardingStatus } from "@/features/booking";
+import type { OnboardingStatus } from "@/features/booking/index.client";
 
 /** The three admin-settable statuses (info_pending is client-driven, not settable). */
 const SETTABLE = [

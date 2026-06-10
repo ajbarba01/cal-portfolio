@@ -39,7 +39,7 @@ import {
   QuantityForm,
   QuotePanel,
   diffBookingPatch,
-} from "@/features/booking";
+} from "@/features/booking/index.client";
 import type {
   SchedulerData,
   BusyBlock,
@@ -52,7 +52,7 @@ import type {
   QuantityState,
   PetSpecies,
   ServiceDetail,
-} from "@/features/booking";
+} from "@/features/booking/index.client";
 import type { Pet } from "@/features/accounts";
 import { useToast } from "@/components/feedback/toast";
 import { ErrorState } from "@/components/feedback/error-state";

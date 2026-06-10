@@ -12,7 +12,7 @@ import {
   rescheduleBooking,
   Scheduler,
   BOOK_WALK_CAPABILITIES,
-} from "@/features/booking";
+} from "@/features/booking/index.client";
 import { ErrorState } from "@/components/feedback/error-state";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/feedback/toast";
@@ -22,7 +22,7 @@ import type {
   ScheduleSelectionState,
   BookingRuleSettings,
   PublicBusyRange,
-} from "@/features/booking";
+} from "@/features/booking/index.client";
 
 const MEET_GREET_SLUG = "meet-greet";
 

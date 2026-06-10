@@ -14,7 +14,7 @@ import {
   matchesClientQuery,
   type BookingCalendarRow,
 } from "@/features/admin";
-import { cancelBooking, markNoShow } from "@/features/booking";
+import { cancelBooking, markNoShow } from "@/features/booking/index.client";
 
 const TIME_ZONE = "America/Denver";
 const STATUSES = [

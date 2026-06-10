@@ -46,7 +46,7 @@ import {
   defaultQuantities,
   quantitiesToRecord,
   QuotePanel,
-} from "@/features/booking";
+} from "@/features/booking/index.client";
 import type {
   SchedulerData,
   BusyBlock,
@@ -58,7 +58,7 @@ import type {
   QuantityState,
   PetSpecies,
   ServiceDetail,
-} from "@/features/booking";
+} from "@/features/booking/index.client";
 import type { Pet } from "@/features/accounts";
 import { RecurringControls } from "./recurring-controls";
 import { useToast } from "@/components/feedback/toast";

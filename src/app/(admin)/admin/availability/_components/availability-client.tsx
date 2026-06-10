@@ -32,14 +32,14 @@ import {
   markNoShow,
   Scheduler,
   ADMIN_CAPABILITIES,
-} from "@/features/booking";
+} from "@/features/booking/index.client";
 import type {
   TimeRange,
   SchedulerData,
   SchedulerCallbacks,
   BusyBlock,
   BookingRuleSettings,
-} from "@/features/booking";
+} from "@/features/booking/index.client";
 import {
   createWindowsBatch,
   setWindowUnavailable,

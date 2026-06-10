@@ -2,7 +2,7 @@
 
 import { useTransition, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { createPrepayIntent } from "@/features/payments";
+import { createPrepayIntent } from "@/features/payments/index.client";
 
 interface PrepayButtonProps {
   bookingId: string;

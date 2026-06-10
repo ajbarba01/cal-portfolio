@@ -7,7 +7,7 @@ import type {
   AssignablePet,
   BookingRuleSettings,
   ServiceDetail,
-} from "@/features/booking";
+} from "@/features/booking/index.client";
 import type { PricingType } from "@/features/pricing";
 
 interface FlowService extends PickableService {

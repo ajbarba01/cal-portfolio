@@ -6,7 +6,7 @@ import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/feedback/confirm-dialog";
 import { PetForm } from "@/features/accounts";
-import { PetAvatar } from "@/features/booking";
+import { PetAvatar } from "@/features/booking/index.client";
 import { deletePet } from "@/features/accounts";
 import type { PetView } from "../page";
 

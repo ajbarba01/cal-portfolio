@@ -17,7 +17,11 @@ import {
   onboardingStatusBadgeVariant,
   type ClientDetailView,
 } from "@/features/admin";
-import { PetAvatar, cancelBooking, markNoShow } from "@/features/booking";
+import {
+  PetAvatar,
+  cancelBooking,
+  markNoShow,
+} from "@/features/booking/index.client";
 
 const EDITABLE = new Set(["pending_approval", "confirmed"]);
 

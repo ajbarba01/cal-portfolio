@@ -14,7 +14,7 @@
  */
 
 import { Button } from "@/components/ui/button";
-import { PetAvatar } from "@/features/booking";
+import { PetAvatar } from "@/features/booking/index.client";
 import type { AdminBusyRangeView } from "@/features/admin";
 
 const DENVER_TZ = "America/Denver";

@@ -31,7 +31,7 @@ const eslintConfig = defineConfig([
         {
           default: "disallow",
           rules: [
-            { target: ["feature"], allow: "index.ts" },
+            { target: ["feature"], allow: ["index.ts", "index.client.ts"] },
             { target: ["lib", "components", "app"], allow: "**" },
           ],
         },
