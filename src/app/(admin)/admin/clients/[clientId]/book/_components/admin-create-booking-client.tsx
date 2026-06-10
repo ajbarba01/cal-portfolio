@@ -296,7 +296,7 @@ export function AdminCreateBookingClient({
           startsAt: input.startsAt,
           endsAt: input.endsAt,
           quantities: input.quantities,
-          petIds: petAware ? selectedPetIds : undefined,
+          petIds: input.petIds,
           recurringRule: input.recurringRule,
         });
         switch (result.kind) {
@@ -435,7 +435,6 @@ export function AdminCreateBookingClient({
     quote !== null;
 
   // Step counter helpers
-  const step2Label = "2";
   const step3Label = petAware ? "3" : "2";
   const step4Label = petAware ? "4" : "3";
 
@@ -525,7 +524,7 @@ export function AdminCreateBookingClient({
             id="pets-heading"
             className="text-brand-strong mb-3 text-xs font-semibold tracking-wide uppercase"
           >
-            {step2Label}. Which pets?
+            2. Which pets?
           </h2>
           <PetAssignment
             pets={pets}

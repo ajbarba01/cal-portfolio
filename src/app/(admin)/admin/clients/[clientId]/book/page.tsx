@@ -50,6 +50,7 @@ export default async function AdminCreateBookingPage({
   const { data: serviceRows } = await svc
     .from("services")
     .select("slug, name, description, pricing_type, default_duration_min")
+    .eq("active", true)
     .order("sort_order", { ascending: true });
   const services = (serviceRows ?? []).map((s) => ({
     slug: s.slug as string,
@@ -87,6 +88,8 @@ export default async function AdminCreateBookingPage({
     }),
   );
 
+  // The slug only drives the (discarded) initialBusy; booking rules come from
+  // the global settings row, so the slug choice is inconsequential.
   const loaded = await loadBookingFormData(services[0]?.slug ?? "meet-greet");
   if (!loaded.ok) {
     return (
