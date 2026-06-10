@@ -52,7 +52,14 @@ export function InquiryList({
   const [openId, setOpenId] = React.useState<string | null>(null);
   const [editing, setEditing] = React.useState(false);
   const [confirmId, setConfirmId] = React.useState<string | null>(null);
-  const [pending, setPending] = React.useState(false);
+  // Separate in-flight flags so a save never visually disables the resolve
+  // confirm (or vice versa).
+  const [resolving, setResolving] = React.useState(false);
+  const [saving, setSaving] = React.useState(false);
+
+  // Edit is only truly available when the consumer both permits it and provides
+  // a save handler — otherwise the Edit affordance would silently no-op.
+  const canEdit = editable && Boolean(onSaveEdit);
 
   const filtered = filterInquiries(sortByRecency(inquiries), query, status);
   const view = paginate(filtered, page, PAGE_SIZE);
@@ -84,10 +91,13 @@ export function InquiryList({
 
   async function confirmResolve() {
     if (!confirmId) return;
-    setPending(true);
-    const ok = await onResolve(confirmId);
-    setPending(false);
-    if (ok) setConfirmId(null);
+    setResolving(true);
+    try {
+      const ok = await onResolve(confirmId);
+      if (ok) setConfirmId(null);
+    } finally {
+      setResolving(false);
+    }
   }
 
   function openForEdit(inquiry: InquiryRow) {
@@ -97,10 +107,13 @@ export function InquiryList({
 
   async function saveEdit(patch: { subject: string | null; message: string }) {
     if (!openId || !onSaveEdit) return;
-    setPending(true);
-    const ok = await onSaveEdit(openId, patch);
-    setPending(false);
-    if (ok) setEditing(false);
+    setSaving(true);
+    try {
+      const ok = await onSaveEdit(openId, patch);
+      if (ok) setEditing(false);
+    } finally {
+      setSaving(false);
+    }
   }
 
   if (inquiries.length === 0) {
@@ -155,7 +168,7 @@ export function InquiryList({
             <li key={inquiry.id}>
               <InquiryCard
                 inquiry={inquiry}
-                editable={editable}
+                editable={canEdit}
                 newLabel={newLabel}
                 renderIdentity={renderIdentity}
                 renderExtraActions={renderExtraActions}
@@ -214,8 +227,8 @@ export function InquiryList({
       <InquiryDetailDialog
         inquiry={openInquiry}
         editing={editing}
-        editable={editable}
-        pending={pending}
+        editable={canEdit}
+        pending={saving}
         renderExtraActions={renderExtraActions}
         onOpenChange={(open) => {
           if (!open) {
@@ -234,7 +247,7 @@ export function InquiryList({
         title="Mark this inquiry resolved?"
         description="This tells Cal you no longer need a reply. This can't be undone."
         confirmLabel="Yes, mark resolved"
-        pending={pending}
+        pending={resolving}
         onConfirm={confirmResolve}
         onOpenChange={(open) => {
           if (!open) setConfirmId(null);
