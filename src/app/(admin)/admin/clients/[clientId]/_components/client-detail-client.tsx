@@ -1,7 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+
+const EDITABLE = new Set(["pending_approval", "confirmed"]);
 
 import { useConfirm } from "@/components/feedback/confirm-dialog";
 import { useToast } from "@/components/feedback/toast";
@@ -248,6 +251,14 @@ export function ClientDetailClient({ client }: { client: ClientDetailView }) {
                   {dollars(booking.final_cents)}
                 </span>
                 <span className="ml-auto flex gap-2">
+                  {EDITABLE.has(booking.status) ? (
+                    <Link
+                      href={`/admin/clients/${client.id}/bookings/${booking.id}/edit`}
+                      className="border-border hover:bg-accent inline-flex items-center rounded-md border px-2.5 py-1 text-xs font-medium"
+                    >
+                      Edit
+                    </Link>
+                  ) : null}
                   {booking.status === "pending_approval" ? (
                     <>
                       <Button
@@ -293,6 +304,12 @@ export function ClientDetailClient({ client }: { client: ClientDetailView }) {
             ))}
           </ul>
         )}
+        <Link
+          href={`/admin/clients/${client.id}/book`}
+          className="bg-brand text-brand-foreground mt-1 inline-flex w-fit items-center rounded-md px-3 py-1.5 text-sm font-semibold"
+        >
+          + New booking for {client.full_name ?? "this client"}
+        </Link>
       </section>
 
       <section className={SECTION}>

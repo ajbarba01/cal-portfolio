@@ -227,6 +227,15 @@ export function BookingsCalendarClient({
                     {dollars(booking.final_cents)}
                   </span>
                   <span className="ml-auto flex gap-2">
+                    {booking.status === "pending_approval" ||
+                    booking.status === "confirmed" ? (
+                      <Link
+                        href={`/admin/clients/${booking.client_id}/bookings/${booking.id}/edit`}
+                        className="border-border hover:bg-accent inline-flex items-center rounded-md border px-2.5 py-1 text-xs font-medium"
+                      >
+                        Edit
+                      </Link>
+                    ) : null}
                     {booking.status === "pending_approval" ? (
                       <>
                         <Button
