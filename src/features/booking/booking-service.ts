@@ -594,6 +594,11 @@ export async function createBookingCore(
   // A booking is only accepted if EVERY occurrence falls fully inside at least
   // one open window. Zero windows → all bookings are unavailable (correct:
   // Cal has not published any open slots yet).
+  //
+  // Fetched once here, unconditionally — even when skipWindowFit is set.
+  // The per-occurrence loop below needs the window list to emit a warning
+  // for each skipped occurrence; pulling it inside the skipWindowFit branch
+  // would silently suppress those warnings.
   const openWindows = await repo.getOpenWindows(now);
   for (const occStart of occurrences) {
     const occEnd = new Date(occStart.getTime() + durationMs);
