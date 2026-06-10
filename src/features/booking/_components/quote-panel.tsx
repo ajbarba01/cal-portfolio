@@ -13,6 +13,10 @@ interface QuotePanelProps {
   bookLabel?: string;
   bookDisabled?: boolean;
   showBook?: boolean;
+  /** Prior booking total (cents). When set, renders a signed delta vs finalCents. */
+  priorFinalCents?: number;
+  /** When true, show "this change needs Cal's approval again". */
+  approvalWillReReview?: boolean;
 }
 
 export function QuotePanel({
@@ -21,6 +25,8 @@ export function QuotePanel({
   bookLabel = "Book now",
   bookDisabled,
   showBook,
+  priorFinalCents,
+  approvalWillReReview,
 }: QuotePanelProps) {
   return (
     <section
@@ -57,6 +63,28 @@ export function QuotePanel({
           {centsToDollars(preview.finalCents)}
         </span>
       </div>
+
+      {typeof priorFinalCents === "number" &&
+        priorFinalCents !== preview.finalCents && (
+          <p className="mt-1 text-right text-sm font-medium tabular-nums">
+            <span
+              className={
+                preview.finalCents > priorFinalCents
+                  ? "text-brand-strong"
+                  : "text-status-available-foreground"
+              }
+            >
+              {preview.finalCents > priorFinalCents ? "+" : "−"}
+              {centsToDollars(Math.abs(preview.finalCents - priorFinalCents))}
+            </span>
+            <span className="text-muted-foreground ml-1.5">vs current</span>
+          </p>
+        )}
+      {approvalWillReReview && (
+        <p className="text-brand-strong mt-2 text-xs">
+          This change needs Cal&apos;s approval again.
+        </p>
+      )}
 
       {preview.requiresApproval && (
         <p className="text-foreground/70 mt-2 text-xs italic">
