@@ -41,7 +41,6 @@ export const SEMANTIC_COLORS = [
   "status-unavailable",
   "status-unavailable-foreground",
   "warning",
-  "warning-foreground",
 ] as const;
 
 export type SemanticColor = (typeof SEMANTIC_COLORS)[number];
