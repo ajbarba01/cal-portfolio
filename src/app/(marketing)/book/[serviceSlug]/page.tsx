@@ -17,8 +17,8 @@ import { denverDayKey } from "@/features/booking/availability";
 import {
   ServiceBookingClient,
   type AuthState,
-  type ServiceDetail,
 } from "./_components/service-booking-client";
+import type { ServiceDetail } from "@/features/booking/service-detail";
 import type { AssignablePet } from "@/features/booking/_components/pet-assignment";
 import type { OnboardingStatus } from "@/features/booking/booking-repository";
 import type { PricingType } from "@/features/pricing/types";

@@ -68,12 +68,14 @@ import {
 } from "../../_components/messages";
 import type { UserMessage } from "../../_components/messages";
 import type { DateRange } from "@/components/ui/calendar";
-import type { PricingType } from "@/features/pricing/types";
 import type { BookingRuleSettings } from "@/features/booking/availability";
 import type { PublicBusyRange } from "@/features/booking/busy-ranges";
 import type { BookingQuotePreview } from "@/features/booking/booking-service";
 import type { Pet } from "@/features/accounts/account-actions";
 import type { PetSpecies } from "@/features/booking/_components/pet-avatar";
+import type { ServiceDetail } from "@/features/booking/service-detail";
+
+export type { ServiceDetail };
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -83,14 +85,6 @@ export type AuthState =
   | "needs-meet-greet"
   | "declined"
   | "ready";
-
-export interface ServiceDetail {
-  slug: string;
-  name: string;
-  description: string | null;
-  pricingType: PricingType;
-  defaultDurationMin: number | null;
-}
 
 export interface InitialSelection {
   start: string | null;
