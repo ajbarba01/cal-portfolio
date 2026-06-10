@@ -13,7 +13,7 @@ export default defineConfig({
   test: {
     environment: "node",
     globals: true,
-    include: ["src/**/*.test.ts"],
+    include: ["src/**/*.test.ts", "scripts/**/*.test.ts"],
     passWithNoTests: true,
     // setupFiles loads .env.test before any test runs so integration tests
     // can connect to the local Supabase stack without polluting .env.local.
