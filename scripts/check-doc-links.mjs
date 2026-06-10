@@ -5,6 +5,8 @@ import { dirname, resolve } from "node:path";
 
 // Another project's instruction file, kept as a style reference; its links target that repo, not this one.
 const SKIP_FILES = new Set(["OTHER.md"]);
+// Archived plans are read-only historical records; their relative links naturally break after being moved.
+const SKIP_PREFIXES = ["docs/superpowers/plans/archive/"];
 
 const files = execSync("git ls-files *.md **/*.md", { encoding: "utf8" })
   .split("\n")
@@ -12,6 +14,7 @@ const files = execSync("git ls-files *.md **/*.md", { encoding: "utf8" })
 let bad = 0;
 for (const file of files) {
   if (SKIP_FILES.has(file)) continue;
+  if (SKIP_PREFIXES.some((p) => file.startsWith(p))) continue;
   const text = execSync(`git show :"${file}"`, { encoding: "utf8" });
   const lines = text.split("\n");
   let inCodeBlock = false;

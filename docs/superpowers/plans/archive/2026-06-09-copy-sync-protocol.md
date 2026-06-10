@@ -80,10 +80,8 @@ Verbatim text exactly as Cal supplied it, including (<-- hyperlink) notes.
 - status: placeholder
 - provenance: placeholder
 - consumed-by: -
-- applied-from: |
-  -
-- live-text: |
-  -
+- ## applied-from: |
+- ## live-text: |
 - transforms: none
 - notes: example entry; remove when real entries exist
 ```
