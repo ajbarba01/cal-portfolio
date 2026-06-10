@@ -210,12 +210,11 @@ export async function cancelBooking(
 
 /**
  * Admin-only: load the caller and assert the admin role. Returns the
- * service-role repo + gateway + userId + serviceClient, or a forbidden result.
+ * service-role repo + gateway + serviceClient, or a forbidden result.
  */
 async function requireAdminDeps(): Promise<
   | {
       ok: true;
-      userId: string;
       repo: ReturnType<typeof createSupabaseBookingRepository>;
       gateway: StripeGateway;
       serviceClient: ReturnType<typeof createServiceClient>;
@@ -238,7 +237,6 @@ async function requireAdminDeps(): Promise<
 
   return {
     ok: true,
-    userId: user.id,
     repo: createSupabaseBookingRepository(serviceClient),
     gateway: new StripeGateway(),
     serviceClient,
