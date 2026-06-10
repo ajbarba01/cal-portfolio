@@ -3,10 +3,13 @@
  */
 
 import type { BookingStatusDb } from "./booking-repository";
-import { passesGuards, fitsWindow } from "./availability";
-import type { BookingRuleSettings } from "./availability";
 import { deriveTimeApproval } from "./time-gate";
-import type { BookingServiceDeps } from "./booking-service-shared";
+import {
+  toRuleSettings,
+  passesGuards,
+  fitsWindow,
+  type BookingServiceDeps,
+} from "./booking-service-shared";
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Types
@@ -70,12 +73,7 @@ export async function rescheduleBookingCore(
   const endsAt = new Date(startsAt.getTime() + durationMs);
 
   const settings = await repo.getSettings();
-  const ruleSettings: BookingRuleSettings = {
-    bookingOpenMinute: settings.booking_open_minute,
-    bookingCloseMinute: settings.booking_close_minute,
-    minLeadTimeHours: settings.min_lead_time_hours,
-    hardMaxAdvanceDays: settings.hard_max_advance_days,
-  };
+  const ruleSettings = toRuleSettings(settings);
 
   // Mirror createBookingCore validation for the new slot.
   const timeDecision = deriveTimeApproval(startsAt, now, {

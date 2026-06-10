@@ -18,20 +18,23 @@ Cross-checked DESIGN.md against code — all VERIFIED with evidence:
 
 ## SP3 — foundations (codebase + system + primitives)
 
-| ID  | Sev | Finding                                                                                                                                                                                                               |
-| --- | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| A1  | M   | `booking-service.ts` 1,513 lines — create/cancel/reschedule/edit/series cores + quote orchestration in one file (booking feature = 43% of all feature code). Split into per-concern cores.                            |
-| A2  | M   | Two parallel confirm-dialog implementations: `components/feedback/confirm-dialog.tsx` (promise hook) vs `components/ui/confirm-dialog.tsx` (controlled). 12 call sites, no unified seam. Standardize on one.          |
-| A3  | M   | Cross-feature imports bypass seams (accounts→booking/pricing/forms; admin→booking/payments/notifications/pricing). No `index.ts` public APIs per feature; booking↔pricing coupled through internals.                  |
-| A4  | M   | `features/admin` is a god module: workflows + shared helpers (`admin-guard`, `client-balance`, `meet-greet-upcoming`) + domain CRUD. Split: workflows stay; balance→payments, guard/session→lib, meet-greet→booking.  |
-| A5  | M   | Stateful client god-components: `service-booking-client.tsx` 765, `edit-booking-client.tsx` 740, `admin-create-booking-client.tsx` 628 lines — state machines + side effects + layout in one. Extract hooks/reducers. |
-| A6  | M   | Server actions interleave auth + repo construction + logic + revalidatePath + result mapping (~20 actions). Extract testable mutation layer; centralize revalidation strategy.                                        |
-| A7  | M   | Scheduler grids (`week-grid` 821, `month-grid` 787, `day-timeline` 651) duplicate cell render/interaction logic. Extract shared cell primitive + selection hook.                                                      |
-| A8  | m   | `features/forms` is a pass-through (2 files, 34 lines) — fails deletion test; inline into accounts until service-forms arrive.                                                                                        |
-| A9  | m   | 5 type suppressions (`photo-crop-field`, `pet-avatar`, `month-grid`, `config-schemas.test`, `zip-centroid-geocoder`) — review each: fix or document library limitation.                                               |
-| A10 | m   | No CONTEXT.md domain glossary / ADRs — create during SP3 so future architecture passes have decision memory.                                                                                                          |
-| A11 | M   | Notification seams absent: emails called inline from cores/crons; no notifier interface/outbox for the future notification system. Design seam only.                                                                  |
-| A12 | m   | Onboarding lives beside /account but nav treats it as foreign (see U3) — decide IA placement (move under account or fix active-state) as system-architecture call.                                                    |
+SP3 split into **SP3a** (codebase structure — DONE 2026-06-10) and **SP3b** (system IA + UI primitives — pending). SP3a resolved A1, A3, A4, A5, A6, A7, A8, A9, A10, A11 (behavior-preserving refactor: cross-feature moves, enforced feature boundaries with client/server entry split, booking-service split, scheduler cell primitive, client-state hooks, mutation layer, notifier seam, suppression cleanup, CONTEXT + ADRs 0001–0004). The two remaining findings below carry to **SP3b**.
+
+| ID  | Sev | Finding                                                                                                                                                                                                      |
+| --- | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| A2  | M   | Two parallel confirm-dialog implementations: `components/feedback/confirm-dialog.tsx` (promise hook) vs `components/ui/confirm-dialog.tsx` (controlled). 12 call sites, no unified seam. Standardize on one. |
+| A12 | m   | Onboarding lives beside /account but nav treats it as foreign (see U3) — decide IA placement (move under account or fix active-state) as system-architecture call.                                           |
+
+### SP3a fresh-review follow-ups (deepening — out of SP3a's behavior-preserving scope; logged 2026-06-10)
+
+Surfaced by the SP3a fresh-session `/code-review`. All are **pre-existing duplication/structure** that SP3a relocated verbatim (not regressions); consolidating them is new abstraction work needing its own tests, so deferred rather than expanding SP3a at DoD.
+
+| ID  | Sev | Finding                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | Target                  |
+| --- | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------- |
+| A13 | M   | `use-service-booking` / `use-admin-create-booking` / `use-edit-booking` are ~90% duplicated (date helpers, `buildCapabilities`, `busyRanges`, `schedulerData`, stay/derivation, latest-ref debounce, `onSelectionChange`, `@`-cell parsing, step labels) — only deltas are action calls + auth/forceConfirm gating. Generalize into a shared `useBookingScheduler` primitive parameterized by `{preview, submit, gating}`. Risk if left: three hooks kept in lockstep by hand; a fix to selection→time derivation / 400 ms debounce / cell parsing must be applied 2–3×. | SP3b                    |
+| A14 | M   | `SettingsRow→BookingRuleSettings` mapping + `passesGuards`/`getOpenWindows`/`fitsWindow` slot-validation block duplicated 4× across cores (`create-core`, `edit-core` ×2 incl. `previewEditCore`, `reschedule-core`) despite `booking-service-shared`'s "≥2 cores" charter; `previewEditCore` is a near-verbatim clone of `editBookingCore`. Extract `toRuleSettings()` + `validateSlot()` into shared. Risk if left: edit vs preview can drift, breaking the WYSIWYG guarantee the preview twin exists for.                                                             | SP3b / booking-mutation |
+| A15 | m   | `computeBookingArtifacts` awaits `getOutstandingDebtCents` then `getOnboardingStatus` serially before the `Promise.all` load; the two base reads have no data dependency and could join the `Promise.all` (inner `hasActiveBookingForServiceSlug` stays conditional). One extra serial Supabase RTT on every quote preview / create / edit — fires on the ~400 ms live-quote debounce. (Pre-existing serialization, re-exposed by the move into shared.)                                                                                                                 | SP7                     |
+| A16 | m   | `create-core` re-runs `createBookingInputSchema.parse(rawInput)` that `computeBookingArtifacts` already ran (shared discards its parsed `input`, forcing the re-parse to recover `userId`/`startsAt`/`endsAt`). Surface the already-parsed input on `BookingQuoteArtifacts` (e.g. `artifacts.input`) to remove the redundant validation + divergence risk.                                                                                                                                                                                                               | SP3b / booking-mutation |
 
 ## SP4 — payments
 
@@ -102,6 +105,7 @@ Admin-powers inventory: all 17 expected powers exist in code with UI (approve/de
 
 - D1–D3 resolved by SP1 (doc architecture), 2026-06-10.
 - S1 resolved by SP2 (db seeding framework), 2026-06-10.
+- A1, A3, A4, A5, A6, A7, A8, A9, A10, A11 resolved by SP3a (codebase structure), 2026-06-10. A2, A12 carry to SP3b.
 
 ---
 

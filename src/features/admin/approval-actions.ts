@@ -13,10 +13,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { assertActorIsAdmin } from "@/lib/admin-guard";
 import { getActorOrRedirect } from "@/lib/admin-session";
 import { transition } from "@/features/booking";
-import {
-  ResendMailer,
-  sendBookingConfirmation,
-} from "@/features/notifications";
+import { ResendNotifier } from "@/features/notifications";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { BookingEvent, BookingStatus } from "@/features/booking";
 
@@ -199,6 +196,7 @@ export async function approveBooking(
     revalidatePath("/admin/bookings");
 
     // Best-effort confirmation email — a failed send NEVER alters the result.
+    // Error handling (log + swallow) lives inside ResendNotifier.notify().
     try {
       const { data: bookingRow } = await serviceClient
         .from("bookings")
@@ -214,20 +212,17 @@ export async function approveBooking(
         const clientEmail = row.profiles?.email;
         const serviceName = row.services?.name ?? "Booking";
         if (clientEmail) {
-          const mailer = new ResendMailer();
-          const sendResult = await sendBookingConfirmation(mailer, {
-            to: clientEmail,
-            serviceName,
-            startsAt: new Date(row.starts_at),
-            endsAt: new Date(row.ends_at),
-            finalCents: row.final_cents,
+          const notifier = new ResendNotifier();
+          await notifier.notify({
+            type: "booking_confirmed",
+            payload: {
+              to: clientEmail,
+              serviceName,
+              startsAt: new Date(row.starts_at),
+              endsAt: new Date(row.ends_at),
+              finalCents: row.final_cents,
+            },
           });
-          if (!sendResult.ok) {
-            console.error(
-              "approveBooking: confirmation email failed:",
-              sendResult.error,
-            );
-          }
         }
       }
     } catch (e: unknown) {
