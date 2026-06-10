@@ -12,6 +12,7 @@ export const accountNav: ZoneNav = {
     { href: "/account/pets", label: "Pets" },
     { href: "/account/forms", label: "Forms" },
     { href: "/account/bookings", label: "Bookings" },
+    { href: "/account/inquiries", label: "Inquiries" },
   ],
 };
 
