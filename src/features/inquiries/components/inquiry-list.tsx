@@ -27,6 +27,8 @@ export function InquiryList({
   newLabel,
   searchPlaceholder,
   emptyTitle,
+  resolveTitle,
+  resolveDescription,
   renderIdentity,
   renderExtraActions,
   onResolve,
@@ -37,6 +39,9 @@ export function InquiryList({
   newLabel: string;
   searchPlaceholder: string;
   emptyTitle: string;
+  /** Copy for the irreversible resolve confirm — differs per consumer. */
+  resolveTitle: string;
+  resolveDescription: string;
   renderIdentity?: (inquiry: InquiryRow) => React.ReactNode;
   renderExtraActions?: (inquiry: InquiryRow) => React.ReactNode;
   onResolve: (id: string) => Promise<boolean>;
@@ -171,7 +176,6 @@ export function InquiryList({
                 editable={canEdit}
                 newLabel={newLabel}
                 renderIdentity={renderIdentity}
-                renderExtraActions={renderExtraActions}
                 onOpen={(i) => {
                   setOpenId(i.id);
                   setEditing(false);
@@ -244,8 +248,8 @@ export function InquiryList({
 
       <ConfirmDialog
         open={confirmId !== null}
-        title="Mark this inquiry resolved?"
-        description="This tells Cal you no longer need a reply. This can't be undone."
+        title={resolveTitle}
+        description={resolveDescription}
         confirmLabel="Yes, mark resolved"
         pending={resolving}
         onConfirm={confirmResolve}
