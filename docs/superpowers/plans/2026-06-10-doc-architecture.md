@@ -292,7 +292,7 @@ git commit -m "docs: tighten design and content docs without fact loss"
 
 - [ ] **Step 1: Prune findings D1–D3** from the register (lifecycle rule: resolved findings are removed, with a one-line "resolved by SP1, <date>" under a small Resolved heading).
 
-- [ ] **Step 2: Roadmap:** mark SP1 done with date; next SP = SP2 seeding.
+- [ ] **Step 2: Roadmap + handoff:** mark SP1 done with date in the roadmap (next SP = SP2 seeding); in `docs/superpowers/HANDOFF.md` set SP1 status `done`, SP2 `current`, append a Session log line, and delete any "Context not documented elsewhere" bullets SP1 made obsolete (word baselines, `.claude` greenfield note, OTHER.md decision once made).
 
 - [ ] **Step 3: Final gates**
 

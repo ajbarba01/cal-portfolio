@@ -25,6 +25,7 @@ Audit the entire site across 11 maintainer-defined points, then execute an order
 | Findings register  | `docs/superpowers/specs/2026-06-10-audit-findings.md`                     | Written by audit; every finding has severity (critical/major/minor), evidence (file:line or repro), owning SP. Each SP prunes its resolved findings at DoD. |
 | This roadmap       | `docs/superpowers/specs/2026-06-10-professionalization-roadmap-design.md` | Updated when SP order/scope changes (same-commit rule).                                                                                                     |
 | Per-SP spec + plan | `docs/superpowers/specs/` + `docs/superpowers/plans/`                     | Written JIT at SP start; plan satisfies WORKFLOW.md handoff contract.                                                                                       |
+| Program handoff    | `docs/superpowers/HANDOFF.md`                                             | Session entry point: progress tracker + undocumented context. Every program session updates it before ending.                                               |
 
 ## Sub-projects (ordered)
 
