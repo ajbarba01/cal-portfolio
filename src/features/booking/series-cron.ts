@@ -79,8 +79,9 @@ export function nextOccurrencesToMaterialize(
   existingStarts: number[],
   now: Date,
   generationHorizonDays: number,
+  skippedStarts: number[] = [],
 ): Date[] {
-  const existing = new Set(existingStarts);
+  const excluded = new Set([...existingStarts, ...skippedStarts]);
   const materializeUntil = new Date(
     now.getTime() + generationHorizonDays * MS_PER_DAY,
   );
@@ -95,7 +96,7 @@ export function nextOccurrencesToMaterialize(
     { materializeUntil },
   );
   return all.filter(
-    (d) => !existing.has(d.getTime()) && d.getTime() > now.getTime(),
+    (d) => !excluded.has(d.getTime()) && d.getTime() > now.getTime(),
   );
 }
 

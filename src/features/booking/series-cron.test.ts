@@ -132,6 +132,32 @@ describe("nextOccurrencesToMaterialize", () => {
 });
 
 // ──────────────────────────────────────────────────────────────────────────────
+// Pure: nextOccurrencesToMaterialize — skip-set
+// ──────────────────────────────────────────────────────────────────────────────
+
+describe("nextOccurrencesToMaterialize — skip-set", () => {
+  const now = new Date("2026-06-10T00:00:00Z");
+  const series: SeriesRule = {
+    templateStartsAt: new Date("2026-06-15T16:00:00Z"), // Mondays 16:00Z
+    freq: "weekly",
+    interval: 1,
+    openEnded: true,
+  };
+
+  it("reproduces the duplicate without a skip, then excludes the skipped slot", () => {
+    // The Jun 22 occurrence was moved away (its row no longer sits on Jun 22),
+    // so it is absent from existingStarts. Without a skip it gets refilled.
+    const jun22 = new Date("2026-06-22T16:00:00Z").getTime();
+    const withoutSkip = nextOccurrencesToMaterialize(series, [], now, 21, []);
+    expect(withoutSkip.map((d) => d.getTime())).toContain(jun22);
+
+    // Recording Jun 22 in the skip-set excludes it from materialization.
+    const withSkip = nextOccurrencesToMaterialize(series, [], now, 21, [jun22]);
+    expect(withSkip.map((d) => d.getTime())).not.toContain(jun22);
+  });
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
 // Integration: runSeriesRollCron
 // ──────────────────────────────────────────────────────────────────────────────
 
