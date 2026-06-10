@@ -3,7 +3,7 @@ import { execSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
-// Files that belong to a different project and whose links are intentionally unreachable here.
+// Another project's instruction file, kept as a style reference; its links target that repo, not this one.
 const SKIP_FILES = new Set(["OTHER.md"]);
 
 const files = execSync("git ls-files *.md **/*.md", { encoding: "utf8" })
