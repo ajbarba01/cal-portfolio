@@ -20,7 +20,7 @@
  * 1° lat ≈ 69 mi; only latitude is adjusted here (lng fixed at origin).
  */
 
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { createClient } from "@supabase/supabase-js";
 import {
   createBookingCore,
@@ -29,10 +29,12 @@ import {
   markNoShowCore,
   settleDebtCore,
 } from "./booking-service";
+import type { CreateBookingInput } from "./booking-service";
 import { createSupabaseBookingRepository } from "./booking-repository";
-import type { OnboardingStatus } from "./booking-repository";
+import type { OnboardingStatus, BookingRepository } from "./booking-repository";
 import { quote } from "@/features/pricing/quote";
 import type { WalkConfig } from "@/features/pricing/types";
+import { ADMIN_POLICY, CLIENT_POLICY } from "./mutation-policy";
 
 const url = process.env.SUPABASE_TEST_URL!;
 const serviceKey = process.env.SUPABASE_TEST_SERVICE_ROLE_KEY!;
@@ -1118,6 +1120,111 @@ describe("createBookingCore: pet assignment", () => {
       recurringRule: null,
     });
     expect(result.kind).toBe("validation_error");
+  });
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
+// computeBookingArtifacts — policy gates (unit tests, no DB)
+// ──────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Build a minimal mock BookingRepository for policy-gate unit tests.
+ * outstandingDebtCents controls the debt gate (default 0).
+ */
+function makeMockRepo(
+  opts: { outstandingDebtCents?: number } = {},
+): BookingRepository {
+  return {
+    getOutstandingDebtCents: vi.fn(async () => opts.outstandingDebtCents ?? 0),
+    getOnboardingStatus: vi.fn(async () => "approved" as const),
+    hasActiveBookingForServiceSlug: vi.fn(async () => false),
+    getServiceBySlug: vi.fn(async () => ({
+      id: "svc-checkin",
+      slug: "check-in",
+      pricing_type: "check_in" as const,
+      pricing_config: { rate_cents_per_hour: 3000, minimum_cents: 1500 },
+      concurrency: "exclusive" as const,
+      requires_approval: false,
+    })),
+    getSettings: vi.fn(async () => ({
+      origin_lat: 40.015,
+      origin_lng: -105.27,
+      road_factor: 1.3,
+      avg_speed_mph: 30,
+      auto_approve_threshold_miles: 8,
+      hard_cutoff_miles: 50,
+      gate_use_road_miles: false,
+      booking_open_minute: 0,
+      booking_close_minute: 1440,
+      min_lead_time_hours: 0,
+      auto_confirm_horizon_days: 30,
+      hard_max_advance_days: 365,
+      recurrence_generation_horizon_days: 42,
+      recurring_discount_pct: 10,
+      recurring_min_occurrences: 3,
+      cancellation_full_refund_hours: 48,
+      late_cancel_refund_pct: 50,
+      no_show_charge_pct: 100,
+    })),
+    getProfileLatLng: vi.fn(async () => ({ lat: 40.087, lng: -105.27 })),
+    getPetsByIds: vi.fn(async () => []),
+    getOpenWindows: vi.fn(async () => []),
+    insertBookings: vi.fn(async () => ["bk-1"]),
+    insertBookingPets: vi.fn(async () => {}),
+    insertSeries: vi.fn(async () => "series-1"),
+    deleteSeries: vi.fn(async () => {}),
+    // Stub remaining interface methods (not exercised by policy gate tests)
+    getServiceById: vi.fn(),
+    getBookingById: vi.fn(),
+    updateBookingStatus: vi.fn(),
+    getBookingTimes: vi.fn(),
+    updateBookingTimes: vi.fn(),
+    getActiveSeries: vi.fn(),
+    getMaterializedOccurrenceStarts: vi.fn(),
+    getBookingWithPayments: vi.fn(),
+    insertDebit: vi.fn(),
+    settleDebit: vi.fn(),
+    getActiveBusyRangesEnriched: vi.fn(),
+    getBookingForEdit: vi.fn(),
+    updateBookingEdited: vi.fn(),
+    swapBookingPets: vi.fn(),
+    appendSeriesSkip: vi.fn(),
+  } as unknown as BookingRepository;
+}
+
+/** A valid check-in input for the near-client mock profile. */
+const MOCK_NOW = new Date("2026-06-10T12:00:00Z");
+const mockValidInput: CreateBookingInput = {
+  userId: "a0000000-0000-4000-8000-000000000001",
+  serviceSlug: "check-in",
+  startsAt: new Date("2026-06-20T17:00:00Z"),
+  endsAt: new Date("2026-06-20T18:00:00Z"),
+  quantities: { hours: 1 },
+  recurringRule: null,
+};
+
+describe("computeBookingQuoteCore — policy gates", () => {
+  it("blocks a debtor under CLIENT_POLICY", async () => {
+    const repo = makeMockRepo({ outstandingDebtCents: 4000 });
+    const result = await computeBookingQuoteCore(
+      { repo, now: MOCK_NOW },
+      mockValidInput,
+      CLIENT_POLICY,
+    );
+    expect(result.kind).toBe("blocked_debt");
+  });
+
+  it("warns (not blocks) a debtor under ADMIN_POLICY", async () => {
+    const repo = makeMockRepo({ outstandingDebtCents: 4000 });
+    const result = await computeBookingQuoteCore(
+      { repo, now: MOCK_NOW },
+      mockValidInput,
+      ADMIN_POLICY,
+    );
+    expect(result.kind).toBe("success");
+    if (result.kind === "success") {
+      expect(result.preview.warnings.join(" ")).toMatch(/owes/i);
+    }
   });
 });
 

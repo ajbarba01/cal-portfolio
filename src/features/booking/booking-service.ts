@@ -61,6 +61,8 @@ import type {
   ServiceRow,
   SettingsRow,
 } from "./booking-repository";
+import type { MutationPolicy } from "./mutation-policy";
+import { CLIENT_POLICY } from "./mutation-policy";
 import type { QuoteInput, QuoteBreakdown } from "@/features/pricing/types";
 import type { RecurrenceRule } from "./recurrence";
 import type { BookingRuleSettings } from "./availability";
@@ -157,6 +159,8 @@ export interface BookingQuotePreview {
   requiresApproval: boolean;
   /** The distance-based approval decision. */
   decision: "auto" | "manual" | "refuse";
+  /** Warnings for admin-skipped gates (empty under client policy). */
+  warnings: string[];
 }
 
 export type PreviewResult =
@@ -213,6 +217,8 @@ interface BookingQuoteArtifacts {
   requiresApproval: boolean;
   /** The distance-based approval decision (for preview display). */
   decision: "auto" | "manual" | "refuse";
+  /** Human-readable warnings for admin-skipped gates (empty under client policy). */
+  warnings: string[];
 }
 
 type ArtifactsResult =
@@ -242,6 +248,7 @@ type ArtifactsResult =
 async function computeBookingArtifacts(
   deps: BookingServiceDeps,
   rawInput: CreateBookingInput,
+  policy: MutationPolicy,
 ): Promise<ArtifactsResult> {
   // 1. Validate
   const parseResult = createBookingInputSchema.safeParse(rawInput);
@@ -251,11 +258,17 @@ async function computeBookingArtifacts(
   const input = parseResult.data;
   const { repo } = deps;
 
+  const warnings: string[] = [];
+
   // Debt gate (DESIGN: cancellation/refund). Any unsettled balance blocks BOTH
   // the quote preview and the create call — checked here in the shared path.
   const outstandingDebtCents = await repo.getOutstandingDebtCents(input.userId);
   if (outstandingDebtCents > 0) {
-    return { kind: "blocked_debt", owedCents: outstandingDebtCents };
+    if (policy.skipDebtGate) {
+      warnings.push(`Client owes $${(outstandingDebtCents / 100).toFixed(2)}.`);
+    } else {
+      return { kind: "blocked_debt", owedCents: outstandingDebtCents };
+    }
   }
 
   // Onboarding gate (DESIGN: meet-and-greet). A client may book paid services
@@ -268,12 +281,19 @@ async function computeBookingArtifacts(
     // booking the meet-greet AND have no active meet-greet yet (one at a time).
     // The hasActiveBooking check short-circuits — it only runs for the allowed
     // meet_greet_pending + meet-greet combination.
-    if (
-      onboardingStatus !== "meet_greet_pending" ||
-      !isMeetGreet ||
-      (await repo.hasActiveBookingForServiceSlug(input.userId, MEET_GREET_SLUG))
-    ) {
-      return { kind: "onboarding_incomplete" };
+    const meetGreetAllowed =
+      onboardingStatus === "meet_greet_pending" &&
+      isMeetGreet &&
+      !(await repo.hasActiveBookingForServiceSlug(
+        input.userId,
+        MEET_GREET_SLUG,
+      ));
+    if (!meetGreetAllowed) {
+      if (policy.skipOnboardingGate) {
+        warnings.push(`Client onboarding status is '${onboardingStatus}'.`);
+      } else {
+        return { kind: "onboarding_incomplete" };
+      }
     }
   }
 
@@ -364,10 +384,16 @@ async function computeBookingArtifacts(
     });
 
     if (decision === "refuse") {
-      return {
-        kind: "refuse",
-        reason: `Client location is too far (${distanceMiles.toFixed(1)} mi). Hard cutoff is ${settings.hard_cutoff_miles} mi.`,
-      };
+      if (policy.skipDistanceRefuse) {
+        warnings.push(
+          `Client is ${distanceMiles.toFixed(1)} mi away (beyond the ${settings.hard_cutoff_miles} mi cutoff).`,
+        );
+      } else {
+        return {
+          kind: "refuse",
+          reason: `Client location is too far (${distanceMiles.toFixed(1)} mi). Hard cutoff is ${settings.hard_cutoff_miles} mi.`,
+        };
+      }
     }
 
     baseRequiresApproval = decision === "manual" || !!service.requires_approval;
@@ -402,10 +428,16 @@ async function computeBookingArtifacts(
   for (const occStart of occurrences) {
     const timeDecision = deriveTimeApproval(occStart, deps.now, timeCfg);
     if (timeDecision === "refuse") {
-      return {
-        kind: "refuse",
-        reason: `Requested start ${occStart.toISOString()} is beyond the ${settings.hard_max_advance_days}-day booking limit.`,
-      };
+      if (policy.skipHorizonRefuse) {
+        warnings.push(
+          `Occurrence ${occStart.toISOString()} is beyond the ${settings.hard_max_advance_days}-day limit.`,
+        );
+      } else {
+        return {
+          kind: "refuse",
+          reason: `Requested start ${occStart.toISOString()} is beyond the ${settings.hard_max_advance_days}-day booking limit.`,
+        };
+      }
     }
     requiresApprovalByOccurrence.push(
       baseRequiresApproval || timeDecision === "pending",
@@ -439,6 +471,7 @@ async function computeBookingArtifacts(
       requiresApprovalByOccurrence,
       requiresApproval: requiresApprovalByOccurrence[0],
       decision,
+      warnings,
     },
   };
 }
@@ -452,10 +485,11 @@ async function computeBookingArtifacts(
 export async function computeBookingQuoteCore(
   deps: BookingServiceDeps,
   rawInput: CreateBookingInput,
+  policy: MutationPolicy = CLIENT_POLICY,
 ): Promise<PreviewResult> {
-  const result = await computeBookingArtifacts(deps, rawInput);
+  const result = await computeBookingArtifacts(deps, rawInput, policy);
   if (result.kind !== "success") return result;
-  const { breakdown, distanceMiles, requiresApproval, decision } =
+  const { breakdown, distanceMiles, requiresApproval, decision, warnings } =
     result.artifacts;
   return {
     kind: "success",
@@ -465,6 +499,7 @@ export async function computeBookingQuoteCore(
       distanceMiles,
       requiresApproval,
       decision,
+      warnings,
     },
   };
 }
@@ -494,7 +529,7 @@ export async function createBookingCore(
   rawInput: CreateBookingInput,
 ): Promise<CreateBookingResult> {
   // 1–5. Load artifacts + quote/approval (shared with the preview path).
-  const result = await computeBookingArtifacts(deps, rawInput);
+  const result = await computeBookingArtifacts(deps, rawInput, CLIENT_POLICY);
   if (result.kind === "validation_error") {
     return { kind: "validation_error", message: result.message };
   }
