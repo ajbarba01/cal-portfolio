@@ -105,6 +105,8 @@ Tokens live in two files: **`src/app/globals.css`** owns color + radius as two-l
 
 Dark mode provides desaturated fills with lighter foregrounds. Primitives `--green-soft`, `--green-deep`, `--blue-soft`, `--blue-deep` live in the primitive layer (light only); dark overrides for green/blue status roles are inlined directly in `.dark`, matching the `--destructive` pattern. Components reference only the semantic `--status-*` roles.
 
+- `--warning` / `--warning-foreground` — amber "warn-don't-block" accent (admin override notices). Light + dark defined in `globals.css`.
+
 **Calendar primitive** — `src/components/ui/calendar.tsx` is a **hand-authored** thin wrapper over `react-day-picker` v9 (NOT the shadcn CLI, which scaffolds Radix; this project layers shadcn-style components on `@base-ui/react`). It only restyles rdp's headless day-grid with semantic token classes + a lucide nav chevron. `date-fns` is layout-only inside the grid components, never for booking rules.
 
 **Scheduler component family** — the booking and admin availability surfaces share a single compound `<Scheduler>` family in `features/booking/_components/scheduler/`. Three-layer split:
