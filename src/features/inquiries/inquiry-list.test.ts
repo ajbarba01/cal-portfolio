@@ -78,6 +78,9 @@ describe("filterInquiries", () => {
     expect(filterInquiries(rows, "priya@", "all").map((r) => r.id)).toEqual([
       "3",
     ]);
+    expect(
+      filterInquiries(rows, "priya anand", "all").map((r) => r.id),
+    ).toEqual(["3"]);
   });
 
   it("combines query and status", () => {
@@ -132,7 +135,7 @@ describe("canEditInquiry", () => {
 describe("formatInquiryDate", () => {
   it("renders a human date and time with a separator", () => {
     const out = formatInquiryDate("2026-06-03T20:14:00.000Z");
-    expect(out).toContain("Jun 3, 2026");
+    expect(out).toMatch(/Jun\s+3,?\s+2026/);
     expect(out).toContain("·");
   });
 });

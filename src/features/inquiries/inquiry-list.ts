@@ -1,11 +1,17 @@
 import type { InquiryRow } from "./inquiry-actions";
 
+const DENVER_TZ = "America/Denver";
+
 export type StatusFilter = "all" | "new" | "resolved";
 
-/** Newest-first. Pure: returns a new array, never mutates the input. */
+/**
+ * Newest-first. Pure: returns a new array, never mutates the input.
+ * `created_at` is ISO-8601, so direct string comparison is correct lexicographic
+ * (and avoids locale-collation surprises from `localeCompare`).
+ */
 export function sortByRecency(inquiries: InquiryRow[]): InquiryRow[] {
   return [...inquiries].sort((a, b) =>
-    b.created_at.localeCompare(a.created_at),
+    a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : 0,
   );
 }
 
@@ -66,13 +72,13 @@ export function canEditInquiry(
 export function formatInquiryDate(iso: string): string {
   const date = new Date(iso);
   const day = date.toLocaleDateString("en-US", {
-    timeZone: "America/Denver",
+    timeZone: DENVER_TZ,
     month: "short",
     day: "numeric",
     year: "numeric",
   });
   const time = date.toLocaleTimeString("en-US", {
-    timeZone: "America/Denver",
+    timeZone: DENVER_TZ,
     hour: "numeric",
     minute: "2-digit",
   });
