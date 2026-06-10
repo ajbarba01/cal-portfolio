@@ -32,6 +32,7 @@ import { denverMidnight } from "@/features/booking/availability";
 import { overlapsHalfOpen } from "@/features/booking/calendar-model";
 import { startOptions, blockSpan } from "@/features/booking/day-timeline-model";
 import type { MinuteWindow } from "@/features/booking/day-timeline-model";
+import { useCellSelection } from "./use-cell-selection";
 
 // ---------------------------------------------------------------------------
 // Layout constants
@@ -119,22 +120,12 @@ export function DayTimeline({ className }: { className?: string }) {
   // Drag: which candidate is being dragged (startMin offset)
   const [dragPreviewStart, setDragPreviewStart] = useState<number | null>(null);
   const suppressNextClick = useRef(false);
-  const dragEndHandlerRef = useRef<(() => void) | null>(null);
+  // dragEndHandlerRef + installEndHandler + unmount cleanup from shared hook.
+  const { dragEndHandlerRef, installEndHandler } = useCellSelection();
   // Y-coord where the drag block was grabbed (relative to block top), in px
   const dragGrabOffsetPx = useRef(0);
   // Ref to track container for pointer-coord math
   const trackRef = useRef<HTMLDivElement | null>(null);
-
-  // Unmount cleanup — mirror WeekGrid
-  useEffect(() => {
-    return () => {
-      if (dragEndHandlerRef.current) {
-        window.removeEventListener("pointerup", dragEndHandlerRef.current);
-        window.removeEventListener("pointercancel", dragEndHandlerRef.current);
-        dragEndHandlerRef.current = null;
-      }
-    };
-  }, []);
 
   // ── Derived values ─────────────────────────────────────────────────────────
 
@@ -259,17 +250,7 @@ export function DayTimeline({ className }: { className?: string }) {
   ]);
 
   // ── Pointer drag helpers ──────────────────────────────────────────────────
-
-  const installEndHandler = useCallback((endHandler: () => void) => {
-    if (dragEndHandlerRef.current) {
-      window.removeEventListener("pointerup", dragEndHandlerRef.current);
-      window.removeEventListener("pointercancel", dragEndHandlerRef.current);
-      dragEndHandlerRef.current = null;
-    }
-    dragEndHandlerRef.current = endHandler;
-    window.addEventListener("pointerup", endHandler, { once: true });
-    window.addEventListener("pointercancel", endHandler, { once: true });
-  }, []);
+  // installEndHandler is provided by useCellSelection (imported above).
 
   /**
    * Given a pointer Y relative to track top, find the nearest candidate start.
