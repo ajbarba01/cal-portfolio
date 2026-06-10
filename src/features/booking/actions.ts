@@ -30,7 +30,9 @@ import {
   grantFullRefundCore,
   markNoShowCore,
   settleDebtCore,
+  editBookingCore,
 } from "./booking-service";
+import { CLIENT_POLICY, ADMIN_POLICY } from "./mutation-policy";
 import { StripeGateway } from "@/features/payments/stripe-gateway";
 import { ResendMailer } from "@/features/notifications/resend-mailer";
 import { sendBookingConfirmation } from "@/features/notifications/send-booking-emails";
@@ -41,6 +43,8 @@ import type {
   CreateBookingInput,
   CancelBookingInput,
   AdminBookingResult,
+  EditBookingPatch,
+  EditBookingResult,
 } from "./booking-service";
 
 /** Shape of the booking row read back for the confirmation email (DB edge). */
@@ -263,4 +267,47 @@ export async function settleDebt(debitId: string): Promise<AdminBookingResult> {
   const admin = await requireAdminDeps();
   if (!admin.ok) return { kind: "error", message: "Forbidden" };
   return settleDebtCore({ repo: admin.repo, now: new Date() }, debitId);
+}
+
+/**
+ * Server action: edit a booking in place (time / pets / quantities / comments).
+ *
+ * The actor's policy is derived from the verified session role (service-role read
+ * of `profiles.role`) and is NEVER taken from the payload. Admins receive
+ * `ADMIN_POLICY` (all gates warn-don't-block; may edit any client's booking);
+ * clients receive `CLIENT_POLICY` (all gates enforced; may only edit their own).
+ *
+ * Note: patch dates (`startsAt`, `endsAt`) cross the server-action boundary as
+ * `Date` objects (Next.js serializes them). If a caller holds ISO strings, coerce
+ * with `new Date(...)` before building the patch.
+ */
+export async function editBooking(input: {
+  bookingId: string;
+  patch: EditBookingPatch;
+}): Promise<EditBookingResult> {
+  const authClient = await createClient();
+  const {
+    data: { user },
+  } = await authClient.auth.getUser();
+  if (!user) redirect("/login");
+
+  const serviceClient = createServiceClient();
+  const repo = createSupabaseBookingRepository(serviceClient);
+
+  const { data: profile } = await serviceClient
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+  const policy = profile?.role === "admin" ? ADMIN_POLICY : CLIENT_POLICY;
+
+  return editBookingCore(
+    { repo, now: new Date() },
+    {
+      bookingId: input.bookingId,
+      actorUserId: user.id,
+      policy,
+      patch: input.patch,
+    },
+  );
 }

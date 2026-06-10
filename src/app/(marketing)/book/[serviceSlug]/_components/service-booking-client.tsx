@@ -46,14 +46,17 @@ import type {
   BusyBlock,
 } from "@/features/booking/_components/scheduler";
 import type { ScheduleSelectionState } from "@/features/booking/schedule-selection";
-import { PetAssignment, type AssignablePet } from "./pet-assignment";
+import {
+  PetAssignment,
+  type AssignablePet,
+} from "@/features/booking/_components/pet-assignment";
 import {
   QuantityForm,
   defaultQuantities,
   quantitiesToRecord,
   type QuantityState,
-} from "./quantity-forms";
-import { QuotePanel } from "./quote-panel";
+} from "@/features/booking/_components/quantity-forms";
+import { QuotePanel } from "@/features/booking/_components/quote-panel";
 import { RecurringControls } from "./recurring-controls";
 import { useToast } from "@/components/feedback/toast";
 import { ErrorState } from "@/components/feedback/error-state";

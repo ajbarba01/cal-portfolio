@@ -19,7 +19,7 @@ import {
   type AuthState,
   type ServiceDetail,
 } from "./_components/service-booking-client";
-import type { AssignablePet } from "./_components/pet-assignment";
+import type { AssignablePet } from "@/features/booking/_components/pet-assignment";
 import type { OnboardingStatus } from "@/features/booking/booking-repository";
 import type { PricingType } from "@/features/pricing/types";
 import type { PetSpecies } from "@/features/booking/_components/pet-avatar";
