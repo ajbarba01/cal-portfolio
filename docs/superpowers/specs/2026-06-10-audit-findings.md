@@ -104,11 +104,9 @@ Admin-powers inventory: all 17 expected powers exist in code with UI (approve/de
 
 ## SP1 — docs (this register's own home)
 
-| ID  | Sev | Finding                                                                                                                                                                           |
-| --- | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| D1  | M   | DEV_NOTES.md is a junk drawer (bugs + features + ideas + owed UI mixed); retire into this register + roadmap; define where new notes go.                                          |
-| D2  | M   | Framework docs not fully portable (project facts leak); no doc lifecycle (19 plans unarchived, `specs/` holds only a README); caveman mode enforced by prose only — inconsistent. |
-| D3  | m   | `OTHER.md` (another project's instruction file) sits in repo root as a style reference — relocate or extract what SP1 needs, then remove.                                         |
+### Resolved
+
+- D1–D3 resolved by SP1 (doc architecture), 2026-06-10.
 
 ---
 

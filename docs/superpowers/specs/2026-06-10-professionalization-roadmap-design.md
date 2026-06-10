@@ -34,6 +34,8 @@ Audit the entire site across 11 maintainer-defined points, then execute an order
 Core-vs-project split: framework docs (WORKFLOW, ROLES, ROUTING, ENGINEERING, CODE_STYLE, parts of FRONTEND) fully project-agnostic + portable; project facts live only in DESIGN.md. Caveman-compress all framework docs (style reference: maintainer's OTHER.md). Doc lifecycle rules: plan archiving, DEV_NOTES retired into findings register + roadmap, last-reviewed discipline. Caveman-mode enforcement via reliable mechanism (output style / hook / session start), not a CLAUDE.md sentence.
 **Sets up:** every later session cheaper; lifecycle rules govern artifacts SP2-7 produce.
 
+**Status: DONE 2026-06-10.** Shortfall noted: compression word targets unmet (docs already fact-dense — core docs −2–8%, DESIGN 5,574, CONTENT 868; total ~13,333 vs ~9,500 target) with zero fact loss; all other DoD items met. Next SP: SP2 seeding.
+
 ### SP2 — DB seeding framework
 
 `supabase/seed.sql` baseline (services, settings, admin user) + TypeScript scenario seeder (`npm run db:seed -- <scenario>`): `fresh`, `busy-week`, `payment-states`, `admin-demo`. DB reset becomes cheap + repeatable; ends accidental-wipe pain. Test factories remain separate.

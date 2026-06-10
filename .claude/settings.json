@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node -p \"require('fs').readFileSync('.claude/caveman.md','utf8')\""
+            "command": "node -p \"require('fs').readFileSync(require('path').join(process.env.CLAUDE_PROJECT_DIR||'.','.claude/caveman.md'),'utf8')\""
           }
         ]
       }
