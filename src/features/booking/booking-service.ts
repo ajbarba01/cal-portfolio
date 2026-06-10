@@ -432,12 +432,13 @@ async function computeBookingArtifacts(
         warnings.push(
           `Occurrence ${occStart.toISOString()} is beyond the ${settings.hard_max_advance_days}-day limit.`,
         );
-      } else {
-        return {
-          kind: "refuse",
-          reason: `Requested start ${occStart.toISOString()} is beyond the ${settings.hard_max_advance_days}-day booking limit.`,
-        };
+        requiresApprovalByOccurrence.push(true); // out-of-horizon → always requires approval
+        continue; // skip the normal push below for this occurrence
       }
+      return {
+        kind: "refuse",
+        reason: `Requested start ${occStart.toISOString()} is beyond the ${settings.hard_max_advance_days}-day booking limit.`,
+      };
     }
     requiresApprovalByOccurrence.push(
       baseRequiresApproval || timeDecision === "pending",

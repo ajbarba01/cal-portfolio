@@ -1204,6 +1204,36 @@ const mockValidInput: CreateBookingInput = {
 };
 
 describe("computeBookingQuoteCore — policy gates", () => {
+  it("ADMIN_POLICY: out-of-horizon occurrence requires approval (not auto-confirmed)", async () => {
+    // Near client (lat=40.087 → under 8 mi auto threshold → baseRequiresApproval=false).
+    // Start is NOW + 2 years → beyond hard_max_advance_days=365 → timeDecision="refuse".
+    // skipHorizonRefuse=true (ADMIN_POLICY) → should warn + set requiresApproval=true.
+    const repo = makeMockRepo();
+    const farFutureStart = new Date(
+      MOCK_NOW.getTime() + 2 * 365 * 24 * 60 * 60 * 1000,
+    );
+    const farFutureEnd = new Date(farFutureStart.getTime() + 60 * 60 * 1000);
+    const input: CreateBookingInput = {
+      userId: "a0000000-0000-4000-8000-000000000001",
+      serviceSlug: "check-in",
+      startsAt: farFutureStart,
+      endsAt: farFutureEnd,
+      quantities: { hours: 1 },
+      recurringRule: null,
+    };
+
+    const result = await computeBookingQuoteCore(
+      { repo, now: MOCK_NOW },
+      input,
+      ADMIN_POLICY,
+    );
+
+    expect(result.kind).toBe("success");
+    if (result.kind !== "success") return;
+    expect(result.preview.requiresApproval).toBe(true);
+    expect(result.preview.warnings.join(" ")).toMatch(/beyond|limit/i);
+  });
+
   it("blocks a debtor under CLIENT_POLICY", async () => {
     const repo = makeMockRepo({ outstandingDebtCents: 4000 });
     const result = await computeBookingQuoteCore(
