@@ -33,7 +33,7 @@ import {
 } from "./booking-service";
 import { CLIENT_POLICY, ADMIN_POLICY } from "./mutation-policy";
 import { StripeGateway } from "@/features/payments";
-import { ResendMailer } from "@/features/notifications";
+import { ResendNotifier } from "@/features/notifications";
 import { createBookingMutation } from "./mutations/create-booking.mutation";
 import type {
   CreateBookingResult,
@@ -72,12 +72,12 @@ export async function createBooking(
 
   const serviceClient = createServiceClient();
   const repo = createSupabaseBookingRepository(serviceClient);
-  const mailer = new ResendMailer();
+  const notifier = new ResendNotifier();
 
   return createBookingMutation(
     {
       repo,
-      mailer,
+      notifier,
       loadConfirmationRow: async (bookingId) => {
         const { data } = await serviceClient
           .from("bookings")

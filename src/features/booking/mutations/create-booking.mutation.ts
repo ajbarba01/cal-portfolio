@@ -3,7 +3,8 @@
  *
  * Holds the logic that lives between the action adapter (auth + dep construction)
  * and the pure core (createBookingCore): calls the core, then attempts a
- * best-effort confirmation email. No auth(), no getUser(), no revalidatePath().
+ * best-effort confirmation email via the injected Notifier. No auth(), no
+ * getUser(), no revalidatePath().
  *
  * The action (actions.ts) remains the sole entry point: it authenticates,
  * builds deps, and delegates here. This layer is extracted purely for
@@ -12,9 +13,8 @@
 
 import { z } from "zod";
 import { createBookingCore } from "../create-core";
-import { sendBookingConfirmation } from "@/features/notifications";
 import type { BookingRepository } from "../booking-repository";
-import type { Mailer } from "@/features/notifications";
+import type { Notifier } from "@/features/notifications";
 import type { CreateBookingInput, CreateBookingResult } from "../create-core";
 import type { MutationPolicy } from "../mutation-policy";
 
@@ -37,7 +37,7 @@ export type ConfirmationRow = z.infer<typeof confirmationRowSchema>;
 
 export interface CreateBookingMutationDeps {
   repo: BookingRepository;
-  mailer: Mailer;
+  notifier: Notifier;
   /**
    * Load the booking row needed to build the confirmation email.
    * Injected so the mutation is testable without a live Supabase client.
@@ -64,15 +64,15 @@ export interface CreateBookingMutationInput extends CreateBookingInput {
  * Execute the create-booking orchestration with injected deps.
  *
  * 1. Calls createBookingCore (pure logic, all money/status computed server-side).
- * 2. On success, attempts a best-effort confirmation email; any failure in the
- *    email path is caught and logged — it NEVER alters the result.
+ * 2. On success, attempts a best-effort confirmation email via notifier.notify();
+ *    any failure in the email path is caught and logged — it NEVER alters the result.
  */
 export async function createBookingMutation(
   deps: CreateBookingMutationDeps,
   input: CreateBookingMutationInput,
   policy?: MutationPolicy,
 ): Promise<CreateBookingResult> {
-  const { repo, mailer, loadConfirmationRow, now } = deps;
+  const { repo, notifier, loadConfirmationRow, now } = deps;
   const { userEmail, ...coreInput } = input;
 
   const result = await createBookingCore({ repo, now }, coreInput, policy);
@@ -89,19 +89,16 @@ export async function createBookingMutation(
         if (parsed.success) {
           const row = parsed.data;
           const serviceName = row.services?.name ?? "Booking";
-          const sendResult = await sendBookingConfirmation(mailer, {
-            to: userEmail,
-            serviceName,
-            startsAt: new Date(row.starts_at),
-            endsAt: new Date(row.ends_at),
-            finalCents: row.final_cents,
+          await notifier.notify({
+            type: "booking_confirmed",
+            payload: {
+              to: userEmail,
+              serviceName,
+              startsAt: new Date(row.starts_at),
+              endsAt: new Date(row.ends_at),
+              finalCents: row.final_cents,
+            },
           });
-          if (!sendResult.ok) {
-            console.error(
-              "createBookingMutation: confirmation email failed:",
-              sendResult.error,
-            );
-          }
         }
       }
     } catch (e: unknown) {

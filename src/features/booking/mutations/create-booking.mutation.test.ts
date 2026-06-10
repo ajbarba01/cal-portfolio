@@ -9,7 +9,7 @@ import { describe, it, expect, vi } from "vitest";
 import { createBookingMutation } from "./create-booking.mutation";
 import type { CreateBookingMutationDeps } from "./create-booking.mutation";
 import type { BookingRepository, SettingsRow } from "../booking-repository";
-import type { Mailer } from "@/features/notifications";
+import type { Notifier } from "@/features/notifications";
 import type { CreateBookingInput } from "../create-core";
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -78,7 +78,7 @@ const BASE_INPUT: Omit<CreateBookingInput, "userId"> = {
 };
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Factory for stub repo + mailer
+// Factory for stub repo + notifier
 // ──────────────────────────────────────────────────────────────────────────────
 
 function makeRepo(
@@ -123,15 +123,15 @@ function makeRepo(
   } as unknown as BookingRepository;
 }
 
-function makeMailer(
-  opts: { failSend?: boolean } = {},
-): Mailer & { send: ReturnType<typeof vi.fn> } {
-  const send = vi.fn(async () =>
-    opts.failSend
-      ? { ok: false as const, error: "network timeout" }
-      : { ok: true as const, id: "email-1" },
-  );
-  return { send };
+function makeNotifier(
+  opts: { failNotify?: boolean; throwNotify?: boolean } = {},
+): Notifier & { notify: ReturnType<typeof vi.fn> } {
+  const notify = vi.fn(async () => {
+    if (opts.throwNotify) throw new Error("SMTP unavailable");
+    // best-effort: notify never rejects (failures are swallowed inside ResendNotifier)
+    // For the failNotify stub we just resolve (notifier swallows errors internally)
+  });
+  return { notify };
 }
 
 /** Stub for loadConfirmationRow — returns a valid booking row for email. */
@@ -144,12 +144,12 @@ const stubLoadRow = vi.fn(async () => ({
 
 function makeDeps(
   repoOverrides: Parameters<typeof makeRepo>[0] = {},
-  mailerOpts: Parameters<typeof makeMailer>[0] = {},
+  notifierOpts: Parameters<typeof makeNotifier>[0] = {},
   loadRow: CreateBookingMutationDeps["loadConfirmationRow"] = stubLoadRow,
 ): CreateBookingMutationDeps {
   return {
     repo: makeRepo(repoOverrides),
-    mailer: makeMailer(mailerOpts),
+    notifier: makeNotifier(notifierOpts),
     loadConfirmationRow: loadRow,
     now: NOW,
   };
@@ -174,7 +174,7 @@ describe("createBookingMutation", () => {
     }
   });
 
-  it("sends confirmation email on success and does NOT alter result when email succeeds", async () => {
+  it("sends confirmation notification on success and does NOT alter result when notify succeeds", async () => {
     const deps = makeDeps();
     const result = await createBookingMutation(deps, {
       ...BASE_INPUT,
@@ -183,9 +183,9 @@ describe("createBookingMutation", () => {
     });
 
     expect(result.kind).toBe("success");
-    // mailer.send was called once
+    // notifier.notify was called once
     expect(
-      (deps.mailer as ReturnType<typeof makeMailer>).send,
+      (deps.notifier as ReturnType<typeof makeNotifier>).notify,
     ).toHaveBeenCalledTimes(1);
     // result still has the expected structure
     if (result.kind === "success") {
@@ -193,8 +193,8 @@ describe("createBookingMutation", () => {
     }
   });
 
-  it("does NOT alter success result when mailer fails (best-effort)", async () => {
-    const deps = makeDeps({}, { failSend: true });
+  it("does NOT alter success result when notifier resolves silently (best-effort)", async () => {
+    const deps = makeDeps({}, { failNotify: true });
     const result = await createBookingMutation(deps, {
       ...BASE_INPUT,
       userId: USER_ID,
@@ -205,15 +205,15 @@ describe("createBookingMutation", () => {
     expect(result.kind).toBe("success");
   });
 
-  it("does NOT alter success result when mailer throws (best-effort)", async () => {
-    const throwingMailer: Mailer = {
-      send: vi.fn(async () => {
+  it("does NOT alter success result when notifier throws (best-effort)", async () => {
+    const throwingNotifier: Notifier = {
+      notify: vi.fn(async () => {
         throw new Error("SMTP unavailable");
       }),
     };
     const deps: CreateBookingMutationDeps = {
       repo: makeRepo(),
-      mailer: throwingMailer,
+      notifier: throwingNotifier,
       loadConfirmationRow: stubLoadRow,
       now: NOW,
     };
@@ -228,10 +228,10 @@ describe("createBookingMutation", () => {
   });
 
   it("skips email when userEmail is undefined", async () => {
-    const mailer = makeMailer();
+    const notifier = makeNotifier();
     const deps: CreateBookingMutationDeps = {
       repo: makeRepo(),
-      mailer,
+      notifier,
       loadConfirmationRow: stubLoadRow,
       now: NOW,
     };
@@ -243,15 +243,15 @@ describe("createBookingMutation", () => {
     });
 
     expect(result.kind).toBe("success");
-    expect(mailer.send).not.toHaveBeenCalled();
+    expect(notifier.notify).not.toHaveBeenCalled();
   });
 
   it("skips email when loadConfirmationRow fails to parse (best-effort)", async () => {
     const badLoadRow = vi.fn(async () => null);
-    const mailer = makeMailer();
+    const notifier = makeNotifier();
     const deps: CreateBookingMutationDeps = {
       repo: makeRepo(),
-      mailer,
+      notifier,
       loadConfirmationRow: badLoadRow,
       now: NOW,
     };
@@ -264,7 +264,7 @@ describe("createBookingMutation", () => {
 
     // Still success — email step is best-effort
     expect(result.kind).toBe("success");
-    expect(mailer.send).not.toHaveBeenCalled();
+    expect(notifier.notify).not.toHaveBeenCalled();
   });
 
   it("returns slot_taken when the core signals a conflict", async () => {
@@ -290,7 +290,7 @@ describe("createBookingMutation", () => {
     );
     const deps: CreateBookingMutationDeps = {
       repo: refuseRepo,
-      mailer: makeMailer(),
+      notifier: makeNotifier(),
       loadConfirmationRow: stubLoadRow,
       now: NOW,
     };
