@@ -1537,4 +1537,37 @@ describe("previewEditCore", () => {
     expect(result.preview.requiresApproval).toBe(false);
     expect(result.requiresApproval).toBe(false);
   });
+
+  it("not_found: getBookingForEdit returns null → not_found", async () => {
+    const repo = makePreviewRepo(null);
+    const result = await previewEditCore(
+      { repo, now: PREVIEW_NOW },
+      {
+        bookingId: PREVIEW_BOOKING,
+        actorUserId: PREVIEW_USER,
+        policy: CLIENT_POLICY,
+        patch: { comments: "x" },
+      },
+    );
+    expect(result.kind).toBe("not_found");
+  });
+
+  it("unavailable: unpaid patch whose new start is outside the open window → unavailable", async () => {
+    // Open window: 2026-06-20 15:00–20:00 UTC (from makePreviewRepo default).
+    // Patch to a start OUTSIDE the window: 2026-06-20 21:00 UTC.
+    const repo = makePreviewRepo(previewBaseRow());
+    const result = await previewEditCore(
+      { repo, now: PREVIEW_NOW },
+      {
+        bookingId: PREVIEW_BOOKING,
+        actorUserId: PREVIEW_USER,
+        policy: CLIENT_POLICY,
+        patch: {
+          startsAt: new Date("2026-06-20T21:00:00Z"),
+          endsAt: new Date("2026-06-20T22:00:00Z"),
+        },
+      },
+    );
+    expect(result.kind).toBe("unavailable");
+  });
 });

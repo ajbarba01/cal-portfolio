@@ -1023,15 +1023,21 @@ function quantitiesFromQuoteInputs(qi: unknown): Record<string, unknown> {
   return out;
 }
 
+export interface EditQuoteInput {
+  merged: CreateBookingInput;
+  startsAt: Date;
+  endsAt: Date;
+}
+
 /** Merge an edit patch over a booking's current shape into a re-quote input. */
 export function buildEditQuoteInput(
   booking: BookingEditRow,
   patch: EditBookingPatch,
-): CreateBookingInput {
+): EditQuoteInput {
   const startsAt = patch.startsAt ?? booking.startsAt;
   const durationMs = booking.endsAt.getTime() - booking.startsAt.getTime();
   const endsAt = patch.endsAt ?? new Date(startsAt.getTime() + durationMs);
-  return {
+  const merged: CreateBookingInput = {
     userId: booking.client_id,
     serviceSlug: booking.service_slug,
     startsAt,
@@ -1043,6 +1049,7 @@ export function buildEditQuoteInput(
     petIds: patch.petIds ?? booking.petIds,
     recurringRule: null,
   };
+  return { merged, startsAt, endsAt };
 }
 
 export async function editBookingCore(
@@ -1091,9 +1098,11 @@ export async function editBookingCore(
   }
 
   // Build the merged shape and re-quote via the shared pipeline.
-  const mergedInput = buildEditQuoteInput(booking, patch);
-  const startsAt = mergedInput.startsAt as Date;
-  const endsAt = mergedInput.endsAt as Date;
+  const {
+    merged: mergedInput,
+    startsAt,
+    endsAt,
+  } = buildEditQuoteInput(booking, patch);
 
   const artifacts = await computeBookingArtifacts(deps, mergedInput, policy);
   if (artifacts.kind === "validation_error")
@@ -1242,7 +1251,11 @@ export async function previewEditCore(
     return { kind: "price_locked" };
   }
 
-  const mergedInput = buildEditQuoteInput(booking, patch);
+  const {
+    merged: mergedInput,
+    startsAt,
+    endsAt,
+  } = buildEditQuoteInput(booking, patch);
   const artifacts = await computeBookingArtifacts(deps, mergedInput, policy);
   if (artifacts.kind === "validation_error")
     return { kind: "validation_error", message: artifacts.message };
@@ -1256,13 +1269,41 @@ export async function previewEditCore(
     return { kind: "onboarding_incomplete" };
 
   const {
+    settings: s,
     breakdown,
     distanceMiles,
-    requiresApprovalByOccurrence,
+    requiresApproval,
     decision,
     warnings,
   } = artifacts.artifacts;
-  const requiresApproval = requiresApprovalByOccurrence[0];
+
+  // Slot/window validation — mirrors editBookingCore (Fix 3). Read-only: no
+  // persistence; admin-skip branches are silent (no warnings array to surface).
+  const ruleSettings: BookingRuleSettings = {
+    bookingOpenMinute: s.booking_open_minute,
+    bookingCloseMinute: s.booking_close_minute,
+    minLeadTimeHours: s.min_lead_time_hours,
+    hardMaxAdvanceDays: s.hard_max_advance_days,
+  };
+  if (!policy.skipHoursLeadGuards) {
+    if (!passesGuards({ startsAt, endsAt }, ruleSettings, deps.now)) {
+      return {
+        kind: "unavailable",
+        reason:
+          "The selected time does not meet booking rules (hours, lead time, or max advance).",
+      };
+    }
+  }
+  if (!policy.skipWindowFit) {
+    const openWindows = await repo.getOpenWindows(deps.now);
+    if (!fitsWindow({ startsAt, endsAt }, openWindows)) {
+      return {
+        kind: "unavailable",
+        reason: "The selected time is not within an open availability window.",
+      };
+    }
+  }
+
   const preview: BookingQuotePreview = {
     breakdown,
     finalCents: breakdown.finalCents,
@@ -1271,6 +1312,7 @@ export async function previewEditCore(
     decision,
     warnings,
   };
+  // hoisted for callers that need approval without drilling into preview
   return { kind: "preview", preview, requiresApproval };
 }
 
