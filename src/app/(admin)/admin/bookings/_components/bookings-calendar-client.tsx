@@ -231,7 +231,7 @@ export function BookingsCalendarClient({
                     booking.status === "confirmed" ? (
                       <Link
                         href={`/admin/clients/${booking.client_id}/bookings/${booking.id}/edit`}
-                        className="border-border hover:bg-accent inline-flex items-center rounded-md border px-2.5 py-1 text-xs font-medium"
+                        className="border-border hover:bg-accent focus-visible:border-ring focus-visible:ring-ring/50 inline-flex items-center rounded-md border px-2.5 py-1 text-xs font-medium focus-visible:ring-3"
                       >
                         Edit
                       </Link>
