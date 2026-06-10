@@ -46,7 +46,6 @@ import {
 } from "@/features/booking/_components/pet-assignment";
 import {
   QuantityForm,
-  quantitiesToRecord,
   type QuantityState,
 } from "@/features/booking/_components/quantity-forms";
 import { QuotePanel } from "@/features/booking/_components/quote-panel";
@@ -61,7 +60,8 @@ import type {
 } from "@/features/booking/booking-service";
 import type { Pet } from "@/features/accounts/account-actions";
 import type { PetSpecies } from "@/features/booking/_components/pet-avatar";
-import type { ServiceDetail } from "@/app/(marketing)/book/[serviceSlug]/_components/service-booking-client";
+import type { ServiceDetail } from "@/features/booking/service-detail";
+import { diffBookingPatch } from "@/features/booking/diff-booking-patch";
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -99,13 +99,6 @@ function localDayKey(d: Date): string {
 function localDateFromKey(key: string): Date {
   const [y, m, d] = key.split("-").map((n) => parseInt(n, 10));
   return new Date(y, m - 1, d);
-}
-
-/** Order-independent set equality for pet-id arrays. */
-function sameStringSet(a: string[], b: string[]): boolean {
-  if (a.length !== b.length) return false;
-  const set = new Set(a);
-  return b.every((x) => set.has(x));
 }
 
 // ── Main ────────────────────────────────────────────────────────────────────────
@@ -313,52 +306,35 @@ export function EditBookingClient({
 
   // ── Patch diff: include a field ONLY when it differs from the seed ──────────
   // Unchanged fields are omitted so the core keeps the booking's stored values.
-  const buildPatch = useCallback((): EditBookingPatch => {
-    const patch: EditBookingPatch = {};
-
-    const initialStartMs = new Date(initial.startsAtIso).getTime();
-    const initialEndMs = new Date(initial.endsAtIso).getTime();
-    if (startsAt && startsAt.getTime() !== initialStartMs) {
-      patch.startsAt = startsAt;
-    }
-    if (endsAt && endsAt.getTime() !== initialEndMs) {
-      patch.endsAt = endsAt;
-    }
-
-    if (petAware && !sameStringSet(selectedPetIds, initial.petIds)) {
-      patch.petIds = selectedPetIds;
-    }
-
-    const nextQty = quantitiesToRecord(quantities, nights);
-    const seedQty = quantitiesToRecord(initial.quantities, nights);
-    if (JSON.stringify(nextQty) !== JSON.stringify(seedQty)) {
-      patch.quantities = nextQty;
-    }
-
-    if (comments !== initial.comments) {
-      patch.comments = comments;
-    }
-
-    return patch;
-  }, [
-    startsAt,
-    endsAt,
-    selectedPetIds,
-    quantities,
-    nights,
-    comments,
-    petAware,
-    initial,
-  ]);
-
-  const patch = buildPatch();
+  const patch = useMemo(
+    () =>
+      diffBookingPatch(initial, {
+        startsAt,
+        endsAt,
+        selectedPetIds,
+        quantities,
+        nights,
+        comments,
+        petAware,
+      }),
+    [
+      startsAt,
+      endsAt,
+      selectedPetIds,
+      quantities,
+      nights,
+      comments,
+      petAware,
+      initial,
+    ],
+  );
   const patchEmpty = Object.keys(patch).length === 0;
 
   // ── Latest-ref pattern so the debounce timer reads fresh inputs at fire-time ──
-  const buildPatchRef = useRef(buildPatch);
+  const patchRef = useRef<EditBookingPatch>(patch);
   const canPreviewRef = useRef(false);
   useEffect(() => {
-    buildPatchRef.current = buildPatch;
+    patchRef.current = patch;
     canPreviewRef.current =
       startsAt !== null && endsAt !== null && petsOk && !patchEmpty;
   });
@@ -380,7 +356,7 @@ export function EditBookingClient({
       startPreviewing(async () => {
         const result = await previewEdit({
           bookingId,
-          patch: buildPatchRef.current(),
+          patch: patchRef.current,
         });
         switch (result.kind) {
           case "preview":
@@ -393,16 +369,19 @@ export function EditBookingClient({
             break;
           case "unavailable":
             setQuote(null);
+            setApprovalWillReReview(false);
             setErrorMsg(result.reason);
             setBlocked(true);
             break;
           case "refuse":
             setQuote(null);
+            setApprovalWillReReview(false);
             setErrorMsg(result.reason);
             setBlocked(true);
             break;
           case "price_locked":
             setQuote(null);
+            setApprovalWillReReview(false);
             setErrorMsg(
               "This booking is already paid, so its price can't change.",
             );
@@ -410,11 +389,15 @@ export function EditBookingClient({
             break;
           case "validation_error":
             setQuote(null);
+            setApprovalWillReReview(false);
             setErrorMsg(result.message);
             setBlocked(true);
             break;
           default:
+            // Unreachable from the gated UI — not_found/forbidden/error don't
+            // surface via previewEdit. Block defensively but don't persist stale state.
             setQuote(null);
+            setApprovalWillReReview(false);
             setErrorMsg("Couldn't preview this change. Please contact Cal.");
             setBlocked(true);
         }
@@ -477,7 +460,7 @@ export function EditBookingClient({
   function handleSave() {
     if (patchEmpty || blocked) return;
     startSubmitting(async () => {
-      const result = await editBooking({ bookingId, patch: buildPatch() });
+      const result = await editBooking({ bookingId, patch });
       switch (result.kind) {
         case "success":
           toast.add({ title: "Booking updated" });
@@ -485,20 +468,20 @@ export function EditBookingClient({
           router.refresh();
           break;
         case "unavailable":
+          // Transient: slot may free up — keep Save available for retry.
           setErrorMsg(result.reason);
-          setBlocked(true);
           break;
         case "refuse":
+          // Transient: policy may change — keep Save available for retry.
           setErrorMsg(result.reason);
-          setBlocked(true);
           break;
         case "slot_taken":
+          // Transient: user should pick a different slot, not permanently blocked.
           setErrorMsg("That time was just taken. Please pick another slot.");
-          setBlocked(true);
           break;
         case "validation_error":
+          // Transient: user can fix input — keep Save available for retry.
           setErrorMsg(result.message);
-          setBlocked(true);
           break;
         default:
           // price_locked | forbidden | invalid_status | blocked_debt |
@@ -523,7 +506,7 @@ export function EditBookingClient({
   const saveDisabled =
     patchEmpty || blocked || isPreviewing || isSubmitting || !petsOk;
 
-  const step2Label = petAware ? "2" : "2";
+  const step2Label = "2";
   const step3Label = petAware ? "3" : "2";
   const step4Label = petAware ? "4" : "3";
 
@@ -645,6 +628,9 @@ export function EditBookingClient({
         >
           {step4Label}. Notes for Cal (optional)
         </h2>
+        <label htmlFor="edit-comments" className="sr-only">
+          Notes for Cal
+        </label>
         <textarea
           id="edit-comments"
           value={comments}
