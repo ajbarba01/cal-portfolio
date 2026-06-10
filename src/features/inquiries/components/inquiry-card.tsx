@@ -34,10 +34,14 @@ export function InquiryCard({
 }) {
   const isNew = inquiry.status === "new";
   const showEdit = editable && canEditInquiry(inquiry);
+  // Resolve is available to any consumer (account + admin); only edit is account-gated.
   const showResolve = isNew;
 
   return (
-    <div className="group bg-card border-border hover:border-brand/40 relative flex h-[188px] flex-col rounded-xl border p-4 transition-all hover:-translate-y-px hover:shadow-lg">
+    // Stacking: this card establishes its own context (hover translate creates one).
+    // The z-order of the overlay (z-0), content (z-[1]) and footer actions (z-10)
+    // is resolved *within* this card, so it survives ancestor stacking changes.
+    <div className="bg-card border-border hover:border-brand/40 relative flex h-47 flex-col rounded-xl border p-4 transition-all hover:-translate-y-px hover:shadow-lg">
       {/* Stretched overlay button: opens the popup; sits below the content. */}
       <button
         type="button"
