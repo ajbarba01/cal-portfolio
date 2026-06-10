@@ -12,14 +12,13 @@ import { revalidatePath } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/service";
 import { assertActorIsAdmin } from "@/lib/admin-guard";
 import { getActorOrRedirect } from "@/lib/admin-session";
-import { transition } from "@/features/booking/state-machine";
-import { ResendMailer } from "@/features/notifications/resend-mailer";
-import { sendBookingConfirmation } from "@/features/notifications/send-booking-emails";
+import { transition } from "@/features/booking";
+import {
+  ResendMailer,
+  sendBookingConfirmation,
+} from "@/features/notifications";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type {
-  BookingEvent,
-  BookingStatus,
-} from "@/features/booking/state-machine";
+import type { BookingEvent, BookingStatus } from "@/features/booking";
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Row shape

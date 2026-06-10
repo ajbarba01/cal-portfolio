@@ -3,12 +3,12 @@
 import { useState } from "react";
 
 import { useToast } from "@/components/feedback/toast";
-import { InquiryList } from "@/features/inquiries/components/inquiry-list";
 import {
+  InquiryList,
   editMyInquiry,
   resolveMyInquiry,
   type InquiryRow,
-} from "@/features/inquiries/inquiry-actions";
+} from "@/features/inquiries";
 
 export function AccountInquiriesClient({
   initialInquiries,

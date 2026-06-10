@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import Stripe from "stripe";
 import { createServiceClient } from "@/lib/supabase/service";
-import { applyStripeEvent } from "@/features/payments/webhook-core";
+import { applyStripeEvent } from "@/features/payments";
 
 function requireEnv(name: string): string {
   const value = process.env[name];

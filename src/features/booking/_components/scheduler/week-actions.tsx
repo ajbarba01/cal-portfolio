@@ -21,7 +21,7 @@ import { useScheduler } from "@/features/booking/scheduler-context";
 import { Button } from "@/components/ui/button";
 import { mergeDraftToRanges } from "@/features/booking/schedule-selection";
 import type { DraftRange } from "@/features/booking/schedule-selection";
-import type { ConflictBooking } from "@/features/admin/availability-actions";
+import type { ConflictBooking } from "@/features/admin";
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Helpers

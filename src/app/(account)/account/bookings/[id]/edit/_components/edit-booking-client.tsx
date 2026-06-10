@@ -22,46 +22,41 @@ import {
   useTransition,
 } from "react";
 import { useRouter } from "next/navigation";
-import { useAvailability } from "@/features/booking/use-availability";
-import { useBusyRanges } from "@/features/booking/use-busy-ranges";
-import { useOvernightNights } from "@/features/booking/use-overnight-nights";
-import { validateStayRange } from "@/features/booking/calendar-model";
-import { denverMidnight, denverDayKey } from "@/features/booking/availability";
-import { hourlySchedulerData } from "@/features/booking/hourly-scheduler-data";
-import { editBooking } from "@/features/booking/actions";
-import { previewEdit } from "@/features/booking/preview-edit";
-import { Scheduler } from "@/features/booking/_components/scheduler";
 import {
+  useAvailability,
+  useBusyRanges,
+  useOvernightNights,
+  validateStayRange,
+  denverMidnight,
+  denverDayKey,
+  hourlySchedulerData,
+  editBooking,
+  previewEdit,
+  Scheduler,
   BOOK_HOUSE_SITTING_CAPABILITIES,
   BOOK_WALK_CAPABILITIES,
-} from "@/features/booking/schedule-capabilities";
+  PetAssignment,
+  QuantityForm,
+  QuotePanel,
+  diffBookingPatch,
+} from "@/features/booking";
 import type {
   SchedulerData,
   BusyBlock,
-} from "@/features/booking/_components/scheduler";
-import type { ScheduleSelectionState } from "@/features/booking/schedule-selection";
-import {
-  PetAssignment,
-  type AssignablePet,
-} from "@/features/booking/_components/pet-assignment";
-import {
-  QuantityForm,
-  type QuantityState,
-} from "@/features/booking/_components/quantity-forms";
-import { QuotePanel } from "@/features/booking/_components/quote-panel";
+  ScheduleSelectionState,
+  BookingRuleSettings,
+  PublicBusyRange,
+  BookingQuotePreview,
+  EditBookingPatch,
+  AssignablePet,
+  QuantityState,
+  PetSpecies,
+  ServiceDetail,
+} from "@/features/booking";
+import type { Pet } from "@/features/accounts";
 import { useToast } from "@/components/feedback/toast";
 import { ErrorState } from "@/components/feedback/error-state";
 import type { DateRange } from "@/components/ui/calendar";
-import type { BookingRuleSettings } from "@/features/booking/availability";
-import type { PublicBusyRange } from "@/features/booking/busy-ranges";
-import type {
-  BookingQuotePreview,
-  EditBookingPatch,
-} from "@/features/booking/booking-service";
-import type { Pet } from "@/features/accounts/account-actions";
-import type { PetSpecies } from "@/features/booking/_components/pet-avatar";
-import type { ServiceDetail } from "@/features/booking/service-detail";
-import { diffBookingPatch } from "@/features/booking/diff-booking-patch";
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 

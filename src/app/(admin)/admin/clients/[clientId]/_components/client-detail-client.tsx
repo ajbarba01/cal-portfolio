@@ -10,19 +10,14 @@ import { Button } from "@/components/ui/button";
 import {
   approveBooking,
   declineBooking,
-} from "@/features/admin/approval-actions";
-import {
   setKicheAllowed,
   settleDebit,
-  type ClientDetailView,
-} from "@/features/admin/clients-actions";
-import { OnboardingStatusSelect } from "@/features/admin/_components/onboarding-status-select";
-import {
+  OnboardingStatusSelect,
   onboardingStatusLabel,
   onboardingStatusBadgeVariant,
-} from "@/features/admin/onboarding-badge";
-import { PetAvatar } from "@/features/booking/_components/pet-avatar";
-import { cancelBooking, markNoShow } from "@/features/booking/actions";
+  type ClientDetailView,
+} from "@/features/admin";
+import { PetAvatar, cancelBooking, markNoShow } from "@/features/booking";
 
 const EDITABLE = new Set(["pending_approval", "confirmed"]);
 

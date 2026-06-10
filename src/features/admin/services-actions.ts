@@ -12,9 +12,9 @@ import { revalidatePath } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/service";
 import { assertActorIsAdmin } from "@/lib/admin-guard";
 import { getActorOrRedirect } from "@/lib/admin-session";
-import { parsePricingConfig } from "@/features/pricing/config-schemas";
+import { parsePricingConfig } from "@/features/pricing";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { PricingType } from "@/features/pricing/types";
+import type { PricingType } from "@/features/pricing";
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Row shape

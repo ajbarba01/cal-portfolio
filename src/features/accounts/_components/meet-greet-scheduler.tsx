@@ -2,23 +2,27 @@
 
 import { useCallback, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { useAvailability } from "@/features/booking/use-availability";
-import { useBusyRanges } from "@/features/booking/use-busy-ranges";
-import { hourlySchedulerData } from "@/features/booking/hourly-scheduler-data";
-import { denverMidnight, denverDayKey } from "@/features/booking/availability";
-import { createBooking, rescheduleBooking } from "@/features/booking/actions";
-import { Scheduler } from "@/features/booking/_components/scheduler";
-import { BOOK_WALK_CAPABILITIES } from "@/features/booking/schedule-capabilities";
+import {
+  useAvailability,
+  useBusyRanges,
+  hourlySchedulerData,
+  denverMidnight,
+  denverDayKey,
+  createBooking,
+  rescheduleBooking,
+  Scheduler,
+  BOOK_WALK_CAPABILITIES,
+} from "@/features/booking";
 import { ErrorState } from "@/components/feedback/error-state";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/feedback/toast";
 import type {
   SchedulerData,
   BusyBlock,
-} from "@/features/booking/_components/scheduler";
-import type { ScheduleSelectionState } from "@/features/booking/schedule-selection";
-import type { BookingRuleSettings } from "@/features/booking/availability";
-import type { PublicBusyRange } from "@/features/booking/busy-ranges";
+  ScheduleSelectionState,
+  BookingRuleSettings,
+  PublicBusyRange,
+} from "@/features/booking";
 
 const MEET_GREET_SLUG = "meet-greet";
 

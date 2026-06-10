@@ -11,9 +11,9 @@ import {
   type OnboardingFormState,
 } from "./onboarding-form";
 import { type SupabaseClient } from "@supabase/supabase-js";
-import { defaultGeocoder } from "@/features/pricing/geocoding/zip-centroid-geocoder";
-import { type Geocoder } from "@/features/pricing/geocoding/geocoder";
-import { safeReturnTo } from "@/features/booking/return-to";
+import { defaultGeocoder } from "@/features/pricing";
+import { type Geocoder } from "@/features/pricing";
+import { safeReturnTo } from "@/features/booking";
 
 export interface OnboardingDeps {
   /** Service-role client — bypasses RLS + column grants. Required for writing system columns. */

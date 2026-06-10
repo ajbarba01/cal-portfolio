@@ -8,7 +8,7 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { submitReview } from "@/features/reviews/reviews-action";
+import { submitReview } from "@/features/reviews";
 
 interface ReviewFormProps {
   /** Pass false when the server knows the user is signed out — shows a sign-in prompt instead of the form. */

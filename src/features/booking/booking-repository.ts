@@ -12,7 +12,7 @@
 
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { PricingType } from "@/features/pricing/types";
+import type { PricingType } from "@/features/pricing";
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Row shapes (typed explicitly — no generated DB types to avoid coupling)

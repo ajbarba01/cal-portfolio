@@ -18,7 +18,7 @@
 import { useState, useTransition } from "react";
 import { useScheduler } from "@/features/booking/scheduler-context";
 import { Button } from "@/components/ui/button";
-import type { ConflictBooking } from "@/features/admin/overnight-actions";
+import type { ConflictBooking } from "@/features/admin";
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Helpers

@@ -1,7 +1,7 @@
 import { ErrorState } from "@/components/feedback/error-state";
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
-import { listBookingsInRange } from "@/features/admin/bookings-calendar-actions";
+import { listBookingsInRange } from "@/features/admin";
 
 import { BookingsCalendarClient } from "./_components/bookings-calendar-client";
 

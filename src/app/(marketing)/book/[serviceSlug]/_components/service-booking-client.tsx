@@ -27,36 +27,39 @@ import {
 } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useAvailability } from "@/features/booking/use-availability";
-import { useBusyRanges } from "@/features/booking/use-busy-ranges";
-import { useOvernightNights } from "@/features/booking/use-overnight-nights";
-import { validateStayRange } from "@/features/booking/calendar-model";
-import { denverMidnight, denverDayKey } from "@/features/booking/availability";
-import { hourlySchedulerData } from "@/features/booking/hourly-scheduler-data";
-import { buildReturnTo } from "@/features/booking/return-to";
-import { previewQuote } from "@/features/booking/quote-action";
-import { createBooking } from "@/features/booking/actions";
-import { Scheduler } from "@/features/booking/_components/scheduler";
 import {
+  useAvailability,
+  useBusyRanges,
+  useOvernightNights,
+  validateStayRange,
+  denverMidnight,
+  denverDayKey,
+  hourlySchedulerData,
+  buildReturnTo,
+  previewQuote,
+  createBooking,
+  Scheduler,
   BOOK_HOUSE_SITTING_CAPABILITIES,
   BOOK_WALK_CAPABILITIES,
-} from "@/features/booking/schedule-capabilities";
-import type {
-  SchedulerData,
-  BusyBlock,
-} from "@/features/booking/_components/scheduler";
-import type { ScheduleSelectionState } from "@/features/booking/schedule-selection";
-import {
   PetAssignment,
-  type AssignablePet,
-} from "@/features/booking/_components/pet-assignment";
-import {
   QuantityForm,
   defaultQuantities,
   quantitiesToRecord,
-  type QuantityState,
-} from "@/features/booking/_components/quantity-forms";
-import { QuotePanel } from "@/features/booking/_components/quote-panel";
+  QuotePanel,
+} from "@/features/booking";
+import type {
+  SchedulerData,
+  BusyBlock,
+  ScheduleSelectionState,
+  BookingRuleSettings,
+  PublicBusyRange,
+  BookingQuotePreview,
+  AssignablePet,
+  QuantityState,
+  PetSpecies,
+  ServiceDetail,
+} from "@/features/booking";
+import type { Pet } from "@/features/accounts";
 import { RecurringControls } from "./recurring-controls";
 import { useToast } from "@/components/feedback/toast";
 import { ErrorState } from "@/components/feedback/error-state";
@@ -68,12 +71,6 @@ import {
 } from "../../_components/messages";
 import type { UserMessage } from "../../_components/messages";
 import type { DateRange } from "@/components/ui/calendar";
-import type { BookingRuleSettings } from "@/features/booking/availability";
-import type { PublicBusyRange } from "@/features/booking/busy-ranges";
-import type { BookingQuotePreview } from "@/features/booking/booking-service";
-import type { Pet } from "@/features/accounts/account-actions";
-import type { PetSpecies } from "@/features/booking/_components/pet-avatar";
-import type { ServiceDetail } from "@/features/booking/service-detail";
 
 export type { ServiceDetail };
 

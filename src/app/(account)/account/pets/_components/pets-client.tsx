@@ -5,9 +5,9 @@ import { useState, useTransition } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/feedback/confirm-dialog";
-import { PetForm } from "@/features/accounts/_components/pet-form";
-import { PetAvatar } from "@/features/booking/_components/pet-avatar";
-import { deletePet } from "@/features/accounts/account-actions";
+import { PetForm } from "@/features/accounts";
+import { PetAvatar } from "@/features/booking";
+import { deletePet } from "@/features/accounts";
 import type { PetView } from "../page";
 
 // Shared "form section" legend (matches the booking + forms surfaces).

@@ -33,9 +33,11 @@ import {
   editBookingCore,
 } from "./booking-service";
 import { CLIENT_POLICY, ADMIN_POLICY } from "./mutation-policy";
-import { StripeGateway } from "@/features/payments/stripe-gateway";
-import { ResendMailer } from "@/features/notifications/resend-mailer";
-import { sendBookingConfirmation } from "@/features/notifications/send-booking-emails";
+import { StripeGateway } from "@/features/payments";
+import {
+  ResendMailer,
+  sendBookingConfirmation,
+} from "@/features/notifications";
 import type {
   CreateBookingResult,
   RescheduleBookingResult,

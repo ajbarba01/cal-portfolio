@@ -3,7 +3,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import {
   createSupabaseBookingRepository,
   type BookingStatusDb,
-} from "@/features/booking/booking-repository";
+} from "@/features/booking";
 import { redirect } from "next/navigation";
 import { PrepayButton } from "./_components/prepay-button";
 import { EditCell } from "./_components/edit-cell";

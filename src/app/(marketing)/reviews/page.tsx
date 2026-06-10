@@ -7,9 +7,8 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { createClient } from "@/lib/supabase/server";
-import { listPublishedReviews } from "@/features/reviews/reviews-repo";
+import { listPublishedReviews, type PublishedReview } from "@/features/reviews";
 import { ReviewForm } from "./_components/review-form";
-import type { PublishedReview } from "@/features/reviews/reviews-repo";
 import { MarketingCopy } from "@/components/marketing/marketing-copy";
 
 function StarRating({ rating }: { rating: number }) {

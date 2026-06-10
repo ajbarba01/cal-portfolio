@@ -5,18 +5,16 @@ import { useState } from "react";
 
 import { useToast } from "@/components/feedback/toast";
 import { buttonVariants } from "@/components/ui/button";
-import { InquiryList } from "@/features/inquiries/components/inquiry-list";
 import {
+  InquiryList,
   markInquiryResolved,
   stampInquiryReplied,
-  type InquiryRow,
-} from "@/features/inquiries/inquiry-actions";
-import {
   mailtoUrl,
   replyBody,
   replySubject,
   smsUrl,
-} from "@/features/inquiries/reply-draft";
+  type InquiryRow,
+} from "@/features/inquiries";
 
 export function InquiriesClient({
   initialInquiries,

@@ -2,10 +2,12 @@ import Link from "next/link";
 
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
-import { listBookingsInRange } from "@/features/admin/bookings-calendar-actions";
-import { listClients } from "@/features/admin/clients-actions";
-import { listReviews } from "@/features/admin/reviews-actions";
-import { listInquiries } from "@/features/inquiries/inquiry-actions";
+import {
+  listBookingsInRange,
+  listClients,
+  listReviews,
+} from "@/features/admin";
+import { listInquiries } from "@/features/inquiries";
 
 const TIME_ZONE = "America/Denver";
 

@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
-import type { InquiryRow } from "@/features/inquiries/inquiry-actions";
+import type { InquiryRow } from "@/features/inquiries";
 import { createClient } from "@/lib/supabase/server";
 
 import { AccountInquiriesClient } from "./_components/account-inquiries-client";

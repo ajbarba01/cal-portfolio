@@ -10,7 +10,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { runSeriesRollCron } from "@/features/booking/series-cron";
+import { runSeriesRollCron } from "@/features/booking";
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const cronSecret = process.env.CRON_SECRET;

@@ -5,7 +5,7 @@ import {
   clientCanEditBooking,
   editLockCopy,
   type EditabilityInput,
-} from "@/features/booking/client-can-edit";
+} from "@/features/booking";
 
 export function EditCell({
   bookingId,

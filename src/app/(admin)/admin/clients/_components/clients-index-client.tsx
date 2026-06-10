@@ -6,9 +6,11 @@ import { useMemo, useState } from "react";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import type { ClientListRow } from "@/features/admin/clients-actions";
-import { matchesClientQuery } from "@/features/admin/client-search";
-import { OnboardingStatusSelect } from "@/features/admin/_components/onboarding-status-select";
+import {
+  matchesClientQuery,
+  OnboardingStatusSelect,
+  type ClientListRow,
+} from "@/features/admin";
 
 function dollars(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;

@@ -39,15 +39,12 @@
 
 import { z } from "zod";
 import { haversineMiles } from "@/lib/haversine";
-import {
-  estimateDrivingMinutes,
-  deriveApproval,
-} from "@/features/pricing/distance";
+import { estimateDrivingMinutes, deriveApproval } from "@/features/pricing";
 import { deriveTimeApproval } from "./time-gate";
 import { computeRefund, computeCancellationDebtCents } from "./cancellation";
-import type { PaymentGateway } from "@/features/payments/types";
-import { quote } from "@/features/pricing/quote";
-import { parsePricingConfig } from "@/features/pricing/config-schemas";
+import type { PaymentGateway } from "@/features/payments";
+import { quote } from "@/features/pricing";
+import { parsePricingConfig } from "@/features/pricing";
 import { expandOccurrences } from "./recurrence";
 import {
   seriesQualifiesForRecurringDiscount,
@@ -64,7 +61,7 @@ import type {
 } from "./booking-repository";
 import type { MutationPolicy } from "./mutation-policy";
 import { CLIENT_POLICY } from "./mutation-policy";
-import type { QuoteInput, QuoteBreakdown } from "@/features/pricing/types";
+import type { QuoteInput, QuoteBreakdown } from "@/features/pricing";
 import type { RecurrenceRule } from "./recurrence";
 import type { BookingRuleSettings } from "./availability";
 

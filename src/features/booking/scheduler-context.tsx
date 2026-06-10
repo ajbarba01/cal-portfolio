@@ -19,8 +19,8 @@ import type { TimeRange, BookingRuleSettings } from "./availability";
 import type {
   AvailabilityResult,
   SetWindowUnavailableResult,
-} from "@/features/admin/availability-actions";
-import type { SetOvernightNightsResult } from "@/features/admin/overnight-actions";
+  SetOvernightNightsResult,
+} from "@/features/admin";
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Types

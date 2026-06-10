@@ -15,7 +15,7 @@ import { revalidatePath } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/service";
 import { assertActorIsAdmin } from "@/lib/admin-guard";
 import { getActorOrRedirect } from "@/lib/admin-session";
-import { denverMidnight, denverDayKey } from "@/features/booking/availability";
+import { denverMidnight, denverDayKey } from "@/features/booking";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 // ──────────────────────────────────────────────────────────────────────────────

@@ -14,12 +14,12 @@ import { createServiceClient } from "@/lib/supabase/service";
 import {
   onboardingStatusSchema,
   type OnboardingStatus,
-} from "@/features/booking/booking-repository";
+} from "@/features/booking";
 
 import { assertActorIsAdmin } from "@/lib/admin-guard";
 import { getActorOrRedirect } from "@/lib/admin-session";
-import { outstandingBalanceCents } from "@/features/payments/client-balance";
-import { deriveMeetGreetUpcoming } from "@/features/booking/meet-greet-upcoming";
+import { outstandingBalanceCents } from "@/features/payments";
+import { deriveMeetGreetUpcoming } from "@/features/booking";
 
 const SIGNED_URL_TTL_SECONDS = 60 * 60;
 

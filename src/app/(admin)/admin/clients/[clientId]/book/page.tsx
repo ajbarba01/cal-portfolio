@@ -7,11 +7,10 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { loadBookingFormData } from "@/features/booking/booking-form-data";
+import { loadBookingFormData } from "@/features/booking";
 import { AdminCreateBookingFlow } from "./_components/admin-create-booking-flow";
-import type { PetSpecies } from "@/features/booking/_components/pet-avatar";
-import type { AssignablePet } from "@/features/booking/_components/pet-assignment";
-import type { PricingType } from "@/features/pricing/types";
+import type { PetSpecies, AssignablePet } from "@/features/booking";
+import type { PricingType } from "@/features/pricing";
 
 const SIGNED_URL_TTL_SECONDS = 60 * 60;
 

@@ -4,7 +4,7 @@
 
 import { createServiceClient } from "@/lib/supabase/service";
 import { createClient } from "@/lib/supabase/server";
-import { getSettingsCore } from "@/features/admin/settings-actions";
+import { getSettingsCore } from "@/features/admin";
 import { SettingsClient } from "./_components/settings-client";
 import { ErrorState } from "@/components/feedback/error-state";
 import { PageContainer } from "@/components/layout/page-container";

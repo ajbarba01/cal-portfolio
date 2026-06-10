@@ -4,7 +4,7 @@
 
 import { createServiceClient } from "@/lib/supabase/service";
 import { createClient } from "@/lib/supabase/server";
-import { listServicesCore } from "@/features/admin/services-actions";
+import { listServicesCore } from "@/features/admin";
 import { ServicesClient } from "./_components/services-client";
 import { ErrorState } from "@/components/feedback/error-state";
 import { PageContainer } from "@/components/layout/page-container";

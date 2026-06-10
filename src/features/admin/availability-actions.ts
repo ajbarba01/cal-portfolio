@@ -18,11 +18,13 @@ import { revalidatePath } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/service";
 import { assertActorIsAdmin } from "@/lib/admin-guard";
 import { getActorOrRedirect } from "@/lib/admin-session";
-import { cancelBookingCore } from "@/features/booking/booking-service";
-import { createSupabaseBookingRepository } from "@/features/booking/booking-repository";
-import { denverMidnight } from "@/features/booking/availability";
+import {
+  cancelBookingCore,
+  createSupabaseBookingRepository,
+  denverMidnight,
+} from "@/features/booking";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { PaymentGateway } from "@/features/payments/types";
+import type { PaymentGateway } from "@/features/payments";
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Row shape
@@ -362,7 +364,7 @@ export async function trimWindow(input: {
 }): Promise<AvailabilityResult> {
   const actorUserId = await getActorOrRedirect();
   const serviceClient = createServiceClient();
-  const { StripeGateway } = await import("@/features/payments/stripe-gateway");
+  const { StripeGateway } = await import("@/features/payments");
   const result = await trimWindowCore(
     {
       serviceClient,
@@ -381,7 +383,7 @@ export async function deleteWindow(input: {
 }): Promise<AvailabilityResult> {
   const actorUserId = await getActorOrRedirect();
   const serviceClient = createServiceClient();
-  const { StripeGateway } = await import("@/features/payments/stripe-gateway");
+  const { StripeGateway } = await import("@/features/payments");
   const result = await deleteWindowCore(
     {
       serviceClient,

@@ -25,29 +25,29 @@ import {
   useOptimistic,
 } from "react";
 import { useRouter } from "next/navigation";
-import { useScheduler } from "@/features/booking/scheduler-context";
-import { denverMidnight } from "@/features/booking/availability";
-import type { TimeRange } from "@/features/booking/availability";
 import {
-  createWindowsBatch,
-  setWindowUnavailable,
-} from "@/features/admin/availability-actions";
-import { setOvernightNightsBatch } from "@/features/admin/overnight-actions";
-import {
-  approveBooking,
-  declineBooking,
-} from "@/features/admin/approval-actions";
-import { cancelBooking, markNoShow } from "@/features/booking/actions";
-import { Scheduler } from "@/features/booking/_components/scheduler";
-import { ADMIN_CAPABILITIES } from "@/features/booking/schedule-capabilities";
+  useScheduler,
+  denverMidnight,
+  cancelBooking,
+  markNoShow,
+  Scheduler,
+  ADMIN_CAPABILITIES,
+} from "@/features/booking";
 import type {
+  TimeRange,
   SchedulerData,
   SchedulerCallbacks,
   BusyBlock,
-} from "@/features/booking/_components/scheduler";
-import type { AvailabilityWindow } from "@/features/admin/availability-actions";
-import type { AdminBusyRangeView } from "@/features/admin/admin-busy";
-import type { BookingRuleSettings } from "@/features/booking/availability";
+  BookingRuleSettings,
+} from "@/features/booking";
+import {
+  createWindowsBatch,
+  setWindowUnavailable,
+  setOvernightNightsBatch,
+  approveBooking,
+  declineBooking,
+} from "@/features/admin";
+import type { AvailabilityWindow, AdminBusyRangeView } from "@/features/admin";
 import { BusySidePanel } from "./busy-side-panel";
 
 type ActionResult = { kind: string } & Record<string, unknown>;

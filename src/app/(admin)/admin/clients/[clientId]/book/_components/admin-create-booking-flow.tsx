@@ -3,10 +3,12 @@
 import { useState } from "react";
 import { ServicePick, type PickableService } from "./service-pick";
 import { AdminCreateBookingClient } from "./admin-create-booking-client";
-import type { AssignablePet } from "@/features/booking/_components/pet-assignment";
-import type { BookingRuleSettings } from "@/features/booking/availability";
-import type { ServiceDetail } from "@/features/booking/service-detail";
-import type { PricingType } from "@/features/pricing/types";
+import type {
+  AssignablePet,
+  BookingRuleSettings,
+  ServiceDetail,
+} from "@/features/booking";
+import type { PricingType } from "@/features/pricing";
 
 interface FlowService extends PickableService {
   pricingType: PricingType;

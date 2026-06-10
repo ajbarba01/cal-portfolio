@@ -32,7 +32,7 @@
  * add it here without changing the call sites.
  */
 
-import type { PricingType } from "../pricing/types";
+import type { PricingType } from "@/features/pricing";
 
 // ---------------------------------------------------------------------------
 // Types

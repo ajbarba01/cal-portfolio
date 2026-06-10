@@ -11,10 +11,10 @@ import { Button } from "@/components/ui/button";
 import {
   approveBooking,
   declineBooking,
-} from "@/features/admin/approval-actions";
-import type { BookingCalendarRow } from "@/features/admin/bookings-calendar-actions";
-import { matchesClientQuery } from "@/features/admin/client-search";
-import { cancelBooking, markNoShow } from "@/features/booking/actions";
+  matchesClientQuery,
+  type BookingCalendarRow,
+} from "@/features/admin";
+import { cancelBooking, markNoShow } from "@/features/booking";
 
 const TIME_ZONE = "America/Denver";
 const STATUSES = [

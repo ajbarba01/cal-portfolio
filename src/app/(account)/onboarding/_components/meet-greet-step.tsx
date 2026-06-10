@@ -1,11 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { MeetGreetScheduler } from "@/features/accounts/_components/meet-greet-scheduler";
+import { MeetGreetScheduler } from "@/features/accounts";
 import { RefreshOnInterval } from "@/components/util/refresh-on-interval";
 import { Button } from "@/components/ui/button";
-import type { BookingRuleSettings } from "@/features/booking/availability";
-import type { PublicBusyRange } from "@/features/booking/busy-ranges";
+import type { BookingRuleSettings, PublicBusyRange } from "@/features/booking";
 
 /** Format a UTC ISO string to a human-friendly date+time in America/Denver. */
 function formatDenver(iso: string): string {

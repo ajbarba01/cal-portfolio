@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { ErrorState } from "@/components/feedback/error-state";
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
-import { getClientDetail } from "@/features/admin/clients-actions";
+import { getClientDetail } from "@/features/admin";
 
 import { ClientDetailClient } from "./_components/client-detail-client";
 
