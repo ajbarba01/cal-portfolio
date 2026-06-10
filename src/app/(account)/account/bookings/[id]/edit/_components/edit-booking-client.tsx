@@ -86,6 +86,12 @@ interface EditBookingClientProps {
   /** Current booking total (cents) — for the price delta. */
   priorFinalCents: number;
   initial: EditBookingInitial;
+  /** When set, the surface runs in admin (on-behalf) mode. */
+  admin?: {
+    clientName: string;
+    /** paidCents > 0 → price-affecting controls (pets/quantities) disabled. */
+    paidLock: boolean;
+  };
 }
 
 // ── Local date helpers (browser-local calendar keys; layout, not business rules) ──
@@ -111,6 +117,7 @@ export function EditBookingClient({
   pets,
   priorFinalCents,
   initial,
+  admin,
 }: EditBookingClientProps) {
   const router = useRouter();
   const toast = useToast();
@@ -153,6 +160,8 @@ export function EditBookingClient({
   // Inline error from preview/save; when set with `blocking`, Save is disabled.
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [blocked, setBlocked] = useState(false);
+
+  const [forceConfirm, setForceConfirm] = useState(false);
 
   const [isPreviewing, startPreviewing] = useTransition();
   const [isSubmitting, startSubmitting] = useTransition();
@@ -460,7 +469,7 @@ export function EditBookingClient({
   function handleSave() {
     if (patchEmpty || blocked) return;
     startSubmitting(async () => {
-      const result = await editBooking({ bookingId, patch });
+      const result = await editBooking({ bookingId, patch, forceConfirm });
       switch (result.kind) {
         case "success":
           toast.add({ title: "Booking updated" });
@@ -512,6 +521,19 @@ export function EditBookingClient({
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-8 pb-12">
+      {admin && (
+        <header className="mb-2">
+          <p className="text-brand-strong text-xs font-semibold tracking-wide uppercase">
+            Admin · editing on behalf
+          </p>
+          <p className="text-muted-foreground text-sm">
+            for{" "}
+            <span className="text-foreground font-medium">
+              {admin.clientName}
+            </span>
+          </p>
+        </header>
+      )}
       {/* 1. Calendar */}
       <section aria-labelledby="cal-heading">
         <h2
@@ -590,35 +612,44 @@ export function EditBookingClient({
           >
             {step2Label}. Which pets?
           </h2>
-          <PetAssignment
-            pets={pets}
-            allowedSpecies={allowedSpecies}
-            selected={selectedPetIds}
-            onChange={(ids) => {
-              setSelectedPetIds(ids);
-              requestPreview();
-            }}
-            onPetAdded={handlePetAdded}
-          />
+          {admin?.paidLock ? (
+            <p className="text-muted-foreground border-border bg-muted/30 rounded-lg border p-3 text-sm">
+              🔒 This booking is paid — pets and price can&apos;t change here.
+              Manage price in Payments (coming soon).
+            </p>
+          ) : (
+            <PetAssignment
+              pets={pets}
+              allowedSpecies={allowedSpecies}
+              selected={selectedPetIds}
+              onChange={(ids) => {
+                setSelectedPetIds(ids);
+                requestPreview();
+              }}
+              onPetAdded={handlePetAdded}
+            />
+          )}
         </section>
       )}
 
       {/* 3. Quantities */}
-      <section aria-labelledby="qty-heading">
-        <h2
-          id="qty-heading"
-          className="text-brand-strong mb-3 text-xs font-semibold tracking-wide uppercase"
-        >
-          {step3Label}. Details
-        </h2>
-        <QuantityForm
-          state={quantities}
-          onChange={(s) => {
-            setQuantities(s);
-            requestPreview();
-          }}
-        />
-      </section>
+      {!admin?.paidLock && (
+        <section aria-labelledby="qty-heading">
+          <h2
+            id="qty-heading"
+            className="text-brand-strong mb-3 text-xs font-semibold tracking-wide uppercase"
+          >
+            {step3Label}. Details
+          </h2>
+          <QuantityForm
+            state={quantities}
+            onChange={(s) => {
+              setQuantities(s);
+              requestPreview();
+            }}
+          />
+        </section>
+      )}
 
       {/* 4. Comments */}
       <section aria-labelledby="comments-heading">
@@ -667,7 +698,24 @@ export function EditBookingClient({
           <QuotePanel
             preview={quote}
             priorFinalCents={priorFinalCents}
-            approvalWillReReview={approvalWillReReview}
+            approvalWillReReview={approvalWillReReview && !forceConfirm}
+            warnings={admin ? quote.warnings : undefined}
+            footer={
+              admin ? (
+                <label className="border-border bg-background flex items-start gap-2 rounded-md border p-2.5 text-sm">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5"
+                    checked={forceConfirm}
+                    onChange={(e) => setForceConfirm(e.target.checked)}
+                  />
+                  <span>
+                    <span className="font-medium">Confirm immediately</span> —
+                    skip pending approval
+                  </span>
+                </label>
+              ) : undefined
+            }
             onBook={handleSave}
             bookLabel={isSubmitting ? "Saving…" : "Save changes"}
             bookDisabled={saveDisabled}
