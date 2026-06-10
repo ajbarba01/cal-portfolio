@@ -64,6 +64,8 @@ export function AccountInquiriesClient({
       newLabel="Open"
       searchPlaceholder="Search your inquiries…"
       emptyTitle="No inquiries yet."
+      resolveTitle="Mark this inquiry resolved?"
+      resolveDescription="This tells Cal you no longer need a reply. This can't be undone."
       onResolve={onResolve}
       onSaveEdit={onSaveEdit}
     />

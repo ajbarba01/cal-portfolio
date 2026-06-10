@@ -1,0 +1,1157 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Inquiries — mockup</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,7 00&family=Public+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* ── Trail tokens, lifted from src/app/globals.css ───────────────── */
+      :root {
+        --sand-0: #ffffff;
+        --sand-50: #faf6f0;
+        --sand-100: #f2ece1;
+        --sand-200: #e7decf;
+        --sand-400: #b6a88f;
+        --sand-500: #6e6354;
+        --sand-700: #5a5044;
+        --sand-900: #2b2520;
+        --clay-fill: #ae5a35;
+        --clay-strong: #8a4226;
+        --clay-soft: #e7d8cc;
+        --green-soft: #e3e7d2;
+        --green-deep: #4f5b33;
+
+        --bg: var(--sand-50);
+        --fg: var(--sand-900);
+        --card: var(--sand-0);
+        --muted-fg: var(--sand-500);
+        --border: var(--sand-200);
+        --brand: var(--clay-fill);
+        --brand-strong: var(--clay-strong);
+        --radius: 0.375rem;
+
+        --sans: "Public Sans", system-ui, sans-serif;
+        --heading: "Fraunces", Georgia, serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: var(--sans);
+        color: var(--fg);
+        background-color: var(--bg);
+        /* faint warm topo texture so flat surfaces read as paper */
+        background-image: radial-gradient(
+            circle at 18% 12%,
+            rgba(174, 90, 53, 0.04),
+            transparent 40%
+          ),
+          radial-gradient(circle at 85% 90%, rgba(110, 99, 84, 0.05), transparent 45%);
+        -webkit-font-smoothing: antialiased;
+        line-height: 1.5;
+      }
+
+      h1,
+      h2,
+      h3 {
+        font-family: var(--heading);
+        font-optical-sizing: auto;
+        margin: 0;
+        letter-spacing: -0.01em;
+      }
+
+      /* ── Mockup scaffolding (not part of the real UI) ───────────────── */
+      .doc {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 56px 28px 120px;
+      }
+      .doc-head {
+        margin-bottom: 48px;
+        max-width: 760px;
+      }
+      .doc-head h1 {
+        font-size: 40px;
+        font-weight: 600;
+      }
+      .doc-head p {
+        color: var(--muted-fg);
+        font-size: 15px;
+        margin: 10px 0 0;
+      }
+      .frame {
+        margin: 0 0 64px;
+      }
+      .frame > .tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-family: var(--sans);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--brand-strong);
+        margin-bottom: 14px;
+      }
+      .tag .num {
+        display: inline-grid;
+        place-items: center;
+        width: 20px;
+        height: 20px;
+        border-radius: 999px;
+        background: var(--clay-soft);
+        color: var(--brand-strong);
+        font-size: 11px;
+      }
+      .frame > .note {
+        color: var(--muted-fg);
+        font-size: 13px;
+        max-width: 680px;
+        margin: 0 0 18px;
+      }
+      .frame > .note b {
+        color: var(--fg);
+        font-weight: 600;
+      }
+
+      /* simulated app viewport (sand canvas behind the white sheet) */
+      .viewport {
+        background: var(--sand-200);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 26px;
+        position: relative;
+        overflow: hidden;
+      }
+      .sheet {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 28px 30px;
+        box-shadow: 0 1px 2px rgba(43, 37, 32, 0.04);
+      }
+
+      /* ── Page header (matches PageHeader) ───────────────────────────── */
+      .page-title {
+        font-size: 27px;
+        font-weight: 600;
+      }
+      .page-sub {
+        color: var(--muted-fg);
+        font-size: 14px;
+        margin: 6px 0 0;
+      }
+
+      /* ── Toolbar: search + filter + count ───────────────────────────── */
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px;
+        margin: 22px 0 18px;
+      }
+      .search {
+        position: relative;
+        flex: 1 1 280px;
+        min-width: 220px;
+      }
+      .search svg {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--muted-fg);
+      }
+      .search input {
+        width: 100%;
+        font: inherit;
+        font-size: 14px;
+        padding: 9px 12px 9px 36px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--sand-50);
+        color: var(--fg);
+        outline: none;
+      }
+      .search input::placeholder {
+        color: var(--sand-400);
+      }
+      .search input:focus {
+        border-color: var(--brand-strong);
+        box-shadow: 0 0 0 3px rgba(138, 66, 38, 0.12);
+      }
+      .segmented {
+        display: inline-flex;
+        background: var(--sand-100);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 3px;
+        gap: 2px;
+      }
+      .segmented button {
+        font: inherit;
+        font-size: 13px;
+        font-weight: 500;
+        border: 0;
+        background: transparent;
+        color: var(--muted-fg);
+        padding: 6px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      .segmented button[aria-pressed="true"] {
+        background: var(--card);
+        color: var(--fg);
+        box-shadow: 0 1px 2px rgba(43, 37, 32, 0.08);
+      }
+      .count {
+        margin-left: auto;
+        color: var(--muted-fg);
+        font-size: 13px;
+      }
+
+      /* ── Inquiry card grid: uniform, fixed-height tiles ─────────────── */
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 14px;
+      }
+      @media (max-width: 720px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      .card {
+        height: 188px;
+        display: flex;
+        flex-direction: column;
+        text-align: left;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 16px 17px;
+        cursor: pointer;
+        font: inherit;
+        color: inherit;
+        transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+      }
+      .card:hover {
+        border-color: var(--clay-soft);
+        box-shadow: 0 6px 20px -10px rgba(58, 42, 32, 0.35);
+        transform: translateY(-1px);
+      }
+      .card:focus-visible {
+        outline: none;
+        border-color: var(--brand-strong);
+        box-shadow: 0 0 0 3px rgba(138, 66, 38, 0.14);
+      }
+      .card-top {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        margin-bottom: 8px;
+      }
+      .card-subject {
+        font-family: var(--heading);
+        font-size: 16px;
+        font-weight: 600;
+        line-height: 1.25;
+        /* one-line clamp keeps every card's header the same height */
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        flex: 1;
+      }
+      .card-subject.untitled {
+        font-style: italic;
+        color: var(--muted-fg);
+        font-weight: 500;
+      }
+      .badge {
+        flex: none;
+        font-size: 11px;
+        font-weight: 600;
+        padding: 3px 9px;
+        border-radius: 999px;
+        white-space: nowrap;
+        letter-spacing: 0.01em;
+      }
+      .badge.open {
+        background: var(--clay-soft);
+        color: var(--brand-strong);
+      }
+      .badge.resolved {
+        background: var(--green-soft);
+        color: var(--green-deep);
+      }
+      /* 3-line body preview, faded cut-off */
+      .card-body {
+        position: relative;
+        flex: 1;
+        font-size: 13.5px;
+        color: var(--sand-700);
+        overflow: hidden;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+      }
+      .card-foot {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 12px;
+        padding-top: 11px;
+        border-top: 1px solid var(--sand-100);
+      }
+      .card-date {
+        font-size: 12px;
+        color: var(--muted-fg);
+        margin-right: auto;
+      }
+      .card-date .dot {
+        color: var(--sand-400);
+        margin: 0 6px;
+      }
+      .card-replied {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 11.5px;
+        color: var(--green-deep);
+        font-weight: 500;
+      }
+
+      /* ── Buttons (mirror shadcn variants) ───────────────────────────── */
+      .btn {
+        font: inherit;
+        font-size: 13px;
+        font-weight: 500;
+        border-radius: var(--radius);
+        padding: 6px 13px;
+        cursor: pointer;
+        border: 1px solid transparent;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        line-height: 1;
+        white-space: nowrap;
+      }
+      .btn-sm {
+        padding: 5px 10px;
+        font-size: 12.5px;
+      }
+      .btn-outline {
+        background: var(--card);
+        border-color: var(--border);
+        color: var(--fg);
+      }
+      .btn-outline:hover {
+        background: var(--sand-50);
+      }
+      .btn-ghost {
+        background: transparent;
+        color: var(--muted-fg);
+      }
+      .btn-ghost:hover {
+        background: var(--sand-100);
+        color: var(--fg);
+      }
+      .btn-primary {
+        background: var(--sand-900);
+        color: var(--sand-50);
+      }
+      .btn-primary:hover {
+        background: #1c1813;
+      }
+      .btn-brand {
+        background: var(--brand);
+        color: #fff;
+      }
+      .btn-brand:hover {
+        background: var(--brand-strong);
+      }
+
+      /* ── Pagination ─────────────────────────────────────────────────── */
+      .pager {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        margin-top: 24px;
+      }
+      .pager button {
+        font: inherit;
+        font-size: 13px;
+        min-width: 34px;
+        height: 34px;
+        padding: 0 10px;
+        border: 1px solid var(--border);
+        background: var(--card);
+        color: var(--fg);
+        border-radius: var(--radius);
+        cursor: pointer;
+      }
+      .pager button:hover:not(:disabled) {
+        background: var(--sand-50);
+      }
+      .pager button[aria-current="page"] {
+        background: var(--sand-900);
+        color: var(--sand-50);
+        border-color: var(--sand-900);
+      }
+      .pager button:disabled {
+        opacity: 0.4;
+        cursor: default;
+      }
+
+      /* ── Dialog (base-ui Dialog look) ───────────────────────────────── */
+      .modal-stage {
+        position: relative;
+        background: var(--sand-200);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        min-height: 440px;
+        display: grid;
+        place-items: center;
+        padding: 36px;
+        overflow: hidden;
+      }
+      .modal-stage::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: rgba(28, 24, 19, 0.45);
+        backdrop-filter: blur(1.5px);
+      }
+      .dialog {
+        position: relative;
+        width: 100%;
+        max-width: 520px;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        box-shadow: 0 30px 60px -24px rgba(28, 24, 19, 0.5);
+        overflow: hidden;
+      }
+      .dialog-head {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 22px 24px 14px;
+      }
+      .dialog-head .hgroup {
+        flex: 1;
+        min-width: 0;
+      }
+      .dialog-title {
+        font-size: 21px;
+        font-weight: 600;
+        line-height: 1.2;
+      }
+      .dialog-meta {
+        font-size: 12.5px;
+        color: var(--muted-fg);
+        margin-top: 6px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .x {
+        flex: none;
+        width: 34px;
+        height: 34px;
+        display: grid;
+        place-items: center;
+        border-radius: 999px;
+        border: 0;
+        background: var(--sand-100);
+        color: var(--muted-fg);
+        cursor: pointer;
+      }
+      .x:hover {
+        background: var(--sand-200);
+        color: var(--fg);
+      }
+      .dialog-body {
+        padding: 4px 24px 20px;
+        max-height: 260px;
+        overflow-y: auto;
+        font-size: 14.5px;
+        color: var(--sand-700);
+        white-space: pre-wrap;
+        line-height: 1.6;
+      }
+      .dialog-foot {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 16px 24px;
+        border-top: 1px solid var(--border);
+        background: var(--sand-50);
+      }
+      .dialog-foot .spacer {
+        margin-left: auto;
+      }
+
+      /* editable fields in edit mode */
+      .field-label {
+        display: block;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--brand-strong);
+        margin: 0 0 6px;
+      }
+      .input,
+      .textarea {
+        width: 100%;
+        font: inherit;
+        font-size: 14px;
+        color: var(--fg);
+        background: var(--sand-50);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 9px 11px;
+        outline: none;
+      }
+      .input:focus,
+      .textarea:focus {
+        border-color: var(--brand-strong);
+        box-shadow: 0 0 0 3px rgba(138, 66, 38, 0.12);
+      }
+      .textarea {
+        min-height: 120px;
+        resize: vertical;
+        line-height: 1.6;
+      }
+      .edit-wrap {
+        padding: 8px 24px 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      /* confirm dialog is narrower */
+      .dialog.confirm {
+        max-width: 416px;
+      }
+      .confirm .dialog-body {
+        padding-top: 0;
+        white-space: normal;
+        font-size: 14px;
+        color: var(--muted-fg);
+      }
+      .warn-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 999px;
+        background: var(--clay-soft);
+        color: var(--brand-strong);
+        display: grid;
+        place-items: center;
+        margin-bottom: 14px;
+      }
+
+      .legend {
+        display: flex;
+        gap: 22px;
+        flex-wrap: wrap;
+        margin-top: 14px;
+        font-size: 12.5px;
+        color: var(--muted-fg);
+      }
+      .legend b {
+        color: var(--fg);
+      }
+      .callout {
+        border-left: 3px solid var(--clay-soft);
+        background: var(--sand-100);
+        padding: 14px 16px;
+        border-radius: 8px;
+        font-size: 13px;
+        color: var(--sand-700);
+        margin: 0 0 18px;
+      }
+      .callout b {
+        color: var(--fg);
+      }
+
+      /* ── Phone frame (mockup chrome) ────────────────────────────────── */
+      .phone {
+        width: 320px;
+        border: 10px solid #1c1813;
+        border-radius: 38px;
+        background: #1c1813;
+        box-shadow: 0 24px 50px -22px rgba(28, 24, 19, 0.55);
+        position: relative;
+        overflow: hidden;
+      }
+      .phone-notch {
+        position: absolute;
+        top: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 120px;
+        height: 22px;
+        background: #1c1813;
+        border-radius: 0 0 14px 14px;
+        z-index: 3;
+      }
+      .phone-screen {
+        background: var(--sand-50);
+        border-radius: 28px;
+        height: 620px;
+        overflow: hidden;
+      }
+      .bottom-sheet {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: var(--card);
+        border-radius: 22px 22px 0 0;
+        padding-top: 8px;
+        box-shadow: 0 -20px 40px -20px rgba(28, 24, 19, 0.45);
+        z-index: 2;
+      }
+      .sheet-grab {
+        width: 38px;
+        height: 4px;
+        border-radius: 999px;
+        background: var(--sand-200);
+        margin: 6px auto 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="doc">
+      <header class="doc-head">
+        <h1>Inquiries — design mockup</h1>
+        <p>
+          One shared component set, two consumers. The <b>account</b> view (client
+          owns their messages → can edit) and the restructured <b>admin</b> view
+          (Cal reads + replies, can't edit a client's words). Warm Trail palette,
+          Fraunces headings, Public Sans body — tokens straight from
+          <code>globals.css</code>.
+        </p>
+      </header>
+
+      <!-- ───────────────────────── 1. ACCOUNT LIST ───────────────────────── -->
+      <section class="frame">
+        <span class="tag"><span class="num">1</span> Account · list view</span>
+        <p class="note">
+          Search filters live. Segmented control toggles status. Cards are a
+          <b>uniform grid of fixed-height tiles</b> — subject clamps to one line,
+          body to three with a soft cut-off. Sorted newest-first. The whole tile is
+          a button; the inline actions stop propagation.
+        </p>
+        <div class="viewport">
+          <div class="sheet">
+            <div>
+              <div class="page-title" style="font-family: var(--heading)">
+                Your inquiries
+              </div>
+              <p class="page-sub">
+                Messages you've sent to Cal. Mark one resolved once you no longer
+                need a reply.
+              </p>
+            </div>
+
+            <div class="toolbar">
+              <div class="search">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
+                <input type="text" placeholder="Search your inquiries…" />
+              </div>
+              <div class="segmented" role="group" aria-label="Filter by status">
+                <button aria-pressed="true">All</button>
+                <button aria-pressed="false">Open</button>
+                <button aria-pressed="false">Resolved</button>
+              </div>
+              <span class="count">7 inquiries</span>
+            </div>
+
+            <div class="grid">
+              <!-- open, long -->
+              <button class="card">
+                <div class="card-top">
+                  <span class="card-subject">Weekend house-sitting, June 20–23</span>
+                  <span class="badge open">Open</span>
+                </div>
+                <div class="card-body">
+                  Hi Cal! We're heading out of town for a long weekend and were
+                  hoping you'd be able to stay over with Maple and Juniper. They're
+                  both crate-trained and great with…
+                </div>
+                <div class="card-foot">
+                  <span class="card-date">Jun 3 <span class="dot">·</span> 2:14 PM</span>
+                  <span class="card-replied">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+                    Cal replied
+                  </span>
+                </div>
+              </button>
+
+              <!-- open, short -->
+              <button class="card">
+                <div class="card-top">
+                  <span class="card-subject">Quick question about rates</span>
+                  <span class="badge open">Open</span>
+                </div>
+                <div class="card-body">
+                  Do you charge extra for a second dog on the 30-min walks?
+                </div>
+                <div class="card-foot">
+                  <span class="card-date">May 28 <span class="dot">·</span> 9:02 AM</span>
+                </div>
+              </button>
+
+              <!-- untitled -->
+              <button class="card">
+                <div class="card-top">
+                  <span class="card-subject untitled">No subject</span>
+                  <span class="badge open">Open</span>
+                </div>
+                <div class="card-body">
+                  Following up on the meet &amp; greet from last week — Maple really
+                  took to you. Wanted to lock in a recurring Tue/Thu walk if your
+                  afternoons are still open going into summer.
+                </div>
+                <div class="card-foot">
+                  <span class="card-date">May 24 <span class="dot">·</span> 6:40 PM</span>
+                </div>
+              </button>
+
+              <!-- resolved -->
+              <button class="card">
+                <div class="card-top">
+                  <span class="card-subject">Holiday availability?</span>
+                  <span class="badge resolved">Resolved</span>
+                </div>
+                <div class="card-body">
+                  Wondering if you book over the 4th of July weekend, or if you're
+                  taking time off. No rush — just planning ahead for the summer
+                  travel season.
+                </div>
+                <div class="card-foot">
+                  <span class="card-date">May 12 <span class="dot">·</span> 11:20 AM</span>
+                  <span class="card-replied">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+                    Cal replied
+                  </span>
+                </div>
+              </button>
+            </div>
+
+            <div class="pager">
+              <button disabled>‹ Prev</button>
+              <button aria-current="page">1</button>
+              <button>2</button>
+              <button>3</button>
+              <button>Next ›</button>
+            </div>
+          </div>
+        </div>
+        <div class="legend">
+          <span><b>Open</b> badge — clay soft fill</span>
+          <span><b>Resolved</b> badge — green soft fill (reads as "done")</span>
+          <span><b>Hover</b> — lifts + clay border</span>
+        </div>
+      </section>
+
+      <!-- ───────────────────── 2. DETAIL POPUP (READ) ───────────────────── -->
+      <section class="frame">
+        <span class="tag"><span class="num">2</span> Detail popup · read mode</span>
+        <p class="note">
+          Clicking a tile opens the full message (base-ui Dialog, click-out / Esc to
+          close). If the message was short, it's already fully shown in the tile —
+          the popup just gives room + actions. <b>Edit</b> and <b>Resolve</b> live in
+          the footer.
+        </p>
+        <div class="modal-stage">
+          <div class="dialog">
+            <div class="dialog-head">
+              <div class="hgroup">
+                <h3 class="dialog-title">Weekend house-sitting, June 20–23</h3>
+                <div class="dialog-meta">
+                  <span>Sent Jun 3, 2026 · 2:14 PM</span>
+                  <span class="card-replied">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+                    Cal replied
+                  </span>
+                </div>
+              </div>
+              <button class="x" aria-label="Close">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+              </button>
+            </div>
+            <div class="dialog-body">Hi Cal! We're heading out of town for a long weekend and were hoping you'd be able to stay over with Maple and Juniper. They're both crate-trained and great with other dogs, but Juniper does need her evening meds (just a pill in a pill-pocket, super easy).
+
+We'd be leaving Friday morning the 20th and back Monday evening the 23rd. Happy to do a quick call beforehand to go over the house and their routine. Let me know if those dates work!</div>
+            <div class="dialog-foot">
+              <button class="btn btn-ghost">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
+                Edit
+              </button>
+              <div class="spacer"></div>
+              <button class="btn btn-brand">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+                Mark resolved
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ───────────────────── 3. DETAIL POPUP (EDIT) ───────────────────── -->
+      <section class="frame">
+        <span class="tag"><span class="num">3</span> Detail popup · edit mode (account only)</span>
+        <p class="note">
+          <b>Edit</b> turns subject + body into fields in place, and the Edit button
+          becomes <b>Save</b> (primary) with a Cancel. Opening edit directly from a
+          tile's Edit action lands here. <b>Edit is locked once Cal replies or the
+          inquiry is resolved</b> — those are read-only (no Edit affordance shown).
+        </p>
+        <div class="modal-stage">
+          <div class="dialog">
+            <div class="dialog-head">
+              <div class="hgroup">
+                <h3 class="dialog-title" style="font-size: 15px; color: var(--muted-fg); font-family: var(--sans); font-weight: 600">
+                  Editing inquiry
+                </h3>
+                <div class="dialog-meta"><span>Sent Jun 3, 2026 · 2:14 PM</span></div>
+              </div>
+              <button class="x" aria-label="Close">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+              </button>
+            </div>
+            <div class="edit-wrap">
+              <div>
+                <label class="field-label">Subject</label>
+                <input class="input" value="Weekend house-sitting, June 20–23" />
+              </div>
+              <div>
+                <label class="field-label">Message</label>
+                <textarea class="textarea">Hi Cal! We're heading out of town for a long weekend and were hoping you'd be able to stay over with Maple and Juniper. They're both crate-trained and great with other dogs, but Juniper does need her evening meds.
+
+We'd be leaving Friday the 20th and back Monday the 23rd.</textarea>
+              </div>
+            </div>
+            <div class="dialog-foot">
+              <button class="btn btn-ghost">Cancel</button>
+              <div class="spacer"></div>
+              <button class="btn btn-primary">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z" /><path d="M17 21v-8H7v8M7 3v5h8" /></svg>
+                Save changes
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ───────────────────── 4. CONFIRM RESOLVE ───────────────────── -->
+      <section class="frame">
+        <span class="tag"><span class="num">4</span> Resolve · confirm dialog</span>
+        <p class="note">
+          Resolve is irreversible, so it always routes through a confirm. From a tile
+          → confirm opens directly. From the detail popup → the popup closes first,
+          then this appears. Same dialog in both views.
+        </p>
+        <div class="modal-stage">
+          <div class="dialog confirm">
+            <div style="padding: 24px 24px 4px">
+              <div class="warn-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" /><path d="M12 9v4M12 17h.01" /></svg>
+              </div>
+              <h3 class="dialog-title" style="font-size: 19px">
+                Mark this inquiry resolved?
+              </h3>
+            </div>
+            <div class="dialog-body">
+              This tells Cal you no longer need a reply. <b style="color: var(--fg)">This can't be undone.</b>
+            </div>
+            <div class="dialog-foot">
+              <button class="btn btn-outline">Cancel</button>
+              <div class="spacer"></div>
+              <button class="btn btn-brand">Yes, mark resolved</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ───────────────────── 5. ADMIN VARIANT ───────────────────── -->
+      <section class="frame">
+        <span class="tag"><span class="num">5</span> Admin · same components, restructured</span>
+        <p class="callout">
+          <b>Modularity:</b> identical tile grid, search, pager, and detail popup. The
+          differences are passed as props — admin tiles surface the <b>client's name +
+          email</b>, the detail popup swaps Edit for <b>reply actions</b> (Email / Text),
+          and edit mode is never mounted. Cal can resolve but never rewrites a
+          client's words.
+        </p>
+        <div class="viewport">
+          <div class="sheet">
+            <div class="page-title" style="font-family: var(--heading)">Inquiries</div>
+            <p class="page-sub">Contact-form messages from clients and visitors.</p>
+
+            <div class="toolbar">
+              <div class="search">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
+                <input type="text" placeholder="Search by name, email, or text…" />
+              </div>
+              <div class="segmented" role="group" aria-label="Filter by status">
+                <button aria-pressed="false">All</button>
+                <button aria-pressed="true">New</button>
+                <button aria-pressed="false">Resolved</button>
+              </div>
+              <span class="count">12 inquiries · 4 new</span>
+            </div>
+
+            <div class="grid">
+              <button class="card">
+                <div class="card-top">
+                  <span class="card-subject">Recurring afternoon walks</span>
+                  <span class="badge open">New</span>
+                </div>
+                <div style="font-size: 12.5px; color: var(--muted-fg); margin: -2px 0 8px; font-weight: 500">
+                  Priya Anand · priya@example.com
+                </div>
+                <div class="card-body" style="-webkit-line-clamp: 2">
+                  Hi! I saw your profile and I'm interested in Tue/Thu walks for my
+                  golden, Sunny. Are afternoons around 2pm open this summer?
+                </div>
+                <div class="card-foot">
+                  <span class="card-date">Jun 8 <span class="dot">·</span> 4:31 PM</span>
+                </div>
+              </button>
+
+              <button class="card">
+                <div class="card-top">
+                  <span class="card-subject untitled">No subject</span>
+                  <span class="badge resolved">Resolved</span>
+                </div>
+                <div style="font-size: 12.5px; color: var(--muted-fg); margin: -2px 0 8px; font-weight: 500">
+                  Marcus Lee · marcus.lee@example.com
+                </div>
+                <div class="card-body" style="-webkit-line-clamp: 2">
+                  Do you do overnight sitting? Have a 3-night trip coming up in July
+                  and would love to chat about it.
+                </div>
+                <div class="card-foot">
+                  <span class="card-date">Jun 5 <span class="dot">·</span> 8:12 AM</span>
+                  <span class="card-replied">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+                    replied
+                  </span>
+                </div>
+              </button>
+            </div>
+
+            <!-- admin detail popup footer differs: reply actions instead of edit -->
+            <div style="margin-top: 20px; font-size: 12px; color: var(--muted-fg); text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700">
+              Admin popup footer
+            </div>
+            <div class="dialog-foot" style="border: 1px solid var(--border); border-radius: 12px; margin-top: 8px; background: var(--sand-50); flex-wrap: wrap">
+              <button class="btn btn-brand">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2" /><path d="m22 7-10 5L2 7" /></svg>
+                Email
+              </button>
+              <button class="btn btn-outline">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" /></svg>
+                Text
+              </button>
+              <button class="btn btn-ghost">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+                View client
+              </button>
+              <div class="spacer"></div>
+              <button class="btn btn-ghost">Mark resolved</button>
+            </div>
+            <p class="note" style="margin: 10px 0 0; font-size: 12px">
+              Linked-client inquiries get <b>View client</b> (→ existing
+              <code>/admin/clients/[id]</code>); walk-in inquiries with no account
+              simply omit it. Email/Text reuse the current <code>reply-draft</code>
+              mailto/sms builders and stamp <code>replied_at</code>.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ───────────────────── 6. MOBILE ───────────────────── -->
+      <section class="frame">
+        <span class="tag"><span class="num">6</span> Mobile · parity, not a fallback</span>
+        <p class="callout">
+          <b>The overflow bug, fixed:</b> today a long inquiry's text flows straight
+          out of its box. Here every tile is the same height with subject clamped to
+          one line and body to three (a soft fade marks the cut-off), and the popup
+          body <b>scrolls inside the dialog</b> instead of pushing the layout. Nothing
+          can ever escape its container.
+        </p>
+        <p class="note">
+          On mobile the grid collapses to a single column, the toolbar stacks
+          (full-width search, scrollable segmented control), and the detail popup
+          becomes a <b>bottom sheet</b> that fills the width. <b>Key rule: on mobile
+          the tiles carry no action buttons at all</b> — tapping a tile opens the
+          sheet, and every action (Resolve, Edit for account; Email / Text / Resolve
+          for admin) lives there as full-width, thumb-reachable buttons. Desktop
+          keeps the inline tile actions; mobile defers them to the sheet. Same
+          components, responsive props.
+        </p>
+        <div
+          style="display: flex; gap: 28px; flex-wrap: wrap; align-items: flex-start"
+        >
+          <!-- phone: list -->
+          <div class="phone">
+            <div class="phone-notch"></div>
+            <div class="phone-screen">
+              <div style="padding: 18px 16px 0">
+                <div
+                  style="font-family: var(--heading); font-size: 20px; font-weight: 600"
+                >
+                  Your inquiries
+                </div>
+                <p class="page-sub" style="font-size: 12.5px">
+                  Mark one resolved once you no longer need a reply.
+                </p>
+                <div class="search" style="margin: 14px 0 10px">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
+                  <input type="text" placeholder="Search…" />
+                </div>
+                <div class="segmented" style="width: 100%; margin-bottom: 12px">
+                  <button aria-pressed="true" style="flex: 1">All</button>
+                  <button aria-pressed="false" style="flex: 1">Open</button>
+                  <button aria-pressed="false" style="flex: 1">Resolved</button>
+                </div>
+              </div>
+              <div
+                style="display: flex; flex-direction: column; gap: 11px; padding: 0 16px 18px"
+              >
+                <button class="card" style="height: auto; min-height: 150px">
+                  <div class="card-top">
+                    <span class="card-subject">Weekend house-sitting</span>
+                    <span class="badge open">Open</span>
+                  </div>
+                  <div class="card-body">
+                    Hi Cal! We're heading out of town and were hoping you'd stay
+                    over with Maple and Juniper. They're crate-trained and great
+                    with other dogs, but Juniper needs her evening meds…
+                  </div>
+                  <div class="card-foot">
+                    <span class="card-date">Jun 3 <span class="dot">·</span> 2:14 PM</span>
+                    <span class="card-replied">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+                      replied
+                    </span>
+                  </div>
+                </button>
+                <button class="card" style="height: auto; min-height: 150px">
+                  <div class="card-top">
+                    <span class="card-subject">Quick question on rates</span>
+                    <span class="badge open">Open</span>
+                  </div>
+                  <div class="card-body">
+                    Do you charge extra for a second dog on the 30-min walks?
+                  </div>
+                  <div class="card-foot">
+                    <span class="card-date">May 28 <span class="dot">·</span> 9:02 AM</span>
+                  </div>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- phone: bottom-sheet popup -->
+          <div class="phone">
+            <div class="phone-notch"></div>
+            <div class="phone-screen" style="position: relative; background: var(--sand-200)">
+              <div style="position: absolute; inset: 0; background: rgba(28,24,19,0.5)"></div>
+              <div class="bottom-sheet">
+                <div class="sheet-grab"></div>
+                <div style="display: flex; align-items: flex-start; gap: 10px; padding: 0 18px 10px">
+                  <div style="flex: 1; min-width: 0">
+                    <h3 class="dialog-title" style="font-size: 18px">
+                      Weekend house-sitting
+                    </h3>
+                    <div class="dialog-meta" style="font-size: 12px">
+                      Sent Jun 3 · 2:14 PM
+                    </div>
+                  </div>
+                  <button class="x" aria-label="Close">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+                  </button>
+                </div>
+                <div class="dialog-body" style="max-height: 170px; padding: 0 18px 16px">Hi Cal! We're heading out of town for a long weekend and were hoping you'd be able to stay over with Maple and Juniper. They're both crate-trained and great with other dogs, but Juniper does need her evening meds — just a pill in a pill-pocket, super easy.
+
+We'd be leaving Friday the 20th and back Monday the 23rd. Happy to do a quick call beforehand!</div>
+                <div style="display: flex; flex-direction: column; gap: 9px; padding: 14px 18px; border-top: 1px solid var(--border); background: var(--sand-50)">
+                  <button class="btn btn-brand" style="width: 100%; justify-content: center; padding: 11px">
+                    Mark resolved
+                  </button>
+                  <button class="btn btn-outline" style="width: 100%; justify-content: center; padding: 11px">
+                    Edit
+                  </button>
+                </div>
+                <p style="text-align: center; font-size: 11px; color: var(--muted-fg); padding: 0 0 14px; margin: 4px 0 0">
+                  Account sheet
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- phone: admin bottom-sheet popup (all actions live here) -->
+          <div class="phone">
+            <div class="phone-notch"></div>
+            <div class="phone-screen" style="position: relative; background: var(--sand-200)">
+              <div style="position: absolute; inset: 0; background: rgba(28,24,19,0.5)"></div>
+              <div class="bottom-sheet">
+                <div class="sheet-grab"></div>
+                <div style="display: flex; align-items: flex-start; gap: 10px; padding: 0 18px 6px">
+                  <div style="flex: 1; min-width: 0">
+                    <h3 class="dialog-title" style="font-size: 18px">
+                      Recurring afternoon walks
+                    </h3>
+                    <div class="dialog-meta" style="font-size: 12px; flex-direction: column; align-items: flex-start; gap: 2px">
+                      <span style="font-weight: 600; color: var(--fg)">Priya Anand</span>
+                      <span>priya@example.com · (303) 555-0148</span>
+                      <span>Sent Jun 8 · 4:31 PM</span>
+                    </div>
+                  </div>
+                  <button class="x" aria-label="Close">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+                  </button>
+                </div>
+                <div class="dialog-body" style="max-height: 130px; padding: 8px 18px 14px">Hi! I saw your profile and I'm interested in Tue/Thu walks for my golden, Sunny. Are afternoons around 2pm open this summer? He's friendly, leash-trained, and full of energy.</div>
+                <div style="display: flex; flex-direction: column; gap: 9px; padding: 14px 18px; border-top: 1px solid var(--border); background: var(--sand-50)">
+                  <button class="btn btn-brand" style="width: 100%; justify-content: center; padding: 11px">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2" /><path d="m22 7-10 5L2 7" /></svg>
+                    Email Priya
+                  </button>
+                  <div style="display: flex; gap: 9px">
+                    <button class="btn btn-outline" style="flex: 1; justify-content: center; padding: 11px">Text</button>
+                    <button class="btn btn-outline" style="flex: 1; justify-content: center; padding: 11px">View client</button>
+                  </div>
+                  <button class="btn btn-ghost" style="width: 100%; justify-content: center; padding: 11px">
+                    Mark resolved
+                  </button>
+                </div>
+                <p style="text-align: center; font-size: 11px; color: var(--muted-fg); padding: 0 0 14px; margin: 4px 0 0">
+                  Admin sheet — no Edit; reply + view client instead
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </body>
+</html>

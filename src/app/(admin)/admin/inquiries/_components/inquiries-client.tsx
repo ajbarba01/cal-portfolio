@@ -108,6 +108,8 @@ export function InquiriesClient({
       newLabel="New"
       searchPlaceholder="Search by name, email, or text…"
       emptyTitle="No inquiries yet."
+      resolveTitle="Mark this inquiry resolved?"
+      resolveDescription="This clears it from your open queue. You can still find it under the Resolved filter. This can't be undone."
       renderIdentity={renderIdentity}
       renderExtraActions={renderExtraActions}
       onResolve={onResolve}
