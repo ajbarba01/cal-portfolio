@@ -210,13 +210,15 @@ export async function cancelBooking(
 
 /**
  * Admin-only: load the caller and assert the admin role. Returns the
- * service-role repo + gateway, or a forbidden/redirect result.
+ * service-role repo + gateway + userId + serviceClient, or a forbidden result.
  */
 async function requireAdminDeps(): Promise<
   | {
       ok: true;
+      userId: string;
       repo: ReturnType<typeof createSupabaseBookingRepository>;
       gateway: StripeGateway;
+      serviceClient: ReturnType<typeof createServiceClient>;
     }
   | { ok: false }
 > {
@@ -236,8 +238,10 @@ async function requireAdminDeps(): Promise<
 
   return {
     ok: true,
+    userId: user.id,
     repo: createSupabaseBookingRepository(serviceClient),
     gateway: new StripeGateway(),
+    serviceClient,
   };
 }
 
@@ -284,6 +288,7 @@ export async function settleDebt(debitId: string): Promise<AdminBookingResult> {
 export async function editBooking(input: {
   bookingId: string;
   patch: EditBookingPatch;
+  forceConfirm?: boolean;
 }): Promise<EditBookingResult> {
   const authClient = await createClient();
   const {
@@ -299,7 +304,13 @@ export async function editBooking(input: {
     .select("role")
     .eq("id", user.id)
     .single();
-  const policy = profile?.role === "admin" ? ADMIN_POLICY : CLIENT_POLICY;
+  const isAdmin = profile?.role === "admin";
+  const policy = isAdmin
+    ? {
+        ...ADMIN_POLICY,
+        forceStatus: input.forceConfirm ? ("confirmed" as const) : undefined,
+      }
+    : CLIENT_POLICY;
 
   return editBookingCore(
     { repo, now: new Date() },
@@ -309,5 +320,60 @@ export async function editBooking(input: {
       policy,
       patch: input.patch,
     },
+  );
+}
+
+/**
+ * Admin: create a booking on behalf of a client. The target client id comes
+ * from the (admin-verified) caller; the actor identity is never trusted from a
+ * client payload. Runs ADMIN_POLICY (all gates warn-don't-block) with optional
+ * force-confirm. Takes no payment and never touches Stripe (offline payment is
+ * handled separately).
+ */
+export async function createBookingForClient(input: {
+  clientId: string;
+  serviceSlug: string;
+  startsAt: Date;
+  endsAt: Date;
+  quantities: Record<string, unknown>;
+  petIds?: string[];
+  recurringRule: {
+    freq: "daily" | "weekly" | "monthly";
+    interval: number;
+    count?: number;
+    until?: Date;
+  } | null;
+  forceConfirm?: boolean;
+}): Promise<CreateBookingResult> {
+  const admin = await requireAdminDeps();
+  if (!admin.ok) return { kind: "error", message: "Forbidden" };
+
+  // Verify the target is a real client profile (service-role read bypasses RLS).
+  const { data: target } = await admin.serviceClient
+    .from("profiles")
+    .select("role")
+    .eq("id", input.clientId)
+    .single();
+  if (!target || target.role !== "client") {
+    return { kind: "error", message: "Target is not a client" };
+  }
+
+  const policy = {
+    ...ADMIN_POLICY,
+    forceStatus: input.forceConfirm ? ("confirmed" as const) : undefined,
+  };
+
+  return createBookingCore(
+    { repo: admin.repo, now: new Date() },
+    {
+      userId: input.clientId,
+      serviceSlug: input.serviceSlug,
+      startsAt: input.startsAt,
+      endsAt: input.endsAt,
+      quantities: input.quantities,
+      petIds: input.petIds,
+      recurringRule: input.recurringRule,
+    },
+    policy,
   );
 }
