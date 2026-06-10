@@ -45,13 +45,39 @@ function formatDollars(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
-/** UTC ISO string → America/Denver local string. */
-function formatDenver(iso: string): string {
-  return new Date(iso).toLocaleString("en-US", {
-    timeZone: "America/Denver",
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
+const DENVER_TZ = "America/Denver";
+
+/** Denver-local date/time parts + a YYYY-MM-DD key for same-day comparison. */
+function denverParts(iso: string): { date: string; time: string; key: string } {
+  const d = new Date(iso);
+  return {
+    date: d.toLocaleDateString("en-US", {
+      timeZone: DENVER_TZ,
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }),
+    time: d.toLocaleTimeString("en-US", {
+      timeZone: DENVER_TZ,
+      hour: "numeric",
+      minute: "2-digit",
+    }),
+    key: d.toLocaleDateString("en-CA", { timeZone: DENVER_TZ }),
+  };
+}
+
+/**
+ * Compact "when" label that fits one line: a single-day visit shows the date
+ * once with a time range ("Jun 16, 2026 · 2:00 PM – 3:00 PM"); a multi-day stay
+ * shows a date range ("Jul 2, 2026 – Jul 5, 2026"). Replaces two full datetimes
+ * joined by an em-dash, which wrapped badly in the narrow table band.
+ */
+function formatWhen(startIso: string, endIso: string): string {
+  const s = denverParts(startIso);
+  const e = denverParts(endIso);
+  return s.key === e.key
+    ? `${s.date} · ${s.time} – ${e.time}`
+    : `${s.date} – ${e.date}`;
 }
 
 interface PaymentRow {
@@ -172,8 +198,9 @@ function BookingTable({
           <TableHead>When</TableHead>
           <TableHead>Status</TableHead>
           <TableHead>Total</TableHead>
-          {showPayButton && <TableHead className="text-right">Pay</TableHead>}
-          {showPayButton && <TableHead className="text-right">Edit</TableHead>}
+          {showPayButton && (
+            <TableHead className="text-right">Actions</TableHead>
+          )}
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -191,8 +218,11 @@ function BookingTable({
               >
                 {b.services?.[0]?.name ?? "Service"}
               </TableCell>
-              <TableCell data-label="When" className="text-muted-foreground">
-                {formatDenver(b.starts_at)} — {formatDenver(b.ends_at)}
+              <TableCell
+                data-label="When"
+                className="text-muted-foreground md:whitespace-nowrap"
+              >
+                {formatWhen(b.starts_at, b.ends_at)}
               </TableCell>
               <TableCell data-label="Status">
                 <Badge variant={variant}>{label}</Badge>
@@ -208,23 +238,21 @@ function BookingTable({
                 )}
               </TableCell>
               {showPayButton && (
-                <TableCell data-label="" className="md:text-right">
-                  <PrepayButton bookingId={b.id} owedCents={owed} />
-                </TableCell>
-              )}
-              {showPayButton && (
-                <TableCell data-label="Edit" className="md:text-right">
-                  <EditCell
-                    bookingId={b.id}
-                    booking={{
-                      status: b.status,
-                      startsAt: new Date(b.starts_at),
-                      paidCents,
-                      serviceSlug: b.services?.[0]?.slug ?? "",
-                    }}
-                    now={now}
-                    cancellationFullRefundHours={cancellationFullRefundHours}
-                  />
+                <TableCell data-label="Actions">
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    <PrepayButton bookingId={b.id} owedCents={owed} />
+                    <EditCell
+                      bookingId={b.id}
+                      booking={{
+                        status: b.status,
+                        startsAt: new Date(b.starts_at),
+                        paidCents,
+                        serviceSlug: b.services?.[0]?.slug ?? "",
+                      }}
+                      now={now}
+                      cancellationFullRefundHours={cancellationFullRefundHours}
+                    />
+                  </div>
                 </TableCell>
               )}
             </TableRow>

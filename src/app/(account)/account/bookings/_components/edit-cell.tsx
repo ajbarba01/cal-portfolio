@@ -34,7 +34,7 @@ export function EditCell({
     );
   }
   return (
-    <span className="text-muted-foreground inline-flex items-center gap-1.5 text-xs">
+    <span className="text-muted-foreground inline-flex items-center gap-1.5 text-xs whitespace-nowrap">
       <span aria-hidden="true">🔒</span>
       {editLockCopy(result.reason)}
     </span>
