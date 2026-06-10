@@ -18,14 +18,18 @@
 - more information for services inside each booking
 - inquiries tab for account - cancel, view status, view message, maybe edit?
 - ensure text wrapping for any area where text could overflow (like sending a long contact message overflows). also the inquiry view could just show the first like few lines of the inquiry and then allow cal to click on it to create a popup that has the actual options for email, text, and resolution (better for mobile too)
+- Toasts are like a set length. idk should be redesigned slightly
+- use of "we" and cal third person throughout the site. idk need cals opinion
+- onboarding page should be part of account (this is why the account underline doesn't work in the nav bar when in onboarding)
 
 ## Larger categories
 
 - notification system (dedicated email address, )
 - admin + contact page redesign
-- admin input bookings
+- admin input bookings and account bookings reschedule (admin should also be able to edit booking through reschedule)
 - whole site cohesiveness pass
 - performance and responsiveness pass
+- inquiries page for account and inquiry view for both account and admin
 
 ## Later
 

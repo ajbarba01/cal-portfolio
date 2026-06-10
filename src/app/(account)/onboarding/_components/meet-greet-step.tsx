@@ -80,7 +80,7 @@ export function MeetGreetStep({
           </div>
           <p className="text-muted-foreground text-sm leading-relaxed">
             Your visit is on Cal&apos;s calendar.{" "}
-            <span aria-hidden="true">⏳</span> After you meet in person, Cal
+            <span aria-hidden="true"></span> After you meet in person, Cal
             approves your account and full booking opens up — we&apos;ll email
             you.
           </p>

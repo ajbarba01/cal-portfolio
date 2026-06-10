@@ -191,7 +191,7 @@ export function InquiryList({
       {view.pageCount > 1 ? (
         <nav
           aria-label="Pagination"
-          className="flex items-center justify-center gap-1.5"
+          className="flex flex-wrap items-center justify-center gap-1.5"
         >
           <button
             type="button"
