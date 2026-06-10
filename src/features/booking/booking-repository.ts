@@ -1142,7 +1142,11 @@ export function createSupabaseBookingRepository(
         );
       }
       const current = (data?.skipped_starts as string[] | null) ?? [];
-      const next = current.includes(startIso)
+      // Normalize to epoch ms before comparing: the DB returns timestamptz values
+      // in "+00:00" notation but startIso is always a JS ".000Z" string — a plain
+      // string includes() would never match and would silently duplicate the entry.
+      const inputMs = new Date(startIso).getTime();
+      const next = current.some((s) => new Date(s).getTime() === inputMs)
         ? current
         : [...current, startIso];
       const { error: upError } = await client
