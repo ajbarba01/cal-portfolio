@@ -346,6 +346,37 @@ const adminBusyRowSchema = z.object({
     .nullable(),
 });
 
+/** Parsed and validated booking-for-edit row (join shape from getBookingForEdit). */
+const bookingEditRowSchema = z.object({
+  id: z.string(),
+  client_id: z.string(),
+  status: z.enum([
+    "pending_approval",
+    "confirmed",
+    "completed",
+    "declined",
+    "cancelled",
+    "no_show",
+  ]),
+  starts_at: z.string(),
+  ends_at: z.string(),
+  series_id: z.string().nullable(),
+  comments: z.string().nullable(),
+  quote_inputs: z.unknown(),
+  // PostgREST may return a joined row as an object or a single-element array
+  // depending on the client version and relationship cardinality hint.
+  services: z
+    .union([
+      z.object({ slug: z.string() }),
+      z.array(z.object({ slug: z.string() })),
+    ])
+    .nullable(),
+  booking_pets: z.array(z.object({ pet_id: z.string() })).nullable(),
+  payments: z
+    .array(z.object({ status: z.string(), amount_cents: z.number() }))
+    .nullable(),
+});
+
 const ACTIVE_BUSY_STATUSES = ["pending_approval", "confirmed"] as const;
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -1017,19 +1048,13 @@ export function createSupabaseBookingRepository(
       }
       if (!data) return null;
 
-      const row = data as unknown as {
-        id: string;
-        client_id: string;
-        status: BookingStatusDb;
-        starts_at: string;
-        ends_at: string;
-        series_id: string | null;
-        comments: string | null;
-        quote_inputs: unknown;
-        services: { slug: string } | { slug: string }[] | null;
-        booking_pets: { pet_id: string }[] | null;
-        payments: { status: string; amount_cents: number }[] | null;
-      };
+      const parsed = bookingEditRowSchema.safeParse(data);
+      if (!parsed.success) {
+        throw new Error(
+          `booking-for-edit row has unexpected DB shape: ${parsed.error.message}`,
+        );
+      }
+      const row = parsed.data;
 
       const service = Array.isArray(row.services)
         ? row.services[0]
