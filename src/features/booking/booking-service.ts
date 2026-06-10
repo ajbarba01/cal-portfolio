@@ -969,6 +969,229 @@ export async function settleDebtCore(
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
+// editBookingCore — in-place edit (time / pets / quantities / comments)
+// ──────────────────────────────────────────────────────────────────────────────
+
+export type EditBookingResult =
+  | { kind: "success"; warnings: string[] }
+  | { kind: "not_found" }
+  | { kind: "forbidden" }
+  | { kind: "invalid_status" }
+  | { kind: "price_locked" }
+  | { kind: "blocked_debt"; owedCents: number }
+  | { kind: "onboarding_incomplete" }
+  | { kind: "refuse"; reason: string }
+  | { kind: "unavailable"; reason: string }
+  | { kind: "slot_taken" }
+  | { kind: "validation_error"; message: string }
+  | { kind: "error"; message: string };
+
+export interface EditBookingPatch {
+  startsAt?: Date;
+  endsAt?: Date;
+  petIds?: string[];
+  quantities?: Record<string, unknown>;
+  comments?: string;
+}
+
+export interface EditBookingInput {
+  bookingId: string;
+  /** Verified session id. Ownership enforced unless the policy skips it (admin). */
+  actorUserId: string;
+  policy: MutationPolicy;
+  patch: EditBookingPatch;
+}
+
+/** Statuses a booking may be edited from (terminal/completed rejected). */
+const EDITABLE_STATUSES: BookingStatusDb[] = ["pending_approval", "confirmed"];
+
+/** Extract the raw quantity record from a stored QuoteInput jsonb. */
+function quantitiesFromQuoteInputs(qi: unknown): Record<string, unknown> {
+  const q = (qi ?? {}) as Record<string, unknown>;
+  const keys = [
+    "dogs",
+    "cats",
+    "nights",
+    "hours",
+    "cantBeLeftAloneDays",
+    "walkMinutesPerDay",
+    "holidayDays",
+  ];
+  const out: Record<string, unknown> = {};
+  for (const k of keys) if (q[k] !== undefined) out[k] = q[k];
+  return out;
+}
+
+export async function editBookingCore(
+  deps: BookingServiceDeps,
+  input: EditBookingInput,
+): Promise<EditBookingResult> {
+  const { repo, now } = deps;
+  const { policy, patch } = input;
+
+  const booking = await repo.getBookingForEdit(input.bookingId);
+  if (!booking) return { kind: "not_found" };
+
+  // Ownership — enforced unless an admin policy.
+  // isAdminActor keys off skipOnboardingGate (true only in ADMIN_POLICY);
+  // CLIENT_POLICY sets it false. If a future policy needs admin context without
+  // skipping onboarding, replace with an explicit policy.bypassOwnership flag.
+  const isAdminActor = policy.skipOnboardingGate;
+  if (!isAdminActor && booking.client_id !== input.actorUserId) {
+    return { kind: "forbidden" };
+  }
+
+  if (!EDITABLE_STATUSES.includes(booking.status)) {
+    return { kind: "invalid_status" };
+  }
+
+  // Paid-lock: a price-affecting patch (pets/quantities) is rejected once paid.
+  const priceAffecting =
+    patch.petIds !== undefined || patch.quantities !== undefined;
+  if (booking.paidCents > 0 && priceAffecting) {
+    return { kind: "price_locked" };
+  }
+
+  // Client cancellation-cutoff gate (uses the CURRENT start).
+  if (!policy.skipCancellationCutoff) {
+    const settings = await repo.getSettings();
+    const cutoffMs =
+      booking.startsAt.getTime() -
+      settings.cancellation_full_refund_hours * 60 * 60 * 1000;
+    if (now.getTime() > cutoffMs) {
+      return {
+        kind: "unavailable",
+        reason:
+          "This booking is inside the cancellation window and can no longer be changed online.",
+      };
+    }
+  }
+
+  // Build the merged shape and re-quote via the shared pipeline.
+  const startsAt = patch.startsAt ?? booking.startsAt;
+  const durationMs = booking.endsAt.getTime() - booking.startsAt.getTime();
+  const endsAt = patch.endsAt ?? new Date(startsAt.getTime() + durationMs);
+
+  const mergedInput: CreateBookingInput = {
+    userId: booking.client_id,
+    serviceSlug: booking.service_slug,
+    startsAt,
+    endsAt,
+    quantities: {
+      ...quantitiesFromQuoteInputs(booking.quote_inputs),
+      ...(patch.quantities ?? {}),
+    },
+    petIds: patch.petIds ?? booking.petIds,
+    recurringRule: null, // edits never re-create a series
+  };
+
+  const artifacts = await computeBookingArtifacts(deps, mergedInput, policy);
+  if (artifacts.kind === "validation_error")
+    return { kind: "validation_error", message: artifacts.message };
+  if (artifacts.kind === "error")
+    return { kind: "error", message: artifacts.message };
+  if (artifacts.kind === "refuse")
+    return { kind: "refuse", reason: artifacts.reason };
+  if (artifacts.kind === "blocked_debt")
+    return { kind: "blocked_debt", owedCents: artifacts.owedCents };
+  if (artifacts.kind === "onboarding_incomplete")
+    return { kind: "onboarding_incomplete" };
+
+  const warnings = [...artifacts.artifacts.warnings];
+  const {
+    settings: s,
+    quoteInput,
+    breakdown,
+    requiresApprovalByOccurrence,
+  } = artifacts.artifacts;
+
+  // Slot validation (hours/lead/horizon + window-fit), policy-aware.
+  const ruleSettings: BookingRuleSettings = {
+    bookingOpenMinute: s.booking_open_minute,
+    bookingCloseMinute: s.booking_close_minute,
+    minLeadTimeHours: s.min_lead_time_hours,
+    hardMaxAdvanceDays: s.hard_max_advance_days,
+  };
+  if (!policy.skipHoursLeadGuards) {
+    if (!passesGuards({ startsAt, endsAt }, ruleSettings, now)) {
+      return {
+        kind: "unavailable",
+        reason:
+          "The selected time does not meet booking rules (hours, lead time, or max advance).",
+      };
+    }
+  } else if (!passesGuards({ startsAt, endsAt }, ruleSettings, now)) {
+    warnings.push(
+      "Selected time is outside normal booking rules (hours / lead time).",
+    );
+  }
+
+  if (!policy.skipWindowFit) {
+    const openWindows = await repo.getOpenWindows(now);
+    if (!fitsWindow({ startsAt, endsAt }, openWindows)) {
+      return {
+        kind: "unavailable",
+        reason: "The selected time is not within an open availability window.",
+      };
+    }
+  } else {
+    const openWindows = await repo.getOpenWindows(now);
+    if (!fitsWindow({ startsAt, endsAt }, openWindows)) {
+      warnings.push(
+        "Selected time is outside any published availability window.",
+      );
+    }
+  }
+
+  // Re-derive status (per-occurrence array has exactly one element for an edit).
+  const requiresApproval = requiresApprovalByOccurrence[0];
+  let status: BookingStatusDb;
+  if (policy.forceStatus) {
+    status = policy.forceStatus;
+  } else {
+    const stat = transition("draft", "submit", { requiresApproval });
+    if ("error" in stat) return { kind: "error", message: stat.error };
+    status = stat.state;
+  }
+
+  // Detach from a series (records the skip on the parent), if linked.
+  let seriesId: string | null = booking.series_id;
+  if (booking.series_id) {
+    await repo.appendSeriesSkip(
+      booking.series_id,
+      booking.startsAt.toISOString(),
+    );
+    seriesId = null;
+  }
+
+  // Persist. booking_pets swap only when pets were patched.
+  try {
+    await repo.updateBookingEdited(input.bookingId, {
+      starts_at: startsAt.toISOString(),
+      ends_at: endsAt.toISOString(),
+      status,
+      quote_inputs: quoteInput as unknown,
+      quote_breakdown: breakdown as unknown,
+      final_cents: breakdown.finalCents,
+      requires_approval: requiresApproval,
+      comments: patch.comments ?? booking.comments,
+      series_id: seriesId,
+    });
+    if (patch.petIds !== undefined) {
+      await repo.swapBookingPets(input.bookingId, patch.petIds);
+    }
+    return { kind: "success", warnings };
+  } catch (e: unknown) {
+    if ((e as { code?: string }).code === "23P01")
+      return { kind: "slot_taken" };
+    return {
+      kind: "error",
+      message: e instanceof Error ? e.message : String(e),
+    };
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
 // Internal helpers
 // ──────────────────────────────────────────────────────────────────────────────
 
