@@ -4,7 +4,7 @@
 
 ## Inbox
 
-_(empty)_
+- `npm run format:check` fails on 65 pre-existing files (src/ + configs, none docs) — repo-wide prettier drift predating SP1; needs a one-shot `prettier --write .` pass with its own commit (candidate: SP3 codebase work). (2026-06-10)
 
 ---
 
