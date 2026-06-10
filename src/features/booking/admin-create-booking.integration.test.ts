@@ -74,6 +74,7 @@ function futureEnd(start: Date, durationMs = 60 * 60 * 1000): Date {
 function deps() {
   return {
     repo: createSupabaseBookingRepository(serviceClient),
+    // now is wall-clock; safe here because ADMIN_POLICY skips all time gates.
     now: new Date(),
   };
 }
@@ -200,8 +201,10 @@ beforeAll(async () => {
   petA = pets[0].id as string;
 
   // NOTE: No availability windows are inserted here. That is intentional —
-  // the absence of windows means fitsWindow() will fail for every slot,
-  // which is what triggers the out-of-window warning under ADMIN_POLICY.
+  // the absence of any window covering the slot produces an out-of-window
+  // warning under ADMIN_POLICY's skip-and-warn path (skipWindowFit is true,
+  // so the window block is skipped and a warning is appended rather than
+  // running fitsWindow). The same slot would hard-block under CLIENT_POLICY.
 });
 
 afterAll(async () => {
@@ -257,6 +260,11 @@ describe("admin create-on-behalf", () => {
 
     expect(result.kind).toBe("success");
     if (result.kind === "success") {
+      // Register for cleanup first — before any assertion that could throw.
+      if (!createdBookingIds.includes(result.bookingIds[0])) {
+        createdBookingIds.push(result.bookingIds[0]);
+      }
+
       expect(result.warnings.length).toBeGreaterThan(0);
       expect(result.bookingIds.length).toBe(1);
 
@@ -269,11 +277,6 @@ describe("admin create-on-behalf", () => {
 
       expect(row).not.toBeNull();
       expect(row!.client_id).toBe(clientAUserId);
-
-      // Track for cleanup (createBookingCore already inserted the row — add id).
-      if (!createdBookingIds.includes(result.bookingIds[0])) {
-        createdBookingIds.push(result.bookingIds[0]);
-      }
     }
   });
 
@@ -301,6 +304,11 @@ describe("admin create-on-behalf", () => {
 
     expect(result.kind).toBe("success");
     if (result.kind === "success") {
+      // Register for cleanup first — before any assertion that could throw.
+      if (!createdBookingIds.includes(result.bookingIds[0])) {
+        createdBookingIds.push(result.bookingIds[0]);
+      }
+
       expect(result.bookingIds.length).toBe(1);
 
       // Read the row back and assert status === "confirmed".
@@ -312,10 +320,6 @@ describe("admin create-on-behalf", () => {
 
       expect(row).not.toBeNull();
       expect(row!.status).toBe("confirmed");
-
-      if (!createdBookingIds.includes(result.bookingIds[0])) {
-        createdBookingIds.push(result.bookingIds[0]);
-      }
     }
   });
 });
