@@ -16,15 +16,15 @@ Escalation: blocking → append to the active plan's `## Handoff log`, commit, s
 
 ## Progress
 
-| SP  | Name                                 | Spec                       | Plan                                         | Status                         |
-| --- | ------------------------------------ | -------------------------- | -------------------------------------------- | ------------------------------ |
-| 1   | Doc architecture                     | roadmap §SP1 (no own spec) | [plan](plans/2026-06-10-doc-architecture.md) | **READY TO EXECUTE — current** |
-| 2   | DB seeding framework                 | —                          | —                                            | pending                        |
-| 3   | Foundations (code+system+primitives) | —                          | —                                            | pending                        |
-| 4   | Payments complete+harden             | —                          | —                                            | pending                        |
-| 5   | Admin overhaul                       | —                          | —                                            | pending                        |
-| 6   | Cohesion+feedback sweep              | —                          | —                                            | pending                        |
-| 7   | Performance pass                     | —                          | —                                            | pending                        |
+| SP  | Name                                 | Spec                       | Plan                                                 | Status              |
+| --- | ------------------------------------ | -------------------------- | ---------------------------------------------------- | ------------------- |
+| 1   | Doc architecture                     | roadmap §SP1 (no own spec) | [plan](plans/archive/2026-06-10-doc-architecture.md) | **DONE 2026-06-10** |
+| 2   | DB seeding framework                 | —                          | —                                                    | **next**            |
+| 3   | Foundations (code+system+primitives) | —                          | —                                                    | pending             |
+| 4   | Payments complete+harden             | —                          | —                                                    | pending             |
+| 5   | Admin overhaul                       | —                          | —                                                    | pending             |
+| 6   | Cohesion+feedback sweep              | —                          | —                                                    | pending             |
+| 7   | Performance pass                     | —                          | —                                                    | pending             |
 
 Interleaved (not SPs, after SP4): booking-mutation P2-P4 + recurring rework + cancellation/debt system — **grill-required**, see roadmap.
 
@@ -49,14 +49,13 @@ Interleaved (not SPs, after SP4): booking-mutation P2-P4 + recurring rework + ca
 **Audit-session facts (2026-06-10)**
 
 - Doc word baselines: total 14,053 — DESIGN 5,462 · FRONTEND 2,239 · WORKFLOW 1,558 · ENGINEERING 987 · CONTENT 891 · AGENTS 717 · ROLES 708 · DEV_NOTES 637 · CODE_STYLE 371 · ROUTING 369 · CLAUDE 114. SP1 target ≤ ~9,500.
-- All 19 plans in `plans/` believed shipped (client self-edit route `/account/bookings/[id]/edit` present in prod build) — SP1 task 2 verifies each before archiving.
-- `.claude/` holds only `agents/` + `skills/` — `settings.json` greenfield for SP1's caveman hook; hook acceptance test = fresh session speaks caveman unprompted.
+- All 19 plans verified shipped by SP1 and archived to `plans/archive/`.
+- `settings.json` SessionStart caveman hook live, acceptance-tested 2026-06-10.
 - DEV_NOTES content fully absorbed into the findings register 2026-06-10 — SP1 task 3 confirms, doesn't re-triage.
 - Lighthouse baselines (local prod, mobile): perf 0.74–0.89, LCP 3.8–4.4 s, TBT 400 ms on /book/walk, CLS 0, a11y 1.0 — SP7 before/after reference.
 
 **Open maintainer decisions**
 
-- OTHER.md (root): delete vs relocate — ask before `git rm` (SP1 task 4).
 - Cal/ops items parked in the register's triage section: dedicated send-address, site voice ("we" vs third person), logo.
 
 ## Session log
@@ -64,6 +63,7 @@ Interleaved (not SPs, after SP4): booking-mutation P2-P4 + recurring rework + ca
 (append one line per session: date · SP · what moved · blockers)
 
 - 2026-06-10 · audit · roadmap + findings register + SP1 plan committed; SP1 ready to execute.
+- 2026-06-10 · SP1 · executed full doc-architecture plan (lifecycle rules, 19 plans archived, DEV_NOTES inbox, portability split, compression, caveman hook); word targets unmet (fact-density), zero fact loss; plan archived.
 
 ---
 
