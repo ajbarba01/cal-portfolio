@@ -4,7 +4,7 @@ import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
 // Another project's instruction file, kept as a style reference; its links target that repo, not this one.
-const SKIP_FILES = new Set(["OTHER.md"]);
+const SKIP_FILES = new Set(["docs/reference/OTHER.md"]);
 // Archived plans are read-only historical records; their relative links naturally break after being moved.
 const SKIP_PREFIXES = ["docs/superpowers/plans/archive/"];
 
