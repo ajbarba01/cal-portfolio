@@ -72,7 +72,9 @@ export interface SeriesRule {
  * Returns the occurrence starts that should be materialized now but are not yet
  * present, up to the generation horizon, respecting the series' own bound.
  * Already-materialized starts (by epoch ms) and starts at/in the past are
- * excluded.
+ * excluded. Epoch-ms instants in `skippedStarts` (a series' RFC 5545 EXDATE
+ * set) are also excluded — used for occurrences whose slot was vacated by an
+ * edit.
  */
 export function nextOccurrencesToMaterialize(
   series: SeriesRule,
