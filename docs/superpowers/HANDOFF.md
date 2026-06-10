@@ -33,8 +33,8 @@ Interleaved (not SPs, after SP4): booking-mutation P2-P4 + recurring rework + ca
 **Maintainer (Alex) working rules**
 
 - Lead + grill posture: act as project/technical lead; grill for clarification rather than assume; honest recommendations; industry standards always.
-- Mobile parity: mobile must be as fluid/dynamic/intentional as desktop in every UI plan.
-- Invoke `frontend-design` skill before building/altering any UI.
+- Mobile parity: mobile must be as fluid/dynamic/intentional as desktop in every UI plan (source: [../FRONTEND.md](../FRONTEND.md) responsive rules).
+- Invoke `frontend-design` skill before building/altering any UI (source: [../FRONTEND.md](../FRONTEND.md) pipeline).
 - Codex is gone — Claude-only. "Cross-model review" degrades to fresh-session `/code-review` (author never grades itself).
 
 **Repo/tooling gotchas**
