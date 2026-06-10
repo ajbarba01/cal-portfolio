@@ -60,10 +60,9 @@ Cross-checked DESIGN.md against code — all VERIFIED with evidence:
 | AD3 | M   | Settings UI exposes raw values (minutes-since-midnight integers etc.). Cal-friendly controls owed: hour+minute pickers for open/close, labeled inputs for miles/horizon/refund-pct/holiday dates. **(live-verify exact fields)**                           |
 | AD4 | M   | Cancel-with-reason: no reason field on admin/client cancel; reason should flow into the cancellation email (with booking-mutation P3).                                                                                                                     |
 | AD5 | m   | No admin notification badges (wordmark/tabs) for pending approvals / new inquiries / flagged conflicts — "what needs Cal's attention now" surface missing (ties SP3 nav).                                                                                  |
-| AD6 | m   | "Ban from meet-greets" = set `onboarding_status='declined'` — works but is not labeled as such anywhere; make the semantic visible in admin clients UI.                                                                                                    |
 | AD7 | m   | Inquiry list: long messages overflow; show preview + popup with email/text/resolve actions (DEV_NOTES; better mobile too). **(live-verify)**                                                                                                               |
 
-Admin-powers inventory: all 17 expected powers exist in code with UI (approve/decline, cancel, no-show, refund grant, debt view/settle, create-on-behalf, edit-any, reschedule, windows, overnight nights, services CRUD, full settings, onboarding status, Kiche toggle, reviews moderation, inquiries, ban-via-declined). Gaps = AD1 (conflict UI), AD4 (reason), AD3 (friendliness, not capability).
+Admin-powers inventory: all 17 expected powers exist in code with UI (approve/decline, cancel, no-show, refund grant, debt view/settle, create-on-behalf, edit-any, reschedule, windows, overnight nights, services CRUD, full settings, onboarding status, Kiche toggle, reviews moderation, inquiries, ban-via-declined). Gaps = AD1 (conflict UI), AD4 (reason), AD3 (friendliness, not capability). Ban-from-meet-greets needs no dedicated surface — `declined` covers it (maintainer decision 2026-06-10).
 
 ## SP6 — cohesion + feedback + responsiveness
 

@@ -68,6 +68,11 @@ Measured: Lighthouse / Core Web Vitals budgets on key pages, before/after number
 
 Feature-sized DEV_NOTES items are **not** findings: booking-mutation P2-P4 (client self-edit, cancel bookings + reason + refund semantics, reschedule generalization, recurring rework), account inquiries tab. They stay on the booking-mutation roadmap, slotted **after SP4** (cancel/refund needs payments) and **before SP6** (sweep must cover their surfaces).
 
+Two of these carry a **grill-required** marker (maintainer, 2026-06-10) — their spec sessions start with full maintainer grilling + industry research before any design lands:
+
+- **Recurring workflow rework** — big refactor; must follow industry scheduling standards (RFC 5545 semantics already partial via `skipped_starts`) + project specs. Touches series engine, roll cron, series UI.
+- **Cancellation-fee / debt ("blocking fee") system** — verify end-to-end how fees, debts, refunds, and the re-booking block interact (with SP4's PAY3 refund re-modeling). Maintainer wants the whole policy walked through before it's built on.
+
 ## Standing rules
 
 - **Industry validation at spec time.** Every SP spec session validates its approach against current official/industry sources (WebSearch/WebFetch) before finalizing — SP3: Next.js App Router + React architecture guidance; SP4: Stripe integration best practices (Elements, idempotency, refunds); SP5: admin-UX conventions; SP7: Core Web Vitals thresholds. Targeted research against concrete findings, not generic best-practice dumps; cite sources in the spec.
