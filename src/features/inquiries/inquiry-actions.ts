@@ -14,7 +14,13 @@ import { getActorOrRedirect } from "@/features/admin/admin-session";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 
-import { submitInquirySchema, type SubmitInquiryInput } from "./inquiry-schema";
+import { canEditInquiry } from "./inquiry-list";
+import {
+  editInquirySchema,
+  submitInquirySchema,
+  type EditInquiryInput,
+  type SubmitInquiryInput,
+} from "./inquiry-schema";
 
 const RATE_LIMIT_WINDOW_MS = 60_000;
 
@@ -63,6 +69,18 @@ export interface AdminDeps {
   serviceClient: SupabaseClient;
   actorUserId: string;
 }
+
+export interface ClientDeps {
+  serviceClient: SupabaseClient;
+  /** The authenticated client's user id; ownership is enforced against this. */
+  actorUserId: string;
+}
+
+const inquiryGuardSchema = z.object({
+  client_id: z.string().nullable(),
+  status: z.enum(["new", "resolved"]),
+  replied_at: z.string().nullable(),
+});
 
 export async function submitInquiryCore(
   serviceClient: SupabaseClient,
@@ -182,6 +200,72 @@ export async function stampInquiryRepliedCore(
   return { kind: "success" };
 }
 
+export async function resolveMyInquiryCore(
+  deps: ClientDeps,
+  inquiryId: string,
+): Promise<InquiryMutationResult> {
+  const { data, error } = await deps.serviceClient
+    .from("inquiries")
+    .select("client_id, status, replied_at")
+    .eq("id", inquiryId)
+    .maybeSingle();
+  if (error) return { kind: "error", message: error.message };
+  if (!data) return { kind: "not_found" };
+
+  const guard = inquiryGuardSchema.safeParse(data);
+  if (!guard.success) return { kind: "error", message: "Bad inquiry row." };
+  if (guard.data.client_id !== deps.actorUserId) return { kind: "forbidden" };
+
+  const { error: updateError } = await deps.serviceClient
+    .from("inquiries")
+    .update({ status: "resolved", resolved_at: new Date().toISOString() })
+    .eq("id", inquiryId)
+    .eq("client_id", deps.actorUserId);
+  if (updateError) return { kind: "error", message: updateError.message };
+  return { kind: "success" };
+}
+
+export async function editMyInquiryCore(
+  deps: ClientDeps,
+  inquiryId: string,
+  rawInput: EditInquiryInput,
+): Promise<InquiryMutationResult> {
+  const parsed = editInquirySchema.safeParse(rawInput);
+  if (!parsed.success) {
+    return {
+      kind: "error",
+      message: parsed.error.issues.map((issue) => issue.message).join("; "),
+    };
+  }
+  const input = parsed.data;
+
+  const { data, error } = await deps.serviceClient
+    .from("inquiries")
+    .select("client_id, status, replied_at")
+    .eq("id", inquiryId)
+    .maybeSingle();
+  if (error) return { kind: "error", message: error.message };
+  if (!data) return { kind: "not_found" };
+
+  const guard = inquiryGuardSchema.safeParse(data);
+  if (!guard.success) return { kind: "error", message: "Bad inquiry row." };
+  if (guard.data.client_id !== deps.actorUserId) return { kind: "forbidden" };
+  if (!canEditInquiry(guard.data)) {
+    return { kind: "error", message: "This inquiry can no longer be edited." };
+  }
+
+  const { error: updateError } = await deps.serviceClient
+    .from("inquiries")
+    .update({
+      subject: input.subject ? input.subject : null,
+      message: input.message,
+    })
+    .eq("id", inquiryId)
+    .eq("client_id", deps.actorUserId);
+  if (updateError) return { kind: "error", message: updateError.message };
+  return { kind: "success" };
+}
+
 export async function listInquiries(): Promise<ListInquiriesResult> {
   const actorUserId = await getActorOrRedirect();
   return listInquiriesCore({
@@ -211,5 +295,41 @@ export async function stampInquiryReplied(
     inquiryId,
   );
   if (result.kind === "success") revalidatePath("/admin/inquiries");
+  return result;
+}
+
+async function currentUserId(): Promise<string | null> {
+  const session = await createClient();
+  const {
+    data: { user },
+  } = await session.auth.getUser();
+  return user?.id ?? null;
+}
+
+export async function resolveMyInquiry(
+  inquiryId: string,
+): Promise<InquiryMutationResult> {
+  const actorUserId = await currentUserId();
+  if (!actorUserId) return { kind: "forbidden" };
+  const result = await resolveMyInquiryCore(
+    { serviceClient: createServiceClient(), actorUserId },
+    inquiryId,
+  );
+  if (result.kind === "success") revalidatePath("/account/inquiries");
+  return result;
+}
+
+export async function editMyInquiry(
+  inquiryId: string,
+  input: EditInquiryInput,
+): Promise<InquiryMutationResult> {
+  const actorUserId = await currentUserId();
+  if (!actorUserId) return { kind: "forbidden" };
+  const result = await editMyInquiryCore(
+    { serviceClient: createServiceClient(), actorUserId },
+    inquiryId,
+    input,
+  );
+  if (result.kind === "success") revalidatePath("/account/inquiries");
   return result;
 }
