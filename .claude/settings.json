@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -p \"require('fs').readFileSync('.claude/caveman.md','utf8')\""
+          }
+        ]
+      }
+    ]
+  }
+}
