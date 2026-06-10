@@ -16,16 +16,16 @@ Escalation: blocking → append to the active plan's `## Handoff log`, commit, s
 
 ## Progress
 
-| SP  | Name                                 | Spec                                                      | Plan                                                 | Status                     |
-| --- | ------------------------------------ | --------------------------------------------------------- | ---------------------------------------------------- | -------------------------- |
-| 1   | Doc architecture                     | roadmap §SP1 (no own spec)                                | [plan](plans/archive/2026-06-10-doc-architecture.md) | **DONE 2026-06-10**        |
-| 2   | DB seeding framework                 | [spec](specs/2026-06-10-db-seeding-design.md)             | [plan](plans/archive/2026-06-10-db-seeding.md)       | **DONE 2026-06-10**        |
-| 3a  | Foundations — codebase structure     | [spec](specs/2026-06-10-sp3a-codebase-refactor-design.md) | [plan](plans/2026-06-10-sp3a-codebase-refactor.md)   | **planned — execute next** |
-| 3b  | Foundations — system IA + primitives | —                                                         | —                                                    | pending (after 3a)         |
-| 4   | Payments complete+harden             | —                                                         | —                                                    | pending                    |
-| 5   | Admin overhaul                       | —                                                         | —                                                    | pending                    |
-| 6   | Cohesion+feedback sweep              | —                                                         | —                                                    | pending                    |
-| 7   | Performance pass                     | —                                                         | —                                                    | pending                    |
+| SP  | Name                                 | Spec                                                      | Plan                                                 | Status                             |
+| --- | ------------------------------------ | --------------------------------------------------------- | ---------------------------------------------------- | ---------------------------------- |
+| 1   | Doc architecture                     | roadmap §SP1 (no own spec)                                | [plan](plans/archive/2026-06-10-doc-architecture.md) | **DONE 2026-06-10**                |
+| 2   | DB seeding framework                 | [spec](specs/2026-06-10-db-seeding-design.md)             | [plan](plans/archive/2026-06-10-db-seeding.md)       | **DONE 2026-06-10**                |
+| 3a  | Foundations — codebase structure     | [spec](specs/2026-06-10-sp3a-codebase-refactor-design.md) | [plan](plans/2026-06-10-sp3a-codebase-refactor.md)   | **impl complete — pending review** |
+| 3b  | Foundations — system IA + primitives | —                                                         | —                                                    | **next**                           |
+| 4   | Payments complete+harden             | —                                                         | —                                                    | pending                            |
+| 5   | Admin overhaul                       | —                                                         | —                                                    | pending                            |
+| 6   | Cohesion+feedback sweep              | —                                                         | —                                                    | pending                            |
+| 7   | Performance pass                     | —                                                         | —                                                    | pending                            |
 
 Interleaved (not SPs, after SP4): booking-mutation P2-P4 + recurring rework + cancellation/debt system — **grill-required**, see roadmap.
 
@@ -69,6 +69,7 @@ Interleaved (not SPs, after SP4): booking-mutation P2-P4 + recurring rework + ca
 - 2026-06-10 · SP2 · planning session: spec + plan committed (seed.sql local admin, wipe-first TS scenario seeder, 4 scenarios, local-URL guard; industry-validated). No blockers; execution next session.
 - 2026-06-10 · SP2 · executed (subagent-driven): seed.sql admin (sign-in acceptance-tested), TS seeder under scripts/db-seed/ with local-URL guard, date/registry unit tests, all 4 scenarios run idempotently against local stack (admin-demo: 10 profiles/24 bookings/4 payments/2 debits/3 reviews/2 inquiries). Plan defect found+fixed (TZDate.toISOString offset vs UTC). S1 pruned; plan archived.
 - 2026-06-10 · SP3a · planning session: split SP3 into 3a (codebase structure) / 3b (system IA + UI primitives). Spec + plan committed for 3a (A1,A3,A4,A5,A6,A7,A8,A9,A10,A11): foundation-first behavior-preserving refactor — eslint-plugin-boundaries seams, booking-service/scheduler/client-component splits, mutation layer, notifier seam, CONTEXT+ADRs. Industry-validated (Next.js App Router feature-folders + boundaries plugin). No blockers; execution next session. A2 + A12 carry to 3b.
+- 2026-06-10 · SP3a · executed (subagent-driven, all 10 tasks): cross-feature moves; enforced feature boundaries (`eslint-plugin-boundaries`) + **client/server entry split** (`index.client.ts`) after the barrels broke the client build; booking-service split into per-concern cores; scheduler cell primitive; client-state hooks; testable mutation layer; notifier seam; suppression cleanup; CONTEXT + ADRs 0001–0004. Behavior-preserving; typecheck + lint + `next build` green; new mutation/notifier unit tests pass; full suite 7 failed / 751 passed — the 7 are the **pre-existing** shared-DB isolation + stale-inquiry-fixture failures (all pass in isolation on a fresh DB; documented in the plan Handoff log), no new failures. Two regressions caught + fixed mid-flight (server-only client-bundle leak → maintainer-approved entry split; an `onSelectionChange` callback-stability drop in the admin-create hook). Findings A1/A3/A4/A5/A6/A7/A8/A9/A10/A11 pruned; A2/A12 → SP3b. **Pending fresh-session `/code-review` (author never grades itself) before declaring SP3a fully DONE.**
 
 ---
 
