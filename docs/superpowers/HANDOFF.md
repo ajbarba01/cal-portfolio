@@ -16,15 +16,15 @@ Escalation: blocking → append to the active plan's `## Handoff log`, commit, s
 
 ## Progress
 
-| SP  | Name                                 | Spec                                          | Plan                                                 | Status                     |
-| --- | ------------------------------------ | --------------------------------------------- | ---------------------------------------------------- | -------------------------- |
-| 1   | Doc architecture                     | roadmap §SP1 (no own spec)                    | [plan](plans/archive/2026-06-10-doc-architecture.md) | **DONE 2026-06-10**        |
-| 2   | DB seeding framework                 | [spec](specs/2026-06-10-db-seeding-design.md) | [plan](plans/2026-06-10-db-seeding.md)               | **planned — execute next** |
-| 3   | Foundations (code+system+primitives) | —                                             | —                                                    | pending                    |
-| 4   | Payments complete+harden             | —                                             | —                                                    | pending                    |
-| 5   | Admin overhaul                       | —                                             | —                                                    | pending                    |
-| 6   | Cohesion+feedback sweep              | —                                             | —                                                    | pending                    |
-| 7   | Performance pass                     | —                                             | —                                                    | pending                    |
+| SP  | Name                                 | Spec                                          | Plan                                                 | Status              |
+| --- | ------------------------------------ | --------------------------------------------- | ---------------------------------------------------- | ------------------- |
+| 1   | Doc architecture                     | roadmap §SP1 (no own spec)                    | [plan](plans/archive/2026-06-10-doc-architecture.md) | **DONE 2026-06-10** |
+| 2   | DB seeding framework                 | [spec](specs/2026-06-10-db-seeding-design.md) | [plan](plans/archive/2026-06-10-db-seeding.md)       | **DONE 2026-06-10** |
+| 3   | Foundations (code+system+primitives) | —                                             | —                                                    | **next**            |
+| 4   | Payments complete+harden             | —                                             | —                                                    | pending             |
+| 5   | Admin overhaul                       | —                                             | —                                                    | pending             |
+| 6   | Cohesion+feedback sweep              | —                                             | —                                                    | pending             |
+| 7   | Performance pass                     | —                                             | —                                                    | pending             |
 
 Interleaved (not SPs, after SP4): booking-mutation P2-P4 + recurring rework + cancellation/debt system — **grill-required**, see roadmap.
 
@@ -45,6 +45,7 @@ Interleaved (not SPs, after SP4): booking-mutation P2-P4 + recurring rework + ca
 - No Stripe keys exist in any env file yet (SP4 sets up test mode); payment paths can't run locally until then.
 - Doc-compression work: git history is the backup — create **no** `*.original.md` files (overrides caveman-compress skill default).
 - `scripts/check-doc-links.mjs` (exists after SP1 task 1) validates the **staged** version — `git add` before running.
+- `npm run db:seed -- <scenario>` (after SP2) wipes ALL non-admin local data then rebuilds it (wipe-first); local-only by host guard, no override flag. Bare `npx supabase db reset` re-creates the `admin@local.test` / `password123` login via `seed.sql`. Scenarios: `fresh`, `busy-week`, `payment-states`, `admin-demo`.
 
 **Audit-session facts (2026-06-10)**
 
@@ -65,6 +66,7 @@ Interleaved (not SPs, after SP4): booking-mutation P2-P4 + recurring rework + ca
 - 2026-06-10 · audit · roadmap + findings register + SP1 plan committed; SP1 ready to execute.
 - 2026-06-10 · SP1 · executed full doc-architecture plan (lifecycle rules, 19 plans archived, DEV_NOTES inbox, portability split, compression, caveman hook); word targets unmet (fact-density), zero fact loss; plan archived.
 - 2026-06-10 · SP2 · planning session: spec + plan committed (seed.sql local admin, wipe-first TS scenario seeder, 4 scenarios, local-URL guard; industry-validated). No blockers; execution next session.
+- 2026-06-10 · SP2 · executed (subagent-driven): seed.sql admin (sign-in acceptance-tested), TS seeder under scripts/db-seed/ with local-URL guard, date/registry unit tests, all 4 scenarios run idempotently against local stack (admin-demo: 10 profiles/24 bookings/4 payments/2 debits/3 reviews/2 inquiries). Plan defect found+fixed (TZDate.toISOString offset vs UTC). S1 pruned; plan archived.
 
 ---
 
