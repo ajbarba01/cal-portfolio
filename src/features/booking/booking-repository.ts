@@ -108,6 +108,8 @@ export interface BookingSeriesRow {
   duration_min: number;
   quote_inputs: unknown;
   active: boolean;
+  /** RFC 5545 EXDATE cadence starts (ISO UTC) removed by occurrence edits. */
+  skipped_starts: string[];
 }
 
 /** Insert shape for a booking_series row (id/active/created_at are DB-defaulted). */
@@ -180,6 +182,7 @@ const bookingSeriesRowSchema = z.object({
   duration_min: z.number(),
   quote_inputs: z.unknown(),
   active: z.boolean(),
+  skipped_starts: z.array(z.string()).default([]),
 });
 
 /** Parsed and validated availability_windows row. */
@@ -227,6 +230,38 @@ const bookingWithPaymentsRowSchema = z.object({
     )
     .nullable(),
 });
+
+/** Full shape needed to edit a booking in place. */
+export interface BookingEditRow {
+  id: string;
+  client_id: string;
+  service_slug: string;
+  status: BookingStatusDb;
+  startsAt: Date;
+  endsAt: Date;
+  series_id: string | null;
+  comments: string | null;
+  /** Stored QuoteInput (jsonb) — source of current quantities for re-quote. */
+  quote_inputs: unknown;
+  /** Currently-assigned pet ids (from booking_pets). */
+  petIds: string[];
+  /** Sum of succeeded payment cents (0 or final_cents under prepay-full). */
+  paidCents: number;
+}
+
+/** Fields an edit may update on the bookings row. */
+export interface BookingEditUpdate {
+  starts_at: string; // ISO UTC
+  ends_at: string; // ISO UTC
+  status: BookingStatusDb;
+  quote_inputs: unknown;
+  quote_breakdown: unknown;
+  final_cents: number;
+  requires_approval: boolean;
+  comments: string | null;
+  /** Set to null to detach from a series. */
+  series_id: string | null;
+}
 
 /** Debit reason, mirrors the client_debits CHECK constraint. */
 export type DebitReason = "late_cancel" | "no_show";
@@ -432,6 +467,18 @@ export interface BookingRepository {
     userId: string,
     slug: string,
   ): Promise<boolean>;
+
+  /** Load the full edit shape (service slug, times, quote, pets, paid total). */
+  getBookingForEdit(id: string): Promise<BookingEditRow | null>;
+
+  /** Update an edited booking's mutable fields in one UPDATE. Propagates 23P01. */
+  updateBookingEdited(id: string, fields: BookingEditUpdate): Promise<void>;
+
+  /** Replace a booking's pet assignment (delete all, then insert the given ids). */
+  swapBookingPets(bookingId: string, petIds: string[]): Promise<void>;
+
+  /** Append a cadence start (ISO UTC) to a series' skipped_starts. */
+  appendSeriesSkip(seriesId: string, startIso: string): Promise<void>;
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -696,7 +743,7 @@ export function createSupabaseBookingRepository(
         .from("booking_series")
         .select(
           "id, client_id, service_id, freq, step_interval, count, until, " +
-            "open_ended, template_starts_at, duration_min, quote_inputs, active",
+            "open_ended, template_starts_at, duration_min, quote_inputs, active, skipped_starts",
         )
         .eq("active", true);
 
@@ -950,6 +997,138 @@ export function createSupabaseBookingRepository(
         );
       }
       return (data ?? []).length > 0;
+    },
+
+    async getBookingForEdit(id) {
+      const { data, error } = await client
+        .from("bookings")
+        .select(
+          "id, client_id, status, starts_at, ends_at, series_id, comments, " +
+            "quote_inputs, services(slug), booking_pets(pet_id), " +
+            "payments(status, amount_cents)",
+        )
+        .eq("id", id)
+        .maybeSingle();
+
+      if (error) {
+        throw new Error(
+          `Failed to load booking for edit '${id}': ${error.message}`,
+        );
+      }
+      if (!data) return null;
+
+      const row = data as unknown as {
+        id: string;
+        client_id: string;
+        status: BookingStatusDb;
+        starts_at: string;
+        ends_at: string;
+        series_id: string | null;
+        comments: string | null;
+        quote_inputs: unknown;
+        services: { slug: string } | { slug: string }[] | null;
+        booking_pets: { pet_id: string }[] | null;
+        payments: { status: string; amount_cents: number }[] | null;
+      };
+
+      const service = Array.isArray(row.services)
+        ? row.services[0]
+        : row.services;
+      if (!service) {
+        throw new Error(`Booking '${id}' has no service`);
+      }
+
+      const paidCents = (row.payments ?? [])
+        .filter((p) => p.status === "succeeded")
+        .reduce((sum, p) => sum + p.amount_cents, 0);
+
+      return {
+        id: row.id,
+        client_id: row.client_id,
+        service_slug: service.slug,
+        status: row.status,
+        startsAt: new Date(row.starts_at),
+        endsAt: new Date(row.ends_at),
+        series_id: row.series_id,
+        comments: row.comments,
+        quote_inputs: row.quote_inputs,
+        petIds: (row.booking_pets ?? []).map((bp) => bp.pet_id),
+        paidCents,
+      };
+    },
+
+    async updateBookingEdited(id, fields) {
+      const { error } = await client
+        .from("bookings")
+        .update({
+          starts_at: fields.starts_at,
+          ends_at: fields.ends_at,
+          status: fields.status,
+          quote_inputs: fields.quote_inputs,
+          quote_breakdown: fields.quote_breakdown,
+          final_cents: fields.final_cents,
+          requires_approval: fields.requires_approval,
+          comments: fields.comments,
+          series_id: fields.series_id,
+        })
+        .eq("id", id);
+
+      if (error) {
+        const err = new Error(
+          `Failed to update edited booking '${id}': ${error.message}`,
+        ) as Error & { code?: string };
+        if (error.code) err.code = error.code;
+        throw err;
+      }
+    },
+
+    async swapBookingPets(bookingId, petIds) {
+      const { error: delError } = await client
+        .from("booking_pets")
+        .delete()
+        .eq("booking_id", bookingId);
+      if (delError) {
+        throw new Error(
+          `Failed to clear booking_pets for '${bookingId}': ${delError.message}`,
+        );
+      }
+      if (petIds.length === 0) return;
+      const rows = petIds.map((pet_id) => ({ booking_id: bookingId, pet_id }));
+      const { error: insError } = await client
+        .from("booking_pets")
+        .insert(rows);
+      if (insError) {
+        throw new Error(
+          `Failed to set booking_pets for '${bookingId}': ${insError.message}`,
+        );
+      }
+    },
+
+    async appendSeriesSkip(seriesId, startIso) {
+      // Read-modify-write the array under the service role (single writer).
+      const { data, error } = await client
+        .from("booking_series")
+        .select("skipped_starts")
+        .eq("id", seriesId)
+        .single();
+      if (error) {
+        throw new Error(
+          `Failed to load series '${seriesId}': ${error.message}`,
+        );
+      }
+      const current = (data?.skipped_starts as string[] | null) ?? [];
+      const next = current.includes(startIso)
+        ? current
+        : [...current, startIso];
+      const { error: upError } = await client
+        .from("booking_series")
+        .update({ skipped_starts: next })
+        .eq("id", seriesId);
+      if (upError) {
+        throw new Error(
+          `Failed to append series skip for '${seriesId}': ${upError.message}`,
+        );
+      }
     },
   };
 }

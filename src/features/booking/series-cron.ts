@@ -250,6 +250,7 @@ export async function runSeriesRollCron(
       existing,
       now,
       settings.recurrence_generation_horizon_days,
+      s.skipped_starts.map((iso) => new Date(iso).getTime()),
     );
     if (newStarts.length === 0) continue;
 
