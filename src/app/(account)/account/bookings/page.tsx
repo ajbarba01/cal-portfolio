@@ -191,7 +191,7 @@ function BookingTable({
   cancellationFullRefundHours: number;
 }) {
   return (
-    <Table>
+    <Table stackUntil="lg">
       <TableHeader>
         <TableRow>
           <TableHead>Service</TableHead>
@@ -220,7 +220,7 @@ function BookingTable({
               </TableCell>
               <TableCell
                 data-label="When"
-                className="text-muted-foreground md:whitespace-nowrap"
+                className="text-muted-foreground lg:whitespace-nowrap"
               >
                 {formatWhen(b.starts_at, b.ends_at)}
               </TableCell>
