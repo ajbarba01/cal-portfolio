@@ -120,11 +120,10 @@ Author never grades itself — across models this is stronger: **planner-model r
 - **Stage files by name** (never `git add -A` / `.`) — avoids accidental secret/binary inclusion.
 - **Conventional Commits**; imperative subject. **New commit, not amend** (unless asked).
 - **Never `--no-verify`** — failing hook means fix root cause.
-- No AI attribution in commit messages unless explicitly requested.
+- **No AI attribution** in commit messages unless explicitly requested.
 - **Gates before commit:** `tsc --strict` + ESLint + Prettier + tests on core logic + `/code-review` + manual `verify`.
 - **Subject line only — no body.** Subject is the entire message. Never add bullet points, description paragraphs, or multi-line content after subject. Single imperative sentence.
 - **Don't reference specific implementation plans** (phase 1a, etc).
-- **No AI attribution** in messages unless explicitly requested.
 
 ## Definition of Done
 
