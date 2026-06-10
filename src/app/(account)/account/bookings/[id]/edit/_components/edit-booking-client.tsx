@@ -89,6 +89,7 @@ interface EditBookingClientProps {
   /** When set, the surface runs in admin (on-behalf) mode. */
   admin?: {
     clientName: string;
+    clientId: string;
     /** paidCents > 0 → price-affecting controls (pets/quantities) disabled. */
     paidLock: boolean;
   };
@@ -473,7 +474,9 @@ export function EditBookingClient({
       switch (result.kind) {
         case "success":
           toast.add({ title: "Booking updated" });
-          router.push("/account/bookings");
+          router.push(
+            admin ? `/admin/clients/${admin.clientId}` : "/account/bookings",
+          );
           router.refresh();
           break;
         case "unavailable":
@@ -614,8 +617,9 @@ export function EditBookingClient({
           </h2>
           {admin?.paidLock ? (
             <p className="text-muted-foreground border-border bg-muted/30 rounded-lg border p-3 text-sm">
-              🔒 This booking is paid — pets and price can&apos;t change here.
-              Manage price in Payments (coming soon).
+              <span aria-hidden="true">🔒</span> This booking is paid — pets and
+              price can&apos;t change here. Manage price in Payments (coming
+              soon).
             </p>
           ) : (
             <PetAssignment

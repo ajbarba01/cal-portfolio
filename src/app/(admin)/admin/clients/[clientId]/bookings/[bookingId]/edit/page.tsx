@@ -10,13 +10,13 @@ import { createSupabaseBookingRepository } from "@/features/booking/booking-repo
 import { loadBookingFormData } from "@/features/booking/booking-form-data";
 import { quantityStateFromQuoteInputs } from "@/features/booking/quantity-state-from-quote-inputs";
 import { EditBookingClient } from "@/app/(account)/account/bookings/[id]/edit/_components/edit-booking-client";
+import { EDITABLE_STATUSES } from "@/features/booking/booking-service";
 import type { ServiceDetail } from "@/features/booking/service-detail";
 import type { AssignablePet } from "@/features/booking/_components/pet-assignment";
 import type { PricingType } from "@/features/pricing/types";
 import type { PetSpecies } from "@/features/booking/_components/pet-avatar";
 
 const SIGNED_URL_TTL_SECONDS = 60 * 60;
-const EDITABLE_STATUSES = ["pending_approval", "confirmed"];
 
 export default async function AdminEditBookingPage({
   params,
@@ -152,7 +152,7 @@ export default async function AdminEditBookingPage({
         pets={pets}
         priorFinalCents={priorFinalCents}
         initial={initial}
-        admin={{ clientName, paidLock: booking.paidCents > 0 }}
+        admin={{ clientName, clientId, paidLock: booking.paidCents > 0 }}
       />
     </main>
   );

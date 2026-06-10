@@ -1028,7 +1028,10 @@ export interface EditBookingInput {
 }
 
 /** Statuses a booking may be edited from (terminal/completed rejected). */
-const EDITABLE_STATUSES: BookingStatusDb[] = ["pending_approval", "confirmed"];
+export const EDITABLE_STATUSES: BookingStatusDb[] = [
+  "pending_approval",
+  "confirmed",
+];
 
 /** Extract the raw quantity record from a stored QuoteInput jsonb. */
 function quantitiesFromQuoteInputs(qi: unknown): Record<string, unknown> {
