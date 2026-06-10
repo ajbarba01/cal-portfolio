@@ -127,7 +127,7 @@ const cancelBookingInputSchema = z.object({
 // ──────────────────────────────────────────────────────────────────────────────
 
 export type CreateBookingResult =
-  | { kind: "success"; bookingIds: string[] }
+  | { kind: "success"; bookingIds: string[]; warnings: string[] }
   | { kind: "refuse"; reason: string }
   | { kind: "slot_taken" }
   | { kind: "unavailable"; reason: string }
@@ -529,9 +529,10 @@ export async function computeBookingQuoteCore(
 export async function createBookingCore(
   deps: BookingServiceDeps,
   rawInput: CreateBookingInput,
+  policy: MutationPolicy = CLIENT_POLICY,
 ): Promise<CreateBookingResult> {
   // 1–5. Load artifacts + quote/approval (shared with the preview path).
-  const result = await computeBookingArtifacts(deps, rawInput, CLIENT_POLICY);
+  const result = await computeBookingArtifacts(deps, rawInput, policy);
   if (result.kind === "validation_error") {
     return { kind: "validation_error", message: result.message };
   }
@@ -561,7 +562,9 @@ export async function createBookingCore(
   const input = createBookingInputSchema.parse(rawInput);
   const durationMs = input.endsAt.getTime() - input.startsAt.getTime();
 
-  // 6. Enforce booking-rule guards per occurrence (no DB re-load: artifacts.settings).
+  const warnings = [...result.artifacts.warnings];
+
+  // 6. Booking-rule guards per occurrence (policy-aware).
   const ruleSettings: BookingRuleSettings = {
     bookingOpenMinute: settings.booking_open_minute,
     bookingCloseMinute: settings.booking_close_minute,
@@ -573,14 +576,20 @@ export async function createBookingCore(
     if (
       !passesGuards({ startsAt: occStart, endsAt: occEnd }, ruleSettings, now)
     ) {
-      return {
-        kind: "unavailable",
-        reason: `Occurrence at ${occStart.toISOString()} does not meet booking rules (hours-of-day, lead time, or max advance).`,
-      };
+      if (policy.skipHoursLeadGuards) {
+        warnings.push(
+          `Occurrence at ${occStart.toISOString()} is outside normal booking rules (hours / lead time).`,
+        );
+      } else {
+        return {
+          kind: "unavailable",
+          reason: `Occurrence at ${occStart.toISOString()} does not meet booking rules (hours-of-day, lead time, or max advance).`,
+        };
+      }
     }
   }
 
-  // 7. Enforce availability-window containment.
+  // 7. Availability-window containment (policy-aware).
   // DESIGN INTENT: availability_windows define when Cal is available to work.
   // A booking is only accepted if EVERY occurrence falls fully inside at least
   // one open window. Zero windows → all bookings are unavailable (correct:
@@ -589,10 +598,16 @@ export async function createBookingCore(
   for (const occStart of occurrences) {
     const occEnd = new Date(occStart.getTime() + durationMs);
     if (!fitsWindow({ startsAt: occStart, endsAt: occEnd }, openWindows)) {
-      return {
-        kind: "unavailable",
-        reason: `Occurrence at ${occStart.toISOString()} does not fall within any open availability window.`,
-      };
+      if (policy.skipWindowFit) {
+        warnings.push(
+          `Occurrence at ${occStart.toISOString()} is outside any published availability window.`,
+        );
+      } else {
+        return {
+          kind: "unavailable",
+          reason: `Occurrence at ${occStart.toISOString()} does not fall within any open availability window.`,
+        };
+      }
     }
   }
 
@@ -601,6 +616,10 @@ export async function createBookingCore(
   // computed per occurrence in computeBookingArtifacts).
   const statuses: BookingStatusDb[] = [];
   for (const occRequiresApproval of requiresApprovalByOccurrence) {
+    if (policy.forceStatus) {
+      statuses.push(policy.forceStatus);
+      continue;
+    }
     const statResult = transition("draft", "submit", {
       requiresApproval: occRequiresApproval,
     });
@@ -669,7 +688,7 @@ export async function createBookingCore(
     if (petIds.length > 0) {
       await repo.insertBookingPets(ids, petIds);
     }
-    return { kind: "success", bookingIds: ids };
+    return { kind: "success", bookingIds: ids, warnings };
   } catch (e: unknown) {
     const code = (e as { code?: string }).code;
     if (code === "23P01") {

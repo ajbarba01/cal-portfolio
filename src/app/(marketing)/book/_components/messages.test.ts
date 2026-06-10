@@ -15,6 +15,7 @@ describe("createResultMessage", () => {
     const result: CreateBookingResult = {
       kind: "success",
       bookingIds: ["abc"],
+      warnings: [],
     };
     const msg = createResultMessage(result, false);
     expect(msg.tone).toBe("success");
@@ -25,6 +26,7 @@ describe("createResultMessage", () => {
     const result: CreateBookingResult = {
       kind: "success",
       bookingIds: ["abc"],
+      warnings: [],
     };
     const msg = createResultMessage(result, true);
     expect(msg.tone).toBe("info");
