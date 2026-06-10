@@ -3,9 +3,6 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-
-const EDITABLE = new Set(["pending_approval", "confirmed"]);
-
 import { useConfirm } from "@/components/feedback/confirm-dialog";
 import { useToast } from "@/components/feedback/toast";
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +23,8 @@ import {
 } from "@/features/admin/onboarding-badge";
 import { PetAvatar } from "@/features/booking/_components/pet-avatar";
 import { cancelBooking, markNoShow } from "@/features/booking/actions";
+
+const EDITABLE = new Set(["pending_approval", "confirmed"]);
 
 function dollars(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
