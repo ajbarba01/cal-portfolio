@@ -16,7 +16,6 @@ export function InquiryCard({
   editable,
   newLabel,
   renderIdentity,
-  renderExtraActions,
   onOpen,
   onEditClick,
   onResolveClick,
@@ -27,7 +26,6 @@ export function InquiryCard({
   /** Label for the "new" status badge ("Open" for account, "New" for admin). */
   newLabel: string;
   renderIdentity?: (inquiry: InquiryRow) => React.ReactNode;
-  renderExtraActions?: (inquiry: InquiryRow) => React.ReactNode;
   onOpen: (inquiry: InquiryRow) => void;
   onEditClick: (inquiry: InquiryRow) => void;
   onResolveClick: (inquiry: InquiryRow) => void;
@@ -78,18 +76,19 @@ export function InquiryCard({
         </p>
       </div>
 
-      {/* Footer: meta always; actions desktop-only (mobile defers to the popup). */}
+      {/* Footer: meta always; Edit/Resolve desktop-only (mobile + reply/view
+          actions all live in the popup). Date truncates so the row never
+          overflows a narrow tile. */}
       <div className="border-border/60 relative z-10 mt-3 flex items-center gap-2 border-t pt-3">
-        <span className="text-muted-foreground pointer-events-none mr-auto text-xs">
+        <span className="text-muted-foreground pointer-events-none mr-auto min-w-0 truncate text-xs">
           {formatInquiryDate(inquiry.created_at)}
         </span>
         {inquiry.replied_at ? (
-          <span className="text-status-available-foreground pointer-events-none inline-flex items-center gap-1 text-xs font-medium">
+          <span className="text-status-available-foreground pointer-events-none inline-flex shrink-0 items-center gap-1 text-xs font-medium">
             <Check className="size-3" aria-hidden="true" /> replied
           </span>
         ) : null}
-        <div className="pointer-events-auto hidden items-center gap-1.5 sm:flex">
-          {renderExtraActions ? renderExtraActions(inquiry) : null}
+        <div className="pointer-events-auto hidden shrink-0 items-center gap-1.5 sm:flex">
           {showEdit ? (
             <Button
               variant="ghost"
