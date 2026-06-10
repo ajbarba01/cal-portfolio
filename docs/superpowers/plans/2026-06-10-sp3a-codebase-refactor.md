@@ -689,6 +689,8 @@ git commit -m "docs: close out sp3a foundations and prune resolved findings"
 
 (Append blocking criticals here during execution; resolve before SP3a DoD.)
 
+- **2026-06-10 · Minor (pre-existing, non-blocking) · full-suite test baseline.** `npm run test` (full suite, shared local Supabase DB) reports 7 failing tests across 3 files: `booking/booking-service.test.ts`, `booking/admin-create-booking.integration.test.ts`, `admin/admin.test.ts`. These are **pre-existing**, not SP3a regressions — proven three ways: (1) Task 3 implementer reproduced identical failures by stashing all SP3a changes; (2) on a fresh DB (`npx supabase db reset`) each file passes in isolation **except** `admin/admin.test.ts`, which has 2 failures even in isolation — a stale inquiry fixture (`submitInquiryCore` expects `{ok:true}` but schema now returns `"Phone is required"`) and a flaky `updateServiceCore` `beforeAll` `listServices` call right after reset; (3) `git diff 01c12d4..HEAD` for `admin.test.ts` and `inquiries/inquiry-actions.ts` shows **import-line changes only, zero logic**. Root cause: integration tests are not DB-isolated and accumulate state across a full-suite run (exclusion constraint `no_same_class_overlap`, inquiry rate-limit), plus a stale inquiry-schema fixture predating SP3a. **Gating consequence:** per the plan standing rule + `[handoff-gate-scoping]`, per-task NAMED test files (run on a fresh DB) are the real gate; the blanket `npm run test` is unreliable as a pass/fail gate here. Task 10's "full suite PASS" should be read as "no NEW failures vs this baseline." Fixing test isolation + the inquiry fixture is out of SP3a scope (behavior-preserving) — flag for a later test-hardening SP.
+
 ---
 
 _Last reviewed: 2026-06-10_
