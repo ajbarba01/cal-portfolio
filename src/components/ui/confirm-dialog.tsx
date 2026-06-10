@@ -47,13 +47,12 @@ export function ConfirmDialog({
             {description}
           </Dialog.Description>
           <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <Button
-              variant="outline"
-              onClick={() => onOpenChange(false)}
+            <Dialog.Close
+              render={<Button variant="outline" />}
               disabled={pending}
             >
               {cancelLabel}
-            </Button>
+            </Dialog.Close>
             <Button
               variant={confirmVariant}
               onClick={onConfirm}
