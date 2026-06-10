@@ -1,4 +1,4 @@
-import type { OnboardingStatus } from "@/features/booking/booking-repository";
+import type { OnboardingStatus } from "@/features/booking";
 
 /** Human-readable label for each onboarding lifecycle status. */
 export function onboardingStatusLabel(status: OnboardingStatus): string {

@@ -9,7 +9,7 @@
  * Never touches payment_status or any other projection column.
  */
 
-import { transition } from "@/features/booking/state-machine";
+import { transition } from "@/features/booking";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 

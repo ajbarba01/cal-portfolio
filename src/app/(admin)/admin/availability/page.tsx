@@ -5,14 +5,16 @@
 
 import { createServiceClient } from "@/lib/supabase/service";
 import { createClient } from "@/lib/supabase/server";
-import { listWindowsCore } from "@/features/admin/availability-actions";
-import { getAdminBusyRanges } from "@/features/admin/admin-busy";
-import { listOvernightNightsCore } from "@/features/admin/overnight-actions";
+import {
+  listWindowsCore,
+  getAdminBusyRanges,
+  listOvernightNightsCore,
+} from "@/features/admin";
 import { AvailabilityClient } from "./_components/availability-client";
 import { ErrorState } from "@/components/feedback/error-state";
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
-import type { BookingRuleSettings } from "@/features/booking/availability";
+import type { BookingRuleSettings } from "@/features/booking";
 
 export default async function AdminAvailabilityPage() {
   const authClient = await createClient();

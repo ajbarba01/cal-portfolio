@@ -1,8 +1,8 @@
 "use client";
 
 import { useActionState } from "react";
-import { completeOnboarding } from "@/features/accounts/onboarding-action";
-import type { OnboardingFormState } from "@/features/accounts/onboarding-form";
+import { completeOnboarding } from "@/features/accounts";
+import type { OnboardingFormState } from "@/features/accounts";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
 

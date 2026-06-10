@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { redirect } from "next/navigation";
 import { PetsClient } from "./_components/pets-client";
-import type { Pet } from "@/features/accounts/account-actions";
+import type { Pet } from "@/features/accounts";
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
 

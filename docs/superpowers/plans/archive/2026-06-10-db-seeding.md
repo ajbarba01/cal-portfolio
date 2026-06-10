@@ -170,20 +170,23 @@ import { describe, it, expect } from "vitest";
 import { TZDate } from "@date-fns/tz";
 import { SEED_TZ, weekAnchor, slot, statusFor } from "./dates";
 
+// weekAnchor returns a TZDate (Denver context, so `slot` can read Denver
+// Y/M/D). TZDate.toISOString() emits offset notation, so assert on the
+// underlying UTC instant via `new Date(...getTime())`.
 describe("weekAnchor", () => {
   it("returns Monday 00:00 Denver of the containing week", () => {
     // Wed 2026-06-10 12:00 Denver → Mon 2026-06-08 00:00 Denver (06:00Z, MDT)
     const wed = new TZDate(2026, 5, 10, 12, 0, 0, SEED_TZ);
-    expect(weekAnchor(new Date(wed.getTime())).toISOString()).toBe(
-      "2026-06-08T06:00:00.000Z",
-    );
+    expect(
+      new Date(weekAnchor(new Date(wed.getTime())).getTime()).toISOString(),
+    ).toBe("2026-06-08T06:00:00.000Z");
   });
 
   it("maps a Monday to itself", () => {
     const mon = new TZDate(2026, 5, 8, 9, 30, 0, SEED_TZ);
-    expect(weekAnchor(new Date(mon.getTime())).toISOString()).toBe(
-      "2026-06-08T06:00:00.000Z",
-    );
+    expect(
+      new Date(weekAnchor(new Date(mon.getTime())).getTime()).toISOString(),
+    ).toBe("2026-06-08T06:00:00.000Z");
   });
 });
 

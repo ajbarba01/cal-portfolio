@@ -12,17 +12,19 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { loadBookingFormData } from "@/features/booking/booking-form-data";
-import { denverDayKey } from "@/features/booking/availability";
+import {
+  loadBookingFormData,
+  denverDayKey,
+  type ServiceDetail,
+  type AssignablePet,
+  type OnboardingStatus,
+  type PetSpecies,
+} from "@/features/booking";
 import {
   ServiceBookingClient,
   type AuthState,
 } from "./_components/service-booking-client";
-import type { ServiceDetail } from "@/features/booking/service-detail";
-import type { AssignablePet } from "@/features/booking/_components/pet-assignment";
-import type { OnboardingStatus } from "@/features/booking/booking-repository";
-import type { PricingType } from "@/features/pricing/types";
-import type { PetSpecies } from "@/features/booking/_components/pet-avatar";
+import type { PricingType } from "@/features/pricing";
 
 const SIGNED_URL_TTL_SECONDS = 60 * 60;
 

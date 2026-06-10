@@ -7,8 +7,8 @@ import { z } from "zod";
 
 import { createServiceClient } from "@/lib/supabase/service";
 
-import { assertActorIsAdmin } from "./admin-guard";
-import { getActorOrRedirect } from "./admin-session";
+import { assertActorIsAdmin } from "@/lib/admin-guard";
+import { getActorOrRedirect } from "@/lib/admin-session";
 
 export interface BookingCalendarRow {
   id: string;

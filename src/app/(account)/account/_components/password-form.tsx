@@ -5,7 +5,7 @@ import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { changePassword } from "@/features/accounts/account-actions";
+import { changePassword } from "@/features/accounts";
 
 export function PasswordForm() {
   const [newPassword, setNewPassword] = useState("");

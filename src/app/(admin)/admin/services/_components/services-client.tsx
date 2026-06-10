@@ -4,8 +4,7 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { updateService } from "@/features/admin/services-actions";
-import type { ServiceAdminRow } from "@/features/admin/services-actions";
+import { updateService, type ServiceAdminRow } from "@/features/admin";
 
 export function ServicesClient({ services }: { services: ServiceAdminRow[] }) {
   const [editingId, setEditingId] = useState<string | null>(null);

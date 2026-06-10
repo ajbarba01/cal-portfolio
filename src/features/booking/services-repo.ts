@@ -7,7 +7,7 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { parsePricingConfig } from "@/features/pricing/config-schemas";
+import { parsePricingConfig } from "@/features/pricing";
 import type {
   PricingType,
   HouseSittingConfig,
@@ -15,7 +15,7 @@ import type {
   WalkConfig,
   TrainingConfig,
   MeetGreetConfig,
-} from "@/features/pricing/types";
+} from "@/features/pricing";
 
 // ---------------------------------------------------------------------------
 // Types

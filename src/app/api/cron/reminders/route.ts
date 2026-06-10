@@ -12,8 +12,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { ResendMailer } from "@/features/notifications/resend-mailer";
-import { runReminderCron } from "@/features/notifications/reminder-cron";
+import { ResendMailer, runReminderCron } from "@/features/notifications";
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const cronSecret = process.env.CRON_SECRET;

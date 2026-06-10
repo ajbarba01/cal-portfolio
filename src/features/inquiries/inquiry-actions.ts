@@ -9,8 +9,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { assertActorIsAdmin } from "@/features/admin/admin-guard";
-import { getActorOrRedirect } from "@/features/admin/admin-session";
+import { assertActorIsAdmin } from "@/lib/admin-guard";
+import { getActorOrRedirect } from "@/lib/admin-session";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 

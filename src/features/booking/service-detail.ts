@@ -1,4 +1,4 @@
-import type { PricingType } from "@/features/pricing/types";
+import type { PricingType } from "@/features/pricing";
 
 /**
  * Minimal service descriptor consumed by the booking UI (both the create flow

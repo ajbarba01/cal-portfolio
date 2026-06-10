@@ -2,8 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
-import { moderateReview } from "@/features/admin/reviews-actions";
-import type { ReviewRow } from "@/features/admin/reviews-actions";
+import { moderateReview, type ReviewRow } from "@/features/admin";
 
 export function ReviewsClient({
   initialReviews,

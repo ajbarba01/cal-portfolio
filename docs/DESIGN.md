@@ -141,6 +141,10 @@ Supabase Postgres. Auth via Supabase `auth.users` (username / password **not** a
 - **Single timezone.** Store UTC; render `America/Denver` (Cal's region). Revisit only if Cal works across zones.
 - **Cal tunes values, devs add types.** `/admin` edits rates, settings, and a service's configured amounts. Adding a new `pricing_type`, `concurrency` class, or service-specific form is a code change (closed enums + typed Zod) — by design, not a gap.
 
+## Local data seeding
+
+`supabase/seed.sql` creates the local admin login (`admin@local.test` / `password123`) on every `npx supabase db reset` (local-only; seeds never run on prod). Named DB states: `npm run db:seed -- <scenario>` — `fresh`, `busy-week`, `payment-states`, `admin-demo`. Wipe-first + deterministic; the seeder refuses non-local URLs; services + settings stay migration-owned. All seeded users share the admin password. Design: [SP2 spec](superpowers/specs/2026-06-10-db-seeding-design.md). Each later SP extends scenarios for the states it changes (roadmap standing rule).
+
 ## Pricing model
 
 Pricing is **rule-based per service**, not flat. Each `services` row carries a `pricing_type` + a Cal-editable `pricing_config` (jsonb, validated by a per-type Zod schema). A pure `features/pricing/quote()` dispatches on `pricing_type` → returns an itemized breakdown; distance travel-factor + discounts apply as modifiers on top. Every amount is config, so Cal tunes rates in `/admin/services` + `/admin/settings` with **no code change** ([ENGINEERING.md](ENGINEERING.md) #5 pure logic, #4 config at edges). The four `pricing_type`s are the real domain cases, not speculative abstraction.

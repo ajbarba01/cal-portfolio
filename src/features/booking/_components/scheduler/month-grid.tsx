@@ -60,7 +60,7 @@
  * so it never overrides the status fills.
  */
 
-import { useState, useMemo, useRef, useCallback, useEffect } from "react";
+import { useState, useMemo, useRef, useCallback } from "react";
 import { format, getDaysInMonth, startOfMonth } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
@@ -74,6 +74,7 @@ import {
 } from "@/features/booking/schedule-selection";
 import { runEdges } from "@/features/booking/grid-runs";
 import type { DayButtonProps } from "react-day-picker";
+import { useCellSelection } from "./use-cell-selection";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -557,8 +558,8 @@ export function MonthGrid({ className }: { className?: string }) {
   const dragRef = useRef<DragState | null>(null);
   // Suppresses the click that fires after pointerUp (paint commits there).
   const suppressNextClick = useRef(false);
-  // Holds the current global end handler so we can remove it on unmount.
-  const dragEndHandlerRef = useRef<(() => void) | null>(null);
+  // dragEndHandlerRef + installEndHandler + unmount cleanup from shared hook.
+  const { dragEndHandlerRef, installEndHandler } = useCellSelection();
 
   const isMulti = capabilities.daySelection === "multi";
   const isRange = capabilities.daySelection === "range";
@@ -575,18 +576,6 @@ export function MonthGrid({ className }: { className?: string }) {
       ),
     [cellKind],
   );
-
-  const installEndHandler = useCallback((endHandler: () => void) => {
-    // Remove any stale listener from a previous drag that didn't fire.
-    if (dragEndHandlerRef.current) {
-      window.removeEventListener("pointerup", dragEndHandlerRef.current);
-      window.removeEventListener("pointercancel", dragEndHandlerRef.current);
-      dragEndHandlerRef.current = null;
-    }
-    dragEndHandlerRef.current = endHandler;
-    window.addEventListener("pointerup", endHandler, { once: true });
-    window.addEventListener("pointercancel", endHandler, { once: true });
-  }, []);
 
   // pointerdown on a cell — routes by mode + kind.
   const handleCellPointerDown = useCallback(
@@ -691,17 +680,6 @@ export function MonthGrid({ className }: { className?: string }) {
 
   const handleCellPointerLeave = useCallback((kind: CellKind) => {
     if (kind === "booked") setHoveredBookingId(null);
-  }, []);
-
-  // Clean up any dangling global listener on unmount.
-  useEffect(() => {
-    return () => {
-      if (dragEndHandlerRef.current) {
-        window.removeEventListener("pointerup", dragEndHandlerRef.current);
-        window.removeEventListener("pointercancel", dragEndHandlerRef.current);
-        dragEndHandlerRef.current = null;
-      }
-    };
   }, []);
 
   // Wrap onDayClick to honour the drag-suppress flag.

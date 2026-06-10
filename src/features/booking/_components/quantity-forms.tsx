@@ -8,7 +8,7 @@
  */
 
 import { NumberStepper } from "@/components/ui/number-stepper";
-import type { PricingType } from "@/features/pricing/types";
+import type { PricingType } from "@/features/pricing";
 
 // ── State shapes ────────────────────────────────────────────────────────────
 

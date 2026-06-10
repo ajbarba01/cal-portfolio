@@ -56,13 +56,7 @@
  *   on pointerup only. suppressNextClick swallows the click after a drag.
  */
 
-import React, {
-  useState,
-  useMemo,
-  useRef,
-  useCallback,
-  useEffect,
-} from "react";
+import React, { useState, useMemo, useRef, useCallback } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useScheduler } from "@/features/booking/scheduler-context";
@@ -75,6 +69,9 @@ import {
 } from "@/features/booking/grid-runs";
 import type { RunEdge } from "@/features/booking/grid-runs";
 import type { TimeRange } from "@/features/booking/availability";
+import { GridCell } from "./grid-cell";
+import type { GridCellInfo, CellStatus, CellRole } from "./grid-cell";
+import { useCellSelection } from "./use-cell-selection";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -196,21 +193,9 @@ function buildRectangle(
 // Cell classification
 // ---------------------------------------------------------------------------
 
-/** Base status driving the FILL (independent of selection/preview). */
-type CellStatus = "past" | "busy" | "available" | "empty";
-
-/** Per-cell role for pointer routing. */
-type CellRole = "paint" | "select" | "inspect" | "inert";
-
-interface CellInfo {
-  cellId: string;
-  dayKey: string;
-  minute: number;
-  status: CellStatus;
-  role: CellRole;
-  /** Owning booking id when status === "busy". */
-  bookingId: string | null;
-}
+// CellStatus, CellRole, and CellInfo are now provided by GridCellInfo from
+// ./grid-cell (exported as GridCellInfo). Use GridCellInfo as the local alias.
+type CellInfo = GridCellInfo;
 
 function classifyCell(args: {
   start: number;
@@ -266,68 +251,10 @@ interface DragState {
   didDrag: boolean;
 }
 
-// ---------------------------------------------------------------------------
-// WeekCell — memoized single slot button
-// ---------------------------------------------------------------------------
-//
-// Extracted + React.memo'd so a drag tick only re-renders the cells whose
-// visualClassName actually changed (the marquee edge), not all ~200 buttons.
-// Parent passes stable callbacks + the per-cell visual string; cell objects are
-// stable across a drag (they only recompute when classification deps change).
-// This is what closes the responsiveness gap with MonthGrid (~42 cells).
-
-interface WeekCellProps {
-  cell: CellInfo;
-  pressed: boolean | undefined;
-  visualClassName: string;
-  onCellPointerDown: (cell: CellInfo) => void;
-  onCellPointerEnter: (cell: CellInfo) => void;
-  onCellPointerLeave: (cell: CellInfo) => void;
-  onCellClick: (cell: CellInfo) => void;
-}
-
-const WeekCell = React.memo(function WeekCell({
-  cell,
-  pressed,
-  visualClassName,
-  onCellPointerDown,
-  onCellPointerEnter,
-  onCellPointerLeave,
-  onCellClick,
-}: WeekCellProps) {
-  const interactive = cell.role !== "inert";
-  // Dotted hover affordance on selectable slots only (paint/select) — same
-  // three-tier language as the month grid (dotted hover / dashed preview /
-  // solid commit). Booked slots already have the booking-lift hover.
-  const canSelect = cell.role === "paint" || cell.role === "select";
-  const hoverClass = canSelect
-    ? "hover:outline-2 hover:outline-dotted hover:outline-brand/60 hover:-outline-offset-2"
-    : "";
-  return (
-    <button
-      type="button"
-      disabled={cell.role === "inert"}
-      aria-pressed={pressed}
-      aria-label={`${dayLabel(cell.dayKey)} ${formatMinutes(cell.minute)}`}
-      title={cell.role === "inspect" ? "Booked" : undefined}
-      style={{ touchAction: "none", userSelect: "none" }}
-      // Suppress native HTML5 drag so a pointer-drag paint isn't hijacked.
-      draggable={false}
-      onDragStart={(e) => e.preventDefault()}
-      className={cn(
-        "border-border relative h-7 w-full border-b border-l text-xs",
-        "focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset",
-        visualClassName,
-        hoverClass,
-        interactive ? "cursor-pointer" : "cursor-default",
-      )}
-      onPointerDown={() => onCellPointerDown(cell)}
-      onPointerEnter={() => onCellPointerEnter(cell)}
-      onPointerLeave={() => onCellPointerLeave(cell)}
-      onClick={() => onCellClick(cell)}
-    />
-  );
-});
+// WeekCell is now GridCell from ./grid-cell (extracted to shared primitive).
+// The component was React.memo'd so a drag tick only re-renders the cells
+// whose visualClassName actually changed (the marquee edge), not all ~200
+// buttons. GridCell preserves that memo boundary.
 
 // ---------------------------------------------------------------------------
 // WeekGrid (the actual component — all hooks unconditional)
@@ -528,18 +455,8 @@ function WeekGridInner({ className }: { className?: string }) {
   // ── Drag refs ──────────────────────────────────────────────────────────────
   const dragRef = useRef<DragState | null>(null);
   const suppressNextClick = useRef(false);
-  const dragEndHandlerRef = useRef<(() => void) | null>(null);
-
-  const installEndHandler = useCallback((endHandler: () => void) => {
-    if (dragEndHandlerRef.current) {
-      window.removeEventListener("pointerup", dragEndHandlerRef.current);
-      window.removeEventListener("pointercancel", dragEndHandlerRef.current);
-      dragEndHandlerRef.current = null;
-    }
-    dragEndHandlerRef.current = endHandler;
-    window.addEventListener("pointerup", endHandler, { once: true });
-    window.addEventListener("pointercancel", endHandler, { once: true });
-  }, []);
+  // dragEndHandlerRef + installEndHandler + unmount cleanup from shared hook.
+  const { dragEndHandlerRef, installEndHandler } = useCellSelection();
 
   /** Filter a rectangle to cells that may actually be painted (role === "paint"). */
   const paintableOf = useCallback(
@@ -643,17 +560,6 @@ function WeekGridInner({ className }: { className?: string }) {
     },
     [handlePointerDown],
   );
-
-  // Unmount cleanup
-  useEffect(() => {
-    return () => {
-      if (dragEndHandlerRef.current) {
-        window.removeEventListener("pointerup", dragEndHandlerRef.current);
-        window.removeEventListener("pointercancel", dragEndHandlerRef.current);
-        dragEndHandlerRef.current = null;
-      }
-    };
-  }, []);
 
   // ── Click handler ───────────────────────────────────────────────────────────
   const handleClick = useCallback(
@@ -790,11 +696,12 @@ function WeekGridInner({ className }: { className?: string }) {
                     : undefined;
 
                 return (
-                  <WeekCell
+                  <GridCell
                     key={cell.cellId}
                     cell={cell}
                     pressed={pressed}
                     visualClassName={visualFor(cell)}
+                    dayLabel={dayLabel(cell.dayKey)}
                     onCellPointerDown={onCellPointerDown}
                     onCellPointerEnter={handlePointerEnter}
                     onCellPointerLeave={handlePointerLeave}

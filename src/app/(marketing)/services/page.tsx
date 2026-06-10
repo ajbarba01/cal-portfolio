@@ -8,13 +8,13 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Eyebrow } from "@/components/marketing/eyebrow";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
-import { listActiveServices } from "@/features/booking/services-repo";
 import {
+  listActiveServices,
   serviceCardDescription,
   serviceCardDurationLabel,
-} from "@/features/booking/service-card-display";
-import { headlineRate } from "@/features/pricing/display";
-import type { PublicService } from "@/features/booking/services-repo";
+  type PublicService,
+} from "@/features/booking";
+import { headlineRate } from "@/features/pricing";
 import { MarketingCopy } from "@/components/marketing/marketing-copy";
 
 function ServiceCard({ service }: { service: PublicService }) {

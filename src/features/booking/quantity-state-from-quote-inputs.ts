@@ -4,7 +4,7 @@
  * (house-sitting) is intentionally ignored here: it is re-derived from the
  * selected date range, exactly as the create flow does.
  */
-import type { PricingType } from "@/features/pricing/types";
+import type { PricingType } from "@/features/pricing";
 import type { QuantityState } from "@/features/booking/_components/quantity-forms";
 
 function num(v: unknown, fallback: number): number {

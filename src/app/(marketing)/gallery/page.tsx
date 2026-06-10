@@ -4,7 +4,7 @@
  */
 import { PageContainer } from "@/components/layout/page-container";
 import { Eyebrow } from "@/components/marketing/eyebrow";
-import { getGalleryImages } from "@/features/gallery/gallery-images";
+import { getGalleryImages } from "@/features/gallery";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { GalleryGrid } from "./_components/gallery-grid";
 import { MarketingCopy } from "@/components/marketing/marketing-copy";

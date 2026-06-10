@@ -16,12 +16,6 @@ Cross-checked DESIGN.md against code — all VERIFIED with evidence:
 - `returnTo` open-redirect guard; pricing pure dispatch + computation order; pet counts server-derived.
 - Webhook: signature verify on raw body, 500 → Stripe retry, refunded-row forward-only guard. Prepay intent: server-derived amount, ownership check, service-role insert.
 
-## SP2 — seeding
-
-| ID  | Sev | Finding                                                                                                                                                                           |
-| --- | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| S1  | M   | No `supabase/seed.sql`, no scenario seeder. Local resets destroy hand-built state (recurring maintainer pain). Scenarios needed: fresh / busy-week / payment-states / admin-demo. |
-
 ## SP3 — foundations (codebase + system + primitives)
 
 | ID  | Sev | Finding                                                                                                                                                                                                               |
@@ -107,6 +101,7 @@ Admin-powers inventory: all 17 expected powers exist in code with UI (approve/de
 ### Resolved
 
 - D1–D3 resolved by SP1 (doc architecture), 2026-06-10.
+- S1 resolved by SP2 (db seeding framework), 2026-06-10.
 
 ---
 

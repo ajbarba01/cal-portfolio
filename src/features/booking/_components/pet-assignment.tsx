@@ -14,8 +14,8 @@ import {
   PetAvatar,
   type PetSpecies,
 } from "@/features/booking/_components/pet-avatar";
-import { PetForm } from "@/features/accounts/_components/pet-form";
-import type { Pet } from "@/features/accounts/account-actions";
+import { PetForm } from "@/features/accounts";
+import type { Pet } from "@/features/accounts";
 
 export interface AssignablePet {
   id: string;

@@ -25,7 +25,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { InfoStep } from "./_components/info-step";
 import { MeetGreetStep } from "./_components/meet-greet-step";
-import { loadBookingFormData } from "@/features/booking/booking-form-data";
+import { loadBookingFormData } from "@/features/booking";
 
 // ── Progress indicator ────────────────────────────────────────────────────────
 

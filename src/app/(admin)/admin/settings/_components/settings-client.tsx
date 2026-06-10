@@ -4,8 +4,7 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { updateSettings } from "@/features/admin/settings-actions";
-import type { SettingsRow } from "@/features/admin/settings-actions";
+import { updateSettings, type SettingsRow } from "@/features/admin";
 
 export function SettingsClient({
   initialSettings,

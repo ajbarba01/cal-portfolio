@@ -41,6 +41,8 @@ Core-vs-project split: framework docs (WORKFLOW, ROLES, ROUTING, ENGINEERING, CO
 `supabase/seed.sql` baseline (services, settings, admin user) + TypeScript scenario seeder (`npm run db:seed -- <scenario>`): `fresh`, `busy-week`, `payment-states`, `admin-demo`. DB reset becomes cheap + repeatable; ends accidental-wipe pain. Test factories remain separate.
 **Sets up:** verification in every later SP. Depends on schema only — safe before SP3 (SP3 moves code, not schema).
 
+**Status: DONE 2026-06-10.** Scope correction landed in the [SP2 spec](2026-06-10-db-seeding-design.md): services + settings are already migration-seeded, so `seed.sql` owns only the local admin; the TS seeder is wipe-first + local-URL-guarded. All four scenarios run idempotently against the local stack. Next SP: SP3 foundations.
+
 ### SP3 — Foundations: codebase + system architecture
 
 - **Codebase:** feature boundaries, server/client split, data-access patterns (perf-aware), kill band-aids; audit checklist seeded from ENGINEERING.md Critical Findings + current industry standards for Next.js App Router / React (researched during spec).
@@ -49,6 +51,8 @@ Core-vs-project split: framework docs (WORKFLOW, ROLES, ROUTING, ENGINEERING, CO
 - **Notification seams:** notifier interface / outbox shape only.
 - Architectural root-cause bug fixes from findings register.
   **Sets up:** final file layout, primitives, and nav structure for SP4-7. May split into 3a (codebase) / 3b (system) at spec time.
+
+**Split (spec session 2026-06-10):** SP3 split into **3a — codebase structure** ([spec](2026-06-10-sp3a-codebase-refactor-design.md), [plan](../plans/2026-06-10-sp3a-codebase-refactor.md); findings A1,A3,A4,A5,A6,A7,A8,A9,A10,A11 — notifier seam A11 pulled in here as a backend seam) and **3b — system IA + UI primitives** (A2 confirm-dialog, A12 onboarding IA/nav, toast/nav affordances; specced JIT after 3a).
 
 ### SP4 — Payments: complete + harden
 

@@ -4,7 +4,7 @@
 
 import { createServiceClient } from "@/lib/supabase/service";
 import { createClient } from "@/lib/supabase/server";
-import { listReviewsCore } from "@/features/admin/reviews-actions";
+import { listReviewsCore } from "@/features/admin";
 import { ReviewsClient } from "./_components/reviews-client";
 import { ErrorState } from "@/components/feedback/error-state";
 import { PageContainer } from "@/components/layout/page-container";

@@ -6,7 +6,7 @@ import { useToast } from "@/components/feedback/toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { submitInquiry } from "@/features/inquiries/inquiry-actions";
+import { submitInquiry } from "@/features/inquiries";
 
 export function ContactForm({
   defaultName,
