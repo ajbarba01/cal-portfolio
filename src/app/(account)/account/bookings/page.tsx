@@ -1,6 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
+import {
+  createSupabaseBookingRepository,
+  type BookingStatusDb,
+} from "@/features/booking/booking-repository";
 import { redirect } from "next/navigation";
 import { PrepayButton } from "./_components/prepay-button";
+import { EditCell } from "./_components/edit-cell";
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +20,7 @@ import {
 } from "@/components/ui/table";
 
 /** Maps a DB booking status to a human label + badge variant. */
-function statusMeta(status: string): {
+function statusMeta(status: BookingStatusDb): {
   label: string;
   variant: "available" | "pending" | "unavailable" | "destructive" | "default";
 } {
@@ -31,8 +37,6 @@ function statusMeta(status: string): {
       return { label: "Declined", variant: "destructive" };
     case "cancelled":
       return { label: "Cancelled", variant: "destructive" };
-    default:
-      return { label: status.replace(/_/g, " "), variant: "default" };
   }
 }
 
@@ -41,13 +45,39 @@ function formatDollars(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
-/** UTC ISO string → America/Denver local string. */
-function formatDenver(iso: string): string {
-  return new Date(iso).toLocaleString("en-US", {
-    timeZone: "America/Denver",
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
+const DENVER_TZ = "America/Denver";
+
+/** Denver-local date/time parts + a YYYY-MM-DD key for same-day comparison. */
+function denverParts(iso: string): { date: string; time: string; key: string } {
+  const d = new Date(iso);
+  return {
+    date: d.toLocaleDateString("en-US", {
+      timeZone: DENVER_TZ,
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }),
+    time: d.toLocaleTimeString("en-US", {
+      timeZone: DENVER_TZ,
+      hour: "numeric",
+      minute: "2-digit",
+    }),
+    key: d.toLocaleDateString("en-CA", { timeZone: DENVER_TZ }),
+  };
+}
+
+/**
+ * Compact "when" label that fits one line: a single-day visit shows the date
+ * once with a time range ("Jun 16, 2026 · 2:00 PM – 3:00 PM"); a multi-day stay
+ * shows a date range ("Jul 2, 2026 – Jul 5, 2026"). Replaces two full datetimes
+ * joined by an em-dash, which wrapped badly in the narrow table band.
+ */
+function formatWhen(startIso: string, endIso: string): string {
+  const s = denverParts(startIso);
+  const e = denverParts(endIso);
+  return s.key === e.key
+    ? `${s.date} · ${s.time} – ${e.time}`
+    : `${s.date} – ${e.date}`;
 }
 
 interface PaymentRow {
@@ -59,10 +89,10 @@ interface BookingRow {
   id: string;
   starts_at: string;
   ends_at: string;
-  status: string;
+  status: BookingStatusDb;
   final_cents: number;
   payments: PaymentRow[];
-  services: { name: string }[] | null;
+  services: { name: string; slug: string }[] | null;
 }
 
 /** Amount owed = final_cents − sum of succeeded payments. */
@@ -81,19 +111,24 @@ export default async function BookingsPage() {
 
   if (!user) redirect("/login");
 
-  const now = new Date().toISOString();
+  const now = new Date();
+  const nowIso = now.toISOString();
+
+  const repo = createSupabaseBookingRepository(createServiceClient());
+  const settings = await repo.getSettings();
+  const cancellationFullRefundHours = settings.cancellation_full_refund_hours;
 
   const { data: bookings } = await supabase
     .from("bookings")
     .select(
-      "id, starts_at, ends_at, status, final_cents, payments(amount_cents, status), services(name)",
+      "id, starts_at, ends_at, status, final_cents, payments(amount_cents, status), services(name, slug)",
     )
     .eq("client_id", user.id)
     .order("starts_at", { ascending: false });
 
   const rows = (bookings as BookingRow[]) ?? [];
-  const upcoming = rows.filter((b) => b.ends_at >= now);
-  const history = rows.filter((b) => b.ends_at < now);
+  const upcoming = rows.filter((b) => b.ends_at >= nowIso);
+  const history = rows.filter((b) => b.ends_at < nowIso);
 
   return (
     <PageContainer width="app">
@@ -107,7 +142,12 @@ export default async function BookingsPage() {
         {upcoming.length === 0 ? (
           <EmptyBookings message="No upcoming bookings." />
         ) : (
-          <BookingTable bookings={upcoming} showPayButton />
+          <BookingTable
+            bookings={upcoming}
+            showPayButton
+            now={now}
+            cancellationFullRefundHours={cancellationFullRefundHours}
+          />
         )}
       </section>
 
@@ -116,7 +156,12 @@ export default async function BookingsPage() {
         {history.length === 0 ? (
           <EmptyBookings message="No past bookings." />
         ) : (
-          <BookingTable bookings={history} showPayButton={false} />
+          <BookingTable
+            bookings={history}
+            showPayButton={false}
+            now={now}
+            cancellationFullRefundHours={cancellationFullRefundHours}
+          />
         )}
       </section>
     </PageContainer>
@@ -137,24 +182,33 @@ function EmptyBookings({ message }: { message: string }) {
 function BookingTable({
   bookings,
   showPayButton,
+  now,
+  cancellationFullRefundHours,
 }: {
   bookings: BookingRow[];
   showPayButton: boolean;
+  now: Date;
+  cancellationFullRefundHours: number;
 }) {
   return (
-    <Table>
+    <Table stackUntil="lg">
       <TableHeader>
         <TableRow>
           <TableHead>Service</TableHead>
           <TableHead>When</TableHead>
           <TableHead>Status</TableHead>
           <TableHead>Total</TableHead>
-          {showPayButton && <TableHead className="text-right">Pay</TableHead>}
+          {showPayButton && (
+            <TableHead className="text-right">Actions</TableHead>
+          )}
         </TableRow>
       </TableHeader>
       <TableBody>
         {bookings.map((b) => {
           const owed = amountOwed(b);
+          const paidCents = b.payments
+            .filter((p) => p.status === "succeeded")
+            .reduce((acc, p) => acc + p.amount_cents, 0);
           const { label, variant } = statusMeta(b.status);
           return (
             <TableRow key={b.id}>
@@ -164,8 +218,11 @@ function BookingTable({
               >
                 {b.services?.[0]?.name ?? "Service"}
               </TableCell>
-              <TableCell data-label="When" className="text-muted-foreground">
-                {formatDenver(b.starts_at)} — {formatDenver(b.ends_at)}
+              <TableCell
+                data-label="When"
+                className="text-muted-foreground lg:whitespace-nowrap"
+              >
+                {formatWhen(b.starts_at, b.ends_at)}
               </TableCell>
               <TableCell data-label="Status">
                 <Badge variant={variant}>{label}</Badge>
@@ -181,8 +238,21 @@ function BookingTable({
                 )}
               </TableCell>
               {showPayButton && (
-                <TableCell data-label="" className="md:text-right">
-                  <PrepayButton bookingId={b.id} owedCents={owed} />
+                <TableCell data-label="Actions">
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    <PrepayButton bookingId={b.id} owedCents={owed} />
+                    <EditCell
+                      bookingId={b.id}
+                      booking={{
+                        status: b.status,
+                        startsAt: new Date(b.starts_at),
+                        paidCents,
+                        serviceSlug: b.services?.[0]?.slug ?? "",
+                      }}
+                      now={now}
+                      cancellationFullRefundHours={cancellationFullRefundHours}
+                    />
+                  </div>
                 </TableCell>
               )}
             </TableRow>
