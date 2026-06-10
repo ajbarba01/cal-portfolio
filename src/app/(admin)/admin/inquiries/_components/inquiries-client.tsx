@@ -47,11 +47,15 @@ export function InquiriesClient({
 
   function onReply(inquiry: InquiryRow) {
     if (inquiry.replied_at) return;
-    void stampInquiryReplied(inquiry.id).then((result) => {
-      if (result.kind === "success") {
-        patch(inquiry.id, { replied_at: new Date().toISOString() });
-      }
-    });
+    // Best-effort stamp; the mailto/sms anchor has already opened, so failures
+    // here are non-blocking and simply leave the inquiry un-stamped.
+    void stampInquiryReplied(inquiry.id)
+      .then((result) => {
+        if (result.kind === "success") {
+          patch(inquiry.id, { replied_at: new Date().toISOString() });
+        }
+      })
+      .catch(() => {});
   }
 
   function renderIdentity(inquiry: InquiryRow) {
