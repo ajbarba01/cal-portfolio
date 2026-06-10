@@ -43,6 +43,8 @@
   --color-status-booked-foreground: var(--status-booked-foreground);
   --color-status-unavailable: var(--status-unavailable);
   --color-status-unavailable-foreground: var(--status-unavailable-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-canvas: var(--canvas);
@@ -101,6 +103,10 @@
   --blue-soft: #d9e2e8;
   --blue-deep: #3c5566;
 
+  /* Warn-don't-block accent (amber/honey) — admin override notices */
+  --amber-soft: #f3e3c8;
+  --amber-deep: #7a5a1e;
+
   /* Dark-mode primitives (warm surfaces + lightened accents/status; referenced by .dark) */
   --sand-925: #241f19; /* warm dark surface: cards / popover / sidebar */
   --clay-bright: #c9764e; /* dark chart accent */
@@ -153,6 +159,8 @@
   --status-booked-foreground: var(--blue-deep);
   --status-unavailable: var(--sand-200);
   --status-unavailable-foreground: var(--sand-500);
+  --warning: var(--amber-soft);
+  --warning-foreground: var(--amber-deep);
   --sidebar: var(--sand-100);
   --sidebar-foreground: var(--sand-900);
   --sidebar-primary: var(--sand-900);
@@ -213,6 +221,8 @@
   --status-booked-foreground: var(--blue-text-dark);
   --status-unavailable: var(--sand-800);
   --status-unavailable-foreground: var(--sand-400);
+  --warning: #3a2f1c;
+  --warning-foreground: #e4c48f;
   --sidebar: var(--sand-925);
   --sidebar-foreground: var(--sand-50);
   --sidebar-primary: var(--sand-200);
