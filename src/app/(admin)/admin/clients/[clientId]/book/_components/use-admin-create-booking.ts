@@ -8,7 +8,14 @@
  * dependency arrays, same handler logic as the original component.
  */
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { useRouter } from "next/navigation";
 import {
   useAvailability,
@@ -379,50 +386,53 @@ export function useAdminCreateBooking({
   }
 
   // ── Bridge Scheduler selection → range / selectedSlot ────────────────────────
-  // Plain function (not useCallback) — requestQuote is also a plain function in
-  // the same scope, so there is no stable identity to preserve here.
-  function onSelectionChange(state: ScheduleSelectionState) {
-    if (mode === "month-range") {
-      if (state.selectedDays.size === 0) {
-        setRange(undefined);
+  // Stable across renders (deps [mode]) — Scheduler subscribes to this in a
+  // useEffect dep array, so an unstable identity would re-fire it every render.
+  const onSelectionChange = useCallback(
+    (state: ScheduleSelectionState) => {
+      if (mode === "month-range") {
+        if (state.selectedDays.size === 0) {
+          setRange(undefined);
+          setQuote(null);
+          setErrorMsg(null);
+          return;
+        }
+        const sorted = [...state.selectedDays].sort();
+        const minKey = sorted[0];
+        const maxKey = sorted[sorted.length - 1];
+        const checkOutDate = new Date(
+          denverMidnight(maxKey).getTime() + 86_400_000,
+        );
+        const checkOutKey = denverDayKey(checkOutDate);
+        setRange({
+          from: localDateFromKey(minKey),
+          to: localDateFromKey(checkOutKey),
+        });
         setQuote(null);
         setErrorMsg(null);
-        return;
-      }
-      const sorted = [...state.selectedDays].sort();
-      const minKey = sorted[0];
-      const maxKey = sorted[sorted.length - 1];
-      const checkOutDate = new Date(
-        denverMidnight(maxKey).getTime() + 86_400_000,
-      );
-      const checkOutKey = denverDayKey(checkOutDate);
-      setRange({
-        from: localDateFromKey(minKey),
-        to: localDateFromKey(checkOutKey),
-      });
-      setQuote(null);
-      setErrorMsg(null);
-      requestQuote();
-    } else {
-      if (state.gridDraft.size === 0) {
-        setSelectedStart(null);
+        requestQuote();
+      } else {
+        if (state.gridDraft.size === 0) {
+          setSelectedStart(null);
+          setQuote(null);
+          setErrorMsg(null);
+          return;
+        }
+        const [cell] = state.gridDraft;
+        const atIdx = cell.indexOf("@");
+        if (atIdx === -1) return;
+        const dayKey = cell.slice(0, atIdx);
+        const minute = parseInt(cell.slice(atIdx + 1), 10);
+        if (isNaN(minute)) return;
+        const startsAtMs = denverMidnight(dayKey).getTime() + minute * 60_000;
+        setSelectedStart(new Date(startsAtMs));
         setQuote(null);
         setErrorMsg(null);
-        return;
+        requestQuote();
       }
-      const [cell] = state.gridDraft;
-      const atIdx = cell.indexOf("@");
-      if (atIdx === -1) return;
-      const dayKey = cell.slice(0, atIdx);
-      const minute = parseInt(cell.slice(atIdx + 1), 10);
-      if (isNaN(minute)) return;
-      const startsAtMs = denverMidnight(dayKey).getTime() + minute * 60_000;
-      setSelectedStart(new Date(startsAtMs));
-      setQuote(null);
-      setErrorMsg(null);
-      requestQuote();
-    }
-  }
+    },
+    [mode],
+  );
 
   // ── Book handler ──────────────────────────────────────────────────────────
   function handleBook() {
