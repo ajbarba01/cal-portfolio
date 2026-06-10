@@ -58,6 +58,7 @@ import { transition } from "./state-machine";
 import type {
   BookingRepository,
   BookingStatusDb,
+  BookingEditRow,
   ServiceRow,
   SettingsRow,
 } from "./booking-repository";
@@ -1022,6 +1023,28 @@ function quantitiesFromQuoteInputs(qi: unknown): Record<string, unknown> {
   return out;
 }
 
+/** Merge an edit patch over a booking's current shape into a re-quote input. */
+export function buildEditQuoteInput(
+  booking: BookingEditRow,
+  patch: EditBookingPatch,
+): CreateBookingInput {
+  const startsAt = patch.startsAt ?? booking.startsAt;
+  const durationMs = booking.endsAt.getTime() - booking.startsAt.getTime();
+  const endsAt = patch.endsAt ?? new Date(startsAt.getTime() + durationMs);
+  return {
+    userId: booking.client_id,
+    serviceSlug: booking.service_slug,
+    startsAt,
+    endsAt,
+    quantities: {
+      ...quantitiesFromQuoteInputs(booking.quote_inputs),
+      ...(patch.quantities ?? {}),
+    },
+    petIds: patch.petIds ?? booking.petIds,
+    recurringRule: null,
+  };
+}
+
 export async function editBookingCore(
   deps: BookingServiceDeps,
   input: EditBookingInput,
@@ -1068,22 +1091,9 @@ export async function editBookingCore(
   }
 
   // Build the merged shape and re-quote via the shared pipeline.
-  const startsAt = patch.startsAt ?? booking.startsAt;
-  const durationMs = booking.endsAt.getTime() - booking.startsAt.getTime();
-  const endsAt = patch.endsAt ?? new Date(startsAt.getTime() + durationMs);
-
-  const mergedInput: CreateBookingInput = {
-    userId: booking.client_id,
-    serviceSlug: booking.service_slug,
-    startsAt,
-    endsAt,
-    quantities: {
-      ...quantitiesFromQuoteInputs(booking.quote_inputs),
-      ...(patch.quantities ?? {}),
-    },
-    petIds: patch.petIds ?? booking.petIds,
-    recurringRule: null, // edits never re-create a series
-  };
+  const mergedInput = buildEditQuoteInput(booking, patch);
+  const startsAt = mergedInput.startsAt as Date;
+  const endsAt = mergedInput.endsAt as Date;
 
   const artifacts = await computeBookingArtifacts(deps, mergedInput, policy);
   if (artifacts.kind === "validation_error")
@@ -1189,6 +1199,79 @@ export async function editBookingCore(
       message: e instanceof Error ? e.message : String(e),
     };
   }
+}
+
+export type PreviewEditResult =
+  | { kind: "preview"; preview: BookingQuotePreview; requiresApproval: boolean }
+  | { kind: "not_found" }
+  | { kind: "forbidden" }
+  | { kind: "invalid_status" }
+  | { kind: "price_locked" }
+  | { kind: "blocked_debt"; owedCents: number }
+  | { kind: "onboarding_incomplete" }
+  | { kind: "refuse"; reason: string }
+  | { kind: "unavailable"; reason: string }
+  | { kind: "validation_error"; message: string }
+  | { kind: "error"; message: string };
+
+/**
+ * Read-only twin of editBookingCore: same load + ownership + status + paid-lock
+ * + merge (buildEditQuoteInput) + re-quote pipeline, but it NEVER persists. The
+ * UI calls this for the live preview so "what you see" equals what Save commits.
+ */
+export async function previewEditCore(
+  deps: BookingServiceDeps,
+  input: EditBookingInput,
+): Promise<PreviewEditResult> {
+  const { repo } = deps;
+  const { policy, patch } = input;
+
+  const booking = await repo.getBookingForEdit(input.bookingId);
+  if (!booking) return { kind: "not_found" };
+
+  const isAdminActor = policy.skipOnboardingGate;
+  if (!isAdminActor && booking.client_id !== input.actorUserId) {
+    return { kind: "forbidden" };
+  }
+  if (!EDITABLE_STATUSES.includes(booking.status)) {
+    return { kind: "invalid_status" };
+  }
+  const priceAffecting =
+    patch.petIds !== undefined || patch.quantities !== undefined;
+  if (booking.paidCents > 0 && priceAffecting) {
+    return { kind: "price_locked" };
+  }
+
+  const mergedInput = buildEditQuoteInput(booking, patch);
+  const artifacts = await computeBookingArtifacts(deps, mergedInput, policy);
+  if (artifacts.kind === "validation_error")
+    return { kind: "validation_error", message: artifacts.message };
+  if (artifacts.kind === "error")
+    return { kind: "error", message: artifacts.message };
+  if (artifacts.kind === "refuse")
+    return { kind: "refuse", reason: artifacts.reason };
+  if (artifacts.kind === "blocked_debt")
+    return { kind: "blocked_debt", owedCents: artifacts.owedCents };
+  if (artifacts.kind === "onboarding_incomplete")
+    return { kind: "onboarding_incomplete" };
+
+  const {
+    breakdown,
+    distanceMiles,
+    requiresApprovalByOccurrence,
+    decision,
+    warnings,
+  } = artifacts.artifacts;
+  const requiresApproval = requiresApprovalByOccurrence[0];
+  const preview: BookingQuotePreview = {
+    breakdown,
+    finalCents: breakdown.finalCents,
+    distanceMiles: distanceMiles ?? null,
+    requiresApproval,
+    decision,
+    warnings,
+  };
+  return { kind: "preview", preview, requiresApproval };
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
