@@ -1,5 +1,7 @@
 # Routing
 
+> CORE doc — project-agnostic; project facts live in docs/DESIGN.md.
+
 > Model **preferences** per work-type and the per-session override knob. Roles and skill mappings are model-independent ([ROLES.md](ROLES.md)); this file records which model _prefers_ which role, not which capabilities it may use. Adding a model = add a column / row — no structural change.
 
 ## Defaults (work-type → preferred model)

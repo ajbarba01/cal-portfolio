@@ -1,5 +1,7 @@
 # Roles
 
+> CORE doc — project-agnostic; project facts live in docs/DESIGN.md.
+
 > Model-independent **behavior contracts**. Tell any agent "you are the senior designer" and it follows the matching contract below — regardless of model. Skills are capability-specific, not model-specific: invoke listed skills when available; otherwise perform the written fallback. Who plays which role by default: [ROUTING.md](ROUTING.md).
 
 ## Capability rule

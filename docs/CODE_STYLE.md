@@ -1,5 +1,7 @@
 # Code Style
 
+> CORE doc — project-agnostic; project facts live in docs/DESIGN.md.
+
 > Authority for **formatting, naming, and documentation conventions**. Read before writing any code. For architecture/quality principles see [ENGINEERING.md](ENGINEERING.md). Most of this is enforced by tooling — when in doubt, run the tools.
 
 Sourced from the [Google TypeScript Style Guide](https://google.github.io/styleguide/tsguide.html), the [community TypeScript Style Guide](https://mkosir.github.io/typescript-style-guide/), [React + TypeScript conventions](https://react-typescript-style-guide.com/), and [TSDoc](https://tsdoc.org/).
@@ -14,7 +16,7 @@ Sourced from the [Google TypeScript Style Guide](https://google.github.io/styleg
 ## Naming
 
 - `camelCase` — variables, functions, methods, props.
-- `PascalCase` — types, interfaces, enums, React components. **No `I` prefix** on interfaces (`BookingRequest`, not `IBookingRequest`).
+- `PascalCase` — types, interfaces, enums, React components. **No `I` prefix** on interfaces (`OrderRequest`, not `IOrderRequest`).
 - `UPPER_CASE` — true global constants.
 - **Booleans** read as predicates: prefix `is` / `has` / `should` (`isAvailable`, `hasPaid`).
 - Descriptive and unabbreviated. No `tmp`, `data2`, or project-ambiguous shorthand.
@@ -22,7 +24,7 @@ Sourced from the [Google TypeScript Style Guide](https://google.github.io/styleg
 ## Files & folders
 
 - Component file name matches its folder: `ProfileHero/ProfileHero.tsx`.
-- Non-component files: `kebab-case.ts` (`distance.ts`, `use-booking.ts`).
+- Non-component files: `kebab-case.ts` (`distance.ts`, `use-orders.ts`).
 - One primary export per file; the file is named for it.
 
 ## Components

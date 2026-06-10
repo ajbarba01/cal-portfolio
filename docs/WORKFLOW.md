@@ -1,5 +1,7 @@
 # Development Workflow
 
+> CORE doc — project-agnostic; project facts live in docs/DESIGN.md.
+
 > Authority for **the dev loop, version control, and multi-agent handoff** (general, portable). Always-on governance (doc discipline, hierarchical context, last-reviewed) lives in [AGENTS.md](../AGENTS.md). Roles + inference: [ROLES.md](ROLES.md); model preferences: [ROUTING.md](ROUTING.md). For code structure see [ENGINEERING.md](ENGINEERING.md); conventions [CODE_STYLE.md](CODE_STYLE.md); UI [FRONTEND.md](FRONTEND.md).
 
 **Consult this doc to decide your next move.** Spec-driven and lightweight: the spec is the source artifact, code is generated output. Quality comes from principles + gates, not ceremony.
@@ -19,7 +21,7 @@ Find your current situation; do the action. (Details for each step are in the ne
 | Mid-build, UI work                                         | Wire up IO/UI; keep logic pure; commit nothing yet.                                                   | `frontend-design`                                                                                               |
 | Think it's done                                            | **Verify** — `tsc`/lint/tests, `/code-review`, then `verify` the running app.                         | `superpowers:verification-before-completion` → `superpowers:requesting-code-review` → `/code-review` → `verify` |
 | Got code-review feedback                                   | Triage before implementing — verify, don't perform agreement.                                         | `superpowers:receiving-code-review`                                                                             |
-| Verified                                                   | **Ship** — conventional commit to `main`; confirm Vercel deploy.                                      | —                                                                                                               |
+| Verified                                                   | **Ship** — conventional commit to `main`; confirm the deploy.                                         | —                                                                                                               |
 | Hit a bug / unexpected behavior                            | Reproduce and find root cause _before_ proposing a fix; don't patch symptoms.                         | `superpowers:systematic-debugging`                                                                              |
 | Sub-spec change (bugfix, lighter refactor, contained edit) | **Lightweight lane** — skip spec/plan/handoff; one agent owns it end-to-end; build + verify directly. | role-appropriate debugging/TDD/UI skills if relevant                                                            |
 | Unsure what a feature should do                            | Stop and ask the maintainer; don't assume scope.                                                      | —                                                                                                               |
@@ -33,7 +35,7 @@ Find your current situation; do the action. (Details for each step are in the ne
 3. **Plan** — turn the spec into a technical, dependency-ordered plan.
 4. **Build** — implement against the plan. **Test-first for non-trivial logic** (ENGINEERING #5).
 5. **Verify** — a _fresh_ pass grades the work: `/code-review`, and `verify` the running app. The author does not grade itself.
-6. **Ship** — conventional commit to `main`; confirm the Vercel deploy.
+6. **Ship** — conventional commit to `main`; confirm the deploy.
 
 ## Skill workflow (execution policy)
 
@@ -77,8 +79,8 @@ Sequential, file-based handoff has no live agent-to-agent channel: the **maintai
 
   ```
   ### ESCALATION — blocking
-  Finding: spec assumes pets.owner_id; schema has household_id.
-  Options: (a) join via household (b) add column. Recommend (a). Awaiting designer.
+  Finding: spec assumes items.owner_id; schema has group_id.
+  Options: (a) join via group (b) add column. Recommend (a). Awaiting designer.
   ```
 
   Flow: implementer logs → maintainer tells the designer "critical finding in the handoff log" → designer resolves in spec/plan, commits → maintainer tells the implementer "resolved, continue".
@@ -102,7 +104,7 @@ The author never grades itself — and across models this is stronger: the **pla
 
 - **Plans:** a plan whose Definition of Done shipped moves to `docs/superpowers/plans/archive/` (git mv, same commit as the verification or the next docs commit). Active plans only in `plans/` root.
 - **Specs:** design specs are decision records — they stay. A superseded spec moves to `docs/superpowers/specs/archive/` with a one-line pointer to its successor.
-- **Notes inbox:** `docs/DEV_NOTES.md` is a capture inbox, never an authority. Items must be triaged out (bugs → audit/findings register or a plan; scope → roadmap/spec; Cal questions → DESIGN.md open questions) — triage whenever a planning session touches the area. Untriaged items older than 30 days get flagged at session start like a stale last-reviewed footer.
+- **Notes inbox:** `docs/DEV_NOTES.md` is a capture inbox, never an authority. Items must be triaged out (bugs → audit/findings register or a plan; scope → roadmap/spec; owner/project questions → DESIGN.md open questions) — triage whenever a planning session touches the area. Untriaged items older than 30 days get flagged at session start like a stale last-reviewed footer.
 - **Link integrity:** `node scripts/check-doc-links.mjs` must pass before any docs commit.
 
 ## Working within a task (context tips)
@@ -126,7 +128,7 @@ The author never grades itself — and across models this is stronger: the **pla
 
 ## Definition of Done
 
-Tests green → types/lint/format clean → **cross-model `/code-review`** clean (a model other than the author grades it, where practical) → manual `verify` of the running feature → conventional commit on `main` → Vercel preview confirmed.
+Tests green → types/lint/format clean → **cross-model `/code-review`** clean (a model other than the author grades it, where practical) → manual `verify` of the running feature → conventional commit on `main` → deploy confirmed.
 
 ---
 

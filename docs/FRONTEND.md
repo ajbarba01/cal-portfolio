@@ -1,5 +1,7 @@
 # Frontend & Design
 
+> CORE doc — project-agnostic; project facts live in docs/DESIGN.md.
+
 > Authority for **the design system, theming, and the design→code pipeline** (general, portable). Project-specific pages, brand direction, and the concrete palette live in [DESIGN.md](DESIGN.md). For code conventions see [CODE_STYLE.md](CODE_STYLE.md); for architecture see [ENGINEERING.md](ENGINEERING.md).
 
 Goal: a distinctive, professional UI that **avoids the generic AI look**, with a styling system modular enough that **palettes and components swap with minimal effort**.

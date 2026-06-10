@@ -1,5 +1,7 @@
 # Engineering Principles
 
+> CORE doc — project-agnostic; project facts live in docs/DESIGN.md.
+
 > Authority for **how code is structured and what "good" means** in this repo. Read before writing or refactoring any non-trivial code. For formatting/naming/docs see [CODE_STYLE.md](CODE_STYLE.md); for the dev loop see [WORKFLOW.md](WORKFLOW.md); for UI/design see [FRONTEND.md](FRONTEND.md).
 
 The project is small today and must stay **professional, modular, and scalable** so it can grow without rewrites. Scope does not lower the bar. Each principle below is a **rule + why + example**. When a principle is violated, fix the root cause or surface it (see _Critical Findings_) — never silently work around it.
@@ -10,10 +12,10 @@ The project is small today and must stay **professional, modular, and scalable**
 
 ### 1. Feature-first organization
 
-`app/` is **routing only**. Domain logic lives in `features/<domain>/` (e.g. `booking/`, `accounts/`, `pricing/`, `gallery/`). A new concept is a new feature folder. There is **no catch-all `utils/`** — code lives with the thing it serves.
+`app/` is **routing only**. Domain logic lives in `features/<domain>/` (e.g. `orders/`, `accounts/`, `pricing/`, `gallery/`). A new concept is a new feature folder. There is **no catch-all `utils/`** — code lives with the thing it serves.
 
 - **Why:** boundaries by domain make the codebase navigable, parallel-workable, and refactor-safe as it grows.
-- **Example:** booking availability logic → `features/booking/`, not scattered across `app/` route files.
+- **Example:** order availability logic → `features/orders/`, not scattered across `app/` route files.
 
 ### 2. Generic vs app-specific split
 
@@ -28,7 +30,7 @@ Business-agnostic, reusable infra lives in `lib/` and must contain **zero** know
 Dependencies flow **components → hooks → services → data/adapters**, never the reverse. Lower layers never import upward.
 
 - **Why:** one-way flow is predictable, testable, and prevents circular tangles (Feature-Sliced Design / layered architecture).
-- **Example:** a `BookingForm` component calls `useBooking()`, which calls `bookingService`, which calls the Supabase adapter. The adapter knows nothing about the form.
+- **Example:** an `OrderForm` component calls `useOrder()`, which calls `orderService`, which calls the data adapter. The adapter knows nothing about the form.
 
 ### 4. Isolate external vendors behind adapters
 
@@ -83,7 +85,7 @@ Handle **expected** absence explicitly (no selection, optional field, not-yet-lo
 
 ### 11. Events/callbacks over polling; no prop-drilling
 
-Prefer reactive data flow (server actions, Supabase realtime subscriptions, context) over polling. Don't thread props through many layers — lift state or use context.
+Prefer reactive data flow (server actions, realtime subscriptions, context) over polling. Don't thread props through many layers — lift state or use context.
 
 ### 12. Production-ready or surfaced
 
