@@ -52,6 +52,8 @@ Core-vs-project split: framework docs (WORKFLOW, ROLES, ROUTING, ENGINEERING, CO
 - Architectural root-cause bug fixes from findings register.
   **Sets up:** final file layout, primitives, and nav structure for SP4-7. May split into 3a (codebase) / 3b (system) at spec time.
 
+**Split (spec session 2026-06-10):** SP3 split into **3a — codebase structure** ([spec](2026-06-10-sp3a-codebase-refactor-design.md), [plan](../plans/2026-06-10-sp3a-codebase-refactor.md); findings A1,A3,A4,A5,A6,A7,A8,A9,A10,A11 — notifier seam A11 pulled in here as a backend seam) and **3b — system IA + UI primitives** (A2 confirm-dialog, A12 onboarding IA/nav, toast/nav affordances; specced JIT after 3a).
+
 ### SP4 — Payments: complete + harden
 
 Full flow on existing stub: intent → webhook (signature-verified, idempotent) → reconciliation → refunds/debt. Server-derived amounts only; audit trail; Stripe test mode until launch. Admin payment actions (grant refund, mark no-show, debt view) **functional-minimal** using SP3 primitives — SP5 owns their layout/copy polish.
