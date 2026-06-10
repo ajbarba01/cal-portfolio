@@ -37,6 +37,7 @@ import type {
   OnboardingStatus,
   BookingRepository,
   BookingEditRow,
+  BookingInsert,
 } from "./booking-repository";
 import { quote } from "@/features/pricing/quote";
 import type { WalkConfig } from "@/features/pricing/types";
@@ -1135,12 +1136,28 @@ describe("createBookingCore: pet assignment", () => {
 
 /**
  * Build a minimal mock BookingRepository for policy-gate unit tests.
- * outstandingDebtCents controls the debt gate (default 0).
+ *
+ * opts:
+ *   outstandingDebtCents  — controls the debt gate (default 0)
+ *   openWindows           — returned by getOpenWindows (default [])
+ *   profileLatLng         — returned by getProfileLatLng (default near-client coords)
+ *   captureInserts        — when true, records rows passed to insertBookings;
+ *                           access via the returned getLastInsertedStatuses accessor
  */
 function makeMockRepo(
-  opts: { outstandingDebtCents?: number } = {},
-): BookingRepository {
-  return {
+  opts: {
+    outstandingDebtCents?: number;
+    openWindows?: { startsAt: Date; endsAt: Date }[];
+    profileLatLng?: { lat: number | null; lng: number | null };
+    captureInserts?: boolean;
+  } = {},
+): {
+  repo: BookingRepository;
+  getLastInsertedStatuses: () => string[];
+} {
+  let lastInsertedStatuses: string[] = [];
+
+  const repo: BookingRepository = {
     getOutstandingDebtCents: vi.fn(async () => opts.outstandingDebtCents ?? 0),
     getOnboardingStatus: vi.fn(async () => "approved" as const),
     hasActiveBookingForServiceSlug: vi.fn(async () => false),
@@ -1172,10 +1189,17 @@ function makeMockRepo(
       late_cancel_refund_pct: 50,
       no_show_charge_pct: 100,
     })),
-    getProfileLatLng: vi.fn(async () => ({ lat: 40.087, lng: -105.27 })),
+    getProfileLatLng: vi.fn(
+      async () => opts.profileLatLng ?? { lat: 40.087, lng: -105.27 },
+    ),
     getPetsByIds: vi.fn(async () => []),
-    getOpenWindows: vi.fn(async () => []),
-    insertBookings: vi.fn(async () => ["bk-1"]),
+    getOpenWindows: vi.fn(async () => opts.openWindows ?? []),
+    insertBookings: vi.fn(async (rows: BookingInsert[]) => {
+      if (opts.captureInserts) {
+        lastInsertedStatuses = rows.map((r) => r.status as string);
+      }
+      return ["bk-1"];
+    }),
     insertBookingPets: vi.fn(async () => {}),
     insertSeries: vi.fn(async () => "series-1"),
     deleteSeries: vi.fn(async () => {}),
@@ -1196,6 +1220,8 @@ function makeMockRepo(
     swapBookingPets: vi.fn(),
     appendSeriesSkip: vi.fn(),
   } as unknown as BookingRepository;
+
+  return { repo, getLastInsertedStatuses: () => lastInsertedStatuses };
 }
 
 /** A valid check-in input for the near-client mock profile. */
@@ -1214,7 +1240,7 @@ describe("computeBookingQuoteCore — policy gates", () => {
     // Near client (lat=40.087 → under 8 mi auto threshold → baseRequiresApproval=false).
     // Start is NOW + 2 years → beyond hard_max_advance_days=365 → timeDecision="refuse".
     // skipHorizonRefuse=true (ADMIN_POLICY) → should warn + set requiresApproval=true.
-    const repo = makeMockRepo();
+    const { repo } = makeMockRepo();
     const farFutureStart = new Date(
       MOCK_NOW.getTime() + 2 * 365 * 24 * 60 * 60 * 1000,
     );
@@ -1241,7 +1267,7 @@ describe("computeBookingQuoteCore — policy gates", () => {
   });
 
   it("blocks a debtor under CLIENT_POLICY", async () => {
-    const repo = makeMockRepo({ outstandingDebtCents: 4000 });
+    const { repo } = makeMockRepo({ outstandingDebtCents: 4000 });
     const result = await computeBookingQuoteCore(
       { repo, now: MOCK_NOW },
       mockValidInput,
@@ -1251,7 +1277,7 @@ describe("computeBookingQuoteCore — policy gates", () => {
   });
 
   it("warns (not blocks) a debtor under ADMIN_POLICY", async () => {
-    const repo = makeMockRepo({ outstandingDebtCents: 4000 });
+    const { repo } = makeMockRepo({ outstandingDebtCents: 4000 });
     const result = await computeBookingQuoteCore(
       { repo, now: MOCK_NOW },
       mockValidInput,
@@ -1345,6 +1371,93 @@ describe("createBookingCore: onboarding gate", () => {
       recurringRule: null,
     });
     expect(result.kind).toBe("success");
+  });
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
+// createBookingCore policy-aware — unit tests (in-memory fake repo, no Supabase)
+// ──────────────────────────────────────────────────────────────────────────────
+
+const CREATE_POLICY_NOW = new Date("2026-06-10T12:00:00Z");
+
+/** A valid check-in input within the auto-confirm horizon (10 days out). */
+const validClientInput: CreateBookingInput = {
+  userId: "a0000000-0000-4000-8000-000000000001",
+  serviceSlug: "check-in",
+  startsAt: new Date("2026-06-20T17:00:00Z"),
+  endsAt: new Date("2026-06-20T18:00:00Z"),
+  quantities: { hours: 1 },
+  recurringRule: null,
+};
+
+/**
+ * An availability window that covers the validClientInput slot
+ * (2026-06-20T17:00–18:00Z).
+ */
+const openWindowCoveringSlot = {
+  startsAt: new Date("2026-06-20T15:00:00Z"),
+  endsAt: new Date("2026-06-20T20:00:00Z"),
+};
+
+describe("createBookingCore policy-aware", () => {
+  // 1. Client policy unchanged: a slot outside all windows → unavailable.
+  it("client policy still blocks an out-of-window slot", async () => {
+    const { repo } = makeMockRepo({ openWindows: [] });
+    const result = await createBookingCore(
+      { repo, now: CREATE_POLICY_NOW },
+      validClientInput,
+    );
+    expect(result.kind).toBe("unavailable");
+  });
+
+  // 2. Admin policy: same out-of-window slot succeeds with a warning.
+  it("admin policy turns out-of-window into a warning, not a block", async () => {
+    const { repo } = makeMockRepo({ openWindows: [] });
+    const result = await createBookingCore(
+      { repo, now: CREATE_POLICY_NOW },
+      validClientInput,
+      ADMIN_POLICY,
+    );
+    expect(result.kind).toBe("success");
+    if (result.kind === "success") {
+      expect(result.warnings.some((w) => /availability window/i.test(w))).toBe(
+        true,
+      );
+    }
+  });
+
+  // 3. Admin forceStatus forces the inserted status regardless of derived approval.
+  it("admin forceStatus forces the inserted status", async () => {
+    // Use null lat/lng so distance gate → manual approval → pending_approval by default.
+    // The input itself is identical to validClientInput; manual-approval is triggered
+    // by the repo mock's profileLatLng: { lat: null, lng: null }.
+    const { repo, getLastInsertedStatuses } = makeMockRepo({
+      openWindows: [openWindowCoveringSlot],
+      profileLatLng: { lat: null, lng: null },
+      captureInserts: true,
+    });
+    const policy = { ...ADMIN_POLICY, forceStatus: "confirmed" as const };
+    const result = await createBookingCore(
+      { repo, now: CREATE_POLICY_NOW },
+      validClientInput,
+      policy,
+    );
+    expect(result.kind).toBe("success");
+    const statuses = getLastInsertedStatuses();
+    expect(statuses.every((s) => s === "confirmed")).toBe(true);
+  });
+
+  // 4. Client success now carries an empty warnings array (back-compat shape).
+  it("client success returns empty warnings", async () => {
+    const { repo } = makeMockRepo({
+      openWindows: [openWindowCoveringSlot],
+    });
+    const result = await createBookingCore(
+      { repo, now: CREATE_POLICY_NOW },
+      validClientInput,
+    );
+    expect(result.kind).toBe("success");
+    if (result.kind === "success") expect(result.warnings).toEqual([]);
   });
 });
 
