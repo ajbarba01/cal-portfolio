@@ -5,23 +5,24 @@ import {
   type MutationPolicy,
 } from "./mutation-policy";
 
-const SKIP_KEYS: (keyof MutationPolicy)[] = [
-  "skipDebtGate",
-  "skipOnboardingGate",
-  "skipDistanceRefuse",
-  "skipWindowFit",
-  "skipHoursLeadGuards",
-  "skipCancellationCutoff",
-  "skipHorizonRefuse",
-];
+function skipKeys(policy: MutationPolicy): (keyof MutationPolicy)[] {
+  return Object.keys(policy).filter((k) =>
+    k.startsWith("skip"),
+  ) as (keyof MutationPolicy)[];
+}
 
 describe("mutation policy presets", () => {
-  it("CLIENT_POLICY enforces every gate (no skips)", () => {
-    for (const k of SKIP_KEYS) expect(CLIENT_POLICY[k]).toBe(false);
+  it("CLIENT_POLICY enforces every gate (no skips) and never force-confirms", () => {
+    const keys = skipKeys(CLIENT_POLICY);
+    expect(keys.length).toBeGreaterThan(0);
+    for (const k of keys) expect(CLIENT_POLICY[k]).toBe(false);
     expect(CLIENT_POLICY.forceStatus).toBeUndefined();
   });
 
-  it("ADMIN_POLICY skips every gate", () => {
-    for (const k of SKIP_KEYS) expect(ADMIN_POLICY[k]).toBe(true);
+  it("ADMIN_POLICY skips every gate and does not preset a forced status", () => {
+    const keys = skipKeys(ADMIN_POLICY);
+    expect(keys.length).toBeGreaterThan(0);
+    for (const k of keys) expect(ADMIN_POLICY[k]).toBe(true);
+    expect(ADMIN_POLICY.forceStatus).toBeUndefined();
   });
 });
