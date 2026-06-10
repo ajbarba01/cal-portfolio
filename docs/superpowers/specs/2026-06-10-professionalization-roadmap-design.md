@@ -70,6 +70,7 @@ Feature-sized DEV_NOTES items are **not** findings: booking-mutation P2-P4 (clie
 
 ## Standing rules
 
+- **Industry validation at spec time.** Every SP spec session validates its approach against current official/industry sources (WebSearch/WebFetch) before finalizing — SP3: Next.js App Router + React architecture guidance; SP4: Stripe integration best practices (Elements, idempotency, refunds); SP5: admin-UX conventions; SP7: Core Web Vitals thresholds. Targeted research against concrete findings, not generic best-practice dumps; cite sources in the spec.
 - Each SP extends seed scenarios for the states it changes.
 - Each SP prunes its resolved findings from the register at DoD.
 - Same-commit doc updates (AGENTS.md discipline).
