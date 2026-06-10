@@ -25,7 +25,6 @@ type CentroidMap = Record<string, LatLng>;
 
 /** Strips the non-data _comment key from the JSON so the map stays clean. */
 function loadBundledMap(): CentroidMap {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { _comment, ...entries } = bundledData as Record<string, unknown>;
   return entries as CentroidMap;
 }

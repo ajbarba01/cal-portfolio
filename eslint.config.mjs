@@ -37,6 +37,17 @@ const eslintConfig = defineConfig([
         },
       ],
       "boundaries/element-types": [2, { default: "allow" }],
+      // Allow intentionally-unused vars/args/rest-siblings when prefixed with `_`
+      // (the conventional "discard" marker) — removes the need for per-site
+      // eslint-disable comments on required-but-unused destructures.
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          ignoreRestSiblings: true,
+        },
+      ],
     },
   },
   // Override default ignores of eslint-config-next.

@@ -178,7 +178,6 @@ interface SchedulerDayButtonProps extends DayButtonProps {
 function SchedulerDayButton({
   // `day` is part of DayButtonProps (required by rdp) but we only need dayKey,
   // which is pre-computed from day.date by the parent.
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   day: _day,
   modifiers,
   dayKey,

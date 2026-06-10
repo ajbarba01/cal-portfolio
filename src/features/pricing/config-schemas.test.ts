@@ -48,7 +48,6 @@ describe("parsePricingConfig house_sitting", () => {
   });
 
   it("throws when a required key is missing", () => {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { base_dog_cents_per_night: _omitted, ...rest } =
       SEEDED_HOUSE_SITTING;
     expect(() => parsePricingConfig("house_sitting", rest)).toThrow();
@@ -88,7 +87,6 @@ describe("parsePricingConfig check_in", () => {
   });
 
   it("throws when minimum_cents is missing", () => {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { minimum_cents: _omitted, ...rest } = SEEDED_CHECK_IN;
     expect(() => parsePricingConfig("check_in", rest)).toThrow();
   });
@@ -118,7 +116,6 @@ describe("parsePricingConfig walk", () => {
   });
 
   it("throws when per_dog_cents is missing", () => {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { per_dog_cents: _omitted, ...rest } = SEEDED_WALK;
     expect(() => parsePricingConfig("walk", rest)).toThrow();
   });
