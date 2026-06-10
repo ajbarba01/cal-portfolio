@@ -16,10 +16,10 @@ import {
   type OnboardingStatus,
 } from "@/features/booking/booking-repository";
 
-import { assertActorIsAdmin } from "./admin-guard";
-import { getActorOrRedirect } from "./admin-session";
-import { outstandingBalanceCents } from "./client-balance";
-import { deriveMeetGreetUpcoming } from "./meet-greet-upcoming";
+import { assertActorIsAdmin } from "@/lib/admin-guard";
+import { getActorOrRedirect } from "@/lib/admin-session";
+import { outstandingBalanceCents } from "@/features/payments/client-balance";
+import { deriveMeetGreetUpcoming } from "@/features/booking/meet-greet-upcoming";
 
 const SIGNED_URL_TTL_SECONDS = 60 * 60;
 

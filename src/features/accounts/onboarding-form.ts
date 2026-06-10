@@ -2,7 +2,7 @@ import { profileSchema, type ProfileInput } from "./profile-schema";
 import {
   emergencySchema,
   type EmergencyInput,
-} from "@/features/forms/emergency-schema";
+} from "@/features/accounts/emergency-schema";
 
 export interface OnboardingInput {
   profile: ProfileInput;

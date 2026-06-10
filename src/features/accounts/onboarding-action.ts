@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { profileSchema } from "./profile-schema";
-import { emergencySchema } from "@/features/forms/emergency-schema";
+import { emergencySchema } from "@/features/accounts/emergency-schema";
 import {
   parseOnboardingForm,
   type OnboardingInput,

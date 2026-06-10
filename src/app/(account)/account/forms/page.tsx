@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { formRegistry, type FormKey } from "@/features/forms/registry";
+import { formRegistry, type FormKey } from "@/features/accounts/form-registry";
 import { FormsClient } from "./_components/forms-client";
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";

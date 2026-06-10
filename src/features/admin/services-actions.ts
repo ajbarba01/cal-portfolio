@@ -10,8 +10,8 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/service";
-import { assertActorIsAdmin } from "./admin-guard";
-import { getActorOrRedirect } from "./admin-session";
+import { assertActorIsAdmin } from "@/lib/admin-guard";
+import { getActorOrRedirect } from "@/lib/admin-session";
 import { parsePricingConfig } from "@/features/pricing/config-schemas";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { PricingType } from "@/features/pricing/types";

@@ -15,7 +15,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { profileSchema, type ProfileInput } from "./profile-schema";
-import { formRegistry, type FormKey } from "@/features/forms/registry";
+import { formRegistry, type FormKey } from "@/features/accounts/form-registry";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 // ─── Result union ────────────────────────────────────────────────────────────

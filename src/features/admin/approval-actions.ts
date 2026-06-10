@@ -10,8 +10,8 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/service";
-import { assertActorIsAdmin } from "./admin-guard";
-import { getActorOrRedirect } from "./admin-session";
+import { assertActorIsAdmin } from "@/lib/admin-guard";
+import { getActorOrRedirect } from "@/lib/admin-session";
 import { transition } from "@/features/booking/state-machine";
 import { ResendMailer } from "@/features/notifications/resend-mailer";
 import { sendBookingConfirmation } from "@/features/notifications/send-booking-emails";

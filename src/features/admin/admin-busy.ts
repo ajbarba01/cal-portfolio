@@ -13,7 +13,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { createSupabaseBookingRepository } from "@/features/booking/booking-repository";
 import type { BookingStatusDb } from "@/features/booking/booking-repository";
-import { assertActorIsAdmin } from "./admin-guard";
+import { assertActorIsAdmin } from "@/lib/admin-guard";
 
 const SIGNED_URL_TTL_SECONDS = 60 * 60;
 

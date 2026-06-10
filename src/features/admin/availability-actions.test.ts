@@ -28,7 +28,7 @@ import { denverMidnight } from "@/features/booking/availability";
 
 const mockAssertActorIsAdmin = vi.fn<() => Promise<boolean>>();
 
-vi.mock("./admin-guard", () => ({
+vi.mock("@/lib/admin-guard", () => ({
   assertActorIsAdmin: () => mockAssertActorIsAdmin(),
 }));
 

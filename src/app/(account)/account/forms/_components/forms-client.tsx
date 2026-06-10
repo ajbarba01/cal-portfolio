@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { submitForm } from "@/features/accounts/account-actions";
-import type { FormKey } from "@/features/forms/registry";
+import type { FormKey } from "@/features/accounts/form-registry";
 import type { FormResponseRow } from "../page";
 
 // ─── Form labels ──────────────────────────────────────────────────────────────
