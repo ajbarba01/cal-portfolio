@@ -98,6 +98,13 @@ The author never grades itself — and across models this is stronger: the **pla
 - **Gates still apply.** Quality is independent of scope (constitution): `tsc`/lint/tests, **TDD for non-trivial logic**, `systematic-debugging` for bugs (root cause, not symptom), manual `verify`. The Definition of Done holds.
 - **Independent review optional.** For a touchy fix you may still ask another agent or model to `/code-review` the diff — recommended, not required.
 
+## Doc lifecycle
+
+- **Plans:** a plan whose Definition of Done shipped moves to `docs/superpowers/plans/archive/` (git mv, same commit as the verification or the next docs commit). Active plans only in `plans/` root.
+- **Specs:** design specs are decision records — they stay. A superseded spec moves to `docs/superpowers/specs/archive/` with a one-line pointer to its successor.
+- **Notes inbox:** `docs/DEV_NOTES.md` is a capture inbox, never an authority. Items must be triaged out (bugs → audit/findings register or a plan; scope → roadmap/spec; Cal questions → DESIGN.md open questions) — triage whenever a planning session touches the area. Untriaged items older than 30 days get flagged at session start like a stale last-reviewed footer.
+- **Link integrity:** `node scripts/check-doc-links.mjs` must pass before any docs commit.
+
 ## Working within a task (context tips)
 
 - **Just-in-time:** open a doc when the task needs it, not upfront.
