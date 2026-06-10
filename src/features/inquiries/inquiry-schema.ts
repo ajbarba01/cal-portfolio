@@ -11,3 +11,11 @@ export const submitInquirySchema = z.object({
 });
 
 export type SubmitInquiryInput = z.infer<typeof submitInquirySchema>;
+
+/** Client-side edit of an existing inquiry. Subject optional; message required. */
+export const editInquirySchema = z.object({
+  subject: z.string().trim().max(200).optional().or(z.literal("")),
+  message: z.string().trim().min(1, "Message is required").max(4000),
+});
+
+export type EditInquiryInput = z.infer<typeof editInquirySchema>;
