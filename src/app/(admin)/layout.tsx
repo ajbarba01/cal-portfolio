@@ -2,7 +2,8 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { PageShell } from "@/components/layout/page-shell";
 import { AppShell } from "@/components/layout/app-shell";
-import { adminNav } from "@/components/layout/nav-config";
+import { adminNav, type NavBadges } from "@/components/layout/nav-config";
+import { getAttentionCounts } from "@/features/admin";
 
 /** Guard for all (admin) routes: unauthenticated or non-admin role → redirect. */
 export default async function AdminLayout({
@@ -31,9 +32,18 @@ export default async function AdminLayout({
 
   const identity = `${profile?.full_name ?? user.email ?? "Admin"} · admin`;
 
+  const attention = await getAttentionCounts();
+  const navBadges: NavBadges = {
+    "/admin/bookings": {
+      count: attention.pendingApprovals,
+      label: "awaiting approval",
+    },
+    "/admin/inquiries": { count: attention.newInquiries, label: "new" },
+  };
+
   return (
-    <PageShell zoneNav={adminNav}>
-      <AppShell nav={adminNav} identity={identity}>
+    <PageShell zoneNav={adminNav} navBadges={navBadges}>
+      <AppShell nav={adminNav} identity={identity} navBadges={navBadges}>
         {children}
       </AppShell>
     </PageShell>

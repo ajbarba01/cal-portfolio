@@ -8,6 +8,7 @@
  *
  * Server component: re-derives identity + role each render. `zoneNav` (account/
  * admin) is forwarded to the mobile drawer so it can list the zone's sections.
+ * `navBadges` (admin only) is forwarded to the mobile drawer for attention counts.
  */
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
@@ -15,7 +16,11 @@ import { AccountMenu } from "./account-menu";
 import { SiteNavTabs, SiteNavMobile } from "./site-nav";
 import { navUnderline } from "@/components/layout/nav-underline";
 import { Wordmark } from "@/components/layout/wordmark";
-import type { NavItem, ZoneNav } from "@/components/layout/nav-config";
+import type {
+  NavItem,
+  ZoneNav,
+  NavBadges,
+} from "@/components/layout/nav-config";
 
 const navLinks: NavItem[] = [
   { href: "/", label: "Home" },
@@ -27,7 +32,13 @@ const navLinks: NavItem[] = [
   { href: "/contact", label: "Contact" },
 ];
 
-export async function SiteHeader({ zoneNav }: { zoneNav?: ZoneNav }) {
+export async function SiteHeader({
+  zoneNav,
+  navBadges,
+}: {
+  zoneNav?: ZoneNav;
+  navBadges?: NavBadges;
+}) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -71,6 +82,7 @@ export async function SiteHeader({ zoneNav }: { zoneNav?: ZoneNav }) {
               <SiteNavMobile
                 links={navLinks}
                 zoneNav={zoneNav}
+                navBadges={navBadges}
                 isSignedIn={!!user}
                 isAdmin={isAdmin}
               />

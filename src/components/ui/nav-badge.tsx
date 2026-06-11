@@ -2,8 +2,10 @@ import { cn } from "@/lib/utils";
 
 /**
  * Attention badge for nav affordances. Renders only when actionable (count > 0)
- * — an always-present badge loses meaning (industry rule). Solid attention red,
- * AA-contrast text; announces its count for AT.
+ * — an always-present badge loses meaning (industry rule). Honey-gold fill,
+ * AA-contrast white text. The visible pill is aria-hidden; a sr-only sibling
+ * carries the count + meaning so the host link's accessible name (via
+ * name-from-content) becomes e.g. "Bookings, 2 awaiting approval".
  */
 export function NavBadge({
   count,
@@ -16,15 +18,20 @@ export function NavBadge({
 }) {
   if (count <= 0) return null;
   return (
-    <span
-      data-slot="nav-badge"
-      aria-label={`${count} ${label}`}
-      className={cn(
-        "bg-attention text-attention-foreground inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-xs leading-none font-semibold",
-        className,
-      )}
-    >
-      {count > 99 ? "99+" : count}
-    </span>
+    <>
+      <span
+        data-slot="nav-badge"
+        aria-hidden="true"
+        className={cn(
+          "bg-attention text-attention-foreground inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-xs leading-none font-semibold",
+          className,
+        )}
+      >
+        {count > 99 ? "99+" : count}
+      </span>
+      <span className="sr-only">
+        {count} {label}
+      </span>
+    </>
   );
 }

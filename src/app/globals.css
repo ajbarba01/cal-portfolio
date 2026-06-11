@@ -146,8 +146,10 @@
   --brand-strong: var(--clay-strong);
   --destructive: var(--danger);
   --destructive-warm: var(--danger-warm);
-  /* Attention badge — solid red, white text passes AA in both themes */
-  --attention: oklch(0.55 0.22 25);
+  /* Attention badge — honey-gold (#8a6a1b), white text passes WCAG AA (≈5.05:1).
+     Gold = "do something" (routine); red stays reserved for danger/owing.
+     Theme-independent (no .dark override). */
+  --attention: #8a6a1b;
   --attention-foreground: #ffffff;
   --border: var(--sand-200);
   --input: var(--sand-200);

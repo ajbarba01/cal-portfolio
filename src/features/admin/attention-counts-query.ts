@@ -22,6 +22,9 @@ export function computeAttentionCounts({
 }
 
 export async function getAttentionCounts(): Promise<AttentionCounts> {
+  // Scoped to the current UTC month, mirroring the dashboard's window so the nav
+  // badges and the dashboard agree. Pending-approval bookings are near-term, so
+  // this window captures what needs Cal now without an extra unbounded read.
   const now = new Date();
   const year = now.getUTCFullYear();
   const month = now.getUTCMonth();
