@@ -106,6 +106,8 @@ Every pet has different needs, and every household has different routines, prefe
 Whether I'm taking your dog on a walk, stopping by for a visit, or caring for your pets and your home while you're away, I aim to provide the same level of attention, reliability, and compassion that I would want for my own animals.
 ```
 
+> **Withheld from site (2026-06-10).** The named-client references below (intro + `about.references.1–8`) are not rendered on the About page yet — awaiting each client's permission to publish. Copy is captured here and remains in `marketing.ts`; the page shows placeholder text. Restore the intro + list once consent is granted.
+
 ### about.references
 
 ```

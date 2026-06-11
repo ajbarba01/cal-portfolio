@@ -206,15 +206,15 @@
 
 ### about.references
 
-- status: placed
+- status: withheld
 - provenance: cal-verbatim
-- consumed-by: src/app/(marketing)/about/page.tsx
+- consumed-by: (none — withheld from site 2026-06-10; placeholder rendered in about/page.tsx)
 - applied-from: |
   The following clients have graciously agreed to serve as references. Please feel free to reach out if you have any questions about their experience working with me.
 - live-text: |
   The following clients have graciously agreed to serve as references. Please feel free to reach out if you have any questions about their experience working with me.
 - transforms: none
-- notes: slot repurposed from a placeholder "pointer to reviews page" to the references-list intro. Named clients live in about.references.1–8. Cal's directive "Most reviews taken from Rover (rover link/integration/screenshots?)" is an open implementation question, not copy — surfaced in report, not placed.
+- notes: slot repurposed from a placeholder "pointer to reviews page" to the references-list intro. Named clients live in about.references.1–8. Cal's directive "Most reviews taken from Rover (rover link/integration/screenshots?)" is an open implementation question, not copy — surfaced in report, not placed. **Withheld from site 2026-06-10:** intro + about.references.1–8 not rendered, awaiting client permission to publish; copy retained in registry, page shows placeholder. Restore intro + <ul> in about/page.tsx when consent granted. Same applies to about.references.1–8 below (each still marked `placed` in registry but not consumed).
 
 ### about.references.1
 

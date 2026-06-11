@@ -5,18 +5,6 @@
 import { MarketingHero } from "@/components/marketing/marketing-hero";
 import { MarketingCopy } from "@/components/marketing/marketing-copy";
 import { PageContainer } from "@/components/layout/page-container";
-import type { CopyId } from "@/content/marketing";
-
-const references: readonly CopyId[] = [
-  "about.references.1",
-  "about.references.2",
-  "about.references.3",
-  "about.references.4",
-  "about.references.5",
-  "about.references.6",
-  "about.references.7",
-  "about.references.8",
-];
 
 export default function AboutPage() {
   return (
@@ -75,8 +63,10 @@ export default function AboutPage() {
         </PageContainer>
       </section>
 
-      {/* References — section-alt band. Contact details available on request,
-          not published (privacy); the intro invites visitors to reach out. */}
+      {/* References — section-alt band. Named-client list (about.references intro +
+          about.references.1–8) is withheld from the site pending each client's
+          permission to publish (2026-06-10). Copy stays in marketing.ts / cal-source.md;
+          restore the intro + <ul> here once consent is granted. Placeholder for now. */}
       <section aria-labelledby="references-heading" className="bg-section-alt">
         <PageContainer className="py-12 sm:py-16">
           <h2
@@ -86,15 +76,10 @@ export default function AboutPage() {
             References
           </h2>
           <p className="text-muted-foreground leading-relaxed">
-            <MarketingCopy id="about.references" />
+            References from past clients are coming soon. In the meantime,
+            please feel free to reach out and I&rsquo;ll gladly put you in
+            touch.
           </p>
-          <ul className="text-foreground mt-4 flex flex-col gap-2 text-center leading-relaxed">
-            {references.map((id) => (
-              <li key={id}>
-                <MarketingCopy id={id} />
-              </li>
-            ))}
-          </ul>
         </PageContainer>
       </section>
     </>
