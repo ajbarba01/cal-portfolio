@@ -62,6 +62,7 @@
 
 import { useState, useMemo, useRef, useCallback } from "react";
 import { format, getDaysInMonth, startOfMonth } from "date-fns";
+import { Star } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { useScheduler } from "@/features/booking/scheduler-context";
@@ -198,6 +199,7 @@ function SchedulerDayButton({
   const bookingId = availability?.bookingId;
   const { data } = useScheduler();
   const hasMyBooking = data.myBookings?.has(dayKey) ?? false;
+  const isPremium = data.premiumDays?.has(dayKey) ?? false;
 
   // Hover affordance (selectable cells only): a dotted clay (brand) outline signalling
   // "this will select". Outline (not border) so it never shifts layout or fights
@@ -243,6 +245,13 @@ function SchedulerDayButton({
       onPointerLeave={handlePointerLeave}
     >
       {children}
+      {isPremium && (
+        <Star
+          aria-hidden="true"
+          size={10}
+          className="text-warning-foreground pointer-events-none absolute top-1 right-1 fill-current"
+        />
+      )}
       {hasMyBooking && (
         <span
           aria-hidden="true"

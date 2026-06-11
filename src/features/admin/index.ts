@@ -91,7 +91,7 @@ export {
   getSettingsCore,
   updateSettings,
 } from "./settings-actions";
-export type { SettingsRow } from "./settings-actions";
+export type { SettingsRow, SettingsResult } from "./settings-actions";
 
 // settings-schema
 export type { SettingsUpdate } from "./settings-schema";
@@ -115,11 +115,15 @@ export type {
   AdminActionResult,
 } from "./onbehalf-actions";
 
+// premium-days-pure (no "use server" — pure helper only)
+export { togglePremiumDate } from "./premium-days-pure";
+
 // premium-days-actions
 export {
-  togglePremiumDate,
   setPremiumDayCore,
   setPremiumDay,
+  setPremiumDaysBatchCore,
+  setPremiumDaysBatch,
 } from "./premium-days-actions";
 
 // attention-counts (typed seam — SP5 wires real counts)

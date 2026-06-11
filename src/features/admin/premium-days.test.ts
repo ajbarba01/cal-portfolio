@@ -9,7 +9,11 @@
 
 import { describe, it, expect, vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { togglePremiumDate, setPremiumDayCore } from "./premium-days-actions";
+import { togglePremiumDate } from "./premium-days-pure";
+import {
+  setPremiumDayCore,
+  setPremiumDaysBatchCore,
+} from "./premium-days-actions";
 import type { SettingsDeps } from "./settings-actions";
 
 // ─── togglePremiumDate ────────────────────────────────────────────────────────
@@ -217,5 +221,61 @@ describe("setPremiumDayCore", () => {
     expect(result.kind).toBe("error");
     if (result.kind !== "error") return;
     expect(result.message).toContain("update failed");
+  });
+});
+
+// ─── setPremiumDaysBatchCore ──────────────────────────────────────────────────
+
+describe("setPremiumDaysBatchCore", () => {
+  it("non-admin actor → forbidden, no write", async () => {
+    const { client, writes } = makeMockClient({ role: "client" });
+    const result = await setPremiumDaysBatchCore(
+      nonAdminDeps(client),
+      ["2025-12-25", "2025-12-31"],
+      true,
+    );
+    expect(result.kind).toBe("forbidden");
+    expect(writes.update).toBeNull();
+  });
+
+  it("empty dayKeys → validation_error", async () => {
+    const { client } = makeMockClient({ role: "admin" });
+    const result = await setPremiumDaysBatchCore(adminDeps(client), [], true);
+    expect(result.kind).toBe("validation_error");
+  });
+
+  it("admin actor multi-key add → folds all keys, writes union once", async () => {
+    const existing = ["2025-12-25"];
+    const { client, writes } = makeMockClient({
+      role: "admin",
+      holidayDates: existing,
+      settingsId: "row-xyz",
+    });
+    const result = await setPremiumDaysBatchCore(
+      adminDeps(client),
+      ["2025-12-31", "2026-01-01"],
+      true,
+    );
+    expect(result.kind).toBe("success");
+    expect(writes.update?.holiday_dates).toEqual([
+      "2025-12-25",
+      "2025-12-31",
+      "2026-01-01",
+    ]);
+  });
+
+  it("admin actor multi-key remove → folds all keys, writes remainder once", async () => {
+    const existing = ["2025-12-25", "2025-12-31", "2026-01-01"];
+    const { client, writes } = makeMockClient({
+      role: "admin",
+      holidayDates: existing,
+    });
+    const result = await setPremiumDaysBatchCore(
+      adminDeps(client),
+      ["2025-12-25", "2026-01-01"],
+      false,
+    );
+    expect(result.kind).toBe("success");
+    expect(writes.update?.holiday_dates).toEqual(["2025-12-31"]);
   });
 });

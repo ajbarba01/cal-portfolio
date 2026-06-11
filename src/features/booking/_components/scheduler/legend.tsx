@@ -2,11 +2,15 @@
  * Legend — horizontal status color key for the scheduler.
  *
  * Renders four entries (Available, Booked, Unavailable, Selected) each with
- * a color swatch and text label — never color-only. Purely presentational;
- * reads no context. Token-only colors.
+ * a color swatch and text label — never color-only. Reads capabilities from
+ * context to conditionally show the Premium day entry (admin only). Token-only colors.
  */
 
+"use client";
+
+import { Star } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useScheduler } from "@/features/booking/scheduler-context";
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Types
@@ -49,6 +53,8 @@ const ENTRIES = [
 // ──────────────────────────────────────────────────────────────────────────────
 
 export function Legend({ className }: LegendProps) {
+  const { capabilities } = useScheduler();
+
   return (
     <ul
       aria-label="Calendar legend"
@@ -63,6 +69,16 @@ export function Legend({ className }: LegendProps) {
           <span className="text-muted-foreground text-xs">{label}</span>
         </li>
       ))}
+      {capabilities.premiumMarkable && (
+        <li className="flex items-center gap-1.5">
+          <Star
+            aria-hidden="true"
+            size={12}
+            className="text-warning-foreground fill-current"
+          />
+          <span className="text-muted-foreground text-xs">Premium day</span>
+        </li>
+      )}
     </ul>
   );
 }
