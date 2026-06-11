@@ -17,7 +17,7 @@
  *   - the live quote is debounced ~400ms before the server preview fires
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 
 // Router + toast are side-effect sinks the hook only writes to — stub them.
@@ -34,7 +34,9 @@ vi.mock("@/components/feedback/toast", () => ({
 // the REAL implementation — only the IO surface is replaced.
 // vi.hoisted so these exist when the hoisted vi.mock factory below runs.
 const { previewQuoteMock, createBookingMock } = vi.hoisted(() => ({
-  previewQuoteMock: vi.fn(async () => ({ kind: "not_authenticated" })),
+  previewQuoteMock: vi.fn(async (_input: { startsAt: Date }) => ({
+    kind: "not_authenticated",
+  })),
   createBookingMock: vi.fn(),
 }));
 
@@ -60,6 +62,9 @@ vi.mock("@/features/booking/index.client", async (importActual) => {
   };
 });
 
+// denverMidnight is the REAL helper (importActual spread keeps it un-mocked) —
+// used to compute the expected derived instant in the debounce/derivation test.
+import { denverMidnight } from "@/features/booking/index.client";
 import { useServiceBooking } from "./use-service-booking";
 import type { UseServiceBookingInput } from "./use-service-booking";
 
@@ -107,20 +112,35 @@ function meetGreetInput(): UseServiceBookingInput {
 }
 
 const CELL = "2026-07-01@540"; // 09:00 Denver on 2026-07-01
+// The instant a 540-minute cell on 2026-07-01 must derive to (real denverMidnight).
+const EXPECTED_START_MS = denverMidnight("2026-07-01").getTime() + 540 * 60_000;
 
 describe("useServiceBooking (characterization)", () => {
+  beforeEach(() => {
+    previewQuoteMock.mockClear();
+  });
+
   it("derives no selection initially and disables booking", () => {
     const { result } = renderHook(() => useServiceBooking(walkInput()));
     expect(result.current.hasSelection).toBe(false);
     expect(result.current.bookEnabled).toBe(false);
   });
 
-  it("keeps onSelectionChange identity stable across re-render (no render loop)", () => {
+  it("keeps onSelectionChange identity stable across an unrelated state change (no render loop)", () => {
     const { result, rerender } = renderHook(() =>
       useServiceBooking(walkInput()),
     );
     const first = result.current.onSelectionChange;
+    // A plain re-render must not change the identity…
     rerender();
+    expect(result.current.onSelectionChange).toBe(first);
+    // …and neither must a genuine controlled-input state change (which forces a
+    // re-render with new `selectedPetIds`). This is the real guard: it fails if a
+    // future edit adds a per-render-changing dep (selectedPetIds/petsOk/etc.) to
+    // the `useCallback([mode])` in use-booking-scheduler.ts.
+    act(() => {
+      result.current.onPetIdsChange(["pet-1"]);
+    });
     expect(result.current.onSelectionChange).toBe(first);
   });
 
@@ -135,7 +155,7 @@ describe("useServiceBooking (characterization)", () => {
     expect(result.current.hasSelection).toBe(true);
   });
 
-  it("debounces the live quote ~400ms after a selection", async () => {
+  it("debounces the live quote ~400ms and derives the correct startsAt instant", async () => {
     vi.useFakeTimers();
     try {
       const { result } = renderHook(() => useServiceBooking(meetGreetInput()));
@@ -155,6 +175,10 @@ describe("useServiceBooking (characterization)", () => {
         vi.advanceTimersByTime(1);
       });
       expect(previewQuoteMock).toHaveBeenCalledTimes(1);
+      // And it quoted against the correctly-derived (Denver-anchored) instant —
+      // guards the cell-parse + denverMidnight derivation, not just hasSelection.
+      const input = previewQuoteMock.mock.calls[0][0];
+      expect(input.startsAt.getTime()).toBe(EXPECTED_START_MS);
     } finally {
       vi.useRealTimers();
     }

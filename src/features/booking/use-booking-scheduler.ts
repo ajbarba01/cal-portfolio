@@ -80,7 +80,8 @@ function pad(n: number): string {
 function localDayKey(d: Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
-function localDateFromKey(key: string): Date {
+/** Exported so the wrappers' initial-range seeds reuse it (single definition). */
+export function localDateFromKey(key: string): Date {
   const [y, m, d] = key.split("-").map((n) => parseInt(n, 10));
   return new Date(y, m - 1, d);
 }
@@ -90,7 +91,7 @@ function localDateFromKey(key: string): Date {
 export type BookingMode = "week-slots" | "month-range";
 
 // Internal helper to avoid inline ternary repetition (mirrors original logic exactly)
-export function buildCapabilities(mode: BookingMode, durationMin: number) {
+function buildCapabilities(mode: BookingMode, durationMin: number) {
   return mode === "month-range"
     ? BOOK_HOUSE_SITTING_CAPABILITIES
     : {

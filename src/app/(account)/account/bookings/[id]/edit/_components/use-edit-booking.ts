@@ -21,7 +21,7 @@ import {
   useAvailability,
   useBusyRanges,
   useOvernightNights,
-  validateStayRange,
+  localDateFromKey,
   denverMidnight,
   denverDayKey,
   editBooking,
@@ -39,18 +39,12 @@ import type {
   PetSpecies,
   ServiceDetail,
   UseBookingSchedulerReturn,
+  validateStayRange,
 } from "@/features/booking/index.client";
 import type { Pet } from "@/features/accounts";
 import { useToast } from "@/components/feedback/toast";
 import type { DateRange } from "@/components/ui/calendar";
 import type { EditBookingInitial } from "./edit-booking-client";
-
-// ── Local date helper (browser-local calendar key parse; layout, not business rules) ──
-
-function localDateFromKey(key: string): Date {
-  const [y, m, d] = key.split("-").map((n) => parseInt(n, 10));
-  return new Date(y, m - 1, d);
-}
 
 // ── Hook input ────────────────────────────────────────────────────────────────
 
@@ -238,8 +232,8 @@ export function useEditBooking({
     setSelectedPetIds,
     requestQuote,
     onSelectionChange,
-    onQuantitiesChange: schedQuantitiesChange,
-    onPetIdsChange: schedPetIdsChange,
+    onQuantitiesChange,
+    onPetIdsChange,
   } = sched;
 
   // ── Patch diff: include a field ONLY when it differs from the seed ──────────
@@ -399,16 +393,8 @@ export function useEditBooking({
   const step4Label = petAware ? "4" : "3";
 
   // ── Handler adapters for controlled inputs ─────────────────────────────────
-  // Quantities/pets delegate to the shared hook (which triggers the debounce);
-  // comments lives in this wrapper, so it triggers the shared debounce directly.
-  function onQuantitiesChange(s: QuantityState) {
-    schedQuantitiesChange(s);
-  }
-
-  function onPetIdsChange(ids: string[]) {
-    schedPetIdsChange(ids);
-  }
-
+  // Quantities/pets use the shared hook's handlers directly (they trigger the
+  // debounce). Comments lives in this wrapper, so it triggers the debounce here.
   function onCommentsChange(value: string) {
     setComments(value);
     requestQuote();

@@ -20,7 +20,6 @@ import {
   useAvailability,
   useBusyRanges,
   useOvernightNights,
-  validateStayRange,
   createBookingForClient,
   previewQuoteForClient,
   defaultQuantities,
@@ -36,6 +35,7 @@ import type {
   PetSpecies,
   ServiceDetail,
   UseBookingSchedulerReturn,
+  validateStayRange,
 } from "@/features/booking/index.client";
 import type { Pet } from "@/features/accounts";
 import { useToast } from "@/components/feedback/toast";

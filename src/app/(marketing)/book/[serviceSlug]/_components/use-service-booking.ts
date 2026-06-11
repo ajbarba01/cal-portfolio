@@ -21,7 +21,7 @@ import {
   useAvailability,
   useBusyRanges,
   useOvernightNights,
-  validateStayRange,
+  localDateFromKey,
   denverDayKey,
   buildReturnTo,
   previewQuote,
@@ -39,6 +39,7 @@ import type {
   PetSpecies,
   ServiceDetail,
   UseBookingSchedulerReturn,
+  validateStayRange,
 } from "@/features/booking/index.client";
 import type { Pet } from "@/features/accounts";
 import { useToast } from "@/components/feedback/toast";
@@ -49,13 +50,6 @@ import {
 } from "../../_components/messages";
 import type { UserMessage } from "../../_components/messages";
 import type { AuthState, InitialSelection } from "./service-booking-client";
-
-// ── Local date helper (browser-local calendar key parse; layout, not business rules) ──
-
-function localDateFromKey(key: string): Date {
-  const [y, m, d] = key.split("-").map((n) => parseInt(n, 10));
-  return new Date(y, m - 1, d);
-}
 
 // ── Hook input (mirrors the component props that drive logic) ─────────────────
 
