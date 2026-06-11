@@ -18,7 +18,10 @@ import {
 
 import { assertActorIsAdmin } from "@/lib/admin-guard";
 import { getActorOrRedirect } from "@/lib/admin-session";
-import { outstandingBalanceCents } from "@/features/payments";
+import {
+  outstandingBalanceCents,
+  type BookingPaymentStatus,
+} from "@/features/payments";
 import { deriveMeetGreetUpcoming } from "@/features/booking";
 
 const SIGNED_URL_TTL_SECONDS = 60 * 60;
@@ -163,6 +166,11 @@ export interface ClientBookingRow {
   starts_at: string;
   ends_at: string;
   final_cents: number;
+  payment_status: BookingPaymentStatus;
+  refunded_cents: number;
+  disputed_at: string | null;
+  dispute_status: string | null;
+  payment_intent_id: string | null;
 }
 
 export interface ClientDebitRow {
@@ -249,9 +257,55 @@ export async function getClientDetailCore(
 
   const { data: bookings } = await serviceClient
     .from("bookings")
-    .select("id, status, starts_at, ends_at, final_cents, services(name)")
+    .select(
+      "id, status, starts_at, ends_at, final_cents, payment_status, services(name)",
+    )
     .eq("client_id", clientId)
     .order("starts_at", { ascending: false });
+
+  // Fetch payment rows for these bookings in one query; pick the live row per
+  // booking (prefer non-failed, most-recent by created_at).
+  const bookingIds = (bookings ?? []).map((b) => b.id as string);
+  const paymentsMap = new Map<
+    string,
+    {
+      stripe_payment_intent_id: string | null;
+      status: string;
+      refunded_cents: number;
+      disputed_at: string | null;
+      dispute_status: string | null;
+    }
+  >();
+  if (bookingIds.length > 0) {
+    const { data: paymentRows } = await serviceClient
+      .from("payments")
+      .select(
+        "booking_id, stripe_payment_intent_id, amount_cents, status, refunded_cents, disputed_at, dispute_status, created_at",
+      )
+      .in("booking_id", bookingIds)
+      .order("created_at", { ascending: false });
+
+    // For each booking pick the live row: prefer non-failed, then fall back to
+    // most-recent. The query is already sorted newest-first so the first
+    // non-failed row wins; if all are failed the first (newest) row is used.
+    for (const row of (paymentRows ?? []) as Array<{
+      booking_id: string;
+      stripe_payment_intent_id: string | null;
+      refunded_cents: number;
+      disputed_at: string | null;
+      dispute_status: string | null;
+      status: string;
+    }>) {
+      const existing = paymentsMap.get(row.booking_id);
+      // Accept first seen (newest) non-failed row; keep existing if it's already
+      // non-failed and this one is failed.
+      if (!existing) {
+        paymentsMap.set(row.booking_id, row);
+      } else if (existing.status === "failed" && row.status !== "failed") {
+        paymentsMap.set(row.booking_id, row);
+      }
+    }
+  }
 
   const { data: debits } = await serviceClient
     .from("client_debits")
@@ -311,6 +365,7 @@ export async function getClientDetailCore(
       const serviceName = Array.isArray(serviceJoin)
         ? (serviceJoin[0]?.name ?? null)
         : (serviceJoin?.name ?? null);
+      const paymentRow = paymentsMap.get(booking.id as string) ?? null;
       return {
         id: booking.id as string,
         service_name: serviceName,
@@ -318,6 +373,19 @@ export async function getClientDetailCore(
         starts_at: booking.starts_at as string,
         ends_at: booking.ends_at as string,
         final_cents: booking.final_cents as number,
+        payment_status:
+          ((booking.payment_status as BookingPaymentStatus | null) ??
+            "unpaid") satisfies BookingPaymentStatus,
+        refunded_cents: paymentRow ? (paymentRow.refunded_cents as number) : 0,
+        disputed_at: paymentRow
+          ? ((paymentRow.disputed_at as string | null) ?? null)
+          : null,
+        dispute_status: paymentRow
+          ? ((paymentRow.dispute_status as string | null) ?? null)
+          : null,
+        payment_intent_id: paymentRow
+          ? ((paymentRow.stripe_payment_intent_id as string | null) ?? null)
+          : null,
       };
     }),
     debits: debitRows,
