@@ -374,6 +374,7 @@ const paymentBookings: Step = {
       intentId: "pi_seed_refunded",
       amountCents: 3500,
       status: "refunded",
+      refundedCents: 3500,
     });
 
     // no-show with outstanding debt → devon's re-booking is debt-gated
@@ -468,6 +469,26 @@ const paymentBookings: Step = {
       paymentStatus: "unpaid",
       finalCents: 3500,
       petKeys: ["rex"],
+    });
+
+    // partially refunded (late-cancelled, 50% retained) — SP4b live-verify target
+    const b9 = mk("pay-partial-refunded", 11);
+    await insertBooking(ctx, b9.key, {
+      clientEmail: "paula@local.test",
+      service: "walk",
+      startsAt: b9.startsAt,
+      endsAt: b9.endsAt,
+      status: "cancelled",
+      paymentStatus: "partially_refunded",
+      finalCents: 3500,
+      petKeys: ["rex"],
+    });
+    await insertPayment(ctx, {
+      bookingKey: b9.key,
+      intentId: "pi_seed_partial_refunded",
+      amountCents: 3500,
+      status: "succeeded",
+      refundedCents: 1750,
     });
   },
 };
