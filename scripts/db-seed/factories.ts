@@ -223,6 +223,8 @@ export async function insertPayment(
     amountCents: number;
     status: "requires_payment" | "succeeded" | "refunded" | "failed";
     refundedCents?: number;
+    disputedAt?: Date;
+    disputeStatus?: string;
   },
 ): Promise<void> {
   const booking = ctx.bookings.get(opts.bookingKey);
@@ -235,8 +237,58 @@ export async function insertPayment(
     currency: "usd",
     status: opts.status,
     refunded_cents: opts.refundedCents ?? 0,
+    disputed_at: opts.disputedAt?.toISOString() ?? null,
+    dispute_status: opts.disputeStatus ?? null,
   });
   if (error) throw new Error(`payment ${opts.intentId}: ${error.message}`);
+}
+
+export async function insertForm(
+  ctx: Ctx,
+  opts: {
+    clientEmail: string;
+    formKey: string;
+    data: Record<string, string>;
+    bookingKey?: string;
+  },
+): Promise<void> {
+  const clientId = ctx.users.get(opts.clientEmail);
+  if (!clientId)
+    throw new Error(`insertForm: unknown client ${opts.clientEmail}`);
+  const bookingId = opts.bookingKey
+    ? (ctx.bookings.get(opts.bookingKey)?.id ?? null)
+    : null;
+  if (opts.bookingKey && !bookingId) {
+    throw new Error(`insertForm: unknown booking ${opts.bookingKey}`);
+  }
+  const { error } = await ctx.db.from("form_responses").insert({
+    client_id: clientId,
+    form_key: opts.formKey,
+    data: opts.data,
+    submitted_at: ctx.now.toISOString(),
+    booking_id: bookingId,
+  });
+  if (error)
+    throw new Error(
+      `insertForm ${opts.clientEmail}/${opts.formKey}: ${error.message}`,
+    );
+}
+
+export async function setPremiumDays(
+  ctx: Ctx,
+  dateKeys: string[],
+): Promise<void> {
+  const { data: row, error: rowErr } = await ctx.db
+    .from("settings")
+    .select("id")
+    .limit(1)
+    .single();
+  if (rowErr || !row) throw new Error(`setPremiumDays: settings row not found`);
+  const { error } = await ctx.db
+    .from("settings")
+    .update({ holiday_dates: dateKeys })
+    .eq("id", row.id);
+  if (error) throw new Error(`setPremiumDays: ${error.message}`);
 }
 
 export async function insertDebit(
