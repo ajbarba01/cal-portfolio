@@ -1,0 +1,90 @@
+<h2>Client detail — the rest of the page</h2>
+<p class="subtitle">Account · Onboarding · Kiche · Pets · Forms. Biggest offender: Forms dumps raw JSON today. No-show is gone from here per the split.</p>
+
+<style>
+  .cmp { display:grid; grid-template-columns:1fr 1.1fr; gap:18px; }
+  @media (max-width:860px){ .cmp{ grid-template-columns:1fr; } }
+  .pane { border:1px solid #d9cdbb; border-radius:14px; background:#fbf7f0; overflow:hidden; }
+  .pane h3 { margin:0; padding:11px 15px; font-size:12px; letter-spacing:.05em; text-transform:uppercase; }
+  .pane.now h3 { background:#efe6d8; color:#8a7a5f; }
+  .pane.new h3 { background:#3f5d4e; color:#f3ede2; }
+  .pane .body { padding:13px 14px; display:flex; flex-direction:column; gap:12px; }
+  .sec { border:1px solid #e3d9c8; border-radius:10px; padding:11px 12px; background:#fff; }
+  .leg { font-size:10.5px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:#a07a4a; margin-bottom:8px; }
+  .kv { display:grid; grid-template-columns:auto 1fr; gap:3px 12px; font-size:12.5px; }
+  .kv dt { color:#8a7a5f; } .kv dd { color:#2b2419; margin:0; }
+  .pre { font-family:ui-monospace,monospace; font-size:11px; color:#6b5d49; background:#f1ece1; border-radius:6px; padding:8px; white-space:pre-wrap; }
+  .toggle { display:inline-flex; align-items:center; gap:8px; font-size:12.5px; }
+  .sw { width:34px; height:19px; border-radius:999px; background:#3f5d4e; position:relative; }
+  .sw::after { content:''; position:absolute; top:2px; right:2px; width:15px; height:15px; border-radius:50%; background:#fff; }
+  .sw.off { background:#d3c7b3; } .sw.off::after { left:2px; right:auto; }
+  .badge { font-size:11px; font-weight:600; border-radius:999px; padding:2px 9px; background:#dfe9df; color:#33614a; }
+  .frow { display:flex; gap:8px; font-size:12.5px; padding:4px 0; border-bottom:1px solid #f0e8d9; }
+  .frow .k { color:#8a7a5f; min-width:130px; } .frow .v { color:#2b2419; font-weight:500; }
+  .note { font-size:11.5px; color:#8a7a5f; }
+  .pet { display:flex; gap:9px; align-items:center; font-size:12.5px; }
+  .av { width:30px; height:30px; border-radius:50%; background:#e7decd; display:flex; align-items:center; justify-content:center; font-size:13px; }
+  .help { font-size:11px; color:#8a7a5f; }
+</style>
+
+<div class="cmp">
+  <div class="pane now">
+    <h3>Current</h3>
+    <div class="body">
+      <div class="sec">
+        <div class="leg">Account</div>
+        <label class="toggle"><input type="checkbox" checked> Kiche discount eligible</label>
+        <p class="note" style="margin-top:6px;">Bare checkbox, no explanation of what Kiche does.</p>
+      </div>
+      <div class="sec">
+        <div class="leg">Forms</div>
+        <div class="pre">{
+  "form_key": "intake",
+  "data": {
+    "vet_name": "Aspen Animal",
+    "emergency_contact": "555-0142",
+    "feeding_notes": "twice daily"
+  }
+}</div>
+        <p class="note" style="margin-top:6px;">Raw JSON.stringify dumped on screen — Cal has to read code.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="pane new">
+    <h3>Proposed</h3>
+    <div class="body">
+      <div class="sec">
+        <div class="leg">Account</div>
+        <dl class="kv">
+          <dt>Email</dt><dd>jane@example.com</dd>
+          <dt>Phone</dt><dd>(555) 014-2200</dd>
+          <dt>Address</dt><dd>14 Pine St, 80401</dd>
+          <dt>Joined</dt><dd>Mar 4, 2026</dd>
+        </dl>
+      </div>
+      <div class="sec">
+        <div class="leg">Onboarding</div>
+        <div style="display:flex;align-items:center;gap:8px;"><span class="badge">Approved</span><span class="note">Meet &amp; greet Dec 12 · done</span></div>
+      </div>
+      <div class="sec">
+        <div class="leg">Kiche discount</div>
+        <div style="display:flex;align-items:center;gap:10px;"><span class="sw"></span> <span>On</span></div>
+        <p class="help" style="margin-top:6px;">Gives this client the friends-of-Kiche rate on every booking. Toggle off to charge standard pricing.</p>
+      </div>
+      <div class="sec">
+        <div class="leg">Pets</div>
+        <div class="pet"><span class="av">🐕</span><div><b>Cooper</b> <span class="note">(dog, Lab)</span><br><span class="note">twice daily feeding</span></div></div>
+      </div>
+      <div class="sec">
+        <div class="leg">Intake form</div>
+        <div class="frow"><span class="k">Vet</span><span class="v">Aspen Animal</span></div>
+        <div class="frow"><span class="k">Emergency contact</span><span class="v">555-0142</span></div>
+        <div class="frow"><span class="k">Feeding notes</span><span class="v">twice daily</span></div>
+        <p class="note" style="margin-top:6px;">Same data as labeled rows — no JSON, no code.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:16px;">Moves: <b>Forms → labeled key/value rows</b> (humanize the form_key into a title, render each answer as Label: Value — no raw JSON) · <b>Kiche → a real toggle + one line explaining what it does</b> · onboarding status reads as a plain badge + meet-greet summary · pets unchanged (already fine). <b>No-show button removed</b> from the Bookings section.</p>

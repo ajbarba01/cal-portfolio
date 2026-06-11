@@ -12,7 +12,10 @@ import { revalidatePath } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/service";
 import { assertActorIsAdmin } from "@/lib/admin-guard";
 import { getActorOrRedirect } from "@/lib/admin-session";
-import { transition } from "@/features/booking";
+import {
+  transition,
+  createSupabaseBookingRepository,
+} from "@/features/booking";
 import { ResendNotifier } from "@/features/notifications";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { BookingEvent, BookingStatus } from "@/features/booking";
@@ -212,6 +215,8 @@ export async function approveBooking(
         const clientEmail = row.profiles?.email;
         const serviceName = row.services?.name ?? "Booking";
         if (clientEmail) {
+          const repo = createSupabaseBookingRepository(serviceClient);
+          const settings = await repo.getSettings();
           const notifier = new ResendNotifier();
           await notifier.notify({
             type: "booking_confirmed",
@@ -221,6 +226,9 @@ export async function approveBooking(
               startsAt: new Date(row.starts_at),
               endsAt: new Date(row.ends_at),
               finalCents: row.final_cents,
+              cancellationFullRefundHours:
+                settings.cancellation_full_refund_hours,
+              lateCancelRefundPct: settings.late_cancel_refund_pct,
             },
           });
         }

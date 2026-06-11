@@ -1,0 +1,68 @@
+<h2>Clients index — filters + sort</h2>
+<p class="subtitle">Already a responsive table with search + inline onboarding. Adds quick filters and sortable columns so Cal can find "who owes" or "who needs onboarding" fast.</p>
+
+<style>
+  .panel { border:1px solid #cdbfa8; border-radius:13px; background:#fbf7f0; overflow:hidden; }
+  .panel h3 { margin:0; padding:10px 14px; font-size:11.5px; letter-spacing:.05em; text-transform:uppercase; background:#3f5d4e; color:#f3ede2; }
+  .bd { padding:13px; }
+  .toolbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:12px; }
+  .ctrl { border:1px solid #cdbfa8; background:#fff; border-radius:7px; padding:6px 10px; font-size:11.5px; color:#2b2419; }
+  .chips { display:flex; gap:6px; flex-wrap:wrap; }
+  .chip { font-size:11px; font-weight:600; border-radius:999px; padding:4px 11px; border:1px solid #cdbfa8; color:#5c5040; background:#fff; }
+  .chip.on { background:#3f5d4e; color:#fff; border-color:#3f5d4e; }
+  .chip.warn.on { background:#9a3120; border-color:#9a3120; }
+  table { width:100%; border-collapse:collapse; font-size:12px; }
+  th { text-align:left; font-size:9.5px; text-transform:uppercase; letter-spacing:.04em; color:#8a6b3a; padding:7px 8px; border-bottom:1px solid #d9cdbb; cursor:pointer; }
+  th .ar { color:#3f5d4e; }
+  td { padding:9px 8px; border-bottom:1px solid #ece4d4; color:#2b2419; }
+  .name { color:#2f5340; font-weight:600; }
+  .sub { color:#5c5040; font-size:11px; }
+  .owe { color:#9a3120; font-weight:700; }
+  .sel { font-size:10.5px; border:1px solid #cdbfa8; border-radius:6px; padding:2px 7px; color:#2b2419; background:#fff; }
+  .pill { font-size:10px; font-weight:600; border-radius:999px; padding:2px 8px; }
+  .p-app { background:#d6e3d6; color:#2f5340; } .p-pend { background:#f3e7cd; color:#946a1c; }
+  .ro { font-size:10.5px; color:#5c5040; font-style:italic; margin-top:10px; }
+</style>
+
+<div class="panel">
+  <h3>Clients</h3>
+  <div class="bd">
+    <div class="toolbar">
+      <span class="ctrl">🔍 Search name, email, phone…</span>
+      <span class="chips" style="margin-left:auto;">
+        <span class="chip on">All</span>
+        <span class="chip warn">Owing</span>
+        <span class="chip">Needs onboarding</span>
+        <span class="chip">Active</span>
+      </span>
+    </div>
+    <table>
+      <thead><tr>
+        <th>Name <span class="ar">▲</span></th><th>Contact</th><th>Pets</th><th>Bookings</th><th>Balance</th><th>Onboarding</th>
+      </tr></thead>
+      <tbody>
+        <tr>
+          <td class="name">Jane Doe</td>
+          <td class="sub">jane@example.com<br>(555) 014-2200</td>
+          <td>2</td><td>7</td><td class="owe">$45.00</td>
+          <td><span class="sel">Approved ▾</span></td>
+        </tr>
+        <tr>
+          <td class="name">Sam Reyes</td>
+          <td class="sub">sam@example.com</td>
+          <td>1</td><td>3</td><td>—</td>
+          <td><span class="sel">Meet &amp; greet ▾</span></td>
+        </tr>
+        <tr>
+          <td class="name">Pat Lin</td>
+          <td class="sub">pat@example.com<br>(555) 200-7788</td>
+          <td>3</td><td>0</td><td>—</td>
+          <td><span class="sel">Info pending ▾</span></td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="ro">Filter chips (Owing / Needs onboarding / Active) + sortable headers (name, balance, bookings). Onboarding stays the inline settable dropdown. Mobile keeps the stacked-card layout (existing pattern). Name links to the client detail.</p>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:14px;">Light pass — the table's already good. New: quick filters to triage (who owes, who's mid-onboarding) and column sorting. The "Owing" chip mirrors the dashboard's "clients owing a balance" count. Anything you'd add — e.g. a way to create a client manually for phone bookings?</p>

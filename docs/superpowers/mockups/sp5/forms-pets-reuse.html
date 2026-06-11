@@ -1,0 +1,82 @@
+<h2>Forms &amp; Pets — reuse the account components, profile-scoped</h2>
+<p class="subtitle">Same FormCard + PetItem/PetForm the client uses, pointed at the target client. Kills the JSON dump, unifies the UI, and fixes AD2 (add-pet scoping) by construction.</p>
+
+<style>
+  .pane { border:1px solid #cdbfa8; border-radius:14px; background:#fbf7f0; overflow:hidden; max-width:560px; }
+  .pane h3 { margin:0; padding:11px 15px; font-size:12px; letter-spacing:.05em; text-transform:uppercase; background:#3f5d4e; color:#f3ede2; }
+  .pane .body { padding:14px; display:flex; flex-direction:column; gap:16px; }
+  .leg { font-size:10.5px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:#8a6b3a; margin-bottom:9px; }
+  .card { border:1px solid #d9cdbb; border-radius:11px; background:#fff; overflow:hidden; margin-bottom:9px; }
+  .card:last-child { margin-bottom:0; }
+  .ch { display:flex; align-items:center; gap:10px; padding:10px 12px; }
+  .ttl { font-size:13px; font-weight:600; color:#2b2419; }
+  .status { font-size:11px; display:inline-flex; align-items:center; gap:5px; color:#33614a; font-weight:600; }
+  .dot { width:6px; height:6px; border-radius:50%; background:#33614a; display:inline-block; }
+  .btn { font-size:11.5px; font-weight:600; border-radius:7px; padding:5px 11px; border:1px solid #cdbfa8; color:#5c5040; }
+  .right { margin-left:auto; display:flex; gap:6px; }
+  .cbody { border-top:1px solid #e8ddc9; background:#faf4ea; padding:11px 12px; }
+  .frow { display:flex; gap:8px; font-size:12.5px; padding:4px 0; }
+  .frow .k { color:#6b5d49; min-width:150px; } .frow .v { color:#2b2419; font-weight:500; }
+  .pet { display:flex; align-items:center; gap:10px; padding:10px 12px; }
+  .av { width:34px; height:34px; border-radius:50%; background:#e7decd; display:flex; align-items:center; justify-content:center; font-size:15px; }
+  .pid { font-size:13px; font-weight:600; color:#2b2419; }
+  .psub { font-size:11px; color:#5c5040; }
+  .car { color:#6b5d49; transition:transform .15s; }
+  .open .car { transform:rotate(90deg); }
+  .note { font-size:11.5px; color:#5c5040; }
+  .ad2 { font-size:11.5px; color:#3f5d4e; background:#eef3ee; border:1px solid #cfdccd; border-radius:8px; padding:8px 10px; }
+</style>
+
+<div class="pane">
+  <h3>Client · Jane Doe</h3>
+  <div class="body">
+
+    <div>
+      <div class="leg">Forms <span class="note">(reuses account FormCard)</span></div>
+      <div class="card open">
+        <div class="ch">
+          <span class="ttl">Emergency contact &amp; vet info</span>
+          <span class="status"><span class="dot"></span> Completed</span>
+          <span class="right"><span class="btn">Edit</span></span>
+        </div>
+        <div class="cbody">
+          <div class="frow"><span class="k">Contact name</span><span class="v">Mark Doe</span></div>
+          <div class="frow"><span class="k">Contact phone</span><span class="v">(555) 014-2200</span></div>
+          <div class="frow"><span class="k">Relationship</span><span class="v">Spouse</span></div>
+          <div class="frow"><span class="k">Vet</span><span class="v">Aspen Animal Clinic</span></div>
+          <div class="frow"><span class="k">Vet phone</span><span class="v">(555) 030-1180</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="leg">Pets <span class="note">(reuses PetItem + PetForm)</span></div>
+      <div class="card open">
+        <div class="ch">
+          <span class="av">🐕</span>
+          <div><div class="pid">Cooper</div><div class="psub">Dog · Labrador</div></div>
+          <span class="right"><span class="btn">Edit</span><span class="car">▸</span></span>
+        </div>
+        <div class="cbody">
+          <div class="frow"><span class="k">Feeding</span><span class="v">Twice daily, ½ cup</span></div>
+          <div class="frow"><span class="k">Notes</span><span class="v">Friendly, pulls on leash</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="ch">
+          <span class="av">🐈</span>
+          <div><div class="pid">Mittens</div><div class="psub">Cat · Tabby</div></div>
+          <span class="right"><span class="btn">Edit</span><span class="car">▸</span></span>
+        </div>
+      </div>
+      <div style="margin-top:9px; display:flex; gap:8px; align-items:center;">
+        <span class="btn" style="border-color:#3f5d4e; color:#3f5d4e;">＋ Add a pet</span>
+        <span class="note">→ opens PetForm bound to Jane's profile</span>
+      </div>
+      <div class="ad2" style="margin-top:10px;">✓ <b>AD2 fixed by construction:</b> the Add-a-pet form is the shared PetForm scoped to this client — it can't bind to the wrong profile.</div>
+    </div>
+
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:16px;">Forms collapsed-by-default with identity in the header (here expanded to show the viewer); pets get the same collapse — avatar + name + species always visible, breed/feeding/notes/medical behind the toggle. Add-a-pet and Edit reuse the account <code>PetForm</code>. One component family, two zones, AA contrast. The admin variant defaults to view with an Edit affordance (admin edit-any).</p>

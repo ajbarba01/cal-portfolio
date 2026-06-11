@@ -126,7 +126,7 @@ export async function insertBooking(
       | "declined"
       | "cancelled"
       | "no_show";
-    paymentStatus?: "unpaid" | "paid" | "refunded";
+    paymentStatus?: "unpaid" | "paid" | "partially_refunded" | "refunded";
     finalCents: number;
     seriesKey?: string;
     petKeys?: string[];
@@ -222,6 +222,7 @@ export async function insertPayment(
     intentId: string;
     amountCents: number;
     status: "requires_payment" | "succeeded" | "refunded" | "failed";
+    refundedCents?: number;
   },
 ): Promise<void> {
   const booking = ctx.bookings.get(opts.bookingKey);
@@ -233,6 +234,7 @@ export async function insertPayment(
     amount_cents: opts.amountCents,
     currency: "usd",
     status: opts.status,
+    refunded_cents: opts.refundedCents ?? 0,
   });
   if (error) throw new Error(`payment ${opts.intentId}: ${error.message}`);
 }

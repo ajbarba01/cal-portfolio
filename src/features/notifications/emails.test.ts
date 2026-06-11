@@ -21,6 +21,8 @@ describe("buildBookingConfirmationEmail", () => {
     startsAt: KNOWN_START_UTC,
     endsAt: KNOWN_END_UTC,
     finalCents: 6500,
+    cancellationFullRefundHours: 48,
+    lateCancelRefundPct: 50,
   };
 
   it("has the correct recipient", () => {
@@ -58,6 +60,37 @@ describe("buildBookingConfirmationEmail", () => {
     const msg = buildBookingConfirmationEmail(input);
     expect(msg.html).toContain("Dog Walk");
     expect(msg.text).toContain("Dog Walk");
+  });
+
+  it("renders the payment policy from settings (not hardcoded), first-person", () => {
+    const msg = buildBookingConfirmationEmail({
+      to: "c@example.com",
+      serviceName: "Dog Walk",
+      startsAt: new Date("2026-07-01T15:00:00Z"),
+      endsAt: new Date("2026-07-01T16:00:00Z"),
+      finalCents: 6000,
+      cancellationFullRefundHours: 48,
+      lateCancelRefundPct: 50,
+    });
+    expect(msg.text).toContain("48");
+    expect(msg.text).toContain("50%");
+    expect(msg.text.toLowerCase()).toContain("prepay");
+    expect(msg.html).toContain("48");
+    expect(msg.html).toContain("50%");
+  });
+
+  it("reflects different settings values verbatim", () => {
+    const msg = buildBookingConfirmationEmail({
+      to: "c@example.com",
+      serviceName: "Dog Walk",
+      startsAt: new Date("2026-07-01T15:00:00Z"),
+      endsAt: new Date("2026-07-01T16:00:00Z"),
+      finalCents: 6000,
+      cancellationFullRefundHours: 24,
+      lateCancelRefundPct: 75,
+    });
+    expect(msg.text).toContain("24");
+    expect(msg.text).toContain("75%");
   });
 });
 

@@ -1,0 +1,77 @@
+<h2>SP5b — the attention layer</h2>
+<p class="subtitle">Nav badges (AD5) + a task-centric dashboard + the AD1 conflict resolver (new series_conflicts table). "What needs Cal now."</p>
+
+<style>
+  .wrap { display:grid; grid-template-columns:170px 1fr; gap:14px; }
+  @media (max-width:760px){ .wrap{ grid-template-columns:1fr; } }
+  .nav { border:1px solid #cdbfa8; border-radius:12px; background:#fbf7f0; padding:9px; }
+  .navitem { display:flex; align-items:center; gap:9px; padding:8px 10px; border-radius:8px; font-size:12.5px; color:#2b2419; margin-bottom:2px; }
+  .navitem.on { background:#e4ece4; color:#2f5340; font-weight:700; }
+  .badge { margin-left:auto; min-width:18px; height:18px; padding:0 5px; border-radius:999px; background:#b6802f; color:#fff; font-size:10.5px; font-weight:700; display:flex; align-items:center; justify-content:center; }
+  .badge.alert { background:#9a3120; }
+  svg { width:15px; height:15px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+  .main { display:flex; flex-direction:column; gap:13px; }
+  .h1 { font-size:17px; font-weight:700; color:#2b2419; font-family:Georgia,serif; }
+  .attn { border:1px solid #e3c79a; border-radius:12px; background:#fdf8ee; overflow:hidden; }
+  .attn .t { padding:9px 13px; font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:#946a1c; font-weight:700; background:#f7eed8; }
+  .arow { display:flex; align-items:center; gap:11px; padding:11px 13px; border-bottom:1px solid #f0e3cb; }
+  .arow:last-child { border-bottom:none; }
+  .acount { font-size:22px; font-weight:800; color:#2b2419; min-width:30px; }
+  .albl { font-size:12.5px; color:#2b2419; font-weight:600; } .asub { font-size:11px; color:#5c5040; }
+  .go { margin-left:auto; font-size:11.5px; color:#3f5d4e; font-weight:700; }
+  .albl.danger { color:#9a3120; }
+  .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+  @media (max-width:620px){ .grid{ grid-template-columns:repeat(2,1fr); } }
+  .stat { border:1px solid #d9cdbb; border-radius:11px; background:#fff; padding:11px 12px; }
+  .stat .n { font-size:19px; font-weight:700; color:#2b2419; } .stat .l { font-size:11px; color:#5c5040; }
+  .conf { border:1px solid #e3a99a; border-radius:12px; background:#fff; overflow:hidden; }
+  .conf .t { padding:9px 13px; font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:#9a3120; font-weight:700; background:#f7e0db; display:flex; align-items:center; gap:7px; }
+  .crow { padding:11px 13px; border-bottom:1px solid #f0e8d9; }
+  .crow:last-child { border-bottom:none; }
+  .cwho { font-size:12.5px; font-weight:700; color:#2b2419; }
+  .cwhy { font-size:11.5px; color:#5c5040; margin:3px 0 8px; }
+  .b { font-size:11px; font-weight:600; border-radius:7px; padding:5px 11px; }
+  .b.solid { background:#3f5d4e; color:#fff; } .b.ghost { border:1px solid #cdbfa8; color:#5c5040; }
+  .ro { font-size:10.5px; color:#5c5040; font-style:italic; }
+</style>
+
+<div class="wrap">
+  <nav class="nav">
+    <div class="navitem on"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg> Dashboard</div>
+    <div class="navitem"><svg viewBox="0 0 24 24"><path d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg> Bookings <span class="badge">2</span></div>
+    <div class="navitem"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/></svg> Availability</div>
+    <div class="navitem"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg> Clients</div>
+    <div class="navitem"><svg viewBox="0 0 24 24"><path d="M4 4h16v12H5.2L4 17.2z"/></svg> Inquiries <span class="badge">3</span></div>
+    <div class="navitem"><svg viewBox="0 0 24 24"><path d="m12 2 3 6 6 .9-4.5 4.3 1 6L12 17l-5.5 3 1-6L3 8.9 9 8z"/></svg> Reviews</div>
+    <div class="navitem"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.6-2-3.4-2.4 1a7 7 0 0 0-1.7-1L16.5 3h-4l-.4 2.6a7 7 0 0 0-1.7 1l-2.4-1-2 3.4 2 1.6a7 7 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 1.7 1l.4 2.6h4l.4-2.6a7 7 0 0 0 1.7-1l2.4 1 2-3.4-2-1.6a7 7 0 0 0 .1-1z"/></svg> Settings</div>
+  </nav>
+
+  <div class="main">
+    <div class="h1">Good morning, Cal</div>
+
+    <div class="attn">
+      <div class="t">Needs your attention</div>
+      <div class="arow"><span class="acount">2</span><div><div class="albl">Bookings awaiting approval</div><div class="asub">Oldest waiting 1 day</div></div><span class="go">Review →</span></div>
+      <div class="arow"><span class="acount">3</span><div><div class="albl">New inquiries</div><div class="asub">From the contact form</div></div><span class="go">Open →</span></div>
+      <div class="arow"><span class="acount" style="color:#9a3120">1</span><div><div class="albl danger">Recurring conflict</div><div class="asub">A repeat booking couldn't be scheduled</div></div><span class="go" style="color:#9a3120">Resolve →</span></div>
+    </div>
+
+    <div class="conf">
+      <div class="t"><svg viewBox="0 0 24 24" style="stroke:#9a3120"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg> Recurring conflicts · 1 unresolved</div>
+      <div class="crow">
+        <div class="cwho">Jane Doe · weekly Dog Walk</div>
+        <div class="cwhy">Tue Jan 13, 2:00 PM couldn't be booked — that slot is already taken. The rest of the series rolled fine.</div>
+        <div style="display:flex; gap:7px;"><span class="b solid">Pick another time</span><span class="b ghost">Dismiss</span></div>
+      </div>
+      <div style="padding:8px 13px;"><span class="ro">Persisted to a new <code>series_conflicts</code> table — the roll cron records the 23P01 instead of only logging. Resolving reschedules that occurrence or dismisses the record.</span></div>
+    </div>
+
+    <div class="grid">
+      <div class="stat"><div class="n">4</div><div class="l">Bookings today</div></div>
+      <div class="stat"><div class="n">1</div><div class="l">Clients owing a balance</div></div>
+      <div class="stat"><div class="n">2</div><div class="l">Pending reviews</div></div>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:14px;">AD5: nav badges wired from real AttentionCounts {pendingApprovals, newInquiries, flaggedConflicts} — gold for "do something", red reserved for conflicts. Dashboard splits into <b>Needs your attention</b> (actionable, links to filtered views) vs quieter at-a-glance stats. AD1: the new conflict resolver (persisted, with Pick-another-time / Dismiss). Good?</p>

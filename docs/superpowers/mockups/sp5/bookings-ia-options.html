@@ -1,0 +1,59 @@
+<h2>How should booking viewing &amp; management be organized?</h2>
+<p class="subtitle">Today: 3 moderation surfaces (Availability list, Bookings page, Client detail) + 2 different calendars. Availability's job is <b>painting when Cal is free</b>; bookings are context on it. Pick the model — click one.</p>
+
+<style>
+  .options .sketch { display:flex; gap:6px; margin-top:9px; }
+  .col { border:1px solid #cdbfa8; border-radius:7px; background:#fff; padding:7px; font-size:9.5px; color:#5c5040; flex:1; }
+  .col .t { font-weight:700; color:#2b2419; font-size:9.5px; margin-bottom:5px; text-transform:uppercase; letter-spacing:.03em; }
+  .mini { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; margin-bottom:5px; }
+  .mc { aspect-ratio:1; border-radius:2px; background:#e3dccc; }
+  .mc.b { background:#d3dfeb; }
+  .mc.p { background:#d6e3d6; }
+  .mc.s { box-shadow:inset 0 0 0 1.5px #3f5d4e; }
+  .tag { display:inline-block; background:#eef3ee; color:#3f5d4e; border-radius:4px; padding:1px 5px; font-size:9px; margin:1px 2px 1px 0; }
+  .tag.warn { background:#f7e9d6; color:#946a1c; }
+  .pl { font-size:11.5px; color:#5c5040; margin-top:7px; }
+</style>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Paint-only Availability · Bookings page is the hub <span style="font-size:11px;color:#b6802f">(rec)</span></h3>
+      <p>Availability shows booked days as <b>context</b>; clicking a booked cell gives a <b>read-only inspect</b> (who/what/when/pets) with "Manage →". <b>All moderation moves to the Bookings page</b> (the queue) + client-detail. One management home, one calendar.</p>
+      <div class="sketch">
+        <div class="col"><div class="t">Availability</div><div class="mini"><span class="mc p"></span><span class="mc p"></span><span class="mc b"></span><span class="mc p"></span><span class="mc p s"></span><span class="mc p"></span><span class="mc"></span></div>paint windows · ★ premium<br><span class="tag">inspect only</span></div>
+        <div class="col"><div class="t">Bookings page</div><div class="mini"><span class="mc"></span><span class="mc b"></span><span class="mc"></span><span class="mc b s"></span><span class="mc"></span><span class="mc b"></span><span class="mc"></span></div>filter · search<br><span class="tag warn">approve</span><span class="tag">cancel</span><span class="tag">edit</span></div>
+      </div>
+      <p class="pl">✓ kills duplication · ✓ availability stays focused · approve/decline is a queue task, better on the hub + dashboard</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Manage-on-the-calendar everywhere</h3>
+      <p>Click a booked cell <b>anywhere</b> (Availability or Bookings) → inline manage popover (approve/decline/cancel) right there. No separate lists. Both calendars unify onto the Scheduler so the interaction is identical.</p>
+      <div class="sketch">
+        <div class="col"><div class="t">Availability</div><div class="mini"><span class="mc p"></span><span class="mc b s"></span><span class="mc p"></span><span class="mc p"></span><span class="mc b"></span><span class="mc"></span><span class="mc"></span></div>click cell → <span class="tag warn">approve</span><span class="tag">cancel</span></div>
+        <div class="col"><div class="t">Bookings page</div><div class="mini"><span class="mc b"></span><span class="mc"></span><span class="mc b s"></span><span class="mc"></span><span class="mc b"></span><span class="mc"></span><span class="mc b"></span></div>same popover</div>
+      </div>
+      <p class="pl">✓ manage where you see it · ✗ biggest build (unify two calendars onto Scheduler) · moderation still on two pages</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Availability keeps a focused "needs approval" queue</h3>
+      <p>Availability calendar for painting + a compact list below showing <b>only pending-approval</b> bookings (the ones needing Cal). Full management still on the Bookings page. Removes the redundant all-bookings list but keeps the action Cal cares about on the page.</p>
+      <div class="sketch">
+        <div class="col"><div class="t">Availability</div><div class="mini"><span class="mc p"></span><span class="mc p s"></span><span class="mc b"></span><span class="mc p"></span><span class="mc p"></span><span class="mc"></span><span class="mc"></span></div>paint + <span class="tag warn">2 awaiting approval</span></div>
+        <div class="col"><div class="t">Bookings page</div><div class="mini"><span class="mc b"></span><span class="mc"></span><span class="mc b s"></span><span class="mc"></span><span class="mc b"></span><span class="mc"></span><span class="mc b"></span></div>full management</div>
+      </div>
+      <p class="pl">✓ keeps the urgent action on-page · ~ still two surfaces showing pending · overlaps the SP5b dashboard attention queue</p>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:14px;">I lean <b>A</b>: the Bookings page is already a near-complete hub, approve/decline is really a "what needs me" queue (which the SP5b dashboard surfaces), and it leaves Availability to do its one job well. But you flagged uncertainty — tell me which model fits how you actually work, and whether the two calendars should unify onto the Scheduler (a bigger lift).</p>
