@@ -302,6 +302,11 @@ export interface BookingQuoteArtifacts {
   decision: "auto" | "manual" | "refuse";
   /** Human-readable warnings for admin-skipped gates (empty under client policy). */
   warnings: string[];
+  /**
+   * The validated + coerced create input (schema output: startsAt/endsAt are
+   * Dates). Surfaced so create-core reuses it instead of re-parsing (A16).
+   */
+  input: z.output<typeof createBookingInputSchema>;
 }
 
 export type ArtifactsResult =
@@ -556,6 +561,7 @@ export async function computeBookingArtifacts(
       requiresApproval: requiresApprovalByOccurrence[0],
       decision,
       warnings,
+      input,
     },
   };
 }

@@ -8,7 +8,6 @@ import { CLIENT_POLICY } from "./mutation-policy";
 import { transition } from "./state-machine";
 import {
   computeBookingArtifacts,
-  createBookingInputSchema,
   toRuleSettings,
   passesGuards,
   fitsWindow,
@@ -85,8 +84,8 @@ export async function createBookingCore(
     occurrences,
     requiresApprovalByOccurrence,
   } = result.artifacts;
-  // userId / startsAt / endsAt come from the (already-validated) parsed input.
-  const input = createBookingInputSchema.parse(rawInput);
+  // userId / startsAt / endsAt come from the already-validated parsed input (A16).
+  const { input } = result.artifacts;
   const durationMs = input.endsAt.getTime() - input.startsAt.getTime();
 
   const warnings = [...result.artifacts.warnings];
