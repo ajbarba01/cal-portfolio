@@ -113,4 +113,17 @@ Layer 3 is **wireframe / semantic-token-only** by contract — a design pass lat
 
 ---
 
+## Feedback conventions
+
+Every user action produces visible feedback — nothing silent (enforced sitewide in the cohesion sweep). Which primitive serves which case:
+
+- **Transient async result** (saved, booked, failed) → toast (`useToast`). Type-based duration: success/info auto-dismiss ~5 s; errors are sticky + assertive. Action-bearing toasts pass `timeout: 0` and move focus to the action.
+- **Field / form validation** → inline message next to the field; never a toast alone.
+- **Navigation outcome** (auth redirect-back, post-booking) → route change to a state that visibly reflects the result.
+- **Destructive intent** → `useConfirm` (alertdialog; focus the least-destructive action).
+- **Dead-end page** (no zone nav) → a back affordance (`BackToSite`) so there is always a way back.
+- **Long page** → return-to-top affordance (`BackToTop`).
+
+---
+
 _Last reviewed: 2026-06-10_ (admin responsive table pattern)

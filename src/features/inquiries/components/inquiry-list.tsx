@@ -5,7 +5,7 @@ import * as React from "react";
 import { Search } from "lucide-react";
 
 import { EmptyState } from "@/components/feedback/empty-state";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { useConfirm } from "@/components/feedback/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import type { InquiryRow } from "@/features/inquiries/inquiry-actions";
@@ -56,11 +56,9 @@ export function InquiryList({
 
   const [openId, setOpenId] = React.useState<string | null>(null);
   const [editing, setEditing] = React.useState(false);
-  const [confirmId, setConfirmId] = React.useState<string | null>(null);
-  // Separate in-flight flags so a save never visually disables the resolve
-  // confirm (or vice versa).
-  const [resolving, setResolving] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
+
+  const { confirm, dialog } = useConfirm();
 
   // Edit is only truly available when the consumer both permits it and provides
   // a save handler — otherwise the Edit affordance would silently no-op.
@@ -88,21 +86,15 @@ export function InquiryList({
     setPage(1);
   }
 
-  function requestResolve(inquiry: InquiryRow) {
+  async function requestResolve(inquiry: InquiryRow) {
     setOpenId(null);
     setEditing(false);
-    setConfirmId(inquiry.id);
-  }
-
-  async function confirmResolve() {
-    if (!confirmId) return;
-    setResolving(true);
-    try {
-      const ok = await onResolve(confirmId);
-      if (ok) setConfirmId(null);
-    } finally {
-      setResolving(false);
-    }
+    await confirm({
+      title: resolveTitle,
+      description: resolveDescription,
+      confirmLabel: "Yes, mark resolved",
+      onConfirm: () => onResolve(inquiry.id),
+    });
   }
 
   function openForEdit(inquiry: InquiryRow) {
@@ -246,17 +238,7 @@ export function InquiryList({
         onSave={saveEdit}
       />
 
-      <ConfirmDialog
-        open={confirmId !== null}
-        title={resolveTitle}
-        description={resolveDescription}
-        confirmLabel="Yes, mark resolved"
-        pending={resolving}
-        onConfirm={confirmResolve}
-        onOpenChange={(open) => {
-          if (!open) setConfirmId(null);
-        }}
-      />
+      {dialog}
     </div>
   );
 }
