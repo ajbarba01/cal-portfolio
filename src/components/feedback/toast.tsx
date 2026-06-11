@@ -1,8 +1,38 @@
 "use client";
 
+import * as React from "react";
 import { Toast } from "@base-ui/react/toast";
+import type { ToastManagerAddOptions } from "@base-ui/react/toast";
 import { Check, AlertTriangle, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+type AddOptions = ToastManagerAddOptions<object>;
+
+/**
+ * Applies the type-based duration + ARIA-announcement policy (U7) unless the
+ * caller overrides. Errors are sticky + assertive; everything else inherits the
+ * provider's 5s default and announces politely. Action-bearing toasts should
+ * pass `timeout: 0` explicitly (an interactive toast must persist — a11y rule).
+ */
+export function toastDefaults(opts: AddOptions): AddOptions {
+  const isError = opts.type === "error";
+  return {
+    priority: isError ? "high" : "low",
+    ...(isError ? { timeout: 0 } : {}),
+    ...opts, // explicit caller values win
+  };
+}
+
+export function useToast() {
+  const manager = Toast.useToastManager();
+  return React.useMemo(
+    () => ({
+      ...manager,
+      add: (opts: AddOptions) => manager.add(toastDefaults(opts)),
+    }),
+    [manager],
+  );
+}
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
@@ -12,8 +42,6 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     </Toast.Provider>
   );
 }
-
-export const useToast = Toast.useToastManager;
 
 function Toaster() {
   const { toasts } = Toast.useToastManager();
@@ -33,7 +61,12 @@ function Toaster() {
               key={toast.id}
               toast={toast}
               data-slot="toast"
-              className="bg-card text-card-foreground border-border relative flex items-start gap-3 overflow-hidden rounded-xl border p-3 pr-2 shadow-lg"
+              className={cn(
+                "bg-card text-card-foreground border-border relative flex items-start gap-3 overflow-hidden rounded-xl border p-3 pr-2 shadow-lg",
+                "w-full max-w-sm transition-all duration-300 ease-out",
+                "data-starting-style:translate-y-2 data-starting-style:opacity-0",
+                "data-ending-style:opacity-0 motion-reduce:transition-none",
+              )}
             >
               <span
                 className={cn(
