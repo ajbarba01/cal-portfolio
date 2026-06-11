@@ -5,6 +5,9 @@ export type NavItem = {
 };
 export type ZoneNav = { zoneLabel: string; items: NavItem[] };
 
+/** Keyed by item href. Passed down from a server layout; omitted in account/marketing zones. */
+export type NavBadges = Record<string, { count: number; label: string }>;
+
 export const accountNav: ZoneNav = {
   zoneLabel: "Account",
   items: [

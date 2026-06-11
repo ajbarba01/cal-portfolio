@@ -13,7 +13,12 @@ import {
 } from "@/components/layout/is-active-nav";
 import { navUnderline } from "@/components/layout/nav-underline";
 import { SignOutButton } from "@/components/sign-out-button";
-import type { NavItem, ZoneNav } from "@/components/layout/nav-config";
+import type {
+  NavItem,
+  ZoneNav,
+  NavBadges,
+} from "@/components/layout/nav-config";
+import { NavBadge } from "@/components/ui/nav-badge";
 
 /** Desktop-only centered tab row. */
 export function SiteNavTabs({ links }: { links: NavItem[] }) {
@@ -46,11 +51,13 @@ export function SiteNavTabs({ links }: { links: NavItem[] }) {
 export function SiteNavMobile({
   links,
   zoneNav,
+  navBadges,
   isSignedIn,
   isAdmin,
 }: {
   links: NavItem[];
   zoneNav?: ZoneNav;
+  navBadges?: NavBadges;
   isSignedIn: boolean;
   isAdmin: boolean;
 }) {
@@ -62,6 +69,7 @@ export function SiteNavMobile({
       key={pathname}
       links={links}
       zoneNav={zoneNav}
+      navBadges={navBadges}
       pathname={pathname}
       isSignedIn={isSignedIn}
       isAdmin={isAdmin}
@@ -72,12 +80,14 @@ export function SiteNavMobile({
 function SiteNavMobileDrawer({
   links,
   zoneNav,
+  navBadges,
   pathname,
   isSignedIn,
   isAdmin,
 }: {
   links: NavItem[];
   zoneNav?: ZoneNav;
+  navBadges?: NavBadges;
   pathname: string;
   isSignedIn: boolean;
   isAdmin: boolean;
@@ -119,6 +129,7 @@ function SiteNavMobileDrawer({
                 <ul className="flex flex-col px-2 pb-2">
                   {zoneNav.items.map(({ href, label }) => {
                     const active = isActiveNav(pathname, href);
+                    const badge = navBadges?.[href];
                     return (
                       <li key={href}>
                         <Link
@@ -132,6 +143,13 @@ function SiteNavMobileDrawer({
                           )}
                         >
                           {label}
+                          {badge ? (
+                            <NavBadge
+                              count={badge.count}
+                              label={badge.label}
+                              className="ml-auto"
+                            />
+                          ) : null}
                         </Link>
                       </li>
                     );

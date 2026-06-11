@@ -4,9 +4,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { activeNavHref } from "./is-active-nav";
-import type { ZoneNav } from "./nav-config";
+import type { ZoneNav, NavBadges } from "./nav-config";
 import { Lock, LogOut } from "lucide-react";
 import { SignOutButton } from "@/components/sign-out-button";
+import { NavBadge } from "@/components/ui/nav-badge";
 
 const ONBOARDING_HREF = "/onboarding";
 
@@ -14,11 +15,13 @@ export function AppSidebar({
   nav,
   identity,
   locked = false,
+  navBadges,
 }: {
   nav: ZoneNav;
   identity: string;
   /** When true (account zone, onboarding incomplete), real tabs are disabled and an active "Onboarding" entry is shown. */
   locked?: boolean;
+  navBadges?: NavBadges;
 }) {
   const pathname = usePathname();
 
@@ -55,8 +58,9 @@ export function AppSidebar({
           </Link>
         ) : null}
 
-        {nav.items.map(({ href, label }) =>
-          locked ? (
+        {nav.items.map(({ href, label }) => {
+          const badge = navBadges?.[href];
+          return locked ? (
             <span
               key={href}
               aria-disabled="true"
@@ -80,9 +84,16 @@ export function AppSidebar({
               )}
             >
               {label}
+              {badge ? (
+                <NavBadge
+                  count={badge.count}
+                  label={badge.label}
+                  className="ml-auto"
+                />
+              ) : null}
             </Link>
-          ),
-        )}
+          );
+        })}
       </nav>
       <div className="border-border mt-auto flex flex-col gap-2 border-t p-4">
         <span className="text-muted-foreground text-xs">{identity}</span>

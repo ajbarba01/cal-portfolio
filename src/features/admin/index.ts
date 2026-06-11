@@ -134,6 +134,9 @@ export type { PricingField, FieldKind } from "./pricing-config-fields";
 export type { AttentionCounts } from "./attention-counts";
 export { emptyAttentionCounts } from "./attention-counts";
 
+// attention-counts-query (server-only: fetches live counts for admin layout)
+export { getAttentionCounts } from "./attention-counts-query";
+
 // bookings-view (pure predicates)
 export { filterBookings, daysWithMatch, isolate } from "./bookings-view";
 export type { BookingStatusFilter } from "./bookings-view";
