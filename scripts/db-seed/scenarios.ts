@@ -453,6 +453,22 @@ const paymentBookings: Step = {
       amountCents: 3500,
       status: "failed",
     });
+
+    // prepayable: confirmed + owed, NO payment row — clean target for the live
+    // Prepay verify (mints a REAL Stripe intent on first click, reuses on the
+    // second). The pi_seed_* rows above carry fake intent ids that can't be
+    // retrieved against real Stripe, so they aren't valid Prepay targets.
+    const b8 = mk("pay-prepayable", 9);
+    await insertBooking(ctx, b8.key, {
+      clientEmail: "paula@local.test",
+      service: "walk",
+      startsAt: b8.startsAt,
+      endsAt: b8.endsAt,
+      status: "confirmed",
+      paymentStatus: "unpaid",
+      finalCents: 3500,
+      petKeys: ["rex"],
+    });
   },
 };
 
