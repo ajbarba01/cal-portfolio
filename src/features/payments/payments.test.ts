@@ -11,13 +11,18 @@
  *   4. security / RLS guards (clients cannot write payments or payment_status)
  */
 
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, afterEach } from "vitest";
 import { createClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
 import { runCreatePrepayIntent } from "./create-intent";
 import { applyStripeEvent } from "./webhook-core";
 import { amountOwedCents } from "./projection";
-import type { PaymentGateway, CreatedIntent } from "./types";
+import type {
+  PaymentGateway,
+  CreatedIntent,
+  CreateIntentArgs,
+  RetrievedIntent,
+} from "./types";
 
 const url = process.env.SUPABASE_TEST_URL!;
 const serviceKey = process.env.SUPABASE_TEST_SERVICE_ROLE_KEY!;
@@ -59,15 +64,28 @@ const FAKE_INTENT_ID = `pi_fake_${ts}`;
 const FAKE_SECRET = `pi_fake_${ts}_secret_xyz`;
 
 class FakeGateway implements PaymentGateway {
-  async createIntent(): Promise<CreatedIntent> {
+  public created: CreateIntentArgs[] = [];
+  public canceled: string[] = [];
+  /** intentId → status returned by retrieveIntent (default reusable). */
+  public statuses = new Map<string, string>();
+
+  async createIntent(args: CreateIntentArgs): Promise<CreatedIntent> {
+    this.created.push(args);
+    const paymentIntentId =
+      this.created.length === 1
+        ? FAKE_INTENT_ID
+        : `${FAKE_INTENT_ID}_${this.created.length}`;
+    return { paymentIntentId, clientSecret: FAKE_SECRET };
+  }
+  async refund(): Promise<void> {}
+  async retrieveIntent(id: string): Promise<RetrievedIntent> {
     return {
-      paymentIntentId: FAKE_INTENT_ID,
-      clientSecret: FAKE_SECRET,
+      status: this.statuses.get(id) ?? "requires_payment_method",
+      clientSecret: `${id}_secret_xyz`,
     };
   }
-
-  async refund(): Promise<void> {
-    // no-op for this suite (refund behavior is exercised in the booking tests)
+  async cancelIntent(id: string): Promise<void> {
+    this.canceled.push(id);
   }
 }
 
@@ -427,6 +445,38 @@ describe("applyStripeEvent — webhook projection", () => {
     if (!result.ok) return;
     expect(result.handled).toBe(false);
   });
+
+  it("payment_intent.canceled → payments.status=failed, no booking.status change", async () => {
+    const canceledIntent = `pi_canceled_${ts}`;
+    const b = await seedBooking(userId1, 7000, 500);
+    await seedPayment(b, userId1, canceledIntent, 7000, "requires_payment");
+
+    const result = await applyStripeEvent(serviceClient, {
+      type: "payment_intent.canceled",
+      data: { object: { id: canceledIntent } },
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.handled).toBe(true);
+
+    const { data: payment } = await serviceClient
+      .from("payments")
+      .select("status")
+      .eq("stripe_payment_intent_id", canceledIntent)
+      .single();
+    expect(payment?.status).toBe("failed");
+
+    const { data: booking } = await serviceClient
+      .from("bookings")
+      .select("payment_status, status")
+      .eq("id", b)
+      .single();
+    expect(booking?.payment_status).toBe("unpaid");
+    expect(booking?.status).toBe("confirmed"); // never touched
+
+    await serviceClient.from("payments").delete().eq("booking_id", b);
+    await serviceClient.from("bookings").delete().eq("id", b);
+  });
 });
 
 // ─── 3. Signature verification ────────────────────────────────────────────────
@@ -471,6 +521,119 @@ describe("Stripe signature verification", () => {
     expect(() =>
       stripe.webhooks.constructEvent(payload, header, "whsec_wrong_secret"),
     ).toThrow();
+  });
+});
+
+// ─── 5. Intent reuse (PAY4) ──────────────────────────────────────────────────
+
+describe("runCreatePrepayIntent — intent reuse (PAY4)", () => {
+  let bookingId: string;
+
+  beforeAll(async () => {
+    bookingId = await seedBooking(userId1, 6000, 200);
+  });
+  // CORRECTION 1 (per-test isolation): the three tests share one booking; without
+  // clearing payments between them, tests 2 & 3 would reuse the open row left by a
+  // prior test instead of minting, breaking their assertions. Clear after each.
+  afterEach(async () => {
+    await serviceClient.from("payments").delete().eq("booking_id", bookingId);
+  });
+  afterAll(async () => {
+    await serviceClient.from("payments").delete().eq("booking_id", bookingId);
+    await serviceClient.from("bookings").delete().eq("id", bookingId);
+  });
+
+  it("reuses an open requires_payment intent of the same amount (no new row)", async () => {
+    const gw = new FakeGateway();
+    const first = await runCreatePrepayIntent(
+      { sessionClient: sessionClient1, serviceClient, gateway: gw },
+      bookingId,
+    );
+    expect(first.ok).toBe(true);
+    const second = await runCreatePrepayIntent(
+      { sessionClient: sessionClient1, serviceClient, gateway: gw },
+      bookingId,
+    );
+    expect(second.ok).toBe(true);
+
+    // Only ONE intent was created across two calls.
+    expect(gw.created).toHaveLength(1);
+    // Exactly one requires_payment row exists.
+    const { data: rows } = await serviceClient
+      .from("payments")
+      .select("id, status")
+      .eq("booking_id", bookingId);
+    expect(
+      (rows ?? []).filter((r) => r.status === "requires_payment"),
+    ).toHaveLength(1);
+  });
+
+  it("passes a booking-scoped idempotency key to the gateway", async () => {
+    const gw = new FakeGateway();
+    await runCreatePrepayIntent(
+      { sessionClient: sessionClient1, serviceClient, gateway: gw },
+      bookingId,
+    );
+    expect(gw.created[0]?.idempotencyKey).toMatch(
+      new RegExp(`^prepay:${bookingId}:`),
+    );
+  });
+
+  it("cancels and replaces a stale intent whose status is no longer reusable", async () => {
+    const gw = new FakeGateway();
+    // First call seeds an open intent row.
+    await runCreatePrepayIntent(
+      { sessionClient: sessionClient1, serviceClient, gateway: gw },
+      bookingId,
+    );
+    // Mark that intent unusable (e.g. canceled at Stripe).
+    gw.statuses.set(FAKE_INTENT_ID, "canceled");
+    const again = await runCreatePrepayIntent(
+      { sessionClient: sessionClient1, serviceClient, gateway: gw },
+      bookingId,
+    );
+    expect(again.ok).toBe(true);
+    expect(gw.canceled).toContain(FAKE_INTENT_ID); // stale one canceled
+    expect(gw.created.length).toBeGreaterThanOrEqual(2); // a fresh one minted
+  });
+
+  it("with duplicate open rows, reuses the newest without minting a third", async () => {
+    const gw = new FakeGateway();
+    const older = `pi_dup_old_${ts}`;
+    const newer = `pi_dup_new_${ts}`;
+    // Two open requires_payment rows of the matching amount (defensive: this
+    // shouldn't happen, but the reuse path must take the NEWEST and NOT mint
+    // another — guarding the one place meant to prevent intent proliferation).
+    await serviceClient.from("payments").insert([
+      {
+        booking_id: bookingId,
+        client_id: userId1,
+        stripe_payment_intent_id: older,
+        amount_cents: 6000,
+        currency: "usd",
+        status: "requires_payment",
+        created_at: new Date(Date.now() - 60_000).toISOString(),
+      },
+      {
+        booking_id: bookingId,
+        client_id: userId1,
+        stripe_payment_intent_id: newer,
+        amount_cents: 6000,
+        currency: "usd",
+        status: "requires_payment",
+        created_at: new Date().toISOString(),
+      },
+    ]);
+
+    const result = await runCreatePrepayIntent(
+      { sessionClient: sessionClient1, serviceClient, gateway: gw },
+      bookingId,
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // Reused the newest open intent — no new intent minted.
+    expect(gw.created).toHaveLength(0);
+    expect(result.clientSecret).toBe(`${newer}_secret_xyz`);
   });
 });
 
