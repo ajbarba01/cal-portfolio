@@ -3,6 +3,13 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import {
+  Check,
+  Circle,
+  ExternalLink,
+  RotateCcw,
+  TriangleAlert,
+} from "lucide-react";
 import { useConfirm } from "@/components/feedback/confirm-dialog";
 import { useToast } from "@/components/feedback/toast";
 import { Badge } from "@/components/ui/badge";
@@ -13,17 +20,59 @@ import {
   setKicheAllowed,
   settleDebit,
   OnboardingStatusSelect,
-  onboardingStatusLabel,
-  onboardingStatusBadgeVariant,
+  adminCreatePet,
+  adminUpdatePet,
+  adminUploadPetPhoto,
+  adminSubmitForm,
   type ClientDetailView,
 } from "@/features/admin";
 import {
-  PetAvatar,
-  cancelBooking,
-  markNoShow,
-} from "@/features/booking/index.client";
+  paymentPill,
+  retainedHalfLabel,
+  disputeLabel,
+} from "@/features/payments";
+import { cancelBooking } from "@/features/booking/index.client";
+import {
+  FormCard,
+  PetList,
+  type PetViewLike,
+} from "@/features/accounts/index.client";
+import type { PetFormActions } from "@/features/accounts/index.client";
+import type { ActionResult } from "@/features/accounts/index.client";
+import type { FormKey } from "@/features/accounts/index.client";
+
+// ─── Editable booking statuses ───────────────────────────────────────────────
 
 const EDITABLE = new Set(["pending_approval", "confirmed"]);
+
+// ─── Status label maps ────────────────────────────────────────────────────────
+
+const BOOKING_STATUS_LABELS: Record<string, string> = {
+  pending_approval: "Pending approval",
+  confirmed: "Confirmed",
+  cancelled: "Cancelled",
+  declined: "Declined",
+  completed: "Completed",
+};
+
+function bookingStatusLabel(status: string): string {
+  return BOOKING_STATUS_LABELS[status] ?? status.replace(/_/g, " ");
+}
+
+const DEBIT_REASON_LABELS: Record<string, string> = {
+  no_show: "No-show charge",
+  late_cancel: "Late cancellation",
+  damage: "Damage charge",
+  other: "Other charge",
+};
+
+function debitReasonLabel(reason: string): string {
+  if (reason in DEBIT_REASON_LABELS) return DEBIT_REASON_LABELS[reason];
+  // Title-case fallback
+  return reason.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+// ─── Formatting helpers ───────────────────────────────────────────────────────
 
 function dollars(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
@@ -37,10 +86,37 @@ function denver(iso: string): string {
   });
 }
 
+// ─── Token classes ────────────────────────────────────────────────────────────
+
 const SECTION =
   "bg-card border-border flex flex-col gap-3 rounded-xl border p-4";
 const LEGEND =
   "text-brand-strong text-xs font-semibold tracking-wide uppercase";
+
+// ─── Payment pill ─────────────────────────────────────────────────────────────
+
+const PAYMENT_PILL_CLASSES: Record<
+  "unpaid" | "paid" | "partial" | "refunded",
+  string
+> = {
+  paid: "bg-status-available text-status-available-foreground",
+  partial: "bg-warning text-warning-foreground",
+  refunded: "bg-status-unavailable text-status-unavailable-foreground",
+  unpaid: "bg-muted text-muted-foreground",
+};
+
+function PaymentPillIcon({
+  tone,
+}: {
+  tone: "unpaid" | "paid" | "partial" | "refunded";
+}) {
+  if (tone === "paid") return <Check className="size-3" aria-hidden="true" />;
+  if (tone === "partial" || tone === "refunded")
+    return <RotateCcw className="size-3" aria-hidden="true" />;
+  return <Circle className="size-3" aria-hidden="true" />;
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
 
 export function ClientDetailClient({ client }: { client: ClientDetailView }) {
   const router = useRouter();
@@ -89,19 +165,42 @@ export function ClientDetailClient({ client }: { client: ClientDetailView }) {
     run(() => cancelBooking({ bookingId: id }));
   }
 
-  async function onNoShow(id: string) {
-    const isConfirmed = await confirm({
-      title: "Mark no-show?",
-      description: "This records a no-show and writes a debit per policy.",
-      confirmLabel: "Mark no-show",
-      destructive: true,
-    });
-    if (!isConfirmed) return;
-    run(() => markNoShow(id));
-  }
-
   const meetGreetBooking =
     client.bookings.find((b) => b.service_name === "Meet & Greet") ?? null;
+
+  // ─── Admin pet actions (on-behalf) ──────────────────────────────────────────
+
+  const adminPetActions: PetFormActions = {
+    create: async (input) => {
+      const r = await adminCreatePet(client.id, input);
+      if (r.kind === "forbidden")
+        return { kind: "error", message: "Not allowed" };
+      return r;
+    },
+    update: async (petId, input): Promise<ActionResult> => {
+      const r = await adminUpdatePet(client.id, petId, input);
+      if (r.kind === "forbidden")
+        return { kind: "error", message: "Not allowed" };
+      return r;
+    },
+    uploadPhoto: async (petId, file): Promise<ActionResult> => {
+      const r = await adminUploadPetPhoto(client.id, petId, file);
+      if (r.kind === "forbidden")
+        return { kind: "error", message: "Not allowed" };
+      return r;
+    },
+  };
+
+  // Adapt ClientPet[] → PetViewLike[] (ClientPet already has photoUrl)
+  const petsForList: PetViewLike[] = client.pets.map((p) => ({
+    id: p.id,
+    name: p.name,
+    species: p.species,
+    breed: p.breed,
+    notes: p.notes,
+    photo_url: null, // photo_url not surfaced on ClientPet; photoUrl is the signed URL
+    photoUrl: p.photoUrl,
+  }));
 
   return (
     <div className="flex flex-col gap-4">
@@ -112,6 +211,7 @@ export function ClientDetailClient({ client }: { client: ClientDetailView }) {
         </p>
       ) : null}
 
+      {/* Account */}
       <section className={SECTION}>
         <p className={LEGEND}>Account</p>
         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
@@ -126,33 +226,55 @@ export function ClientDetailClient({ client }: { client: ClientDetailView }) {
           <dt className="text-muted-foreground">Joined</dt>
           <dd>{denver(client.created_at)}</dd>
         </dl>
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={isKicheAllowed}
-            disabled={isPending}
-            onChange={toggleKiche}
-          />
-          Kiche discount eligible
-        </label>
       </section>
 
+      {/* Kiche discount — own card with switch + explanation */}
+      <section className={SECTION}>
+        <p className={LEGEND}>Kiche discount</p>
+        <div className="flex items-center gap-3">
+          {/* Accessible switch */}
+          <button
+            type="button"
+            role="switch"
+            aria-checked={isKicheAllowed}
+            aria-label="Kiche discount"
+            disabled={isPending}
+            onClick={toggleKiche}
+            className={[
+              "relative inline-flex h-6 w-10 shrink-0 cursor-pointer items-center rounded-full transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
+              "focus-visible:ring-ring",
+              isKicheAllowed ? "bg-brand" : "bg-muted-foreground",
+              isPending ? "cursor-not-allowed opacity-50" : "",
+            ].join(" ")}
+          >
+            <span
+              aria-hidden="true"
+              className={[
+                "pointer-events-none inline-block size-5 rounded-full bg-white shadow-sm transition-transform",
+                isKicheAllowed ? "translate-x-4" : "translate-x-0.5",
+              ].join(" ")}
+            />
+          </button>
+          <span className="text-sm font-medium">
+            {isKicheAllowed ? "On" : "Off"}
+          </span>
+        </div>
+        <p className="text-muted-foreground text-xs">
+          Gives this client the friends-of-Kiche rate on every booking. Toggle
+          off to charge standard pricing.
+        </p>
+      </section>
+
+      {/* Onboarding */}
       <section className={SECTION}>
         <p className={LEGEND}>Onboarding</p>
-        <div className="flex items-center gap-2 text-sm">
-          <Badge
-            variant={onboardingStatusBadgeVariant(client.onboarding_status)}
-          >
-            {onboardingStatusLabel(client.onboarding_status)}
-          </Badge>
-        </div>
         {meetGreetBooking ? (
           <p className="text-muted-foreground text-sm">
             Meet &amp; greet:{" "}
             <span className="text-foreground font-medium">
               {denver(meetGreetBooking.starts_at)}
             </span>{" "}
-            &middot; {meetGreetBooking.status}
+            &middot; {bookingStatusLabel(meetGreetBooking.status)}
           </p>
         ) : null}
         {client.onboarding_status === "info_pending" ? (
@@ -167,149 +289,203 @@ export function ClientDetailClient({ client }: { client: ClientDetailView }) {
         />
       </section>
 
+      {/* Pets */}
       <section className={SECTION}>
-        <p className={LEGEND}>Pets</p>
+        <p className={LEGEND}>
+          Pets{" "}
+          {client.pets.length > 0 ? (
+            <span className="text-muted-foreground font-normal tracking-normal normal-case">
+              ({client.pets.length})
+            </span>
+          ) : null}
+        </p>
         {client.pets.length === 0 ? (
-          <p className="text-muted-foreground text-sm">No pets.</p>
-        ) : (
-          <ul className="flex flex-col gap-2">
-            {client.pets.map((pet) => (
-              <li key={pet.id} className="flex items-start gap-3 text-sm">
-                <PetAvatar
-                  name={pet.name}
-                  species={pet.species}
-                  photoUrl={pet.photoUrl}
-                  size={36}
-                />
-                <div>
-                  <p className="font-medium">
-                    {pet.name}{" "}
-                    <span className="text-muted-foreground font-normal">
-                      ({pet.species}
-                      {pet.breed ? `, ${pet.breed}` : ""})
-                    </span>
-                  </p>
-                  {pet.notes ? (
-                    <p className="text-muted-foreground whitespace-pre-wrap">
-                      {pet.notes}
-                    </p>
-                  ) : null}
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
+          <p className="text-muted-foreground text-sm">No pets on file.</p>
+        ) : null}
+        <PetList
+          pets={petsForList}
+          onChanged={router.refresh}
+          actions={adminPetActions}
+          // No onDelete → Delete button is suppressed in admin zone
+        />
       </section>
 
+      {/* Forms */}
       <section className={SECTION}>
-        <p className={LEGEND}>Forms</p>
+        <p className={LEGEND}>
+          Forms{" "}
+          {client.forms.length > 0 ? (
+            <span className="text-muted-foreground font-normal tracking-normal normal-case">
+              ({client.forms.length} on file)
+            </span>
+          ) : null}
+        </p>
         {client.forms.length === 0 ? (
-          <p className="text-muted-foreground text-sm">No form responses.</p>
+          <p className="text-muted-foreground text-sm">No forms on file.</p>
         ) : (
-          <ul className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2">
             {client.forms.map((form) => (
-              <li key={form.id} className="text-sm">
-                <p className="font-medium">{form.form_key}</p>
-                <pre className="bg-muted/40 text-muted-foreground overflow-x-auto rounded p-2 text-xs">
-                  {JSON.stringify(form.data, null, 2)}
-                </pre>
-              </li>
+              <FormCard
+                key={form.id}
+                formKey={form.form_key as FormKey}
+                existing={{ data: form.data as Record<string, unknown> }}
+                onSubmit={async (fk, vals) => {
+                  const r = await adminSubmitForm(client.id, fk, vals);
+                  if (r.kind === "forbidden") {
+                    return { kind: "error", message: "Not allowed" };
+                  }
+                  if (r.kind === "success") {
+                    router.refresh();
+                    return { kind: "success" };
+                  }
+                  return r;
+                }}
+              />
             ))}
-          </ul>
+          </div>
         )}
       </section>
 
+      {/* Bookings */}
       <section className={SECTION}>
         <p className={LEGEND}>Bookings</p>
         {client.bookings.length === 0 ? (
           <p className="text-muted-foreground text-sm">No bookings.</p>
         ) : (
           <ul className="flex flex-col gap-2">
-            {client.bookings.map((booking) => (
-              <li
-                key={booking.id}
-                className="border-border/60 flex flex-wrap items-center gap-2 border-b pb-2 text-sm"
-              >
-                <span className="font-medium">
-                  {booking.service_name ?? "Service"}
-                </span>
-                <Badge
-                  variant={
-                    booking.status === "pending_approval"
-                      ? "pending"
-                      : "default"
-                  }
+            {client.bookings.map((booking) => {
+              const pill = paymentPill(booking.payment_status);
+              const pillClasses = PAYMENT_PILL_CLASSES[pill.tone];
+              const retainedLine = retainedHalfLabel({
+                finalCents: booking.final_cents,
+                refundedCents: booking.refunded_cents,
+              });
+              const isDisputed = Boolean(booking.disputed_at);
+
+              return (
+                <li
+                  key={booking.id}
+                  className={[
+                    "flex flex-col gap-1.5 py-2 text-sm",
+                    isDisputed
+                      ? "border-destructive bg-card ring-destructive rounded-xl border p-3 ring-1"
+                      : "border-border/60 border-b last:border-b-0",
+                  ].join(" ")}
                 >
-                  {booking.status}
-                </Badge>
-                <span className="text-muted-foreground">
-                  {denver(booking.starts_at)} - {denver(booking.ends_at)}
-                </span>
-                <span className="text-muted-foreground">
-                  {dollars(booking.final_cents)}
-                </span>
-                <span className="ml-auto flex gap-2">
-                  {EDITABLE.has(booking.status) ? (
-                    <Link
-                      href={`/admin/clients/${client.id}/bookings/${booking.id}/edit`}
-                      className="border-border hover:bg-accent focus-visible:border-ring focus-visible:ring-ring/50 inline-flex items-center rounded-md border px-2.5 py-1 text-xs font-medium focus-visible:ring-3"
+                  {/* Top row: service + pills + amount */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-semibold">
+                      {booking.service_name ?? "Service"}
+                    </span>
+                    {/* Payment pill */}
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${pillClasses}`}
                     >
-                      Edit
-                    </Link>
+                      <PaymentPillIcon tone={pill.tone} />
+                      {pill.label}
+                    </span>
+                    {/* Dispute pill — red reserved for disputes only */}
+                    {isDisputed ? (
+                      <span className="bg-destructive/10 text-destructive inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-current">
+                        <TriangleAlert className="size-3" aria-hidden="true" />
+                        {disputeLabel(booking.dispute_status)}
+                      </span>
+                    ) : null}
+                    <span className="ml-auto font-semibold">
+                      {dollars(booking.final_cents)}
+                    </span>
+                  </div>
+
+                  {/* Date + status row */}
+                  <div className="text-muted-foreground text-xs">
+                    {denver(booking.starts_at)} &ndash;{" "}
+                    {denver(booking.ends_at)} &middot;{" "}
+                    <Badge
+                      variant={
+                        booking.status === "pending_approval"
+                          ? "pending"
+                          : "default"
+                      }
+                    >
+                      {bookingStatusLabel(booking.status)}
+                    </Badge>
+                  </div>
+
+                  {/* Retained-half line */}
+                  {retainedLine ? (
+                    <div className="text-warning-foreground inline-flex items-center gap-1.5 text-xs">
+                      <RotateCcw className="size-3" aria-hidden="true" />
+                      {retainedLine}
+                    </div>
                   ) : null}
-                  {booking.status === "pending_approval" ? (
-                    <>
-                      <Button
-                        size="sm"
-                        disabled={isPending}
-                        onClick={() => run(() => approveBooking(booking.id))}
+
+                  {/* Actions row */}
+                  <div className="flex flex-wrap gap-2">
+                    {EDITABLE.has(booking.status) ? (
+                      <Link
+                        href={`/admin/clients/${client.id}/bookings/${booking.id}/edit`}
+                        className="border-border hover:bg-accent focus-visible:border-ring focus-visible:ring-ring/50 inline-flex items-center rounded-md border px-2.5 py-1 text-xs font-medium focus-visible:ring-3"
                       >
-                        Approve
-                      </Button>
+                        Edit
+                      </Link>
+                    ) : null}
+                    {booking.status === "pending_approval" ? (
+                      <>
+                        <Button
+                          size="sm"
+                          disabled={isPending}
+                          onClick={() => run(() => approveBooking(booking.id))}
+                        >
+                          Approve
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={isPending}
+                          onClick={() => run(() => declineBooking(booking.id))}
+                        >
+                          Decline
+                        </Button>
+                      </>
+                    ) : null}
+                    {booking.status === "pending_approval" ||
+                    booking.status === "confirmed" ? (
                       <Button
                         size="sm"
                         variant="outline"
                         disabled={isPending}
-                        onClick={() => run(() => declineBooking(booking.id))}
+                        onClick={() => onCancel(booking.id)}
                       >
-                        Decline
+                        Cancel
                       </Button>
-                    </>
-                  ) : null}
-                  {booking.status === "pending_approval" ||
-                  booking.status === "confirmed" ? (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={isPending}
-                      onClick={() => onCancel(booking.id)}
-                    >
-                      Cancel
-                    </Button>
-                  ) : null}
-                  {booking.status === "confirmed" ? (
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      disabled={isPending}
-                      onClick={() => onNoShow(booking.id)}
-                    >
-                      No-show
-                    </Button>
-                  ) : null}
-                </span>
-              </li>
-            ))}
+                    ) : null}
+                    {/* Dispute: Stripe link */}
+                    {isDisputed && booking.payment_intent_id ? (
+                      <a
+                        href={`https://dashboard.stripe.com/test/payments/${booking.payment_intent_id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="border-destructive text-destructive hover:bg-destructive/5 focus-visible:ring-ring/50 inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium focus-visible:ring-3"
+                      >
+                        View dispute in Stripe
+                        <ExternalLink className="size-3" aria-hidden="true" />
+                      </a>
+                    ) : null}
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         )}
         <Link
           href={`/admin/clients/${client.id}/book`}
-          className="bg-brand text-brand-foreground focus-visible:border-ring focus-visible:ring-ring/50 mt-1 inline-flex w-fit items-center rounded-md px-3 py-1.5 text-sm font-semibold focus-visible:ring-3"
+          className="bg-brand text-brand-foreground focus-visible:border-ring focus-visible:ring-ring/50 mt-1 inline-flex w-fit items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-semibold focus-visible:ring-3"
         >
           + New booking for {client.full_name ?? "this client"}
         </Link>
       </section>
 
+      {/* Balance */}
       <section className={SECTION}>
         <p className={LEGEND}>Balance</p>
         <p className="text-sm">
@@ -332,7 +508,7 @@ export function ClientDetailClient({ client }: { client: ClientDetailView }) {
                 className="flex flex-wrap items-center gap-2 text-sm"
               >
                 <span>{dollars(debit.amount_cents)}</span>
-                <Badge>{debit.reason}</Badge>
+                <Badge>{debitReasonLabel(debit.reason)}</Badge>
                 <span className="text-muted-foreground">
                   {denver(debit.created_at)}
                 </span>
