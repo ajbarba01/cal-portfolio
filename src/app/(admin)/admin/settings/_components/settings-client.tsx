@@ -242,7 +242,7 @@ export function SettingsClient({
 
       {/* ── Cancellations ──────────────────────────────────────────────── */}
       <Card>
-        <GroupLegend>Cancellations &amp; no-shows</GroupLegend>
+        <GroupLegend>Cancellations</GroupLegend>
         <div className="flex flex-col gap-4">
           <UnitField
             id="full-refund-hours"
@@ -354,12 +354,12 @@ export function SettingsClient({
       </Card>
 
       {/* ── Advanced (collapsed by default) ───────────────────────────── */}
-      <details className="group border-border rounded-lg border border-dashed">
-        <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-medium">
-          <span>
-            Advanced{" "}
-            <span className="text-muted-foreground ml-1 text-xs font-normal">
-              (origin, routing — rarely changed)
+      <details className="group bg-card border-border rounded-xl border border-dashed">
+        <summary className="flex cursor-pointer list-none items-center justify-between p-5">
+          <span className="flex items-center gap-2">
+            <GroupLegend>Advanced</GroupLegend>
+            <span className="text-muted-foreground bg-muted rounded-md px-1.5 py-0.5 text-[10px] font-medium">
+              rarely changed
             </span>
           </span>
           <ChevronDown
@@ -368,7 +368,7 @@ export function SettingsClient({
           />
         </summary>
 
-        <div className="flex flex-col gap-4 px-4 pt-2 pb-4">
+        <div className="flex flex-col gap-4 px-5 pt-1 pb-5">
           <div className="space-y-1">
             <Label
               htmlFor="origin-label"
