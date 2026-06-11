@@ -200,6 +200,17 @@ export async function applyStripeEvent(
       return applyPaymentIntentStatus(serviceClient, parsed.data.id, "failed");
     }
 
+    case "payment_intent.canceled": {
+      const parsed = paymentIntentObjectSchema.safeParse(data.object);
+      if (!parsed.success) {
+        return {
+          ok: false,
+          error: "Malformed payment_intent object: missing id",
+        };
+      }
+      return applyPaymentIntentStatus(serviceClient, parsed.data.id, "failed");
+    }
+
     case "charge.refunded": {
       const parsed = chargeObjectSchema.safeParse(data.object);
       if (!parsed.success) {

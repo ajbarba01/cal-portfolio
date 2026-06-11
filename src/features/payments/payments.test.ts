@@ -445,6 +445,38 @@ describe("applyStripeEvent — webhook projection", () => {
     if (!result.ok) return;
     expect(result.handled).toBe(false);
   });
+
+  it("payment_intent.canceled → payments.status=failed, no booking.status change", async () => {
+    const canceledIntent = `pi_canceled_${ts}`;
+    const b = await seedBooking(userId1, 7000, 500);
+    await seedPayment(b, userId1, canceledIntent, 7000, "requires_payment");
+
+    const result = await applyStripeEvent(serviceClient, {
+      type: "payment_intent.canceled",
+      data: { object: { id: canceledIntent } },
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.handled).toBe(true);
+
+    const { data: payment } = await serviceClient
+      .from("payments")
+      .select("status")
+      .eq("stripe_payment_intent_id", canceledIntent)
+      .single();
+    expect(payment?.status).toBe("failed");
+
+    const { data: booking } = await serviceClient
+      .from("bookings")
+      .select("payment_status, status")
+      .eq("id", b)
+      .single();
+    expect(booking?.payment_status).toBe("unpaid");
+    expect(booking?.status).toBe("confirmed"); // never touched
+
+    await serviceClient.from("payments").delete().eq("booking_id", b);
+    await serviceClient.from("bookings").delete().eq("id", b);
+  });
 });
 
 // ─── 3. Signature verification ────────────────────────────────────────────────
