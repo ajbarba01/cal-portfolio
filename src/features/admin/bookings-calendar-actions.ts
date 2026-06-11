@@ -9,6 +9,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 
 import { assertActorIsAdmin } from "@/lib/admin-guard";
 import { getActorOrRedirect } from "@/lib/admin-session";
+import type { BookingPaymentStatus } from "@/features/payments";
 
 export interface BookingCalendarRow {
   id: string;
@@ -19,6 +20,7 @@ export interface BookingCalendarRow {
   starts_at: string;
   ends_at: string;
   final_cents: number;
+  payment_status: BookingPaymentStatus;
 }
 
 export type ListBookingsInRangeResult =
@@ -59,7 +61,7 @@ export async function listBookingsInRangeCore(
   const { data, error } = await deps.serviceClient
     .from("bookings")
     .select(
-      "id, client_id, status, starts_at, ends_at, final_cents, profiles(full_name), services(name)",
+      "id, client_id, status, starts_at, ends_at, final_cents, payment_status, profiles(full_name), services(name)",
     )
     .gte("starts_at", parsed.data.startIso)
     .lt("starts_at", parsed.data.endIso)
@@ -71,6 +73,13 @@ export async function listBookingsInRangeCore(
       | { full_name: string }
       | { full_name: string }[]
       | null;
+    const rawPaymentStatus = booking.payment_status as string | null;
+    const paymentStatus: BookingPaymentStatus =
+      rawPaymentStatus === "paid" ||
+      rawPaymentStatus === "partially_refunded" ||
+      rawPaymentStatus === "refunded"
+        ? rawPaymentStatus
+        : "unpaid";
     return {
       id: booking.id as string,
       client_id: booking.client_id as string,
@@ -84,6 +93,7 @@ export async function listBookingsInRangeCore(
       starts_at: booking.starts_at as string,
       ends_at: booking.ends_at as string,
       final_cents: booking.final_cents as number,
+      payment_status: paymentStatus,
     };
   });
   return { kind: "success", bookings };

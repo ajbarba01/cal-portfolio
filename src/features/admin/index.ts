@@ -129,3 +129,7 @@ export {
 // attention-counts (typed seam — SP5 wires real counts)
 export type { AttentionCounts } from "./attention-counts";
 export { emptyAttentionCounts } from "./attention-counts";
+
+// bookings-view (pure predicates)
+export { filterBookings, daysWithMatch, isolate } from "./bookings-view";
+export type { BookingStatusFilter } from "./bookings-view";
