@@ -26,6 +26,13 @@ export interface SchedulerCapabilities {
   weekNavigable: boolean;
   /** Whether the admin can mark/unmark days as premium (holiday surcharge days). */
   premiumMarkable: boolean;
+  /**
+   * Whether busy (booked) days can be clicked for inspection even when editable
+   * is false. Used by the admin Bookings hub (INSPECT_CAPABILITIES) so booked
+   * cells are selectable/inspectable. Public booking presets leave this unset
+   * (busy stays disabled there).
+   */
+  inspectable?: boolean;
 }
 
 /** Admin view: full multi-select + free intraday painting, overnight, editable. */
@@ -49,6 +56,23 @@ export const BOOK_HOUSE_SITTING_CAPABILITIES: SchedulerCapabilities = {
   editable: false,
   weekNavigable: false,
   premiumMarkable: false,
+};
+
+/**
+ * Read-only inspection: single-day selection drives a read DayTimeline; no
+ * intraday painting, no overnight, no editing, no premium marking. Mounts
+ * MonthGrid + DayTimeline purely for inspection (the admin Bookings hub).
+ * Because `editable` is false, the DayPanel returns null and the month/timeline
+ * surfaces never mutate.
+ */
+export const INSPECT_CAPABILITIES: SchedulerCapabilities = {
+  daySelection: "single",
+  intraday: "none",
+  overnight: false,
+  editable: false,
+  weekNavigable: true,
+  premiumMarkable: false,
+  inspectable: true,
 };
 
 /**

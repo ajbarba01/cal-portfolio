@@ -29,16 +29,23 @@ function toDenverDayKey(isoString: string): string {
 }
 
 /**
- * Filters bookings by status and client search query.
+ * Filters bookings by status, service type, and client search query.
  * - status "all" passes every row through the status check.
+ * - service "all" (or undefined) passes every row through the service check.
  * - query is matched against `client_name` (case-insensitive substring).
  */
 export function filterBookings(
   rows: BookingCalendarRow[],
-  { status, query }: { status: BookingStatusFilter; query: string },
+  {
+    status,
+    query,
+    service,
+  }: { status: BookingStatusFilter; query: string; service?: string },
 ): BookingCalendarRow[] {
   return rows.filter((row) => {
     if (status !== "all" && row.status !== status) return false;
+    if (service != null && service !== "all" && row.service_name !== service)
+      return false;
     return matchesClientQuery(
       { full_name: row.client_name, email: null, phone: null },
       query,

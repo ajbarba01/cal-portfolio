@@ -25,16 +25,19 @@ const pending = row({
   id: "a",
   status: "pending_approval",
   client_name: "Jane Doe",
+  service_name: "Dog Walk",
 });
 const confirmed = row({
   id: "b",
   status: "confirmed",
   client_name: "Sam Reyes",
+  service_name: "House Sitting",
 });
 const cancelled = row({
   id: "c",
   status: "cancelled",
   client_name: "Pat Smith",
+  service_name: "Dog Walk",
 });
 
 const ALL = [pending, confirmed, cancelled];
@@ -85,6 +88,49 @@ describe("filterBookings", () => {
     expect(filterBookings(ALL, { status: "all", query: "zzz" })).toHaveLength(
       0,
     );
+  });
+
+  it("service filter keeps only rows with matching service_name", () => {
+    const result = filterBookings(ALL, {
+      status: "all",
+      query: "",
+      service: "Dog Walk",
+    });
+    expect(result).toHaveLength(2);
+    expect(result.map((r) => r.id)).toEqual(["a", "c"]);
+  });
+
+  it("service='all' is a no-op (returns all rows)", () => {
+    const result = filterBookings(ALL, {
+      status: "all",
+      query: "",
+      service: "all",
+    });
+    expect(result).toHaveLength(3);
+  });
+
+  it("service=undefined is a no-op (backward-compat)", () => {
+    const result = filterBookings(ALL, { status: "all", query: "" });
+    expect(result).toHaveLength(3);
+  });
+
+  it("service filter combined with status + query", () => {
+    const result = filterBookings(ALL, {
+      status: "pending_approval",
+      query: "jane",
+      service: "Dog Walk",
+    });
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe("a");
+  });
+
+  it("service filter returns [] when no rows match service", () => {
+    const result = filterBookings(ALL, {
+      status: "all",
+      query: "",
+      service: "Cat Sitting",
+    });
+    expect(result).toHaveLength(0);
   });
 });
 

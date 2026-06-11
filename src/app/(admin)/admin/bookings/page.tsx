@@ -30,10 +30,14 @@ export default async function AdminBookingsPage() {
   }
   return (
     <PageContainer width="app">
-      <PageHeader title="Bookings" subtitle="Calendar of booked time." />
+      <PageHeader
+        title="Bookings"
+        subtitle="Approve, edit, or cancel right from the row."
+      />
       <BookingsCalendarClient
         bookings={result.bookings}
         monthStartIso={range.startIso}
+        nowIso={new Date().toISOString()}
       />
     </PageContainer>
   );

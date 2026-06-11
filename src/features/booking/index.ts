@@ -51,6 +51,7 @@ export {
   BOOK_WALK_CAPABILITIES,
   BOOK_HOUSE_SITTING_CAPABILITIES,
   ADMIN_CAPABILITIES,
+  INSPECT_CAPABILITIES,
 } from "./schedule-capabilities";
 export type { SchedulerCapabilities } from "./schedule-capabilities";
 
