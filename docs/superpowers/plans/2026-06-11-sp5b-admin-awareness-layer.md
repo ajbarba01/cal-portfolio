@@ -120,3 +120,10 @@ git commit -m "feat: attention-focused admin dashboard"
 ## Handoff log
 
 (append blockers/deviations during execution)
+
+- 2026-06-11 · executed all 3 tasks (subagent-driven). **Deviations / decisions:**
+  - **Today-timeline component (Task 3):** the plan named `Scheduler.DayTimeline`, but that shared component renders **availability windows + a selectable slot**, not arbitrary booking blocks (see the comment in `bookings-calendar-client.tsx` — the Bookings hub had to build its own `BookingDayTimeline` for the same reason). Built a **self-contained compact booking-block timeline** (`today-timeline.tsx`) matching the approved preview instead. No Scheduler/client-barrel import; server component.
+  - **`?status=` deep-link (Task 3, supporting):** the hub did not actually honor `?status=` (only `?booking=`), so `/admin/bookings?status=pending_approval` was a dead param. Added a minimal `?status=` initial-filter deep-link to `bookings-calendar-client.tsx` mirroring the existing `?booking=` pattern (seeded in initial state, validated, list-view on a non-default status, behavior-preserving without the param) so the attention-list "Review →" link lands filtered.
+  - **Badge colour:** `--attention` shipped **red** (`oklch(0.55 0.22 25)`) despite the plan/spec/mockup calling it the "gold" token; `NavBadge` is its only consumer. Repointed to honey-gold `#8a6a1b` (white text AA 5.05:1) per a maintainer-signed-off token-accurate preview. A maintainer "bright red" sighting was stale dev CSS (the pre-task token value), not a code bug.
+  - **Code-quality fix mid-flight:** the first dashboard pass used inline-style colours + raw primitive vars (tokens-are-law violation); converted to semantic Tailwind tokens (`warning`/`destructive-warm`/`status-available`/`status-booked`/`secondary`), `dollars()`→`formatCents`, and moved external margin to the parent.
+  - Gates green (typecheck · lint 0 err · `next build` · vitest 7 pre-existing shared-DB failures, no new); fresh-session `/code-review` APPROVE. **SP5b DONE**; live desktop+mobile verify maintainer-owned.

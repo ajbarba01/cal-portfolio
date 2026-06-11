@@ -1,5 +1,3 @@
-import Link from "next/link";
-
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
 import {
@@ -8,6 +6,9 @@ import {
   listReviews,
 } from "@/features/admin";
 import { listInquiries } from "@/features/inquiries";
+
+import { AttentionList } from "./_components/attention-list";
+import { TodayTimeline } from "./_components/today-timeline";
 
 const TIME_ZONE = "America/Denver";
 
@@ -18,26 +19,6 @@ function dayKey(date: Date): string {
     month: "2-digit",
     day: "2-digit",
   }).format(date);
-}
-
-function DashboardCard({
-  href,
-  label,
-  value,
-}: {
-  href: string;
-  label: string;
-  value: string | number;
-}) {
-  return (
-    <Link
-      href={href}
-      className="bg-card border-border hover:bg-accent flex flex-col gap-1 rounded-xl border p-4 transition-colors"
-    >
-      <span className="text-foreground text-2xl font-semibold">{value}</span>
-      <span className="text-muted-foreground text-sm">{label}</span>
-    </Link>
-  );
 }
 
 export default async function AdminDashboardPage() {
@@ -59,58 +40,64 @@ export default async function AdminDashboardPage() {
 
   const bookings =
     bookingsResult.kind === "success" ? bookingsResult.bookings : [];
+  const clients = clientsResult.kind === "success" ? clientsResult.clients : [];
   const today = dayKey(now);
-  const todayCount = bookings.filter(
-    (booking) => dayKey(new Date(booking.starts_at)) === today,
+
+  // Pending approvals
+  const pendingApprovals = bookings.filter(
+    (b) => b.status === "pending_approval",
   ).length;
-  const pendingCount = bookings.filter(
-    (booking) => booking.status === "pending_approval",
-  ).length;
+
+  // New inquiries
   const newInquiries =
     inquiriesResult.kind === "success"
-      ? inquiriesResult.inquiries.filter((inquiry) => inquiry.status === "new")
-          .length
+      ? inquiriesResult.inquiries.filter((i) => i.status === "new").length
       : 0;
-  const owingClients =
-    clientsResult.kind === "success"
-      ? clientsResult.clients.filter((client) => client.outstandingCents > 0)
-          .length
-      : 0;
+
+  // Owing clients context
+  const owingClients = clients.filter((c) => c.outstandingCents > 0);
+  const owingCount = owingClients.length;
+  // Top owing client: highest balance
+  const topOwing =
+    owingClients.length > 0
+      ? owingClients.reduce((best, c) =>
+          c.outstandingCents > best.outstandingCents ? c : best,
+        )
+      : null;
+  const totalOwingCents = owingClients.reduce(
+    (sum, c) => sum + c.outstandingCents,
+    0,
+  );
+
+  // Reviews to moderate
   const pendingReviews =
     reviewsResult.kind === "success"
-      ? reviewsResult.reviews.filter((review) => review.status === "pending")
-          .length
+      ? reviewsResult.reviews.filter((r) => r.status === "pending").length
       : 0;
+
+  // Today's bookings (TodayTimeline orders them internally).
+  const todaysBookings = bookings.filter(
+    (b) => dayKey(new Date(b.starts_at)) === today,
+  );
 
   return (
     <PageContainer width="app">
-      <PageHeader title="Dashboard" subtitle="At a glance." />
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-        <DashboardCard
-          href="/admin/bookings"
-          label="Bookings today"
-          value={todayCount}
+      <PageHeader title="Dashboard" subtitle="Here's what needs you." />
+
+      <div className="flex flex-col gap-[18px]">
+        <AttentionList
+          pendingApprovals={pendingApprovals}
+          newInquiries={newInquiries}
+          owing={{
+            count: owingCount,
+            topName: topOwing?.full_name ?? topOwing?.email ?? null,
+            topAmountCents: topOwing?.outstandingCents,
+            totalCents: totalOwingCents,
+          }}
+          reviewsToModerate={pendingReviews}
         />
-        <DashboardCard
-          href="/admin/bookings"
-          label="Pending approval"
-          value={pendingCount}
-        />
-        <DashboardCard
-          href="/admin/reviews"
-          label="Pending reviews"
-          value={pendingReviews}
-        />
-        <DashboardCard
-          href="/admin/inquiries"
-          label="New inquiries"
-          value={newInquiries}
-        />
-        <DashboardCard
-          href="/admin/clients"
-          label="Clients owing a balance"
-          value={owingClients}
-        />
+
+        <TodayTimeline bookings={todaysBookings} now={now} />
       </div>
     </PageContainer>
   );

@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SP5b preview — admin awareness layer (nav badges + dashboard)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400..700&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  /* ── Real Trail tokens (lifted from src/app/globals.css light theme) ── */
+  :root {
+    --sand-0:#ffffff; --sand-50:#faf6f0; --sand-100:#f2ece1; --sand-200:#e7decf;
+    --sand-400:#b6a88f; --sand-500:#6e6354; --sand-700:#5a5044; --sand-900:#2b2520;
+    --clay-fill:#ae5a35; --clay-strong:#8a4226; --clay-soft:#e7d8cc;
+    --green-soft:#e3e7d2; --green-deep:#4f5b33;
+    --blue-soft:#d9e2e8; --blue-deep:#3c5566;
+    --amber-soft:#f3e3c8; --amber-deep:#7a5a1e;
+    --danger:#c0392b; --danger-warm:#b5462f;
+
+    /* PROPOSED token change — see the callout. --attention ships RED today
+       (oklch(0.55 0.22 25)); NavBadge is its ONLY consumer. The approved
+       plan/spec/mockup all call it the "gold" attention token and reserve red
+       for serious items (owing/disputes). Repoint to a deep honey-gold so white
+       text still passes AA (white on #8a6a1b ≈ 5.07:1). */
+    --attention:#8a6a1b; --attention-foreground:#ffffff; /* honey-gold, white text, AA ≈5.05:1 */
+    --attention-red:oklch(0.55 0.22 25); /* the original red, kept for the comparison */
+
+    --background:var(--sand-50); --foreground:var(--sand-900);
+    --card:var(--sand-0); --muted-foreground:var(--sand-500);
+    --border:var(--sand-200); --sidebar:var(--sand-100);
+    --sidebar-active:var(--clay-soft); --brand-strong:var(--clay-strong);
+    --radius:0.375rem;
+    --font-sans:"Public Sans",ui-sans-serif,system-ui,sans-serif;
+    --font-heading:"Fraunces",Georgia,serif;
+  }
+  * { box-sizing:border-box; }
+  body {
+    margin:0; background:var(--background); color:var(--foreground);
+    font-family:var(--font-sans); font-size:15px; line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  .page-note {
+    max-width:980px; margin:0 auto; padding:20px 20px 0;
+  }
+  .page-note h1 { font-family:var(--font-heading); font-weight:600; font-size:22px; margin:0 0 4px; }
+  .page-note p { color:var(--sand-700); font-size:13.5px; margin:0 0 4px; max-width:70ch; }
+  .callout {
+    max-width:980px; margin:14px auto 0; padding:13px 16px;
+    border:1px solid var(--amber-deep); border-left-width:4px;
+    background:var(--amber-soft); color:var(--sand-900);
+    border-radius:var(--radius); font-size:13px; line-height:1.55;
+  }
+  .callout b { color:var(--amber-deep); }
+  .callout code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12px; background:#fff8; padding:1px 5px; border-radius:4px; }
+
+  /* ── App chrome ── */
+  .shell {
+    max-width:980px; margin:18px auto; background:var(--card);
+    border:1px solid var(--border); border-radius:calc(var(--radius)*2.6);
+    overflow:hidden; display:flex; min-height:600px;
+    box-shadow:0 1px 0 #0000000a, 0 16px 40px -28px #2b252040;
+  }
+  /* Sidebar */
+  .sidebar {
+    width:230px; flex-shrink:0; background:var(--sidebar);
+    border-right:1px solid var(--border); padding:14px 0; display:flex; flex-direction:column;
+  }
+  .zone { padding:4px 18px 8px; font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted-foreground); font-weight:600; }
+  .navlist { display:flex; flex-direction:column; padding:0 8px; gap:1px; }
+  .nav {
+    display:flex; align-items:center; gap:10px; min-height:38px; padding:0 12px;
+    border-radius:8px; font-size:14px; color:var(--foreground); text-decoration:none;
+    transition:background .15s;
+  }
+  .nav:hover { background:var(--sand-200); }
+  .nav.active { background:var(--sidebar-active); color:var(--brand-strong); font-weight:600; }
+  .nav svg { width:17px; height:17px; stroke:currentColor; fill:none; stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round; flex-shrink:0; }
+  .badge {
+    margin-left:auto; min-width:20px; height:20px; padding:0 6px; border-radius:999px;
+    background:var(--attention); color:var(--attention-foreground);
+    font-size:11px; font-weight:700; line-height:1;
+    display:inline-flex; align-items:center; justify-content:center;
+  }
+  .badge.red { background:var(--attention-red); color:#fff; }
+
+  /* badge comparison */
+  .compare { max-width:980px; margin:14px auto 0; display:flex; gap:16px; flex-wrap:wrap; }
+  .compare .col { flex:1; min-width:240px; border:1px solid var(--border); border-radius:calc(var(--radius)*1.8); overflow:hidden; background:var(--card); }
+  .compare .col h3 { margin:0; padding:9px 14px; font-size:12px; font-weight:700; background:var(--sand-100); color:var(--sand-700); display:flex; align-items:center; gap:8px; }
+  .compare .col h3 .dot { width:11px; height:11px; border-radius:999px; }
+  .compare .col .rows { padding:8px; display:flex; flex-direction:column; gap:1px; }
+  .compare .note { padding:6px 14px 11px; font-size:11.5px; color:var(--muted-foreground); }
+  .ident { margin-top:auto; padding:14px 18px 2px; border-top:1px solid var(--border); margin:auto 8px 0; }
+  .ident span { font-size:12px; color:var(--muted-foreground); }
+
+  /* Main */
+  .main { flex:1; min-width:0; padding:28px 30px; }
+  .greet { font-family:var(--font-heading); font-weight:600; font-size:24px; margin:0 0 18px; letter-spacing:-.01em; }
+
+  /* Attention list */
+  .attn { border:1px solid var(--border); border-radius:calc(var(--radius)*2.2); overflow:hidden; background:var(--card); }
+  .attn-h { padding:11px 16px; font-size:11.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--amber-deep); font-weight:700; background:var(--amber-soft); }
+  .arow { display:flex; align-items:center; gap:14px; padding:14px 16px; border-top:1px solid var(--border); }
+  .arow:first-of-type { border-top:none; }
+  .chip { width:38px; height:38px; border-radius:10px; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
+  .chip svg { width:19px; height:19px; stroke:currentColor; fill:none; stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round; }
+  .chip.gold { background:var(--amber-soft); color:var(--amber-deep); }
+  .chip.danger { background:#f6ddd7; color:var(--danger-warm); }
+  .chip.calm { background:var(--green-soft); color:var(--green-deep); }
+  .atext { min-width:0; }
+  .albl { font-size:14px; font-weight:600; color:var(--foreground); }
+  .albl.danger { color:var(--danger-warm); }
+  .asub { font-size:12px; color:var(--muted-foreground); }
+  .go { margin-left:auto; font-size:13px; font-weight:600; color:var(--clay-strong); white-space:nowrap; text-decoration:none; display:inline-flex; align-items:center; gap:3px; }
+  .go.danger { color:var(--danger-warm); }
+  .go:hover { text-decoration:underline; }
+
+  /* Empty state */
+  .allgood { padding:22px 16px; display:flex; align-items:center; gap:10px; color:var(--green-deep); font-size:14px; font-weight:500; }
+  .allgood svg { width:20px; height:20px; stroke:currentColor; fill:none; stroke-width:2; }
+
+  /* Today timeline */
+  .today { margin-top:18px; border:1px solid var(--border); border-radius:calc(var(--radius)*2.2); overflow:hidden; background:var(--card); }
+  .today-h { padding:11px 16px; font-size:11.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--sand-700); font-weight:700; background:var(--sand-100); display:flex; align-items:center; gap:8px; }
+  .today-h svg { width:15px; height:15px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+  .tl { display:grid; grid-template-columns:58px 1fr; }
+  .axis { border-right:1px solid var(--border); padding:10px 0; }
+  .tick { font-size:10px; color:var(--sand-400); padding:0 9px; height:42px; }
+  .lane { padding:12px 12px; display:flex; flex-direction:column; gap:8px; }
+  .ev { border-radius:9px; padding:9px 11px; font-size:13px; display:flex; align-items:center; gap:8px; text-decoration:none; }
+  .ev .t { font-weight:700; font-variant-numeric:tabular-nums; }
+  .ev .who { color:inherit; }
+  .ev .arrow { margin-left:auto; opacity:.5; width:15px; height:15px; stroke:currentColor; fill:none; stroke-width:2; }
+  .ev.walk { background:var(--blue-soft); color:var(--blue-deep); }
+  .ev.sit { background:var(--green-soft); color:var(--green-deep); }
+  .ev:hover { filter:brightness(.97); }
+  .ro { font-size:11.5px; color:var(--muted-foreground); font-style:italic; padding:4px 16px 13px; }
+
+  /* mobile demo */
+  .mobile-wrap { max-width:980px; margin:0 auto 40px; }
+  .mobile-wrap h2 { font-family:var(--font-heading); font-weight:600; font-size:16px; color:var(--sand-700); margin:24px 0 10px; }
+  .phone { width:340px; border:1px solid var(--border); border-radius:24px; background:var(--card); overflow:hidden; box-shadow:0 16px 40px -28px #2b252050; }
+  .phone-top { display:flex; align-items:center; gap:10px; padding:12px 16px; border-bottom:1px solid var(--border); background:var(--sand-100); }
+  .phone-top .burger { width:20px; height:20px; stroke:var(--foreground); fill:none; stroke-width:2; stroke-linecap:round; }
+  .phone-top .title { font-family:var(--font-heading); font-weight:600; font-size:16px; }
+  .drawer { padding:10px; }
+  .drawer .nav { font-size:14px; }
+  .phone-body { padding:16px; }
+  @media (max-width:760px) {
+    .shell { flex-direction:column; }
+    .sidebar { width:auto; flex-direction:row; flex-wrap:wrap; border-right:none; border-bottom:1px solid var(--border); }
+    .navlist { flex-direction:row; flex-wrap:wrap; }
+    .ident { display:none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page-note">
+  <h1>SP5b — admin awareness layer</h1>
+  <p>Token-accurate preview (real Trail palette + Fraunces / Public Sans) of the two net-new surfaces: <b>nav attention badges</b> and the <b>redesigned dashboard</b> (attention list + read-only "Today" timeline). Built to match <code>sp5b-attention.html</code> (badges) + <code>dashboard-v2.html</code>, minus the superseded conflict panel (AD1 re-routed). Sign off here → I build to match.</p>
+</div>
+
+<div class="callout">
+  <b>One decision to confirm — badge colour.</b> The <code>--attention</code> token currently ships <b>red</b> (<code>oklch(0.55 0.22 25)</code>), and <code>NavBadge</code> is its <b>only</b> consumer. The approved plan/spec/mockup all describe it as the <b>gold</b> attention token and reserve red for serious items (owing, disputes). Recommendation: <b>repoint <code>--attention</code> to a deep honey-gold</b> (shown below — white text stays AA, ≈5.07:1) so routine "do something" counts read gold and red stays reserved for danger. One-line token change, no other consumers affected. The dashboard "owing" row keeps the warm-danger red.
+</div>
+
+<div class="compare">
+  <div class="col">
+    <h3><span class="dot" style="background:var(--attention)"></span> Gold (recommended)</h3>
+    <div class="rows">
+      <a class="nav" href="#"><svg viewBox="0 0 24 24"><path d="M8 2v4M16 2v4M3 10h18"/><rect x="3" y="4" width="18" height="18" rx="2"/></svg> Bookings <span class="badge" aria-hidden="true">2</span></a>
+      <a class="nav" href="#"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> Inquiries <span class="badge" aria-hidden="true">3</span></a>
+    </div>
+    <p class="note">Honey-gold = "do something" (routine). Red stays reserved for the owing/dispute rows below. Matches the mockup + cited UX research.</p>
+  </div>
+  <div class="col">
+    <h3><span class="dot" style="background:var(--attention-red)"></span> Red (ships today)</h3>
+    <div class="rows">
+      <a class="nav" href="#"><svg viewBox="0 0 24 24"><path d="M8 2v4M16 2v4M3 10h18"/><rect x="3" y="4" width="18" height="18" rx="2"/></svg> Bookings <span class="badge red" aria-hidden="true">2</span></a>
+      <a class="nav" href="#"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> Inquiries <span class="badge red" aria-hidden="true">3</span></a>
+    </div>
+    <p class="note">Alarm-red on routine pending counts — risks alert-fatigue and collides with the red used for owing/disputes. Zero token change.</p>
+  </div>
+</div>
+
+<!-- ── Desktop ── -->
+<div class="shell">
+  <aside class="sidebar">
+    <div class="zone">Admin</div>
+    <nav class="navlist">
+      <a class="nav active" href="#"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg> Dashboard</a>
+      <a class="nav" href="#"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01M15 9h.01"/></svg> Availability</a>
+      <a class="nav" href="#"><svg viewBox="0 0 24 24"><path d="M8 2v4M16 2v4M3 10h18"/><rect x="3" y="4" width="18" height="18" rx="2"/></svg> Bookings <span class="badge" aria-hidden="true">2</span><span style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">, 2 awaiting approval</span></a>
+      <a class="nav" href="#"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg> Clients</a>
+      <a class="nav" href="#"><svg viewBox="0 0 24 24"><path d="M4 4h16v12H5.2L4 17.2z"/></svg> Services</a>
+      <a class="nav" href="#"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-2.82 1.17V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15H4.5a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 6.4 9.6l-.94-1a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 11 4.6V4.5a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1.82.99"/></svg> Settings</a>
+      <a class="nav" href="#"><svg viewBox="0 0 24 24"><path d="m12 2 3 6 6 .9-4.5 4.3 1 6L12 17l-5.5 3 1-6L3 8.9 9 8z"/></svg> Reviews</a>
+      <a class="nav" href="#"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> Inquiries <span class="badge" aria-hidden="true">3</span><span style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)">, 3 new</span></a>
+    </nav>
+    <div class="ident"><span>admin@local.test</span></div>
+  </aside>
+
+  <main class="main">
+    <h1 class="greet">Good morning, Cal</h1>
+
+    <section class="attn" aria-label="Needs your attention">
+      <div class="attn-h">Needs your attention</div>
+      <div class="arow">
+        <span class="chip gold"><svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>
+        <div class="atext"><div class="albl">2 bookings awaiting approval</div><div class="asub">Oldest waiting 1 day</div></div>
+        <a class="go" href="#">Review <svg style="width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+      </div>
+      <div class="arow">
+        <span class="chip gold"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
+        <div class="atext"><div class="albl">3 new inquiries</div><div class="asub">From the contact form</div></div>
+        <a class="go" href="#">Open <svg style="width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+      </div>
+      <div class="arow">
+        <span class="chip danger"><svg viewBox="0 0 24 24"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span>
+        <div class="atext"><div class="albl danger">1 client owes a balance</div><div class="asub">Jane Doe · $45.00</div></div>
+        <a class="go danger" href="#">Settle <svg style="width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+      </div>
+      <div class="arow">
+        <span class="chip calm"><svg viewBox="0 0 24 24"><path d="m12 2 3 6 6 .9-4.5 4.3 1 6L12 17l-5.5 3 1-6L3 8.9 9 8z"/></svg></span>
+        <div class="atext"><div class="albl">2 reviews to moderate</div><div class="asub">Publish or reject</div></div>
+        <a class="go" href="#">Moderate <svg style="width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+      </div>
+    </section>
+
+    <section class="today" aria-label="Today's timeline">
+      <div class="today-h"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg> Today · Tue Jun 16 · 3 bookings</div>
+      <div class="tl">
+        <div class="axis">
+          <div class="tick">8 AM</div><div class="tick">11 AM</div><div class="tick">2 PM</div><div class="tick">5 PM</div>
+        </div>
+        <div class="lane">
+          <a class="ev walk" href="#"><span class="t">9:00</span> <span class="who">Bo — Dog Walk (Sam)</span> <svg class="arrow" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></a>
+          <a class="ev walk" href="#"><span class="t">2:00</span> <span class="who">Cooper — Dog Walk (Jane)</span> <svg class="arrow" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></a>
+          <a class="ev sit" href="#"><span class="t">4:00</span> <span class="who">Lux — Drop-in (Pat)</span> <svg class="arrow" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></a>
+        </div>
+      </div>
+      <p class="ro">Read-only — reuses <code>Scheduler.DayTimeline</code> (inspect preset, no paint). Click any booking → opens it on the Bookings page.</p>
+    </section>
+  </main>
+</div>
+
+<!-- ── Empty-state variant ── -->
+<div class="page-note"><p style="margin-top:6px"><b>Empty state</b> — when nothing pends, the attention section is a single calm row (no red, no alarm):</p></div>
+<div class="shell" style="min-height:auto">
+  <main class="main" style="padding:24px 30px">
+    <h1 class="greet" style="margin-bottom:14px">Good afternoon, Cal</h1>
+    <section class="attn">
+      <div class="attn-h">Needs your attention</div>
+      <div class="allgood"><svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg> All caught up ✓</div>
+    </section>
+  </main>
+</div>
+
+<!-- ── Mobile ── -->
+<div class="mobile-wrap">
+  <h2>Mobile — two separate surfaces</h2>
+  <p class="page-note" style="padding:0 0 4px;max-width:62ch;color:var(--sand-700);font-size:13.5px">The badges live on the <b>nav</b>, which on mobile is the slide-in drawer (tap the hamburger). The <b>"Needs your attention" list is page content of the /admin route</b> — it is <i>not</i> in the drawer; it just stacks full-width down the dashboard page. Left: drawer open. Right: the dashboard page itself.</p>
+  <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start">
+
+    <div style="flex:0 0 auto">
+      <div class="phone" style="width:300px;position:relative">
+        <div class="phone-top"><svg class="burger" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg> <span class="title">Cal</span></div>
+        <div class="drawer">
+          <div class="zone">Admin</div>
+          <a class="nav active" href="#"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg> Dashboard</a>
+          <a class="nav" href="#"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/></svg> Availability</a>
+          <a class="nav" href="#"><svg viewBox="0 0 24 24"><path d="M8 2v4M16 2v4M3 10h18"/><rect x="3" y="4" width="18" height="18" rx="2"/></svg> Bookings <span class="badge" aria-hidden="true">2</span></a>
+          <a class="nav" href="#"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg> Clients</a>
+          <a class="nav" href="#"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> Inquiries <span class="badge" aria-hidden="true">3</span></a>
+        </div>
+      </div>
+      <p class="ro" style="padding:6px 4px;text-align:center;width:300px">Drawer (nav) — badges here</p>
+    </div>
+
+    <div style="flex:0 0 auto">
+      <div class="phone" style="width:300px">
+        <div class="phone-top"><svg class="burger" viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></svg> <span class="title">Dashboard</span></div>
+        <div class="phone-body">
+          <h1 class="greet" style="font-size:20px;margin-bottom:14px">Good morning, Cal</h1>
+          <section class="attn">
+            <div class="attn-h">Needs your attention</div>
+            <div class="arow" style="padding:12px 13px;gap:11px">
+              <span class="chip gold" style="width:34px;height:34px"><svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>
+              <div class="atext"><div class="albl" style="font-size:13px">2 awaiting approval</div><div class="asub">Oldest 1 day</div></div>
+              <a class="go" href="#" style="font-size:12px">Review →</a>
+            </div>
+            <div class="arow" style="padding:12px 13px;gap:11px">
+              <span class="chip gold" style="width:34px;height:34px"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
+              <div class="atext"><div class="albl" style="font-size:13px">3 new inquiries</div><div class="asub">Contact form</div></div>
+              <a class="go" href="#" style="font-size:12px">Open →</a>
+            </div>
+            <div class="arow" style="padding:12px 13px;gap:11px">
+              <span class="chip danger" style="width:34px;height:34px"><svg viewBox="0 0 24 24"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span>
+              <div class="atext"><div class="albl danger" style="font-size:13px">1 owes a balance</div><div class="asub">Jane Doe · $45.00</div></div>
+              <a class="go danger" href="#" style="font-size:12px">Settle →</a>
+            </div>
+          </section>
+          <section class="today" style="margin-top:14px">
+            <div class="today-h"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg> Today · 3 bookings</div>
+            <div class="lane" style="padding:11px">
+              <a class="ev walk" href="#" style="font-size:12px"><span class="t">9:00</span> Bo — Dog Walk <svg class="arrow" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></a>
+              <a class="ev walk" href="#" style="font-size:12px"><span class="t">2:00</span> Cooper — Dog Walk <svg class="arrow" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></a>
+              <a class="ev sit" href="#" style="font-size:12px"><span class="t">4:00</span> Lux — Drop-in <svg class="arrow" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></a>
+            </div>
+          </section>
+        </div>
+      </div>
+      <p class="ro" style="padding:6px 4px;text-align:center;width:300px">/admin page — attention list + today</p>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>

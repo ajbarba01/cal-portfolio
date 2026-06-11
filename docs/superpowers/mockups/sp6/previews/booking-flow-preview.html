@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SP6 preview — booking flow (2-col page + mobile + success)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400..700&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --sand-0:#ffffff; --sand-50:#faf6f0; --sand-100:#f2ece1; --sand-200:#e7decf;
+    --sand-400:#b6a88f; --sand-500:#6e6354; --sand-700:#5a5044; --sand-900:#2b2520;
+    --clay-fill:#ae5a35; --clay-strong:#8a4226; --clay-soft:#e7d8cc; --clay-onfill:#ffffff;
+    --green-soft:#e3e7d2; --green-deep:#4f5b33;
+    --amber-soft:#f3e3c8; --amber-deep:#7a5a1e;
+    --background:var(--sand-50); --foreground:var(--sand-900);
+    --card:var(--sand-0); --muted:var(--sand-100); --muted-foreground:var(--sand-500);
+    --border:var(--sand-200); --input:var(--sand-200); --brand:var(--clay-fill);
+    --brand-foreground:var(--clay-onfill); --brand-strong:var(--clay-strong);
+    --canvas:var(--sand-200);
+    --status-available:var(--green-soft); --status-available-fg:var(--green-deep);
+    --status-unavailable:var(--sand-200); --status-unavailable-fg:var(--sand-500);
+    --radius:0.375rem;
+    --font-sans:"Public Sans",ui-sans-serif,system-ui,sans-serif;
+    --font-heading:"Fraunces",Georgia,serif;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--canvas); color:var(--foreground); font-family:var(--font-sans); font-size:15px; line-height:1.5; -webkit-font-smoothing:antialiased; }
+  .page-note { max-width:1120px; margin:0 auto; padding:20px 20px 0; }
+  .page-note h1 { font-family:var(--font-heading); font-weight:600; font-size:22px; margin:0 0 4px; }
+  .page-note p { color:var(--sand-700); font-size:13.5px; margin:0 0 4px; max-width:80ch; }
+  .callout { max-width:1120px; margin:14px auto 0; padding:13px 16px; border:1px solid var(--amber-deep); border-left-width:4px; background:var(--amber-soft); color:var(--sand-900); border-radius:var(--radius); font-size:13px; line-height:1.55; }
+  .callout b { color:var(--amber-deep); }
+  .frames { max-width:1120px; margin:18px auto 40px; display:flex; gap:24px; align-items:flex-start; flex-wrap:wrap; }
+  .frame-label { font-size:12px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:var(--muted-foreground); margin:0 0 8px 2px; }
+  .sheet { background:var(--background); border:1px solid var(--border); border-radius:calc(var(--radius)*2.6); overflow:hidden; box-shadow:0 1px 0 #0000000a, 0 16px 40px -28px #2b252040; }
+  .desktop { width:720px; }
+  .mobile { width:340px; }
+  .body-pad { padding:28px 28px 40px; }
+  .mobile .body-pad { padding:20px 16px 32px; }
+
+  .crumb { font-size:13px; color:var(--brand-strong); margin-bottom:10px; display:flex; align-items:center; gap:6px; }
+  .crumb svg { width:14px; height:14px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+  h2.title { font-family:var(--font-heading); font-size:30px; font-weight:600; margin:0; }
+  .svc-sub { color:var(--muted-foreground); font-size:14px; margin:4px 0 22px; display:flex; gap:14px; flex-wrap:wrap; }
+  .svc-sub b { color:var(--foreground); font-weight:600; }
+
+  /* SIGNED-OFF 2026-06-11: stacked single column (no sticky side receipt) —
+     summary card sits inline after the steps, all viewports. */
+  .two-col { display:grid; grid-template-columns:1fr; gap:24px; align-items:start; max-width:560px; }
+  .steps { display:flex; flex-direction:column; gap:20px; min-width:0; }
+
+  .step { background:var(--card); border:1px solid var(--border); border-radius:calc(var(--radius)*1.8); padding:18px 20px; }
+  .mobile .step { padding:14px 14px; }
+  .step-head { display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+  .step-num { width:22px; height:22px; border-radius:999px; background:var(--clay-soft); color:var(--clay-strong); font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .step-head h3 { font-family:var(--font-heading); font-size:16px; font-weight:600; margin:0; }
+  .step-head .hint { margin-left:auto; font-size:12px; color:var(--muted-foreground); }
+
+  /* calendar */
+  .cal { width:100%; }
+  .cal-head { display:flex; justify-content:space-between; align-items:center; font-size:13.5px; font-weight:600; margin-bottom:8px; }
+  .cal-head svg { width:16px; height:16px; stroke:var(--muted-foreground); fill:none; stroke-width:2; }
+  .cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; font-size:12.5px; text-align:center; }
+  .dow { color:var(--muted-foreground); font-size:11px; padding:2px 0; }
+  .day { padding:7px 0; border-radius:8px; background:var(--status-available); color:var(--status-available-fg); font-weight:500; cursor:pointer; }
+  .day.un { background:var(--status-unavailable); color:var(--status-unavailable-fg); font-weight:400; }
+  .day.premium { background:var(--status-available); position:relative; }
+  .day.premium::after { content:""; position:absolute; top:3px; right:4px; width:5px; height:5px; border-radius:99px; background:var(--amber-deep); }
+  .day.sel { background:var(--clay-fill); color:#fff; font-weight:700; }
+  .cal-legend { display:flex; gap:14px; flex-wrap:wrap; margin-top:10px; font-size:11.5px; color:var(--muted-foreground); }
+  .lg { display:flex; align-items:center; gap:5px; }
+  .lg i { width:10px; height:10px; border-radius:3px; display:inline-block; }
+  .lg .av { background:var(--status-available); }
+  .lg .uv { background:var(--status-unavailable); }
+  .lg .pr { background:var(--status-available); position:relative; }
+  .lg .pr::after { content:""; position:absolute; margin-left:6px; margin-top:-2px; width:4px; height:4px; border-radius:99px; background:var(--amber-deep); }
+  .lead-note { margin-top:10px; font-size:12.5px; color:var(--muted-foreground); display:flex; gap:7px; align-items:flex-start; }
+  .lead-note svg { width:14px; height:14px; stroke:var(--muted-foreground); fill:none; stroke-width:1.9; flex-shrink:0; margin-top:2px; }
+  .lead-note a { color:var(--brand-strong); font-weight:500; }
+
+  /* pets + duration */
+  .pet-row { display:flex; gap:8px; flex-wrap:wrap; }
+  .pet { display:flex; align-items:center; gap:7px; border:1.5px solid var(--border); border-radius:999px; padding:6px 14px 6px 10px; font-size:13.5px; cursor:pointer; background:var(--card); }
+  .pet.on { border-color:var(--clay-strong); background:var(--clay-soft); font-weight:600; }
+  .pet svg { width:14px; height:14px; stroke:currentColor; fill:none; stroke-width:2; }
+  .stepper { display:flex; align-items:stretch; border:1px solid var(--input); border-radius:calc(var(--radius)*1.4); overflow:hidden; max-width:100%; width:220px; }
+  .mobile .stepper { width:100%; }
+  .stepper button { font:inherit; width:40px; border:none; background:var(--muted); cursor:pointer; font-size:16px; color:var(--sand-700); flex-shrink:0; }
+  .stepper .val { flex:1; min-width:0; display:flex; align-items:center; justify-content:center; gap:4px; font-size:14px; padding:8px 4px; background:var(--card); }
+  .stepper .val span { color:var(--muted-foreground); font-size:12.5px; }
+
+  /* summary rail */
+  .rail { display:flex; flex-direction:column; gap:12px; }
+  .sum { background:var(--card); border:1px solid var(--border); border-radius:calc(var(--radius)*1.8); padding:18px 18px 16px; }
+  .sum h4 { font-family:var(--font-heading); font-size:15px; font-weight:600; margin:0 0 10px; }
+  .sum-rows { display:flex; flex-direction:column; gap:7px; font-size:13px; }
+  .sum-row { display:flex; justify-content:space-between; gap:10px; }
+  .sum-row .k { color:var(--muted-foreground); }
+  .sum-row .v { font-weight:500; text-align:right; }
+  .sum-div { border-top:1px solid var(--border); margin:10px 0; }
+  .sum-total { display:flex; justify-content:space-between; font-size:15px; font-weight:700; }
+  .sum-total small { display:block; font-size:11.5px; color:var(--muted-foreground); font-weight:400; }
+  .btn-brand { font:inherit; font-size:14.5px; font-weight:600; cursor:pointer; background:var(--brand); color:var(--brand-foreground); border:none; border-radius:calc(var(--radius)*1.4); padding:11px 18px; width:100%; margin-top:12px; }
+  .btn-brand:hover { background:var(--clay-strong); }
+  .policy { font-size:11.5px; color:var(--muted-foreground); line-height:1.5; margin-top:10px; display:flex; gap:7px; }
+  .policy svg { width:13px; height:13px; stroke:var(--muted-foreground); fill:none; stroke-width:1.9; flex-shrink:0; margin-top:1px; }
+
+  /* mobile summary (inline, before CTA) */
+  .m-sum { background:var(--card); border:1px solid var(--border); border-radius:calc(var(--radius)*1.8); padding:14px 14px 12px; }
+
+  /* success */
+  .success-frame { width:720px; }
+  .success-card { max-width:480px; margin:40px auto; background:var(--card); border:1px solid var(--border); border-radius:calc(var(--radius)*1.8); padding:28px; text-align:center; }
+  .success-card .ic { width:44px; height:44px; border-radius:999px; background:var(--green-soft); display:flex; align-items:center; justify-content:center; margin:0 auto 12px; }
+  .success-card .ic svg { width:22px; height:22px; stroke:var(--green-deep); fill:none; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round; }
+  .success-card h3 { font-family:var(--font-heading); font-size:21px; margin:0 0 6px; }
+  .success-card p { font-size:13.5px; color:var(--sand-700); margin:0 0 16px; }
+  .success-card .row { display:flex; gap:10px; justify-content:center; }
+  .btn-ghost { font:inherit; font-size:13.5px; font-weight:600; background:transparent; border:1px solid var(--border); color:var(--foreground); border-radius:calc(var(--radius)*1.4); padding:9px 16px; cursor:pointer; }
+</style>
+</head>
+<body>
+
+<div class="page-note">
+  <h1>SP6 — Booking flow: /book/[service] page, 2-col desktop</h1>
+  <p>Today the flow is a narrow left column floating in an empty sheet, and at 390px the stepper + sign-in card
+     overflow the right edge (audit). New layout (signed off 2026-06-11): steps as cards in ONE stacked column,
+     all viewports — no side receipt; the summary card with live quote + the U6 policy disclosure (prepay +
+     cancellation %, rendered from settings) sits inline after the steps, above the CTA. Calendar keeps its
+     current in-app visual (maintainer likes it) — only the lead-time-as-grey behavior (U2), the premium-day
+     dot + legend, and the quiet contact note are added. The same &lt;BookingFlow&gt; serves public + admin
+     create/edit, so U1/U2/the overnight-zod fix land once.</p>
+</div>
+
+<div class="callout">
+  <b>Fixes carried by this surface:</b> U1 — booking success gets a real terminal state (confirmation panel + redirect
+  to My bookings; pending-approval copy variant). U2 — lead-time days render as unavailable (grey) with one quiet note,
+  never an error message. U6 — policy line from settings under the CTA. Premium days — amber dot + legend
+  (SP5 carry-over). Mobile — single column, summary inline above the CTA, stepper clamped to container width
+  (overflow bug fixed). Step cards give each section a surface — no more floating labels on the sheet.
+</div>
+
+<div class="frames">
+  <div>
+    <p class="frame-label">Desktop (≥1024px) — signed in, walk selected</p>
+    <div class="sheet desktop">
+      <div class="body-pad">
+        <div class="crumb"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>All services</div>
+        <h2 class="title">Walk</h2>
+        <p class="svc-sub"><span><b>$25</b> / hour</span><span>60 min default</span><span>Front Range area</span></p>
+        <div class="two-col">
+          <div class="steps">
+            <div class="step">
+              <div class="step-head"><span class="step-num">1</span><h3>Pick a day</h3><span class="hint">June 2026</span></div>
+              <div class="cal">
+                <div class="cal-grid">
+                  <span class="dow">M</span><span class="dow">T</span><span class="dow">W</span><span class="dow">T</span><span class="dow">F</span><span class="dow">S</span><span class="dow">S</span>
+                  <span class="day un">8</span><span class="day un">9</span><span class="day un">10</span><span class="day un">11</span><span class="day">12</span><span class="day premium">13</span><span class="day premium">14</span>
+                  <span class="day">15</span><span class="day sel">16</span><span class="day">17</span><span class="day">18</span><span class="day">19</span><span class="day premium">20</span><span class="day un">21</span>
+                  <span class="day">22</span><span class="day">23</span><span class="day">24</span><span class="day">25</span><span class="day">26</span><span class="day">27</span><span class="day">28</span>
+                </div>
+                <div class="cal-legend">
+                  <span class="lg"><i class="av"></i>Available</span>
+                  <span class="lg"><i class="uv"></i>Unavailable</span>
+                  <span class="lg"><i class="pr"></i></span><span style="margin-left:-9px">Premium day (holiday rate)</span>
+                </div>
+                <div class="lead-note"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>Days before June 12 need more notice than this service allows — <a href="#">contact Cal</a> if you need something sooner.</div>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-head"><span class="step-num">2</span><h3>Which pets?</h3></div>
+              <div class="pet-row">
+                <span class="pet on"><svg viewBox="0 0 24 24"><path d="m9 11 3 3L22 4"/></svg>Juniper</span>
+                <span class="pet">Biscuit</span>
+                <span class="pet" style="border-style:dashed;color:var(--muted-foreground)">+ Add a pet</span>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-head"><span class="step-num">3</span><h3>Details</h3><span class="hint">15-min steps</span></div>
+              <div class="stepper">
+                <button>−</button><span class="val">1.5 <span>hr</span></span><button>+</button>
+              </div>
+            </div>
+            <div class="step">
+              <div class="step-head"><span class="step-num">4</span><h3>Repeat weekly?</h3><span class="hint">optional</span></div>
+              <label style="display:flex;align-items:center;gap:9px;font-size:13.5px;color:var(--sand-700)"><input type="checkbox" style="width:16px;height:16px;accent-color:var(--clay-fill)"/>Repeat this walk every week</label>
+            </div>
+          </div>
+          <div class="rail">
+            <div class="sum">
+              <h4>Your booking</h4>
+              <div class="sum-rows">
+                <div class="sum-row"><span class="k">Service</span><span class="v">Walk</span></div>
+                <div class="sum-row"><span class="k">Date</span><span class="v">Tue, Jun 16</span></div>
+                <div class="sum-row"><span class="k">Duration</span><span class="v">1.5 hr</span></div>
+                <div class="sum-row"><span class="k">Pets</span><span class="v">Juniper</span></div>
+              </div>
+              <div class="sum-div"></div>
+              <div class="sum-total"><span>Total<small>pay after, or prepay</small></span><span>$37.50</span></div>
+              <button class="btn-brand">Request booking</button>
+              <p class="policy"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>Free cancellation until 48h before. Later cancellations keep 50% — both values render from Cal's settings (U6).</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <p class="frame-label">Mobile (390px) — same flow, one column</p>
+    <div class="sheet mobile">
+      <div class="body-pad">
+        <div class="crumb"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>All services</div>
+        <h2 class="title" style="font-size:24px">Walk</h2>
+        <p class="svc-sub" style="margin-bottom:16px"><span><b>$25</b> / hour</span><span>60 min default</span></p>
+        <div class="steps">
+          <div class="step">
+            <div class="step-head"><span class="step-num">1</span><h3>Pick a day</h3></div>
+            <div class="cal">
+              <div class="cal-grid">
+                <span class="dow">M</span><span class="dow">T</span><span class="dow">W</span><span class="dow">T</span><span class="dow">F</span><span class="dow">S</span><span class="dow">S</span>
+                <span class="day un">8</span><span class="day un">9</span><span class="day un">10</span><span class="day un">11</span><span class="day">12</span><span class="day premium">13</span><span class="day premium">14</span>
+                <span class="day">15</span><span class="day sel">16</span><span class="day">17</span><span class="day">18</span><span class="day">19</span><span class="day premium">20</span><span class="day un">21</span>
+              </div>
+              <div class="cal-legend">
+                <span class="lg"><i class="av"></i>Available</span>
+                <span class="lg"><i class="uv"></i>Unavailable</span>
+                <span class="lg"><i class="pr"></i></span><span style="margin-left:-9px">Premium</span>
+              </div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-head"><span class="step-num">2</span><h3>Which pets?</h3></div>
+            <div class="pet-row">
+              <span class="pet on"><svg viewBox="0 0 24 24"><path d="m9 11 3 3L22 4"/></svg>Juniper</span>
+              <span class="pet">Biscuit</span>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-head"><span class="step-num">3</span><h3>Details</h3></div>
+            <div class="stepper">
+              <button>−</button><span class="val">1.5 <span>hr</span></span><button>+</button>
+            </div>
+          </div>
+          <div class="m-sum">
+            <div class="sum-rows">
+              <div class="sum-row"><span class="k">Tue, Jun 16 · 1.5 hr · Juniper</span></div>
+            </div>
+            <div class="sum-div" style="margin:8px 0"></div>
+            <div class="sum-total"><span>Total</span><span>$37.50</span></div>
+            <button class="btn-brand">Request booking</button>
+            <p class="policy"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>Free cancellation until 48h before; later keeps 50%.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <p class="frame-label">Success state (U1) — terminal panel, then My bookings</p>
+    <div class="sheet success-frame">
+      <div class="success-card">
+        <div class="ic"><svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg></div>
+        <h3>Booking requested</h3>
+        <p>Walk · Tue, Jun 16 · 1.5 hr · Juniper<br/>Cal approves requests within a day — you'll get an email either way.</p>
+        <div class="row">
+          <button class="btn-brand" style="width:auto;margin:0">View my bookings</button>
+          <button class="btn-ghost">Book another</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

@@ -45,13 +45,16 @@ Surfaced by the SP3a fresh-session `/code-review`. All were **pre-existing dupli
 - **SP4 payment-action polish** landed in client-detail: payment-status pills, retained-half line, dispute marker (`disputed_at`/`dispute_status`) + Stripe deep-link.
 - **No-show removed from all admin UI** + the No-Show Charge % settings control + `markNoShow` unwired (backend rip-out deferred to the debt spec).
 
-Remaining open SP5 findings (AD1 re-routed, AD4 deferred, AD5 → SP5b):
+**SP5b (awareness layer) DONE 2026-06-11 — AD5 resolved.**
 
-| ID  | Sev | Finding                                                                                                                                                                                                                                                                                                                                                                      |
-| --- | --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| AD1 | M   | Series-roll conflicts are flagged in cron output only — no admin surface lists "occurrences left pending due to conflict" (DEV_NOTES owed item). Cal can't see or resolve them.                                                                                                                                                                                              |
-| AD4 | M   | Cancel-with-reason: no reason field on admin/client cancel; reason should flow into the cancellation email (with booking-mutation P3).                                                                                                                                                                                                                                       |
-| AD5 | m   | No admin notification badges (wordmark/tabs) for pending approvals / new inquiries / flagged conflicts — "what needs Cal's attention now" surface missing (ties SP3 nav). **Primitive-ready (SP3b):** shipped the `NavBadge` primitive + the typed `AttentionCounts` seam (`{pendingApprovals,newInquiries,flaggedConflicts}`); SP5 wires the real counts + final placement. |
+- **AD5 resolved** — real `AttentionCounts` wired via `getAttentionCounts()` (pure `computeAttentionCounts` reducer + thin server fetch); the `NavBadge` primitive mounted on Bookings (`pendingApprovals`) + Inquiries (`newInquiries`) in both the desktop sidebar and the mobile drawer (gold `--attention`, renders nothing at 0, numeric badge `aria-hidden` + `sr-only` count/meaning). `flaggedConflicts` stays 0 (AD1 re-routed). The dashboard's 5 stat cards were replaced by an attention task-list (rows link to filtered hub views) + a read-only "Today" booking timeline.
+
+Remaining open SP5 findings (AD1 re-routed, AD4 deferred):
+
+| ID  | Sev | Finding                                                                                                                                                                         |
+| --- | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| AD1 | M   | Series-roll conflicts are flagged in cron output only — no admin surface lists "occurrences left pending due to conflict" (DEV_NOTES owed item). Cal can't see or resolve them. |
+| AD4 | M   | Cancel-with-reason: no reason field on admin/client cancel; reason should flow into the cancellation email (with booking-mutation P3).                                          |
 
 Admin-powers inventory: all 17 expected powers exist in code with UI (approve/decline, cancel, no-show, refund grant, debt view/settle, create-on-behalf, edit-any, reschedule, windows, overnight nights, services CRUD, full settings, onboarding status, Kiche toggle, reviews moderation, inquiries, ban-via-declined). Gaps = AD1 (conflict UI), AD4 (reason), AD3 (friendliness, not capability). Ban-from-meet-greets needs no dedicated surface — `declined` covers it (maintainer decision 2026-06-10).
 
@@ -83,7 +86,34 @@ Spec + plans committed ([spec](2026-06-11-sp5-admin-design.md), [SP5a plan](../p
 | U10 | m   | Booking detail: show fuller service info per booking.                                                                                                                                                                                                                                                         |
 | U11 | m   | Empty/overflow/confusing states sitewide sweep at desktop + mobile + breakpoint transition — full walk with `busy-week` scenario. **(live-verify — this is the SP6 entry activity)**                                                                                                                          |
 | U12 | m   | Footer social/email icon links are placeholders — add correct email icon + update all footer links before launch. **(live-verify targets with Cal)**                                                                                                                                                          |
-| U13 | m   | "Contact page?" open question from DEV_NOTES — decide whether a dedicated /contact route is needed (Cal decision); current contact flow is the inquiry form on the home/admin surface.                                                                                                                        |
+| U13 | m   | **RESOLVED by decision 2026-06-11** — /contact route already exists; redesign signed off (see U19). No Cal decision needed.                                                                                                                                                                                   |
+
+### SP6 additions — Fable 5 planning-audit pass + DEV_NOTES "Now" triage (2026-06-11)
+
+Live screenshot audit (headless Chrome, 1440/390, all public pages) + static pass + maintainer grilling. Spec: [SP6 design](2026-06-11-sp6-cohesion-design.md); signed-off mockups in [`mockups/sp6/`](../mockups/sp6/NOTES.md).
+
+| ID  | Sev | Finding                                                                                                                                                                                                                                                                |
+| --- | --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| U14 | M   | **Systemic mobile horizontal overflow at 390px** — /book/[service], /services, /reviews, /contact, home CTA all clip the right edge. One shared layout root cause suspected; investigate once in Plan A, re-verify every page in the U11 walk. **(live-verify first)** |
+| U15 | M   | Primary-action buttons inconsistent: login/signup/contact submit near-black `primary`; booking CTAs brand clay. Button-hierarchy rule locked in the system mockup (brand = THE action; `primary` retires from forms).                                                  |
+| U16 | m   | Footer content has no max-width container while the header boxes at `max-w-6xl` — misaligned edges; also carries U12 (icons: socials hidden until Cal supplies URLs; mail icon → /contact, never mailto — maintainer privacy rule).                                    |
+| U17 | m   | Select popup `min-w-[8rem]` only — doesn't match trigger width. Fix `min-w-(--anchor-width)` (Base UI) in `select.tsx`, benefits every dropdown sitewide.                                                                                                              |
+| U18 | m   | Home trust points are three unanchored text blocks (the spacing Alex flagged). Card treatment with lucide icon discs signed off on real registry copy.                                                                                                                 |
+| U19 | m   | Contact page bare/contrast-free (Alex audit example). Single-centered-card redesign signed off: no public email/phone, stacked fields, inline success state.                                                                                                           |
+| U20 | m   | Header: 88px tall, bare text tabs, mobile burger ~12px in from the content edge. Polish signed off (60px, hover surface + tucked underline, burger optically flush right, 44px target kept).                                                                           |
+| U21 | m   | Review stars are unicode ★ glyphs → lucide `Star` (lucide-over-emoji rule).                                                                                                                                                                                            |
+| U22 | m   | Home mobile CTA heading clips at the right edge — likely a U14 instance. **(live-verify)**                                                                                                                                                                             |
+| U23 | m   | Near-empty sheets (login/contact/reviews) render a tall blank page below sparse content — vertical-rhythm/min-height strategy.                                                                                                                                         |
+| U24 | M   | Reschedule overnight throws zod `nights: expected number, received undefined` (DEV_NOTES). BookingFlow edit-path bug — fix in the shared `<BookingFlow>` bucket with U1/U2.                                                                                            |
+| U25 | M   | Onboarding "enter info takes two tries" (DEV_NOTES). Root-cause investigation first (systematic-debugging), then fix.                                                                                                                                                  |
+| U26 | C   | **Required forms do not gate booking** — `computeBookingArtifacts` checks `profiles.onboarding_status` only; form completion never blocks (confirmed in code 2026-06-11). Define "required forms complete", gate it, surface as unavailability-style messaging + link. |
+| U27 | m   | Overnight stays render oddly in the bookings calendar (DEV_NOTES). **(live-verify with `busy-week`)**                                                                                                                                                                  |
+| U28 | m   | Booking-details surfaces still say "holiday days" + stale wording — premium-day rename sweep (SP5 carry-over) + detail copy reword.                                                                                                                                    |
+| U29 | m   | Clicking the date inside an inquiry doesn't open it (DEV_NOTES) — dead interaction; make the whole row/date affordance consistent.                                                                                                                                     |
+| U30 | m   | Admin sidebar tabs get lucide icons (SP5 carry-over, maintainer-confirmed).                                                                                                                                                                                            |
+| U31 | m   | `--attention` re-token: gold rejected → **slate `#3c5566`** (signed off; white ≈7.9:1, no clay/danger collision).                                                                                                                                                      |
+
+Also decided 2026-06-11: **reviews auto-publish + admin unpublish** (replaces pre-moderation; submit copy updated — lands with the reviews surface pass). Pages with no dedicated finding: about/gallery/resources/signup (Plan B light touch). **Kiche per-booking discount** routed to the feature lane (below), not SP6.
 
 ## SP7 — performance
 
@@ -99,7 +129,7 @@ Spec + plans committed ([spec](2026-06-11-sp5-admin-design.md), [SP5a plan](../p
 
 ## DEV_NOTES triage (decisions)
 
-- **Feature roadmap, not findings** (booking-mutation P2-P4, after SP4): reschedule generalization for paid bookings; cancel bookings (+ reason + refund semantics → AD4/PAY3); recurring rework; account inquiries enhancements.
+- **Feature roadmap, not findings** (booking-mutation P2-P4, after SP4): reschedule generalization for paid bookings; cancel bookings (+ reason + refund semantics → AD4/PAY3); recurring rework; account inquiries enhancements; **Kiche discount per-booking instead of per-profile** (data-model + pricing change — routed out of SP6, 2026-06-11).
 - **Already shipped, verify + close**: account inquiries tab (route exists); admin manual booking entry (create-on-behalf shipped 2026-06-10; polish in SP5).
 - **Rejected**: removing admin add-pet button (AD2 — fix scoping instead, capability is legit for phone bookings).
 - **Cal/ops questions, not code**: dedicated send-address for automated email (needed before notification system); "we" vs Cal-third-person voice (copy-sync decision); website logo.
@@ -113,7 +143,8 @@ Spec + plans committed ([spec](2026-06-11-sp5-admin-design.md), [SP5a plan](../p
 - S1 resolved by SP2 (db seeding framework), 2026-06-10.
 - A1, A3, A4, A5, A6, A7, A8, A9, A10, A11 resolved by SP3a (codebase structure), 2026-06-10.
 - A2, A12, A13, A14, A16 resolved by SP3b (system IA + UI primitives), 2026-06-10. U3 resolved; U7/AD5 primitives built (sitewide application + count wiring remain SP6/SP5). A15 → SP7.
-- AD2, AD3 resolved + AD7 confirmed by SP5a (admin operational surfaces), 2026-06-11; SP4 payment-polish surfaced + no-show stripped from UI. AD1 re-routed (recurring rework), AD4 deferred (debt spec), AD5 → SP5b.
+- AD2, AD3 resolved + AD7 confirmed by SP5a (admin operational surfaces), 2026-06-11; SP4 payment-polish surfaced + no-show stripped from UI. AD1 re-routed (recurring rework), AD4 deferred (debt spec).
+- AD5 resolved by SP5b (admin awareness layer), 2026-06-11 — real `AttentionCounts` nav badges (Bookings + Inquiries, both nav paths) + attention-list/today-timeline dashboard. `flaggedConflicts` stays 0 (AD1 re-routed).
 
 ---
 

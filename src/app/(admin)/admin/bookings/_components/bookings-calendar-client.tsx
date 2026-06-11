@@ -368,9 +368,23 @@ export function BookingsCalendarClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ── ?status={filter} deep-link (from dashboard attention list "Review →") ───
+  // When a valid BookingStatusFilter arrives via the query string, seed the
+  // initial status state and start in List view (more actionable for triage).
+  // Behaviour is unchanged when the param is absent or invalid.
+  const deepLinkStatus = useMemo((): BookingStatusFilter => {
+    const raw = searchParams.get("status");
+    const valid = STATUS_OPTIONS.find((o) => o.value === raw);
+    return valid ? valid.value : "all";
+    // Read once at mount — same rationale as deepLinkId above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const [error, setError] = useState<string | null>(null);
-  const [view, setView] = useState<View>(deepLinkId ? "list" : "calendar");
-  const [status, setStatus] = useState<BookingStatusFilter>("all");
+  const [view, setView] = useState<View>(
+    deepLinkId || deepLinkStatus !== "all" ? "list" : "calendar",
+  );
+  const [status, setStatus] = useState<BookingStatusFilter>(deepLinkStatus);
   const [service, setService] = useState("all");
   const [query, setQuery] = useState("");
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
