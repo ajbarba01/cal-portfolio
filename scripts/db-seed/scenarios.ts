@@ -5,14 +5,16 @@ import {
   createClientUser,
   insertBooking,
   insertDebit,
+  insertForm,
   insertInquiry,
   insertNight,
   insertPayment,
   insertReview,
   insertSeries,
   insertWindow,
+  setPremiumDays,
 } from "./factories";
-import { slot, statusFor, weekAnchor } from "./dates";
+import { SEED_TZ, slot, statusFor, weekAnchor } from "./dates";
 
 export interface Step {
   name: string;
@@ -499,6 +501,53 @@ const adminDemoExtras: Step = {
   name: "admin-demo-extras",
   async run(ctx) {
     const a = weekAnchor(ctx.now);
+
+    // ── SP5a: disputed payment ────────────────────────────────────────────────
+    // Day 6 (Sunday) 7:00 — free slot in the 7:00 payment-states band.
+    const disputedBooking = {
+      startsAt: slot(a, 6, 7),
+      endsAt: slot(a, 6, 8),
+    };
+    await insertBooking(ctx, "pay-disputed", {
+      clientEmail: "paula@local.test",
+      service: "walk",
+      startsAt: disputedBooking.startsAt,
+      endsAt: disputedBooking.endsAt,
+      status: "completed",
+      paymentStatus: "paid",
+      finalCents: 3500,
+      petKeys: ["rex"],
+    });
+    await insertPayment(ctx, {
+      bookingKey: "pay-disputed",
+      intentId: "pi_seed_disputed",
+      amountCents: 3500,
+      status: "succeeded",
+      disputedAt: new Date(ctx.now.getTime() - 2 * 24 * 60 * 60 * 1000),
+      disputeStatus: "needs_response",
+    });
+
+    // ── SP5a: premium days in settings ───────────────────────────────────────
+    // Two upcoming Denver day-keys (next-week Saturday + Sunday).
+    const fmt = new Intl.DateTimeFormat("en-CA", { timeZone: SEED_TZ });
+    const premiumDays = [
+      fmt.format(slot(a, 12, 12)), // next-week Saturday
+      fmt.format(slot(a, 13, 12)), // next-week Sunday
+    ];
+    await setPremiumDays(ctx, premiumDays);
+
+    // ── SP5a: emergency form on multi-pet client (dana, 2 dogs) ──────────────
+    await insertForm(ctx, {
+      clientEmail: "dana@local.test",
+      formKey: "emergency",
+      data: {
+        contact_name: "Jordan Walker",
+        contact_phone: "555-0142",
+        contact_relationship: "Spouse",
+        vet_name: "Boulder Animal Hospital",
+        vet_phone: "555-0188",
+      },
+    });
     // Every onboarding status on the clients list.
     await createClientUser(ctx, {
       email: "noor@local.test",

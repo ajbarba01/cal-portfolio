@@ -137,3 +137,7 @@ export { emptyAttentionCounts } from "./attention-counts";
 // bookings-view (pure predicates)
 export { filterBookings, daysWithMatch, isolate } from "./bookings-view";
 export type { BookingStatusFilter } from "./bookings-view";
+
+// clients-view (pure predicates)
+export { applyClientFilter, sortClients } from "./clients-view";
+export type { ClientFilter, ClientSortKey, SortDir } from "./clients-view";
