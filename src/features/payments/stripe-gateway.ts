@@ -1,7 +1,12 @@
 import "server-only";
 
 import Stripe from "stripe";
-import type { PaymentGateway, CreateIntentArgs, CreatedIntent } from "./types";
+import type {
+  PaymentGateway,
+  CreateIntentArgs,
+  CreatedIntent,
+  RetrievedIntent,
+} from "./types";
 
 /** Production adapter: delegates to Stripe PaymentIntents API. */
 export class StripeGateway implements PaymentGateway {
@@ -28,14 +33,14 @@ export class StripeGateway implements PaymentGateway {
   }
 
   async createIntent(args: CreateIntentArgs): Promise<CreatedIntent> {
-    const pi = await this.stripe.paymentIntents.create({
-      amount: args.amountCents,
-      currency: args.currency,
-      metadata: {
-        bookingId: args.bookingId,
-        clientId: args.clientId,
+    const pi = await this.stripe.paymentIntents.create(
+      {
+        amount: args.amountCents,
+        currency: args.currency,
+        metadata: { bookingId: args.bookingId, clientId: args.clientId },
       },
-    });
+      args.idempotencyKey ? { idempotencyKey: args.idempotencyKey } : undefined,
+    );
 
     if (!pi.client_secret) {
       throw new Error(
@@ -55,5 +60,15 @@ export class StripeGateway implements PaymentGateway {
       amount: amountCents,
     });
     // payment_status is re-projected by the charge.refunded webhook — never here.
+  }
+
+  async retrieveIntent(paymentIntentId: string): Promise<RetrievedIntent> {
+    const pi = await this.stripe.paymentIntents.retrieve(paymentIntentId);
+    return { status: pi.status, clientSecret: pi.client_secret };
+  }
+
+  async cancelIntent(paymentIntentId: string): Promise<void> {
+    await this.stripe.paymentIntents.cancel(paymentIntentId);
+    // payment_status is re-projected by the payment_intent.canceled webhook — never here.
   }
 }

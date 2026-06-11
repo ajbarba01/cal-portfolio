@@ -284,6 +284,15 @@ class FakeGateway {
   async refund(paymentIntentId: string, amountCents: number): Promise<void> {
     this.refunds.push({ paymentIntentId, amountCents });
   }
+  async retrieveIntent(id: string) {
+    return {
+      status: "requires_payment_method",
+      clientSecret: `${id}_secret_xyz`,
+    };
+  }
+  async cancelIntent(_id: string): Promise<void> {
+    /* no-op */
+  }
 }
 
 /** Cancel/admin deps: adds a fake gateway to the standard deps. */

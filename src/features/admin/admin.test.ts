@@ -164,6 +164,15 @@ const fakeGateway = {
   async refund() {
     /* no-op */
   },
+  async retrieveIntent(id: string) {
+    return {
+      status: "requires_payment_method",
+      clientSecret: `${id}_secret_xyz`,
+    };
+  },
+  async cancelIntent(_id: string) {
+    /* no-op */
+  },
 };
 
 function nonAdminDeps() {

@@ -17,7 +17,12 @@ import Stripe from "stripe";
 import { runCreatePrepayIntent } from "./create-intent";
 import { applyStripeEvent } from "./webhook-core";
 import { amountOwedCents } from "./projection";
-import type { PaymentGateway, CreatedIntent } from "./types";
+import type {
+  PaymentGateway,
+  CreatedIntent,
+  CreateIntentArgs,
+  RetrievedIntent,
+} from "./types";
 
 const url = process.env.SUPABASE_TEST_URL!;
 const serviceKey = process.env.SUPABASE_TEST_SERVICE_ROLE_KEY!;
@@ -59,15 +64,24 @@ const FAKE_INTENT_ID = `pi_fake_${ts}`;
 const FAKE_SECRET = `pi_fake_${ts}_secret_xyz`;
 
 class FakeGateway implements PaymentGateway {
-  async createIntent(): Promise<CreatedIntent> {
+  public created: CreateIntentArgs[] = [];
+  public canceled: string[] = [];
+  /** intentId → status returned by retrieveIntent (default reusable). */
+  public statuses = new Map<string, string>();
+
+  async createIntent(args: CreateIntentArgs): Promise<CreatedIntent> {
+    this.created.push(args);
+    return { paymentIntentId: FAKE_INTENT_ID, clientSecret: FAKE_SECRET };
+  }
+  async refund(): Promise<void> {}
+  async retrieveIntent(id: string): Promise<RetrievedIntent> {
     return {
-      paymentIntentId: FAKE_INTENT_ID,
-      clientSecret: FAKE_SECRET,
+      status: this.statuses.get(id) ?? "requires_payment_method",
+      clientSecret: `${id}_secret_xyz`,
     };
   }
-
-  async refund(): Promise<void> {
-    // no-op for this suite (refund behavior is exercised in the booking tests)
+  async cancelIntent(id: string): Promise<void> {
+    this.canceled.push(id);
   }
 }
 

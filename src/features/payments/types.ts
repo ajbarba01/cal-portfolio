@@ -10,6 +10,14 @@ export interface CreateIntentArgs {
   currency: string;
   bookingId: string;
   clientId: string;
+  /** Booking-scoped key so repeat clicks don't mint duplicate intents (Stripe idempotency). */
+  idempotencyKey?: string;
+}
+
+/** Status + secret needed to decide whether an existing intent can be reused. */
+export interface RetrievedIntent {
+  status: string; // Stripe PaymentIntent.status
+  clientSecret: string | null;
 }
 
 export interface CreatedIntent {
@@ -30,6 +38,12 @@ export interface PaymentGateway {
    * the sole writer of that column) — this call NEVER writes payment_status.
    */
   refund(paymentIntentId: string, amountCents: number): Promise<void>;
+
+  /** Read an intent's current status (to decide reuse vs recreate). */
+  retrieveIntent(paymentIntentId: string): Promise<RetrievedIntent>;
+
+  /** Cancel a stale/abandoned intent before minting a fresh one. */
+  cancelIntent(paymentIntentId: string): Promise<void>;
 }
 
 // ─── Domain types ─────────────────────────────────────────────────────────────
