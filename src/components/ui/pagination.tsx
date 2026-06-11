@@ -32,7 +32,7 @@ export function Pagination({
         type="button"
         disabled={page <= 1}
         onClick={() => onPageChange(page - 1)}
-        className="border-border bg-card hover:bg-accent disabled:hover:bg-card h-9 rounded-md border px-3 text-sm disabled:opacity-40"
+        className="border-border bg-card hover:bg-accent disabled:hover:bg-card focus-visible:ring-ring h-9 rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none disabled:opacity-40"
       >
         ‹ Prev
       </button>
@@ -43,7 +43,7 @@ export function Pagination({
           aria-current={n === page ? "page" : undefined}
           onClick={() => onPageChange(n)}
           className={cn(
-            "border-border h-9 min-w-9 rounded-md border px-2 text-sm",
+            "border-border focus-visible:ring-ring h-9 min-w-9 rounded-md border px-2 text-sm focus-visible:ring-2 focus-visible:outline-none",
             n === page
               ? "bg-primary text-primary-foreground border-primary"
               : "bg-card hover:bg-accent",
@@ -56,7 +56,7 @@ export function Pagination({
         type="button"
         disabled={page >= pageCount}
         onClick={() => onPageChange(page + 1)}
-        className="border-border bg-card hover:bg-accent disabled:hover:bg-card h-9 rounded-md border px-3 text-sm disabled:opacity-40"
+        className="border-border bg-card hover:bg-accent disabled:hover:bg-card focus-visible:ring-ring h-9 rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:outline-none disabled:opacity-40"
       >
         Next ›
       </button>
