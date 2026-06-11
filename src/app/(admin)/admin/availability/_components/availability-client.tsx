@@ -1,35 +1,36 @@
 "use client";
 
 /**
- * AvailabilityClient — Cal's availability + booking management via the
- * compound <Scheduler>. The Scheduler handles window creation/block-out and
- * overnight-night toggling. This client owns the wiring: it passes mutation
- * callbacks to the Scheduler, preserves booking moderation (cancel/approve/
- * decline/no-show) via the BusySidePanel, and uses router.refresh() to reload
- * server-rendered data after mutations.
+ * AvailabilityClient — Cal's availability painting surface, built on the shared
+ * compound <Scheduler>. PAINT-ONLY: this page creates/removes availability
+ * windows and toggles overnight nights + premium days. It does NOT moderate
+ * bookings — clicking a booked cell opens a READ-ONLY inspect card that links
+ * out to the Bookings hub (where moderation lives) and the client record.
+ *
+ * Cancel-by-blocking: painting booked time unavailable is destructive, so the
+ * removal callbacks intercept any affected bookings, pop a confirm listing each
+ * one at a 100% (Cal-initiated) refund, then cancel each via cancelBooking
+ * before applying the block. Empty time blocks silently.
  *
  * Server data (windows, busy, nights, rules) flows straight from props —
- * refresh re-renders the page and hands down fresh props, so there is no
- * client copy to drift.
+ * server actions revalidate this route, so there is no client copy to drift.
  *
- * Scheduler callbacks deliberately do NOT route through run() — they return
- * the action result directly so panels can render conflicts/feedback. Booking
- * moderation still uses run() (fire-and-forget, result surfaced via error state).
+ * Scheduler callbacks deliberately do NOT route through router.refresh(): each
+ * server action revalidatePath()s "/admin/availability", refreshing this
+ * route's RSC data within the same transition. They return the action result
+ * directly so the Scheduler can surface conflicts/feedback.
  */
 
-import {
-  useState,
-  useTransition,
-  useMemo,
-  useEffect,
-  useOptimistic,
-} from "react";
-import { useRouter } from "next/navigation";
+import { useState, useMemo, useEffect, useOptimistic } from "react";
+import Link from "next/link";
+import { ArrowRight, ExternalLink, X } from "lucide-react";
 import {
   useScheduler,
   denverMidnight,
+  denverDayKey,
+  denverMinutesSinceMidnight,
   cancelBooking,
-  markNoShow,
+  PetAvatar,
   Scheduler,
   ADMIN_CAPABILITIES,
 } from "@/features/booking/index.client";
@@ -45,20 +46,9 @@ import {
   setWindowUnavailable,
   setOvernightNightsBatch,
   setPremiumDaysBatch,
-  approveBooking,
-  declineBooking,
 } from "@/features/admin";
 import type { AvailabilityWindow, AdminBusyRangeView } from "@/features/admin";
-import { BusySidePanel } from "./busy-side-panel";
-
-type ActionResult = { kind: string } & Record<string, unknown>;
-
-function resultError(result: ActionResult): string | null {
-  if (result.kind === "success") return null;
-  return typeof result.message === "string"
-    ? result.message
-    : `Action failed: ${result.kind}`;
-}
+import { useConfirm } from "@/components/feedback/confirm-dialog";
 
 const DENVER_TZ = "America/Denver";
 
@@ -72,31 +62,62 @@ function toBusyBlock(b: AdminBusyRangeView): BusyBlock {
   };
 }
 
-function denverLabel(iso: string): string {
-  return new Date(iso).toLocaleString("en-US", {
+const STATUS_LABELS: Record<string, string> = {
+  pending_approval: "Pending approval",
+  confirmed: "Confirmed",
+  completed: "Completed",
+  cancelled: "Cancelled",
+  declined: "Declined",
+  no_show: "No-show",
+};
+
+function humanizeStatus(status: string): string {
+  return STATUS_LABELS[status] ?? status;
+}
+
+function dollars(cents: number): string {
+  return `$${(cents / 100).toFixed(2)}`;
+}
+
+/** "Tue, Jun 7, 2:00 – 2:30 PM" (Denver). */
+function denverRange(startIso: string, endIso: string): string {
+  const date = new Date(startIso).toLocaleDateString("en-US", {
     timeZone: DENVER_TZ,
+    weekday: "short",
     month: "short",
     day: "numeric",
+  });
+  const fmtTime = (iso: string) =>
+    new Date(iso).toLocaleTimeString("en-US", {
+      timeZone: DENVER_TZ,
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  return `${date}, ${fmtTime(startIso)} – ${fmtTime(endIso)}`;
+}
+
+/** "Jane Doe · Dog Walk · 2:00 PM" — one line per affected booking in the confirm. */
+function affectedLabel(b: AdminBusyRangeView): string {
+  const time = new Date(b.startsAt).toLocaleTimeString("en-US", {
+    timeZone: DENVER_TZ,
     hour: "numeric",
     minute: "2-digit",
   });
+  const who = b.clientName ?? "Unknown client";
+  return `${who} · ${time}`;
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Optimistic availability windows
 // ──────────────────────────────────────────────────────────────────────────────
 //
-// "Mark available/unavailable" hits the server then router.refresh()es — the
-// grid only repaints once that round-trip lands, so the commit felt laggy. We
-// mirror the mutation onto the local `windows` array via useOptimistic so the
-// WeekGrid fills flip instantly; when the refreshed server data arrives it
-// becomes the new base and the optimistic layer dissolves into it. On failure
-// (e.g. a booking conflict refuses the removal) the transition ends without a
-// refresh, so the optimistic op auto-reverts.
-//
-// Pure helpers (window math is the SAME shape the server returns — no grid-cell
-// coupling): synthesize day windows for "add", interval-subtract a slice for
-// "remove".
+// "Mark available/unavailable" hits the server then revalidates — the grid only
+// repaints once that round-trip lands, so the commit felt laggy. We mirror the
+// mutation onto the local `windows` array via useOptimistic so the WeekGrid
+// fills flip instantly; when the refreshed server data arrives it becomes the
+// new base and the optimistic layer dissolves into it. On failure (e.g. a
+// booking conflict refuses the removal) the transition ends without a refresh,
+// so the optimistic op auto-reverts.
 
 const MS_PER_MINUTE = 60_000;
 
@@ -153,9 +174,48 @@ function applyOptimisticWindows(
   );
 }
 
+// ──────────────────────────────────────────────────────────────────────────────
+// Cancel-by-blocking — overlap detection
+// ──────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Bookings affected by removing the intraday slice [fromMinute, toMinute) on
+ * `dayKey`: rows whose Denver day-key matches AND whose intraday minute range
+ * overlaps the slice. Whole-day bookings (00:00→00:00 next day) read as
+ * [0, 1440) on their start day so they count for any same-day slice.
+ */
+function bookingsInWindowSlice(
+  busy: AdminBusyRangeView[],
+  dayKey: string,
+  fromMinute: number,
+  toMinute: number,
+): AdminBusyRangeView[] {
+  return busy.filter((b) => {
+    const start = new Date(b.startsAt);
+    if (denverDayKey(start) !== dayKey) return false;
+    const startMin = denverMinutesSinceMidnight(start);
+    const endRaw = denverMinutesSinceMidnight(new Date(b.endsAt));
+    // 00:00 end means it runs to (or past) midnight → treat as 1440 on this day.
+    const endMin = endRaw <= startMin ? 1440 : endRaw;
+    return startMin < toMinute && endMin > fromMinute;
+  });
+}
+
+/**
+ * Bookings affected by turning OFF the given overnight nights: any active
+ * booking whose start day-key is one of the targeted nights (Denver).
+ */
+function bookingsOnNights(
+  busy: AdminBusyRangeView[],
+  nights: string[],
+): AdminBusyRangeView[] {
+  const targeted = new Set(nights);
+  return busy.filter((b) => targeted.has(denverDayKey(new Date(b.startsAt))));
+}
+
 /**
  * InspectBridge — relays the Scheduler's in-context `inspectedBookingId` to the
- * outside `selectedBookingId` state that drives BusySidePanel. Rendered as a
+ * outside `selectedBookingId` state that drives the inspect card. Rendered as a
  * child of <Scheduler> so it can read context. Consumes the inspection as a
  * one-shot pulse (clears it), so re-clicking the same booking re-opens.
  */
@@ -170,6 +230,85 @@ function InspectBridge({ onInspect }: { onInspect: (id: string) => void }) {
     }
   }, [id, onInspect, clear]);
   return null;
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Read-only inspect card
+// ──────────────────────────────────────────────────────────────────────────────
+
+function InspectCard({
+  booking,
+  onClose,
+}: {
+  booking: AdminBusyRangeView;
+  onClose: () => void;
+}) {
+  return (
+    <section
+      aria-label="Booking details"
+      className="bg-card border-border rounded-xl border p-4"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex flex-col gap-1">
+          <h2 className="text-foreground text-sm font-semibold">
+            {booking.clientName ?? "Unknown client"}
+          </h2>
+          <p className="text-muted-foreground text-xs">
+            {humanizeStatus(booking.status)}
+          </p>
+          <p className="text-muted-foreground text-xs">
+            {denverRange(booking.startsAt, booking.endsAt)}
+          </p>
+        </div>
+        <button
+          type="button"
+          aria-label="Close booking details"
+          onClick={onClose}
+          className="text-muted-foreground hover:text-foreground focus-visible:ring-ring rounded focus-visible:ring-2 focus-visible:outline-none"
+        >
+          <X className="size-4" aria-hidden="true" />
+        </button>
+      </div>
+
+      {booking.pets.length > 0 && (
+        <ul className="mt-3 flex flex-col gap-2">
+          {booking.pets.map((p) => (
+            <li key={p.id} className="flex items-center gap-2 text-xs">
+              <PetAvatar
+                name={p.name}
+                species={p.species}
+                photoUrl={p.photoUrl}
+                size={28}
+              />
+              <span className="text-foreground">{p.name}</span>
+              <span className="text-muted-foreground">({p.species})</span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className="mt-4 flex flex-wrap gap-4 text-sm">
+        <Link
+          href={`/admin/bookings?booking=${booking.bookingId}`}
+          className="text-brand-strong hover:text-foreground focus-visible:ring-ring inline-flex items-center gap-1 rounded font-medium focus-visible:ring-2 focus-visible:outline-none"
+        >
+          Manage on Bookings
+          <ArrowRight className="size-4" aria-hidden="true" />
+        </Link>
+        <Link
+          href={`/admin/clients/${booking.clientId}`}
+          className="text-brand-strong hover:text-foreground focus-visible:ring-ring inline-flex items-center gap-1 rounded font-medium focus-visible:ring-2 focus-visible:outline-none"
+        >
+          View client
+          <ExternalLink className="size-4" aria-hidden="true" />
+        </Link>
+      </div>
+
+      <p className="text-muted-foreground mt-3 text-xs">
+        Availability is paint-only — moderation lives on Bookings.
+      </p>
+    </section>
+  );
 }
 
 export function AvailabilityClient({
@@ -191,16 +330,14 @@ export function AvailabilityClient({
    * through so SSR and hydration agree — a client-side `new Date()` here would
    * differ from the server's render instant and trip a hydration mismatch
    * (cells/past classification diverge). Static after load is fine for an admin
-   * tool; the page re-fetches on every router.refresh anyway.
+   * tool; the page re-fetches on every revalidation anyway.
    */
   nowIso: string;
 }) {
-  const router = useRouter();
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(
     null,
   );
-  const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const { confirm, dialog } = useConfirm();
 
   const selectedBooking =
     initialBusy.find((b) => b.bookingId === selectedBookingId) ?? null;
@@ -253,21 +390,6 @@ export function AvailabilityClient({
     },
   );
 
-  /** Run a server action, surface any error, refresh on success. */
-  function run(action: () => Promise<ActionResult>, onSuccess?: () => void) {
-    setError(null);
-    startTransition(async () => {
-      const result = await action();
-      const message = resultError(result);
-      if (message) {
-        setError(message);
-        return;
-      }
-      onSuccess?.();
-      router.refresh();
-    });
-  }
-
   const data: SchedulerData = useMemo(
     () => ({
       overnightNights: optimisticNights,
@@ -292,13 +414,63 @@ export function AvailabilityClient({
     ],
   );
 
+  /**
+   * Cancel-by-blocking gate. Given the bookings a block would destroy and the
+   * `applyBlock` thunk that performs the server-side removal, this:
+   *   - runs `applyBlock` directly when nothing is affected (silent block), or
+   *   - confirms (listing each booking + its 100% refund), cancels each via
+   *     cancelBooking (admin path forces fullRefund: true), then applies the
+   *     block. Declining leaves everything untouched.
+   */
+  async function blockWithCancelGate<T>(
+    affected: AdminBusyRangeView[],
+    applyBlock: () => Promise<T>,
+  ): Promise<T | undefined> {
+    if (affected.length === 0) {
+      return applyBlock();
+    }
+
+    let result: T | undefined;
+    await confirm({
+      title: `Cancel ${affected.length} booking${affected.length === 1 ? "" : "s"} & block?`,
+      destructive: true,
+      confirmLabel: `Cancel ${affected.length} & block`,
+      cancelLabel: "Keep bookings",
+      description: (
+        <span className="flex flex-col gap-3">
+          <span>
+            Marking this time unavailable will cancel the following and fully
+            refund the clients:
+          </span>
+          {affected.map((b) => (
+            <span key={b.bookingId} className="flex flex-col">
+              <span className="text-foreground font-medium">
+                {affectedLabel(b)}
+              </span>
+              <span>Refund {dollars(b.finalCents)} — 100% (you cancelled)</span>
+            </span>
+          ))}
+        </span>
+      ),
+      onConfirm: async () => {
+        for (const b of affected) {
+          const res = await cancelBooking({
+            bookingId: b.bookingId,
+            fullRefund: true,
+          });
+          if (res.kind !== "success") return false;
+        }
+        result = await applyBlock();
+        return true;
+      },
+    });
+    return result;
+  }
+
   // These callbacks do NOT call router.refresh(): each server action already
   // calls revalidatePath("/admin/availability"), which refreshes this route's
-  // RSC data within the same transition. An extra router.refresh() was a second,
-  // redundant full refetch — doubling the round-trip and causing the optimistic
-  // layer to briefly revert before the refresh landed (the "slow"/flicker feel).
-  // Relying on revalidation alone lets the optimistic state dissolve seamlessly
-  // into the fresh server props as the transition resolves.
+  // RSC data within the same transition. Relying on revalidation alone lets the
+  // optimistic state dissolve seamlessly into the fresh server props.
   const callbacks: SchedulerCallbacks = useMemo(
     () => ({
       createWindowsBatch: async (input) => {
@@ -313,20 +485,42 @@ export function AvailabilityClient({
         return createWindowsBatch(input);
       },
       setWindowUnavailable: async (input) => {
-        // Optimistic removal — interval-subtract the slice. Reverts if the
-        // server refuses (booking conflict) since revalidation won't fire.
-        applyOptimisticWindow({
-          type: "subtract",
-          dayKey: input.dayKey,
-          fromMinute: input.fromMinute,
-          toMinute: input.toMinute,
+        // Cancel-by-blocking: if any booking overlaps the slice, confirm +
+        // cancel-with-refund before blocking; otherwise block silently.
+        const affected = bookingsInWindowSlice(
+          initialBusy,
+          input.dayKey,
+          input.fromMinute,
+          input.toMinute,
+        );
+        const result = await blockWithCancelGate(affected, async () => {
+          // Optimistic removal — interval-subtract the slice. Reverts if the
+          // server refuses (booking conflict) since revalidation won't fire.
+          applyOptimisticWindow({
+            type: "subtract",
+            dayKey: input.dayKey,
+            fromMinute: input.fromMinute,
+            toMinute: input.toMinute,
+          });
+          return setWindowUnavailable(input);
         });
-        return setWindowUnavailable(input);
+        // Declining the confirm = no block: report success so the Scheduler
+        // treats it as a no-op rather than an error.
+        return result ?? { kind: "success" };
       },
       setOvernightNightsBatch: async (input) => {
-        // Optimistic month-fill flip; reverts if removal hits a booking conflict.
-        applyOptimisticNights({ nights: input.nights, on: input.on });
-        return setOvernightNightsBatch(input);
+        // Turning nights OFF can strand bookings on those nights → gate it.
+        // Turning ON never destroys anything → apply directly.
+        const apply = async () => {
+          applyOptimisticNights({ nights: input.nights, on: input.on });
+          return setOvernightNightsBatch(input);
+        };
+        if (input.on) {
+          return apply();
+        }
+        const affected = bookingsOnNights(initialBusy, input.nights);
+        const result = await blockWithCancelGate(affected, apply);
+        return result ?? { kind: "success" };
       },
       setPremiumDaysBatch: async (input) => {
         // Optimistic ★ flip; reverts if server write fails.
@@ -334,17 +528,19 @@ export function AvailabilityClient({
         return setPremiumDaysBatch(input.dayKeys, input.on);
       },
     }),
-    [applyOptimisticWindow, applyOptimisticNights, applyOptimisticPremiumDays],
+    // blockWithCancelGate/confirm are stable enough across renders; initialBusy
+    // is the affected-booking source and must stay fresh.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      applyOptimisticWindow,
+      applyOptimisticNights,
+      applyOptimisticPremiumDays,
+      initialBusy,
+    ],
   );
 
   return (
     <div className="flex flex-col gap-6">
-      {error && (
-        <p role="alert" className="text-destructive text-sm">
-          {error}
-        </p>
-      )}
-
       <Scheduler
         capabilities={ADMIN_CAPABILITIES}
         data={data}
@@ -365,62 +561,14 @@ export function AvailabilityClient({
         </div>
       </Scheduler>
 
-      {/* Bookings — select a booking to open the moderation panel */}
-      {initialBusy.length > 0 && (
-        <section aria-label="Bookings">
-          <h2 className="text-foreground mb-2 text-sm font-semibold">
-            Bookings
-          </h2>
-          <ul className="flex flex-col gap-1">
-            {initialBusy.map((b) => (
-              <li key={b.bookingId}>
-                <button
-                  type="button"
-                  onClick={() => setSelectedBookingId(b.bookingId)}
-                  className="bg-card border-border hover:bg-accent text-foreground w-full rounded border px-3 py-2 text-left text-xs transition-colors"
-                >
-                  <span className="font-medium">
-                    {b.clientName ?? "Unknown client"}
-                  </span>
-                  <span className="text-muted-foreground mx-1">·</span>
-                  <span className="text-muted-foreground">{b.status}</span>
-                  <span className="text-muted-foreground mx-1">·</span>
-                  <span className="text-muted-foreground">
-                    {denverLabel(b.startsAt)} — {denverLabel(b.endsAt)}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
       {selectedBooking && (
-        <BusySidePanel
+        <InspectCard
           booking={selectedBooking}
-          pending={isPending}
           onClose={() => setSelectedBookingId(null)}
-          onCancel={(id) =>
-            run(
-              () => cancelBooking({ bookingId: id, fullRefund: true }),
-              () => setSelectedBookingId(null),
-            )
-          }
-          onApprove={(id) => run(() => approveBooking(id))}
-          onDecline={(id) =>
-            run(
-              () => declineBooking(id),
-              () => setSelectedBookingId(null),
-            )
-          }
-          onNoShow={(id) =>
-            run(
-              () => markNoShow(id),
-              () => setSelectedBookingId(null),
-            )
-          }
         />
       )}
+
+      {dialog}
     </div>
   );
 }
