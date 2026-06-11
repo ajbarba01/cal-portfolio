@@ -52,6 +52,22 @@ export const BOOK_HOUSE_SITTING_CAPABILITIES: SchedulerCapabilities = {
 };
 
 /**
+ * Read-only inspection: single-day selection drives a read DayTimeline; no
+ * intraday painting, no overnight, no editing, no premium marking. Mounts
+ * MonthGrid + DayTimeline purely for inspection (the admin Bookings hub).
+ * Because `editable` is false, the DayPanel returns null and the month/timeline
+ * surfaces never mutate.
+ */
+export const INSPECT_CAPABILITIES: SchedulerCapabilities = {
+  daySelection: "single",
+  intraday: "none",
+  overnight: false,
+  editable: false,
+  weekNavigable: true,
+  premiumMarkable: false,
+};
+
+/**
  * Walk booking: single day + fixed-interval time slots + week nav.
  * Set `intervalMinutes` to the service duration before passing to the scheduler.
  */

@@ -200,6 +200,9 @@ function SchedulerDayButton({
   const { data } = useScheduler();
   const hasMyBooking = data.myBookings?.has(dayKey) ?? false;
   const isPremium = data.premiumDays?.has(dayKey) ?? false;
+  // Search-greys context (admin Bookings hub): de-emphasize non-matching days.
+  // Undefined `dimmedDays` (public booking, availability) → never dimmed.
+  const isDimmed = data.dimmedDays?.has(dayKey) ?? false;
 
   // Hover affordance (selectable cells only): a dotted clay (brand) outline signalling
   // "this will select". Outline (not border) so it never shifts layout or fights
@@ -235,6 +238,9 @@ function SchedulerDayButton({
       )}
       aria-pressed={kind === "selectable" ? isSelected : undefined}
       title={kind === "booked" ? "Booked" : undefined}
+      // Token-derived hatch overlay for non-matching days (see globals.css).
+      // Attribute is omitted entirely unless dimmed, so non-hub views are inert.
+      data-dimmed={isDimmed ? "true" : undefined}
       style={{ touchAction: "none", userSelect: "none" }}
       // Suppress the browser's native drag (the "moving a picture/file" ghost)
       // so a pointer-drag selection isn't hijacked into an HTML5 drag op.

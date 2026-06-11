@@ -47,6 +47,13 @@ export interface SchedulerData {
   myBookings?: Set<string>;
   /** Day-keys that carry a premium (holiday) surcharge (admin only). */
   premiumDays?: Set<string>;
+  /**
+   * Day-keys to render de-emphasized (hatched) — the search-greys context cue
+   * in the admin Bookings hub. When undefined (public booking + availability),
+   * MonthGrid renders identically to before. Keyed the same way MonthGrid keys
+   * its cells (format(date, "yyyy-MM-dd")).
+   */
+  dimmedDays?: Set<string>;
 }
 
 export interface SchedulerCallbacks {

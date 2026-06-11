@@ -280,4 +280,23 @@
   .measure {
     max-width: 65ch;
   }
+
+  /*
+   * Scheduler "search-greys context" cue: a subtle token-derived hatch for days
+   * that do not match the active search/filter (admin Bookings hub). Stripes are
+   * built from the live semantic tokens (--muted / --border), never raw hex, so
+   * the treatment re-palettes with the theme and meets AA against day numbers.
+   * Applied via the data-dimmed attribute so it is purely additive — cells
+   * without the attribute (public booking, availability) are unaffected.
+   */
+  [data-dimmed="true"] {
+    background-image: repeating-linear-gradient(
+      45deg,
+      var(--muted),
+      var(--muted) 3px,
+      var(--border) 3px,
+      var(--border) 6px
+    );
+    color: var(--muted-foreground);
+  }
 }
