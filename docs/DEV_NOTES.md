@@ -1,3 +1,12 @@
+## Now
+
+- Reviews should auto publish
+- kiche per booking discount not per profile
+- overnight stays are kind of weird in the bookings calendar
+- remove holiday days from details & reword other details
+- [ { "expected": "number", "code": "invalid_type", "path": [ "nights" ], "message": "Invalid input: expected number, received undefined" } ] on reschedule overnight
+- onboarding enter info takes two tries lol
+
 # Dev notes — capture inbox
 
 > Inbox only, never authority (lifecycle rule: [WORKFLOW.md](WORKFLOW.md) "Doc lifecycle"). Add raw observations here; triage them out to the [audit findings register](superpowers/specs/2026-06-10-audit-findings.md) (bugs/UX), the [roadmap](superpowers/specs/2026-06-10-professionalization-roadmap-design.md) (scope), or DESIGN.md open questions (Cal decisions). Snapshot of 2026-06-10 fully triaged into the register.
