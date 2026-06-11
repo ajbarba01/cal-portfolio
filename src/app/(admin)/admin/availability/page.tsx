@@ -61,11 +61,11 @@ export default async function AdminAvailabilityPage() {
     );
   }
 
-  // Settings → booking rules (same query as the book page).
+  // Settings → booking rules + premium days (holiday_dates).
   const { data: settingsData, error: settingsError } = await serviceClient
     .from("settings")
     .select(
-      "booking_open_minute, booking_close_minute, min_lead_time_hours, hard_max_advance_days",
+      "booking_open_minute, booking_close_minute, min_lead_time_hours, hard_max_advance_days, holiday_dates",
     )
     .limit(1)
     .single();
@@ -86,6 +86,8 @@ export default async function AdminAvailabilityPage() {
     hardMaxAdvanceDays: settingsData.hard_max_advance_days as number,
   };
 
+  const premiumDays = (settingsData.holiday_dates as string[]) ?? [];
+
   return (
     <PageContainer width="app">
       <PageHeader title="Availability & Bookings" />
@@ -93,6 +95,7 @@ export default async function AdminAvailabilityPage() {
         initialWindows={result.windows}
         initialBusy={busyResult.ranges}
         initialNights={nightsResult.nights}
+        initialPremiumDays={premiumDays}
         rules={rules}
         nowIso={new Date().toISOString()}
       />

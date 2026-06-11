@@ -175,6 +175,43 @@ export function DayPanel({ className }: DayPanelProps) {
     });
   }
 
+  function handlePremiumToggle(on: boolean) {
+    clearFeedback();
+    startTransition(async () => {
+      const result = await callbacks.setPremiumDaysBatch?.({
+        dayKeys: [...selectedDays],
+        on,
+      });
+
+      if (!result) return;
+
+      switch (result.kind) {
+        case "success":
+          setFeedback({
+            tone: "success",
+            text: on
+              ? "Marked selected days as premium."
+              : "Removed premium from selected days.",
+          });
+          break;
+        case "forbidden":
+          setFeedback({ tone: "error", text: "Not permitted." });
+          break;
+        case "not_found":
+          setFeedback({ tone: "error", text: "Settings not found." });
+          break;
+        case "validation_error":
+        case "error":
+          setFeedback({ tone: "error", text: result.message });
+          break;
+        default: {
+          const _exhaustive: never = result;
+          void _exhaustive;
+        }
+      }
+    });
+  }
+
   // ── Render ───────────────────────────────────────────────────────────────────
 
   const disableActions = !hasSelection || isPending;
@@ -313,6 +350,37 @@ export function DayPanel({ className }: DayPanelProps) {
               disabled={disableActions}
             >
               Mark overnight unavailable
+            </Button>
+          </div>
+        </section>
+      )}
+
+      {/* ── Section 3: Premium days (admin only) ────────────────────────────── */}
+      {capabilities.premiumMarkable && (
+        <section aria-labelledby="day-panel-premium-heading">
+          <h3
+            id="day-panel-premium-heading"
+            className="text-foreground mb-2 text-xs font-semibold tracking-wide uppercase"
+          >
+            Premium days
+          </h3>
+
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              onClick={() => handlePremiumToggle(true)}
+              disabled={disableActions}
+            >
+              Mark premium
+            </Button>
+
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => handlePremiumToggle(false)}
+              disabled={disableActions}
+            >
+              Remove premium
             </Button>
           </div>
         </section>

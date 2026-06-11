@@ -44,6 +44,7 @@ import {
   createWindowsBatch,
   setWindowUnavailable,
   setOvernightNightsBatch,
+  setPremiumDaysBatch,
   approveBooking,
   declineBooking,
 } from "@/features/admin";
@@ -175,12 +176,15 @@ export function AvailabilityClient({
   initialWindows,
   initialBusy,
   initialNights,
+  initialPremiumDays,
   rules,
   nowIso,
 }: {
   initialWindows: AvailabilityWindow[];
   initialBusy: AdminBusyRangeView[];
   initialNights: string[];
+  /** Day-keys (YYYY-MM-DD) that carry a premium surcharge. */
+  initialPremiumDays: string[];
   rules: BookingRuleSettings;
   /**
    * Server-authoritative "now" (ISO). Computed once on the server and threaded
@@ -232,6 +236,23 @@ export function AvailabilityClient({
     },
   );
 
+  // Premium days — same optimistic pattern as overnightNights.
+  const serverPremiumDays = useMemo(
+    () => new Set(initialPremiumDays),
+    [initialPremiumDays],
+  );
+  const [optimisticPremiumDays, applyOptimisticPremiumDays] = useOptimistic(
+    serverPremiumDays,
+    (current: Set<string>, action: { dayKeys: string[]; on: boolean }) => {
+      const next = new Set(current);
+      for (const k of action.dayKeys) {
+        if (action.on) next.add(k);
+        else next.delete(k);
+      }
+      return next;
+    },
+  );
+
   /** Run a server action, surface any error, refresh on success. */
   function run(action: () => Promise<ActionResult>, onSuccess?: () => void) {
     setError(null);
@@ -259,8 +280,16 @@ export function AvailabilityClient({
       busyResident: initialBusy.map(toBusyBlock),
       rules,
       now: new Date(nowIso),
+      premiumDays: optimisticPremiumDays,
     }),
-    [optimisticWindows, optimisticNights, initialBusy, rules, nowIso],
+    [
+      optimisticWindows,
+      optimisticNights,
+      optimisticPremiumDays,
+      initialBusy,
+      rules,
+      nowIso,
+    ],
   );
 
   // These callbacks do NOT call router.refresh(): each server action already
@@ -299,8 +328,13 @@ export function AvailabilityClient({
         applyOptimisticNights({ nights: input.nights, on: input.on });
         return setOvernightNightsBatch(input);
       },
+      setPremiumDaysBatch: async (input) => {
+        // Optimistic ★ flip; reverts if server write fails.
+        applyOptimisticPremiumDays({ dayKeys: input.dayKeys, on: input.on });
+        return setPremiumDaysBatch(input.dayKeys, input.on);
+      },
     }),
-    [applyOptimisticWindow, applyOptimisticNights],
+    [applyOptimisticWindow, applyOptimisticNights, applyOptimisticPremiumDays],
   );
 
   return (

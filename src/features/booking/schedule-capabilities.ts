@@ -24,6 +24,8 @@ export interface SchedulerCapabilities {
   editable: boolean;
   /** Whether the week-navigation controls are shown. */
   weekNavigable: boolean;
+  /** Whether the admin can mark/unmark days as premium (holiday surcharge days). */
+  premiumMarkable: boolean;
 }
 
 /** Admin view: full multi-select + free intraday painting, overnight, editable. */
@@ -33,6 +35,7 @@ export const ADMIN_CAPABILITIES: SchedulerCapabilities = {
   overnight: true,
   editable: true,
   weekNavigable: true,
+  premiumMarkable: true,
 };
 
 /**
@@ -45,6 +48,7 @@ export const BOOK_HOUSE_SITTING_CAPABILITIES: SchedulerCapabilities = {
   overnight: false,
   editable: false,
   weekNavigable: false,
+  premiumMarkable: false,
 };
 
 /**
@@ -57,4 +61,5 @@ export const BOOK_WALK_CAPABILITIES: SchedulerCapabilities = {
   overnight: false,
   editable: false,
   weekNavigable: true,
+  premiumMarkable: false,
 };

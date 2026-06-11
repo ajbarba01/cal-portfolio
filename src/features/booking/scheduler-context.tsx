@@ -20,6 +20,7 @@ import type {
   AvailabilityResult,
   SetWindowUnavailableResult,
   SetOvernightNightsResult,
+  SettingsResult,
 } from "@/features/admin";
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -44,6 +45,8 @@ export interface SchedulerData {
   now: Date;
   /** Day-keys where the current client already has a booking (public view). */
   myBookings?: Set<string>;
+  /** Day-keys that carry a premium (holiday) surcharge (admin only). */
+  premiumDays?: Set<string>;
 }
 
 export interface SchedulerCallbacks {
@@ -61,6 +64,10 @@ export interface SchedulerCallbacks {
     nights: string[];
     on: boolean;
   }) => Promise<SetOvernightNightsResult>;
+  setPremiumDaysBatch?: (input: {
+    dayKeys: string[];
+    on: boolean;
+  }) => Promise<SettingsResult>;
 }
 
 export interface SchedulerContextValue {
