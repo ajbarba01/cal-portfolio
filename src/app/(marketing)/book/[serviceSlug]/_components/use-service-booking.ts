@@ -1,42 +1,35 @@
 "use client";
 
 /**
- * useServiceBooking — extracts all state, effects, derived values, and
- * handlers from ServiceBookingClient into a co-located hook.
+ * useServiceBooking — the per-service self-serve booking flow.
+ *
+ * Thin wrapper over the shared `useBookingScheduler` substrate (SP3b A13): the
+ * shared hook owns all scheduler state/derivation/selection-bridge/debounce; this
+ * file adds ONLY the service-specific deltas — its quote-state ({quote,
+ * previewMsg, submitDone}), its preview body (previewQuote → previewResultMessage),
+ * its quote gate (auth-aware), its book/submit handler, and its return-shape extras.
  *
  * The component calls this hook and wires its return value to JSX/props.
- * Zero behavior change: same state shape, same effect bodies, same
- * dependency arrays, same handler logic.
+ * Zero behavior change: same public input/return interface, same effect bodies,
+ * same dependency arrays, same handler logic as before the extraction.
  */
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  useTransition,
-} from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
+  useBookingScheduler,
   useAvailability,
   useBusyRanges,
   useOvernightNights,
   validateStayRange,
-  denverMidnight,
   denverDayKey,
-  hourlySchedulerData,
   buildReturnTo,
   previewQuote,
   createBooking,
-  BOOK_HOUSE_SITTING_CAPABILITIES,
-  BOOK_WALK_CAPABILITIES,
   defaultQuantities,
-  quantitiesToRecord,
 } from "@/features/booking/index.client";
 import type {
   SchedulerData,
-  BusyBlock,
   ScheduleSelectionState,
   BookingRuleSettings,
   PublicBusyRange,
@@ -45,6 +38,7 @@ import type {
   QuantityState,
   PetSpecies,
   ServiceDetail,
+  UseBookingSchedulerReturn,
 } from "@/features/booking/index.client";
 import type { Pet } from "@/features/accounts";
 import { useToast } from "@/components/feedback/toast";
@@ -56,14 +50,8 @@ import {
 import type { UserMessage } from "../../_components/messages";
 import type { AuthState, InitialSelection } from "./service-booking-client";
 
-// ── Local date helpers (browser-local calendar keys; layout, not business rules) ──
+// ── Local date helper (browser-local calendar key parse; layout, not business rules) ──
 
-function pad(n: number): string {
-  return String(n).padStart(2, "0");
-}
-function localDayKey(d: Date): string {
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
 function localDateFromKey(key: string): Date {
   const [y, m, d] = key.split("-").map((n) => parseInt(n, 10));
   return new Date(y, m - 1, d);
@@ -95,7 +83,7 @@ export interface UseServiceBookingReturn {
   windowsError: string | null; // from useAvailability (already string | null)
 
   // Scheduler inputs
-  capabilities: ReturnType<typeof buildCapabilities>;
+  capabilities: UseBookingSchedulerReturn["capabilities"];
   schedulerData: SchedulerData;
 
   // Selection state (for JSX display)
@@ -134,20 +122,6 @@ export interface UseServiceBookingReturn {
   onOccurrenceCountChange: (n: number) => void;
 }
 
-// Internal helper to avoid inline ternary repetition (mirrors component logic exactly)
-function buildCapabilities(
-  mode: "week-slots" | "month-range",
-  durationMin: number,
-) {
-  return mode === "month-range"
-    ? BOOK_HOUSE_SITTING_CAPABILITIES
-    : {
-        ...BOOK_WALK_CAPABILITIES,
-        weekNavigable: false,
-        intervalMinutes: durationMin,
-      };
-}
-
 // ── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useServiceBooking({
@@ -163,299 +137,126 @@ export function useServiceBooking({
 
   const mode: "week-slots" | "month-range" =
     service.pricingType === "house_sitting" ? "month-range" : "week-slots";
-  const petAware =
-    service.pricingType === "house_sitting" || service.pricingType === "walk";
-  const allowedSpecies: PetSpecies[] =
-    service.pricingType === "house_sitting" ? ["dog", "cat"] : ["dog"];
-  const supportsRecurring = mode === "week-slots";
 
-  // Stable "now" for the component lifetime (page reload re-mounts).
-  const now = useMemo(() => new Date(), []);
-
-  // ── State (selection rehydrated from returnTo round-trip) ──────────────────
-  const [quantities, setQuantities] = useState<QuantityState>(() =>
-    defaultQuantities(service.pricingType),
-  );
-  const [selectedPetIds, setSelectedPetIds] = useState<string[]>(
-    initialSelection.petIds,
-  );
-  const [recurringOn, setRecurringOn] = useState(false);
-  const [occurrenceCount, setOccurrenceCount] = useState(4);
-
-  // Hourly selection is just a start instant; the end is always start + the
-  // currently-chosen duration, so changing duration re-derives the end live.
-  const [selectedStart, setSelectedStart] = useState<Date | null>(() =>
-    mode === "week-slots" && initialSelection.start
-      ? new Date(initialSelection.start)
-      : null,
-  );
-  const [range, setRange] = useState<DateRange | undefined>(() =>
-    mode === "month-range" && initialSelection.start && initialSelection.end
-      ? {
-          from: localDateFromKey(
-            denverDayKey(new Date(initialSelection.start)),
-          ),
-          to: localDateFromKey(denverDayKey(new Date(initialSelection.end))),
-        }
-      : undefined,
-  );
-  const [quote, setQuote] = useState<BookingQuotePreview | null>(null);
-  const [previewMsg, setPreviewMsg] = useState<UserMessage | null>(null);
-  const [submitDone, setSubmitDone] = useState(false);
-
-  const [isPreviewing, startPreviewing] = useTransition();
-  const [isSubmitting, startSubmitting] = useTransition();
-
-  // ── Booking duration (single source of truth for hourly) ───────────────────
-  // For hourly services the user-chosen "hours" IS the booking duration; it
-  // drives the live quote, the day-timeline block height + candidate starts,
-  // AND which month days read as available. House-sitting uses the service default.
-  const durationMin = useMemo(() => {
-    if (mode !== "week-slots") return service.defaultDurationMin ?? 60;
-    if (quantities.type === "meet_greet") {
-      // Use the service's own default_duration_min (30 min for meet-greet), not a
-      // hardcoded 1-hour fallback.
-      return service.defaultDurationMin ?? 30;
-    }
-    const hours =
-      quantities.type === "house_sitting" ? 1 : quantities.qty.hours;
-    return Math.max(15, Math.round(hours * 60));
-  }, [mode, service.defaultDurationMin, quantities]);
-  const durationMs = durationMin * 60_000;
-
-  // ── Debounce timer ref for live quote ──────────────────────────────────────
-  const quoteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Cleanup timer on unmount (no setState — allowed cleanup-only effect)
-  useEffect(() => {
-    return () => {
-      if (quoteTimerRef.current !== null) {
-        clearTimeout(quoteTimerRef.current);
-      }
-    };
-  }, []);
-
-  // ── Availability + busy sources ────────────────────────────────────────────
-  const {
-    openWindows,
-    loading: windowsLoading,
-    error: windowsError,
-  } = useAvailability({ durationMs, rules });
-  const { overnightNights } = useOvernightNights();
-  const { busy, refresh: refreshBusy } = useBusyRanges(
-    service.slug,
-    initialBusy,
-  );
-
-  const busyRanges = useMemo<BusyBlock[]>(
-    () =>
-      busy.map((b) => ({
-        startsAt: new Date(b.startsAt),
-        endsAt: new Date(b.endsAt),
-        // Public source is identity-free; synthesize a stable, deterministic id
-        // from the range so the grid can group cells without leaking client identity.
-        id: `pub-${b.startsAt}-${b.endsAt}`,
-      })),
-    [busy],
-  );
-
-  // ── Scheduler capabilities + data ────────────────────────────────────────────
-  const capabilities = useMemo(
-    () => buildCapabilities(mode, durationMin),
-    [mode, durationMin],
-  );
-
-  // The client's existing-booking day-keys (your-booking dot).
+  // ── Seeds for the shared hook (selection rehydrated from returnTo round-trip) ──
   const myBookings = useMemo(
     () => new Set(myBookingDayKeys),
     [myBookingDayKeys],
   );
+  const initialQuantities = useMemo(
+    () => defaultQuantities(service.pricingType),
+    [service.pricingType],
+  );
+  // Seeds consumed once by the shared hook's lazy useState init.
+  const initialSelectedStart = useMemo<Date | null>(
+    () =>
+      mode === "week-slots" && initialSelection.start
+        ? new Date(initialSelection.start)
+        : null,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+  const initialRange = useMemo<DateRange | undefined>(
+    () =>
+      mode === "month-range" && initialSelection.start && initialSelection.end
+        ? {
+            from: localDateFromKey(
+              denverDayKey(new Date(initialSelection.start)),
+            ),
+            to: localDateFromKey(denverDayKey(new Date(initialSelection.end))),
+          }
+        : undefined,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
 
-  // Hourly month availability: a day is "available" only if it has ≥1 open start
-  // for the chosen duration (busy-filtered) — so changing duration re-derives it.
-  // Fed to deriveBookableDays via overnightNights (which keys "available").
-  const schedulerData = useMemo<SchedulerData>(() => {
-    if (mode === "week-slots") {
-      return hourlySchedulerData({
-        now,
-        openWindows,
-        busy: busyRanges,
-        durationMin,
-        rules,
-        myBookings,
-      });
-    }
-    return {
-      overnightNights,
-      windows: openWindows,
-      busy: busyRanges,
-      busyResident: busyRanges,
-      myBookings,
-      rules,
-      now,
-    };
-  }, [
-    mode,
-    overnightNights,
-    openWindows,
-    busyRanges,
-    durationMin,
+  // ── Wrapper-owned quote-state ──────────────────────────────────────────────
+  const [quote, setQuote] = useState<BookingQuotePreview | null>(null);
+  const [previewMsg, setPreviewMsg] = useState<UserMessage | null>(null);
+  const [submitDone, setSubmitDone] = useState(false);
+
+  const [isSubmitting, startSubmitting] = useTransition();
+
+  // ── Refs the shared hook reads at debounce fire-time ───────────────────────
+  const canQuoteRef = useRef(false);
+  const runPreviewRef = useRef<() => Promise<void>>(async () => {});
+  const clearOnSelectRef = useRef<() => void>(() => {});
+  const clearOnIdleRef = useRef<() => void>(() => {});
+
+  // ── Shared scheduler substrate ─────────────────────────────────────────────
+  const sched = useBookingScheduler({
+    service,
     rules,
+    initialBusy,
+    io: { useAvailability, useBusyRanges, useOvernightNights },
     myBookings,
-    now,
-  ]);
+    initialQuantities,
+    initialPetIds: initialSelection.petIds,
+    initialSelectedStart,
+    initialRange,
+    canQuoteRef,
+    runPreviewRef,
+    clearOnSelectRef,
+    clearOnIdleRef,
+  });
 
-  // ── Derived booking time ─────────────────────────────────────────────────────
+  const {
+    petAware,
+    allowedSpecies,
+    supportsRecurring,
+    windowsLoading,
+    windowsError,
+    capabilities,
+    schedulerData,
+    range,
+    stay,
+    startsAt,
+    endsAt,
+    hasSelection,
+    petsOk,
+    quantities,
+    selectedPetIds,
+    recurringOn,
+    occurrenceCount,
+    isPreviewing,
+    refreshBusy,
+    buildSelectionInput,
+    setSelectedPetIds,
+    onSelectionChange,
+    onQuantitiesChange,
+    onPetIdsChange,
+    onRecurringOnChange,
+    onOccurrenceCountChange,
+  } = sched;
 
-  const stay = useMemo(() => {
-    if (mode !== "month-range" || !range?.from || !range?.to) return null;
-    return validateStayRange({
-      checkIn: denverMidnight(localDayKey(range.from)),
-      checkOut: denverMidnight(localDayKey(range.to)),
-      overnightNights,
-      busyResident: busyRanges,
-      rules,
-      now,
-    });
-  }, [mode, range, overnightNights, busyRanges, rules, now]);
-
-  let startsAt: Date | null = null;
-  let endsAt: Date | null = null;
-  let nights: number | null = null;
-  if (mode === "week-slots") {
-    if (selectedStart) {
-      startsAt = selectedStart;
-      endsAt = new Date(selectedStart.getTime() + durationMs);
-    }
-  } else if (stay?.ok) {
-    startsAt = stay.range.startsAt;
-    endsAt = stay.range.endsAt;
-    nights = stay.nights;
-  }
-
-  const hasSelection = startsAt !== null && endsAt !== null;
-  const petsOk = !petAware || selectedPetIds.length > 0;
-
-  // ── Mutators that invalidate a stale quote ──────────────────────────────────
-  function clearQuote() {
-    setQuote(null);
-    setPreviewMsg(null);
-  }
-
-  function buildInput() {
-    return {
-      serviceSlug: service.slug,
-      startsAt: startsAt!,
-      endsAt: endsAt!,
-      quantities: quantitiesToRecord(quantities, nights),
-      petIds: petAware ? selectedPetIds : undefined,
-      recurringRule:
-        supportsRecurring && recurringOn
-          ? { freq: "weekly" as const, interval: 1, count: occurrenceCount }
-          : null,
-    };
-  }
-
-  // Latest-ref pattern: a ref-only effect (no setState) keeps these current so the
-  // debounce timer reads fresh inputs at fire-time. The repo's react-hooks/refs rule
-  // forbids assigning ref.current during render, so the sync lives in this effect
-  // (which runs synchronously after commit, well before the 400ms timer fires).
-  const buildInputRef = useRef(buildInput);
-  const canQuoteRef = useRef(hasSelection && petsOk && authState === "ready");
+  // ── Service-specific gate + preview/clear bodies, fed via refs ─────────────
+  // Ref-only effect (no setState) — the repo's react-hooks/refs rule forbids
+  // assigning ref.current during render. Runs synchronously after commit, well
+  // before the 400ms timer fires.
   useEffect(() => {
-    buildInputRef.current = buildInput;
     // Non-ready users never get a server quote — the price box shows an auth
     // prompt instead, so skip the round-trip entirely.
     canQuoteRef.current = hasSelection && petsOk && authState === "ready";
-  });
-
-  // ── Debounced live quote (no useEffect setState) ───────────────────────────
-  // Driven entirely from event handlers + a debounce timer.
-  // The Scheduler calls onSelectionChange on mount/change, so a rehydrated
-  // returnTo selection triggers this path without a mount effect.
-  // The timer reads from refs at fire-time so both week-slots and month-range
-  // always quote against the committed state after re-render.
-
-  function requestQuote() {
-    if (quoteTimerRef.current !== null) {
-      clearTimeout(quoteTimerRef.current);
-    }
-    quoteTimerRef.current = setTimeout(() => {
-      if (!canQuoteRef.current) {
-        setQuote(null);
+    runPreviewRef.current = async () => {
+      const result = await previewQuote(buildSelectionInput());
+      const out = previewResultMessage(result);
+      if (out.kind === "quote") {
+        setQuote(out.preview);
         setPreviewMsg(null);
-        return;
-      }
-      startPreviewing(async () => {
-        const result = await previewQuote(buildInputRef.current());
-        const out = previewResultMessage(result);
-        if (out.kind === "quote") {
-          setQuote(out.preview);
-          setPreviewMsg(null);
-        } else {
-          setQuote(null);
-          setPreviewMsg(out.message);
-        }
-      });
-    }, 400);
-  }
-
-  // ── Bridge Scheduler selection → range / selectedSlot ────────────────────────
-  const onSelectionChange = useCallback(
-    (state: ScheduleSelectionState) => {
-      if (mode === "month-range") {
-        // selectedDays = the nights selected (dayKeys).
-        // range.from = check-in night, range.to = check-out day (last night + 1).
-        if (state.selectedDays.size === 0) {
-          setRange(undefined);
-          setQuote(null);
-          setPreviewMsg(null);
-          return;
-        }
-        // NOTE: min/max derivation assumes selectedDays are CONTIGUOUS, which is
-        // guaranteed today because this booking uses the "range" capability. If a
-        // future capability change allowed non-contiguous selection, min..max+1
-        // would include gap nights and this derivation must be revisited.
-        const sorted = [...state.selectedDays].sort();
-        const minKey = sorted[0];
-        const maxKey = sorted[sorted.length - 1];
-        // Add one day to maxKey (DST-safe via denverMidnight + 24h → denverDayKey).
-        const checkOutDate = new Date(
-          denverMidnight(maxKey).getTime() + 86_400_000,
-        );
-        const checkOutKey = denverDayKey(checkOutDate);
-        setRange({
-          from: localDateFromKey(minKey),
-          to: localDateFromKey(checkOutKey),
-        });
-        setQuote(null);
-        setPreviewMsg(null);
-        // The timer fires ~400ms after this render completes. By then range state
-        // has flushed → stay/startsAt/endsAt are fresh in buildInputRef.current().
-        requestQuote();
       } else {
-        // gridDraft: exactly one cell "dayKey@minute" → selectedStart.
-        if (state.gridDraft.size === 0) {
-          setSelectedStart(null);
-          setQuote(null);
-          setPreviewMsg(null);
-          return;
-        }
-        const [cell] = state.gridDraft;
-        const atIdx = cell.indexOf("@");
-        if (atIdx === -1) return;
-        const dayKey = cell.slice(0, atIdx);
-        const minute = parseInt(cell.slice(atIdx + 1), 10);
-        if (isNaN(minute)) return;
-        const startsAtMs = denverMidnight(dayKey).getTime() + minute * 60_000;
-        setSelectedStart(new Date(startsAtMs));
         setQuote(null);
-        setPreviewMsg(null);
-        requestQuote();
+        setPreviewMsg(out.message);
       }
-    },
-    [mode],
-  );
+    };
+    clearOnSelectRef.current = () => {
+      setQuote(null);
+      setPreviewMsg(null);
+    };
+    clearOnIdleRef.current = () => {
+      setQuote(null);
+      setPreviewMsg(null);
+    };
+  });
 
   // ── Book handler ──────────────────────────────────────────────────────────
   function handleBook() {
@@ -476,7 +277,7 @@ export function useServiceBooking({
 
     // Submit — mid-session onboarding_incomplete routes to /onboarding.
     startSubmitting(async () => {
-      const result = await createBooking(buildInput());
+      const result = await createBooking(buildSelectionInput());
       if (result.kind === "onboarding_incomplete") {
         router.push("/onboarding");
         return;
@@ -499,7 +300,8 @@ export function useServiceBooking({
 
   function handlePetAdded(pet: Pet) {
     setSelectedPetIds((prev) => [...prev, pet.id]);
-    clearQuote();
+    setQuote(null);
+    setPreviewMsg(null);
     // Reload server data (fresh pet list + signed photo URLs); client state persists.
     router.refresh();
   }
@@ -529,27 +331,6 @@ export function useServiceBooking({
   const step2Label = "2";
   const step3Label = petAware ? "3" : "2";
   const step4Label = petAware ? "4" : "3";
-
-  // ── Handler adapters for controlled inputs ─────────────────────────────────
-  function onQuantitiesChange(s: QuantityState) {
-    setQuantities(s);
-    requestQuote();
-  }
-
-  function onPetIdsChange(ids: string[]) {
-    setSelectedPetIds(ids);
-    requestQuote();
-  }
-
-  function onRecurringOnChange(on: boolean) {
-    setRecurringOn(on);
-    requestQuote();
-  }
-
-  function onOccurrenceCountChange(n: number) {
-    setOccurrenceCount(n);
-    requestQuote();
-  }
 
   return {
     mode,
