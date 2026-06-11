@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import Stripe from "stripe";
 import { createServiceClient } from "@/lib/supabase/service";
-import { applyStripeEvent } from "@/features/payments";
+import { applyStripeEvent, StripeGateway } from "@/features/payments";
 
 function requireEnv(name: string): string {
   const value = process.env[name];
@@ -40,10 +40,15 @@ export async function POST(request: NextRequest) {
   }
 
   const serviceClient = createServiceClient();
-  const result = await applyStripeEvent(serviceClient, {
-    type: event.type,
-    data: { object: event.data.object as unknown as Record<string, unknown> },
-  });
+  const gateway = new StripeGateway();
+  const result = await applyStripeEvent(
+    serviceClient,
+    {
+      type: event.type,
+      data: { object: event.data.object as unknown as Record<string, unknown> },
+    },
+    gateway,
+  );
 
   if (!result.ok) {
     console.error(`[stripe-webhook] applyStripeEvent failed: ${result.error}`);

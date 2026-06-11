@@ -33,11 +33,16 @@ export interface PaymentGateway {
   createIntent(args: CreateIntentArgs): Promise<CreatedIntent>;
 
   /**
-   * Initiate a refund of `amountCents` against a PaymentIntent. The resulting
-   * `charge.refunded` webhook re-projects `payment_status` (the webhook stays
-   * the sole writer of that column) — this call NEVER writes payment_status.
+   * Initiate a refund of `amountCents` against a PaymentIntent. Optional
+   * idempotencyKey makes the overpay-reconcile refund safe under webhook
+   * re-delivery (same key → same Stripe refund). The resulting charge.refunded
+   * webhook re-projects payment_status — this call NEVER writes payment_status.
    */
-  refund(paymentIntentId: string, amountCents: number): Promise<void>;
+  refund(
+    paymentIntentId: string,
+    amountCents: number,
+    idempotencyKey?: string,
+  ): Promise<void>;
 
   /** Read an intent's current status (to decide reuse vs recreate). */
   retrieveIntent(paymentIntentId: string): Promise<RetrievedIntent>;

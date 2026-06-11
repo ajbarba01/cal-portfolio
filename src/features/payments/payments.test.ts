@@ -66,6 +66,7 @@ const FAKE_SECRET = `pi_fake_${ts}_secret_xyz`;
 class FakeGateway implements PaymentGateway {
   public created: CreateIntentArgs[] = [];
   public canceled: string[] = [];
+  public refunds: Array<{ id: string; amount: number; key?: string }> = [];
   /** intentId → status returned by retrieveIntent (default reusable). */
   public statuses = new Map<string, string>();
 
@@ -77,7 +78,9 @@ class FakeGateway implements PaymentGateway {
         : `${FAKE_INTENT_ID}_${this.created.length}`;
     return { paymentIntentId, clientSecret: FAKE_SECRET };
   }
-  async refund(): Promise<void> {}
+  async refund(id: string, amount: number, key?: string): Promise<void> {
+    this.refunds.push({ id, amount, key });
+  }
   async retrieveIntent(id: string): Promise<RetrievedIntent> {
     return {
       status: this.statuses.get(id) ?? "requires_payment_method",
@@ -736,6 +739,73 @@ describe("runCreatePrepayIntent — intent reuse (PAY4)", () => {
     // Reused the newest open intent — no new intent minted.
     expect(gw.created).toHaveLength(0);
     expect(result.clientSecret).toBe(`${newer}_secret_xyz`);
+  });
+});
+
+// ─── 5. PAY5: overpay reconcile ───────────────────────────────────────────────
+
+describe("applyStripeEvent — overpay reconcile (PAY5)", () => {
+  it("auto-refunds the excess when two intents both succeed", async () => {
+    const gw = new FakeGateway();
+    const b = await seedBooking(userId1, 6000, 2000);
+    const i1 = `pi_over_a_${ts}`;
+    const i2 = `pi_over_b_${ts}`;
+    await seedPayment(b, userId1, i1, 6000, "succeeded");
+    await seedPayment(b, userId1, i2, 6000, "succeeded");
+
+    // The second succeeded event triggers reconcile.
+    const result = await applyStripeEvent(
+      serviceClient,
+      { type: "payment_intent.succeeded", data: { object: { id: i2 } } },
+      gw,
+    );
+    expect(result.ok).toBe(true);
+    expect(gw.refunds).toHaveLength(1);
+    expect(gw.refunds[0]?.amount).toBe(6000); // the excess
+    expect(gw.refunds[0]?.id).toBe(i2); // most-recent succeeded intent
+    expect(gw.refunds[0]?.key).toBeTruthy();
+
+    await serviceClient.from("payments").delete().eq("booking_id", b);
+    await serviceClient.from("bookings").delete().eq("id", b);
+  });
+
+  it("does not refund when paid amount equals final", async () => {
+    const gw = new FakeGateway();
+    const b = await seedBooking(userId1, 6000, 2100);
+    const intent = `pi_exact_${ts}`;
+    await seedPayment(b, userId1, intent, 6000, "succeeded");
+
+    await applyStripeEvent(
+      serviceClient,
+      { type: "payment_intent.succeeded", data: { object: { id: intent } } },
+      gw,
+    );
+    expect(gw.refunds).toHaveLength(0);
+
+    await serviceClient.from("payments").delete().eq("booking_id", b);
+    await serviceClient.from("bookings").delete().eq("id", b);
+  });
+
+  it("uses a deterministic idempotency key (re-delivery reuses it)", async () => {
+    const gw = new FakeGateway();
+    const b = await seedBooking(userId1, 6000, 2200);
+    const i1 = `pi_key_a_${ts}`;
+    const i2 = `pi_key_b_${ts}`;
+    await seedPayment(b, userId1, i1, 6000, "succeeded");
+    await seedPayment(b, userId1, i2, 6000, "succeeded");
+
+    const ev = {
+      type: "payment_intent.succeeded",
+      data: { object: { id: i2 } },
+    };
+    await applyStripeEvent(serviceClient, ev, gw);
+    await applyStripeEvent(serviceClient, ev, gw); // re-delivery, refunded_cents still 0 in fake
+
+    const keys = new Set(gw.refunds.map((r) => r.key));
+    expect(keys.size).toBe(1); // same key both times → Stripe would dedupe
+
+    await serviceClient.from("payments").delete().eq("booking_id", b);
+    await serviceClient.from("bookings").delete().eq("id", b);
   });
 });
 
