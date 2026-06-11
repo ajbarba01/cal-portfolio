@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SP5a preview — Admin Settings (token-accurate)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400..700&family=Public+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* ── Real Trail palette (light), copied from src/app/globals.css ── */
+      :root {
+        --background: #faf6f0;
+        --foreground: #2b2520;
+        --card: #ffffff;
+        --card-foreground: #2b2520;
+        --muted: #f2ece1;
+        --muted-foreground: #6e6354;
+        --border: #e7decf;
+        --input: #e7decf;
+        --canvas: #e7decf;
+        --brand: #ae5a35;
+        --brand-foreground: #ffffff;
+        --brand-strong: #8a4226;
+        --sidebar: #f2ece1;
+        --radius: 0.375rem;
+        --radius-lg: 0.375rem;
+        --radius-xl: 0.525rem;
+        --font-sans: "Public Sans", system-ui, sans-serif;
+        --font-heading: "Fraunces", Georgia, serif;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--canvas);
+        font-family: var(--font-sans);
+        color: var(--foreground);
+        -webkit-font-smoothing: antialiased;
+      }
+      /* the centered white "sheet on a desk" */
+      .sheet {
+        max-width: 760px;
+        margin: 0 auto;
+        background: var(--background);
+        min-height: 100vh;
+        border-left: 1px solid var(--border);
+        border-right: 1px solid var(--border);
+        padding: 28px 24px 64px;
+      }
+      .page-head { margin-bottom: 22px; }
+      .page-head h1 {
+        font-family: var(--font-heading);
+        font-weight: 600;
+        font-size: 28px;
+        letter-spacing: -0.01em;
+        margin: 0 0 4px;
+      }
+      .page-head p { margin: 0; color: var(--muted-foreground); font-size: 14px; }
+
+      .stack { display: flex; flex-direction: column; gap: 16px; }
+
+      /* Card primitive: bg-card border-border rounded-xl border p-5 */
+      .card {
+        background: var(--card);
+        color: var(--card-foreground);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-xl);
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      /* gold small-caps group legend: text-brand-strong text-xs font-semibold uppercase tracking-wide */
+      .legend {
+        color: var(--brand-strong);
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .field { display: flex; flex-direction: column; gap: 6px; }
+      .lab { font-size: 13px; font-weight: 500; }
+      .note { font-size: 12px; color: var(--muted-foreground); }
+
+      /* unit-inside-the-box control: bordered row, unit flush-right */
+      .unit-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        height: 34px;
+        max-width: 280px;
+        border: 1px solid var(--input);
+        border-radius: 8px;
+        background: var(--background);
+        padding: 0 10px;
+      }
+      .unit-row input {
+        flex: 1;
+        min-width: 0;
+        border: 0;
+        background: transparent;
+        font: inherit;
+        font-size: 14px;
+        color: var(--foreground);
+        outline: none;
+      }
+      .unit-row .unit { color: var(--muted-foreground); font-size: 12px; white-space: nowrap; }
+      .unit-row .lead { color: var(--muted-foreground); font-size: 14px; }
+
+      /* TimePicker = three token Selects (hour / min / AM-PM) */
+      .timepick { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+      .sel {
+        display: inline-flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        height: 34px;
+        min-width: 64px;
+        border: 1px solid var(--input);
+        border-radius: 8px;
+        background: var(--background);
+        padding: 0 10px;
+        font-size: 14px;
+      }
+      .sel .car { color: var(--muted-foreground); font-size: 11px; }
+
+      .pointer { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--muted-foreground); }
+      .pointer a { color: var(--brand-strong); text-decoration: none; font-weight: 500; }
+      .pointer a:hover { text-decoration: underline; }
+      .ico { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+
+      /* checkbox row */
+      .check { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+
+      /* Advanced = a card with a dashed border to signal "optional"; same gold legend + a pill */
+      details.adv {
+        border: 1px dashed var(--border);
+        border-radius: var(--radius-xl);
+        background: var(--card);
+      }
+      details.adv > summary {
+        list-style: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 18px 20px;
+      }
+      details.adv[open] > summary { padding-bottom: 12px; }
+      details.adv > summary::-webkit-details-marker { display: none; }
+      details.adv .legend-row { display: inline-flex; align-items: center; gap: 8px; }
+      .pill {
+        font-size: 10px;
+        text-transform: none;
+        letter-spacing: 0;
+        font-weight: 500;
+        color: var(--muted-foreground);
+        background: var(--muted);
+        border-radius: 6px;
+        padding: 2px 7px;
+      }
+      details.adv .advbody { padding: 0 20px 20px; display: flex; flex-direction: column; gap: 12px; }
+      .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+      @media (max-width: 560px) { .grid4 { grid-template-columns: repeat(2, 1fr); } }
+      .mini { display: flex; flex-direction: column; gap: 5px; }
+      .mini .lab { font-size: 12px; }
+      .mini input {
+        height: 32px; border: 1px solid var(--input); border-radius: 8px;
+        background: var(--background); padding: 0 9px; font: inherit; font-size: 13px; outline: none;
+      }
+      .chev { width: 16px; height: 16px; stroke: var(--muted-foreground); fill: none; stroke-width: 2; }
+
+      /* Save button: brand fill */
+      .btn {
+        align-self: flex-start;
+        background: var(--brand);
+        color: var(--brand-foreground);
+        border: 0;
+        border-radius: 8px;
+        font: inherit;
+        font-size: 14px;
+        font-weight: 500;
+        padding: 9px 18px;
+        cursor: pointer;
+      }
+      .banner {
+        font-size: 12px; color: var(--muted-foreground);
+        background: var(--muted); border-radius: 8px; padding: 8px 12px; margin-bottom: 18px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="sheet">
+      <div class="banner">
+        Token-accurate preview of the finished <b>/admin/settings</b> surface (real
+        Trail palette + Fraunces/Public Sans). This is the "definition of done"
+        look for sign-off — the React build matches this.
+      </div>
+
+      <div class="page-head">
+        <h1>Settings</h1>
+        <p>Booking rules, pricing, and reminders. Changes apply right away.</p>
+      </div>
+
+      <div class="stack">
+        <!-- When can clients book? -->
+        <section class="card">
+          <span class="legend">When can clients book?</span>
+
+          <div class="field">
+            <span class="lab">Bookings open at</span>
+            <div class="timepick">
+              <span class="sel">6 <span class="car">▾</span></span>
+              <span class="sel">30 <span class="car">▾</span></span>
+              <span class="sel">AM <span class="car">▾</span></span>
+            </div>
+          </div>
+          <div class="field">
+            <span class="lab">Bookings close at</span>
+            <div class="timepick">
+              <span class="sel">10 <span class="car">▾</span></span>
+              <span class="sel">00 <span class="car">▾</span></span>
+              <span class="sel">PM <span class="car">▾</span></span>
+            </div>
+          </div>
+          <span class="note">All times are Mountain (Denver). Stored internally as minutes since midnight.</span>
+
+          <div class="field">
+            <span class="lab">Minimum notice required</span>
+            <div class="unit-row"><input value="12" /><span class="unit">hours</span></div>
+          </div>
+          <div class="field">
+            <span class="lab">Auto-confirm bookings within</span>
+            <div class="unit-row"><input value="14" /><span class="unit">days out</span></div>
+          </div>
+          <div class="field">
+            <span class="lab">Furthest advance booking allowed</span>
+            <div class="unit-row"><input value="120" /><span class="unit">days</span></div>
+          </div>
+          <div class="field">
+            <span class="lab">Generate recurring series up to</span>
+            <div class="unit-row"><input value="90" /><span class="unit">days ahead</span></div>
+          </div>
+        </section>
+
+        <!-- Cancellations -->
+        <section class="card">
+          <span class="legend">Cancellations</span>
+          <div class="field">
+            <span class="lab">Full refund if cancelled at least</span>
+            <div class="unit-row"><input value="48" /><span class="unit">hours before start</span></div>
+          </div>
+          <div class="field">
+            <span class="lab">Refund for a late cancellation</span>
+            <div class="unit-row"><input value="50" /><span class="unit">% of the booking</span></div>
+          </div>
+        </section>
+
+        <!-- Recurring discount -->
+        <section class="card">
+          <span class="legend">Recurring discount</span>
+          <div class="field">
+            <span class="lab">Discount for recurring bookings</span>
+            <div class="unit-row"><input value="10" /><span class="unit">%</span></div>
+          </div>
+          <div class="field">
+            <span class="lab">Minimum recurring occurrences to qualify</span>
+            <div class="unit-row"><input value="4" /><span class="unit">bookings</span></div>
+          </div>
+        </section>
+
+        <!-- Premium days surcharge -->
+        <section class="card">
+          <span class="legend">Premium days surcharge</span>
+          <div class="field">
+            <span class="lab">Extra charge per booking</span>
+            <div class="unit-row"><span class="lead">$</span><input value="15.00" /><span class="unit">per booking</span></div>
+          </div>
+          <div class="pointer">
+            <svg class="ico" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+            <span>Premium days are set on the <a href="#">Availability calendar</a>.</span>
+          </div>
+        </section>
+
+        <!-- Email reminders -->
+        <section class="card">
+          <span class="legend">Email reminders</span>
+          <div class="field">
+            <span class="lab">Send reminder</span>
+            <div class="unit-row"><input value="24" /><span class="unit">hours before start</span></div>
+          </div>
+        </section>
+
+        <!-- Distance & approval -->
+        <section class="card">
+          <span class="legend">Distance &amp; approval</span>
+          <div class="field">
+            <span class="lab">Auto-approve clients within</span>
+            <div class="unit-row"><input value="10" /><span class="unit">miles</span></div>
+          </div>
+          <div class="field">
+            <span class="lab">Hard cutoff — refuse bookings beyond</span>
+            <div class="unit-row"><input value="25" /><span class="unit">miles</span></div>
+          </div>
+          <label class="check"><input type="checkbox" checked /> Gate on road miles (straight-line × road factor)</label>
+        </section>
+
+        <!-- Advanced -->
+        <details class="adv">
+          <summary>
+            <span class="legend-row">
+              <span class="legend">Advanced</span>
+              <span class="pill">rarely changed</span>
+            </span>
+            <svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+          </summary>
+          <div class="advbody">
+            <div class="mini"><span class="lab">Origin label</span><input value="Home base — Denver" /></div>
+            <div class="grid4">
+              <div class="mini"><span class="lab">Latitude</span><input value="39.7392" /></div>
+              <div class="mini"><span class="lab">Longitude</span><input value="-104.9903" /></div>
+              <div class="mini"><span class="lab">Road factor</span><input value="1.3" /></div>
+              <div class="mini"><span class="lab">Avg speed mph</span><input value="30" /></div>
+            </div>
+          </div>
+        </details>
+
+        <button class="btn">Save settings</button>
+      </div>
+    </div>
+  </body>
+</html>
