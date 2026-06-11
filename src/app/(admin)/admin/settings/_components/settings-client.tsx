@@ -6,6 +6,7 @@ import { CalendarDays, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Card } from "@/components/ui/card";
 import { TimePicker } from "@/components/ui/time-picker";
 import { updateSettings, type SettingsRow } from "@/features/admin";
 
@@ -22,7 +23,10 @@ interface UnitFieldProps {
   inputProps?: React.InputHTMLAttributes<HTMLInputElement>;
 }
 
-/** Input wrapped with a visible unit label (e.g. "miles", "%", "hours"). */
+/**
+ * Input with a visible unit label rendered flush-right INSIDE the bordered
+ * control box (mockup: "50  % of the booking", "$ 15.00  per booking").
+ */
 function UnitField({
   id,
   label,
@@ -34,28 +38,40 @@ function UnitField({
 }: UnitFieldProps) {
   return (
     <div className="space-y-1">
-      <Label htmlFor={id}>{label}</Label>
-      <div className="flex items-center gap-2">
+      <Label htmlFor={id} className="text-muted-foreground text-xs font-medium">
+        {label}
+      </Label>
+      {/* Bordered row that looks like a single input */}
+      <div className="border-input bg-background flex h-8 items-center gap-2 rounded-lg border px-2.5">
         {unitPosition === "leading" && (
-          <span className="text-muted-foreground text-sm select-none">
+          <span className="text-muted-foreground shrink-0 text-xs select-none">
             {unit}
           </span>
         )}
-        <Input
+        <input
           id={id}
           type="number"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="max-w-40"
+          className="min-w-0 flex-1 bg-transparent text-sm outline-none"
           {...inputProps}
         />
         {unitPosition === "trailing" && (
-          <span className="text-muted-foreground text-sm select-none">
+          <span className="text-muted-foreground ml-auto shrink-0 text-xs select-none">
             {unit}
           </span>
         )}
       </div>
     </div>
+  );
+}
+
+/** Small-caps, letter-spaced, bold, accent-gold group legend. */
+function GroupLegend({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-brand-strong text-xs font-semibold tracking-wide uppercase">
+      {children}
+    </p>
   );
 }
 
@@ -172,132 +188,130 @@ export function SettingsClient({
   }
 
   return (
-    <div className="space-y-6 rounded-md border p-6">
+    <div className="flex flex-col gap-4">
       {/* ── When can clients book? ─────────────────────────────────────── */}
-      <fieldset className="space-y-4">
-        <legend className="text-base font-medium">
-          When can clients book?
-        </legend>
-
-        <TimePicker
-          id="booking-open"
-          label="Bookings open at"
-          value={openMinute}
-          onChange={setOpenMinute}
-        />
-        <TimePicker
-          id="booking-close"
-          label="Bookings close at"
-          value={closeMinute}
-          onChange={setCloseMinute}
-        />
-        <p className="text-muted-foreground text-xs">
-          All times are Mountain (Denver). Stored internally as minutes since
-          midnight.
-        </p>
-
-        <UnitField
-          id="min-lead"
-          label="Minimum notice required"
-          value={minLead}
-          onChange={setMinLead}
-          unit="hours"
-        />
-        <UnitField
-          id="auto-confirm-horizon"
-          label="Auto-confirm bookings within"
-          value={autoConfirmHorizon}
-          onChange={setAutoConfirmHorizon}
-          unit="days out"
-        />
-        <UnitField
-          id="hard-max-advance"
-          label="Furthest advance booking allowed"
-          value={hardMaxAdvance}
-          onChange={setHardMaxAdvance}
-          unit="days"
-        />
-        <UnitField
-          id="recurrence-gen-horizon"
-          label="Generate recurring series up to"
-          value={recurrenceGenHorizon}
-          onChange={setRecurrenceGenHorizon}
-          unit="days ahead"
-        />
-      </fieldset>
+      <Card>
+        <GroupLegend>When can clients book?</GroupLegend>
+        <div className="flex flex-col gap-4">
+          <TimePicker
+            id="booking-open"
+            label="Bookings open at"
+            value={openMinute}
+            onChange={setOpenMinute}
+          />
+          <TimePicker
+            id="booking-close"
+            label="Bookings close at"
+            value={closeMinute}
+            onChange={setCloseMinute}
+          />
+          <p className="text-muted-foreground text-xs">
+            All times are Mountain (Denver). Stored internally as minutes since
+            midnight.
+          </p>
+          <UnitField
+            id="min-lead"
+            label="Minimum notice required"
+            value={minLead}
+            onChange={setMinLead}
+            unit="hours"
+          />
+          <UnitField
+            id="auto-confirm-horizon"
+            label="Auto-confirm bookings within"
+            value={autoConfirmHorizon}
+            onChange={setAutoConfirmHorizon}
+            unit="days out"
+          />
+          <UnitField
+            id="hard-max-advance"
+            label="Furthest advance booking allowed"
+            value={hardMaxAdvance}
+            onChange={setHardMaxAdvance}
+            unit="days"
+          />
+          <UnitField
+            id="recurrence-gen-horizon"
+            label="Generate recurring series up to"
+            value={recurrenceGenHorizon}
+            onChange={setRecurrenceGenHorizon}
+            unit="days ahead"
+          />
+        </div>
+      </Card>
 
       {/* ── Cancellations ──────────────────────────────────────────────── */}
-      <fieldset className="space-y-4">
-        <legend className="text-base font-medium">Cancellations</legend>
-
-        <UnitField
-          id="full-refund-hours"
-          label="Full refund if cancelled at least"
-          value={fullRefundHours}
-          onChange={setFullRefundHours}
-          unit="hours before start"
-        />
-        <UnitField
-          id="late-refund-pct"
-          label="Refund for a late cancellation"
-          value={lateRefundPct}
-          onChange={setLateRefundPct}
-          unit="% of the booking"
-        />
-      </fieldset>
+      <Card>
+        <GroupLegend>Cancellations &amp; no-shows</GroupLegend>
+        <div className="flex flex-col gap-4">
+          <UnitField
+            id="full-refund-hours"
+            label="Full refund if cancelled at least"
+            value={fullRefundHours}
+            onChange={setFullRefundHours}
+            unit="hours before start"
+          />
+          <UnitField
+            id="late-refund-pct"
+            label="Refund for a late cancellation"
+            value={lateRefundPct}
+            onChange={setLateRefundPct}
+            unit="% of the booking"
+          />
+        </div>
+      </Card>
 
       {/* ── Recurring discount ─────────────────────────────────────────── */}
-      <fieldset className="space-y-4">
-        <legend className="text-base font-medium">Recurring discount</legend>
-
-        <UnitField
-          id="discount-pct"
-          label="Discount for recurring bookings"
-          value={discountPct}
-          onChange={setDiscountPct}
-          unit="%"
-        />
-        <UnitField
-          id="discount-min"
-          label="Minimum recurring occurrences to qualify"
-          value={discountMin}
-          onChange={setDiscountMin}
-          unit="bookings"
-        />
-      </fieldset>
+      <Card>
+        <GroupLegend>Recurring discount</GroupLegend>
+        <div className="flex flex-col gap-4">
+          <UnitField
+            id="discount-pct"
+            label="Discount for recurring bookings"
+            value={discountPct}
+            onChange={setDiscountPct}
+            unit="%"
+          />
+          <UnitField
+            id="discount-min"
+            label="Minimum recurring occurrences to qualify"
+            value={discountMin}
+            onChange={setDiscountMin}
+            unit="bookings"
+          />
+        </div>
+      </Card>
 
       {/* ── Premium days ───────────────────────────────────────────────── */}
-      <fieldset className="space-y-4">
-        <legend className="text-base font-medium">
-          Premium days surcharge
-        </legend>
-
-        <UnitField
-          id="holiday-surcharge"
-          label="Extra charge per booking"
-          value={holidaySurchargeDollars}
-          onChange={setHolidaySurchargeDollars}
-          unit="$"
-          unitPosition="leading"
-          inputProps={{ step: "0.01", min: "0" }}
-        />
-        <p className="text-muted-foreground flex items-center gap-1.5 text-sm">
-          <CalendarDays className="h-4 w-4 shrink-0" aria-hidden />
-          Premium days are set on the{" "}
-          <Link
-            href="/admin/availability"
-            className="text-brand-strong underline-offset-2 hover:underline"
-          >
-            Availability calendar
-          </Link>
-          .
-        </p>
-      </fieldset>
+      <Card>
+        <GroupLegend>Premium days surcharge</GroupLegend>
+        <div className="flex flex-col gap-4">
+          <UnitField
+            id="holiday-surcharge"
+            label="Extra charge per booking"
+            value={holidaySurchargeDollars}
+            onChange={setHolidaySurchargeDollars}
+            unit="$"
+            unitPosition="leading"
+            inputProps={{ step: "0.01", min: "0" }}
+          />
+          <p className="text-muted-foreground flex items-center gap-1.5 text-sm">
+            <CalendarDays className="h-4 w-4 shrink-0" aria-hidden />
+            Premium days are set on the{" "}
+            <Link
+              href="/admin/availability"
+              className="text-brand-strong underline-offset-2 hover:underline"
+            >
+              Availability calendar
+            </Link>
+            .
+          </p>
+        </div>
+      </Card>
 
       {/* ── Email reminders ────────────────────────────────────────────── */}
-      <fieldset className="space-y-4">
-        <legend className="text-base font-medium">Email reminders</legend>
-
+      <Card>
+        <GroupLegend>Email reminders</GroupLegend>
         <UnitField
           id="reminder-lead-hours"
           label="Send reminder"
@@ -305,43 +319,42 @@ export function SettingsClient({
           onChange={setReminderLeadHours}
           unit="hours before start"
         />
-      </fieldset>
+      </Card>
 
       {/* ── Distance & approval ────────────────────────────────────────── */}
-      <fieldset className="space-y-4">
-        <legend className="text-base font-medium">
-          Distance &amp; approval
-        </legend>
-
-        <UnitField
-          id="auto-approve"
-          label="Auto-approve clients within"
-          value={autoApprove}
-          onChange={setAutoApprove}
-          unit="miles"
-        />
-        <UnitField
-          id="hard-cutoff"
-          label="Hard cutoff — refuse bookings beyond"
-          value={hardCutoff}
-          onChange={setHardCutoff}
-          unit="miles"
-        />
-        <div className="flex items-center gap-2">
-          <input
-            id="gate-use-road-miles"
-            type="checkbox"
-            checked={useRoadMiles}
-            onChange={(e) => setUseRoadMiles(e.target.checked)}
+      <Card>
+        <GroupLegend>Distance &amp; approval</GroupLegend>
+        <div className="flex flex-col gap-4">
+          <UnitField
+            id="auto-approve"
+            label="Auto-approve clients within"
+            value={autoApprove}
+            onChange={setAutoApprove}
+            unit="miles"
           />
-          <Label htmlFor="gate-use-road-miles">
-            Gate on road miles (straight-line × road factor)
-          </Label>
+          <UnitField
+            id="hard-cutoff"
+            label="Hard cutoff — refuse bookings beyond"
+            value={hardCutoff}
+            onChange={setHardCutoff}
+            unit="miles"
+          />
+          <div className="flex items-center gap-2">
+            <input
+              id="gate-use-road-miles"
+              type="checkbox"
+              checked={useRoadMiles}
+              onChange={(e) => setUseRoadMiles(e.target.checked)}
+            />
+            <Label htmlFor="gate-use-road-miles">
+              Gate on road miles (straight-line × road factor)
+            </Label>
+          </div>
         </div>
-      </fieldset>
+      </Card>
 
       {/* ── Advanced (collapsed by default) ───────────────────────────── */}
-      <details className="group border-border rounded-md border border-dashed">
+      <details className="group border-border rounded-lg border border-dashed">
         <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-sm font-medium">
           <span>
             Advanced{" "}
@@ -355,9 +368,14 @@ export function SettingsClient({
           />
         </summary>
 
-        <div className="space-y-4 px-4 pt-2 pb-4">
+        <div className="flex flex-col gap-4 px-4 pt-2 pb-4">
           <div className="space-y-1">
-            <Label htmlFor="origin-label">Origin label</Label>
+            <Label
+              htmlFor="origin-label"
+              className="text-muted-foreground text-xs font-medium"
+            >
+              Origin label
+            </Label>
             <Input
               id="origin-label"
               type="text"
@@ -368,7 +386,12 @@ export function SettingsClient({
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div className="space-y-1">
-              <Label htmlFor="origin-lat">Latitude</Label>
+              <Label
+                htmlFor="origin-lat"
+                className="text-muted-foreground text-xs font-medium"
+              >
+                Latitude
+              </Label>
               <Input
                 id="origin-lat"
                 type="number"
@@ -377,7 +400,12 @@ export function SettingsClient({
               />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="origin-lng">Longitude</Label>
+              <Label
+                htmlFor="origin-lng"
+                className="text-muted-foreground text-xs font-medium"
+              >
+                Longitude
+              </Label>
               <Input
                 id="origin-lng"
                 type="number"
@@ -386,7 +414,12 @@ export function SettingsClient({
               />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="road-factor">Road factor</Label>
+              <Label
+                htmlFor="road-factor"
+                className="text-muted-foreground text-xs font-medium"
+              >
+                Road factor
+              </Label>
               <Input
                 id="road-factor"
                 type="number"
@@ -395,9 +428,11 @@ export function SettingsClient({
               />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="avg-speed">
-                Avg speed{" "}
-                <span className="text-muted-foreground font-normal">mph</span>
+              <Label
+                htmlFor="avg-speed"
+                className="text-muted-foreground text-xs font-medium"
+              >
+                Avg speed <span className="font-normal">mph</span>
               </Label>
               <Input
                 id="avg-speed"
