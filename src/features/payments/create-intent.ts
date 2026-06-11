@@ -86,15 +86,59 @@ export async function runCreatePrepayIntent(
     return { ok: false, error: "This booking is already paid." };
   }
 
-  // 4. Create the PaymentIntent via gateway.
+  // 4. Reuse an existing open intent of the same amount, if any (PAY4).
+  // Base key dedupes rapid double-clicks. If we cancel + recreate, the key MUST
+  // change — Stripe caches idempotent responses 24h, so reusing the base key
+  // would return the just-canceled intent. Derive a deterministic retry key
+  // from the retired intent id (idempotent across re-deliveries of the retry).
+  let idempotencyKey = `prepay:${bookingId}:${owed}`;
+
+  const hasOpenRow = booking.payments.some(
+    (p) => p.status === "requires_payment",
+  );
+  if (hasOpenRow) {
+    const { data: openFull } = await deps.serviceClient
+      .from("payments")
+      .select("id, stripe_payment_intent_id, amount_cents")
+      .eq("booking_id", bookingId)
+      .eq("status", "requires_payment")
+      .maybeSingle();
+
+    if (openFull?.stripe_payment_intent_id) {
+      const existing = await deps.gateway.retrieveIntent(
+        openFull.stripe_payment_intent_id,
+      );
+      const reusable =
+        openFull.amount_cents === owed &&
+        (existing.status === "requires_payment_method" ||
+          existing.status === "requires_confirmation") &&
+        existing.clientSecret !== null;
+
+      if (reusable) {
+        return { ok: true, clientSecret: existing.clientSecret! };
+      }
+
+      // Stale or amount-changed: cancel at Stripe + retire the row, then mint
+      // fresh under a key that won't collide with the canceled intent's cache.
+      await deps.gateway.cancelIntent(openFull.stripe_payment_intent_id);
+      await deps.serviceClient
+        .from("payments")
+        .update({ status: "failed" })
+        .eq("id", openFull.id);
+      idempotencyKey = `prepay:${bookingId}:${owed}:retry-${openFull.stripe_payment_intent_id}`;
+    }
+  }
+
+  // 5. Mint a new intent with the booking-scoped idempotency key.
   const intent = await deps.gateway.createIntent({
     amountCents: owed,
     currency: "usd",
     bookingId,
     clientId: user.id,
+    idempotencyKey,
   });
 
-  // 5. Persist the payments row via service client (clients have no INSERT grant).
+  // 6. Persist the payments row via service client (clients have no INSERT grant).
   const { error: insertError } = await deps.serviceClient
     .from("payments")
     .insert({
@@ -113,7 +157,7 @@ export async function runCreatePrepayIntent(
     };
   }
 
-  // 6. Return the client secret for Stripe.js.
+  // 7. Return the client secret for Stripe.js.
   return { ok: true, clientSecret: intent.clientSecret };
 }
 
