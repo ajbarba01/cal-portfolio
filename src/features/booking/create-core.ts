@@ -6,11 +6,12 @@ import type { BookingStatusDb } from "./booking-repository";
 import type { MutationPolicy } from "./mutation-policy";
 import { CLIENT_POLICY } from "./mutation-policy";
 import { transition } from "./state-machine";
-import { passesGuards, fitsWindow } from "./availability";
-import type { BookingRuleSettings } from "./availability";
 import {
   computeBookingArtifacts,
   createBookingInputSchema,
+  toRuleSettings,
+  passesGuards,
+  fitsWindow,
   type BookingServiceDeps,
   type CreateBookingInput,
 } from "./booking-service-shared";
@@ -91,12 +92,7 @@ export async function createBookingCore(
   const warnings = [...result.artifacts.warnings];
 
   // 6. Booking-rule guards per occurrence (policy-aware).
-  const ruleSettings: BookingRuleSettings = {
-    bookingOpenMinute: settings.booking_open_minute,
-    bookingCloseMinute: settings.booking_close_minute,
-    minLeadTimeHours: settings.min_lead_time_hours,
-    hardMaxAdvanceDays: settings.hard_max_advance_days,
-  };
+  const ruleSettings = toRuleSettings(settings);
   for (const occStart of occurrences) {
     const occEnd = new Date(occStart.getTime() + durationMs);
     if (

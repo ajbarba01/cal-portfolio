@@ -5,10 +5,11 @@
 import type { BookingStatusDb, BookingEditRow } from "./booking-repository";
 import type { MutationPolicy } from "./mutation-policy";
 import { transition } from "./state-machine";
-import { passesGuards, fitsWindow } from "./availability";
-import type { BookingRuleSettings } from "./availability";
 import {
   computeBookingArtifacts,
+  toRuleSettings,
+  passesGuards,
+  fitsWindow,
   type BookingServiceDeps,
   type CreateBookingInput,
 } from "./booking-service-shared";
@@ -198,12 +199,7 @@ export async function editBookingCore(
   } = artifacts.artifacts;
 
   // Slot validation (hours/lead/horizon + window-fit), policy-aware.
-  const ruleSettings: BookingRuleSettings = {
-    bookingOpenMinute: s.booking_open_minute,
-    bookingCloseMinute: s.booking_close_minute,
-    minLeadTimeHours: s.min_lead_time_hours,
-    hardMaxAdvanceDays: s.hard_max_advance_days,
-  };
+  const ruleSettings = toRuleSettings(s);
   if (!policy.skipHoursLeadGuards) {
     if (!passesGuards({ startsAt, endsAt }, ruleSettings, now)) {
       return {
@@ -343,12 +339,7 @@ export async function previewEditCore(
 
   // Slot/window validation — mirrors editBookingCore (Fix 3). Read-only: no
   // persistence; admin-skip branches are silent (no warnings array to surface).
-  const ruleSettings: BookingRuleSettings = {
-    bookingOpenMinute: s.booking_open_minute,
-    bookingCloseMinute: s.booking_close_minute,
-    minLeadTimeHours: s.min_lead_time_hours,
-    hardMaxAdvanceDays: s.hard_max_advance_days,
-  };
+  const ruleSettings = toRuleSettings(s);
   if (!policy.skipHoursLeadGuards) {
     if (!passesGuards({ startsAt, endsAt }, ruleSettings, deps.now)) {
       return {

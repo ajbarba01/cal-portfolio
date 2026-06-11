@@ -565,3 +565,24 @@ export { CLIENT_POLICY };
 // Re-export fitsWindow / passesGuards / BookingRuleSettings consumed by multiple cores.
 export { fitsWindow, passesGuards };
 export type { BookingRuleSettings };
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Slot-validation helper (A14)
+// ──────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Maps a settings row to the BookingRuleSettings the guard checks consume.
+ * Single source of truth — previously rebuilt inline in 4 cores (A14). The
+ * guard/window *pairing* is deliberately NOT shared: each core gates the two
+ * checks behind its own policy flags (skipHoursLeadGuards / skipWindowFit),
+ * short-circuits between them, fetches openWindows lazily, and diverges on
+ * warning-vs-silent admin-skip behavior — a combined runner would change those.
+ */
+export function toRuleSettings(settings: SettingsRow): BookingRuleSettings {
+  return {
+    bookingOpenMinute: settings.booking_open_minute,
+    bookingCloseMinute: settings.booking_close_minute,
+    minLeadTimeHours: settings.min_lead_time_hours,
+    hardMaxAdvanceDays: settings.hard_max_advance_days,
+  };
+}
