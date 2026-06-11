@@ -596,6 +596,45 @@ describe("runCreatePrepayIntent — intent reuse (PAY4)", () => {
     expect(gw.canceled).toContain(FAKE_INTENT_ID); // stale one canceled
     expect(gw.created.length).toBeGreaterThanOrEqual(2); // a fresh one minted
   });
+
+  it("with duplicate open rows, reuses the newest without minting a third", async () => {
+    const gw = new FakeGateway();
+    const older = `pi_dup_old_${ts}`;
+    const newer = `pi_dup_new_${ts}`;
+    // Two open requires_payment rows of the matching amount (defensive: this
+    // shouldn't happen, but the reuse path must take the NEWEST and NOT mint
+    // another — guarding the one place meant to prevent intent proliferation).
+    await serviceClient.from("payments").insert([
+      {
+        booking_id: bookingId,
+        client_id: userId1,
+        stripe_payment_intent_id: older,
+        amount_cents: 6000,
+        currency: "usd",
+        status: "requires_payment",
+        created_at: new Date(Date.now() - 60_000).toISOString(),
+      },
+      {
+        booking_id: bookingId,
+        client_id: userId1,
+        stripe_payment_intent_id: newer,
+        amount_cents: 6000,
+        currency: "usd",
+        status: "requires_payment",
+        created_at: new Date().toISOString(),
+      },
+    ]);
+
+    const result = await runCreatePrepayIntent(
+      { sessionClient: sessionClient1, serviceClient, gateway: gw },
+      bookingId,
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // Reused the newest open intent — no new intent minted.
+    expect(gw.created).toHaveLength(0);
+    expect(result.clientSecret).toBe(`${newer}_secret_xyz`);
+  });
 });
 
 // ─── 4. Security: RLS/grant guards ────────────────────────────────────────────

@@ -97,12 +97,22 @@ export async function runCreatePrepayIntent(
     (p) => p.status === "requires_payment",
   );
   if (hasOpenRow) {
-    const { data: openFull } = await deps.serviceClient
+    // Newest open intent. `limit(1)` keeps this deterministic if duplicates ever
+    // exist — this is the one path meant to PREVENT intent proliferation, so it
+    // must not silently fall through and mint yet another. Bail on a query error
+    // rather than mint blind.
+    const { data: openFull, error: openErr } = await deps.serviceClient
       .from("payments")
       .select("id, stripe_payment_intent_id, amount_cents")
       .eq("booking_id", bookingId)
       .eq("status", "requires_payment")
+      .order("created_at", { ascending: false })
+      .limit(1)
       .maybeSingle();
+
+    if (openErr) {
+      return { ok: false, error: "Could not check existing payment." };
+    }
 
     if (openFull?.stripe_payment_intent_id) {
       const existing = await deps.gateway.retrieveIntent(

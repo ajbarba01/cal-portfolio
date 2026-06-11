@@ -25,7 +25,7 @@ export function getStripe(): Promise<Stripe | null> {
  *   colorText       #2b2520  → --foreground (sand-900)
  *   colorTextSecondary #6e6354 → --muted-foreground (sand-500)
  *   colorPrimary    #ae5a35  → --brand (clay-fill)
- *   colorDanger     #cf3b2e  → --destructive (warm red)
+ *   colorDanger     #cf3b2e  ≈ --destructive (sRGB approx of its oklch)
  *   borderRadius    6px      → --radius (0.375rem)
  *   .Input border   #e7decf  → --input (sand-200)
  *   focus ring      #8a4226  → --ring (clay-strong); visible focus = a11y floor
