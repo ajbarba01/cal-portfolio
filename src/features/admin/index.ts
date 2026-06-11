@@ -98,3 +98,7 @@ export type { SettingsUpdate } from "./settings-schema";
 
 // components
 export { OnboardingStatusSelect } from "./_components/onboarding-status-select";
+
+// attention-counts (typed seam — SP5 wires real counts)
+export type { AttentionCounts } from "./attention-counts";
+export { emptyAttentionCounts } from "./attention-counts";

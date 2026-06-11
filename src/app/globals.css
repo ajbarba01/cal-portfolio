@@ -37,6 +37,8 @@
   --color-border: var(--border);
   --color-destructive: var(--destructive);
   --color-destructive-warm: var(--destructive-warm);
+  --color-attention: var(--attention);
+  --color-attention-foreground: var(--attention-foreground);
   --color-status-available: var(--status-available);
   --color-status-available-foreground: var(--status-available-foreground);
   --color-status-booked: var(--status-booked);
@@ -144,6 +146,9 @@
   --brand-strong: var(--clay-strong);
   --destructive: var(--danger);
   --destructive-warm: var(--danger-warm);
+  /* Attention badge — solid red, white text passes AA in both themes */
+  --attention: oklch(0.55 0.22 25);
+  --attention-foreground: #ffffff;
   --border: var(--sand-200);
   --input: var(--sand-200);
   --ring: var(--clay-strong);
