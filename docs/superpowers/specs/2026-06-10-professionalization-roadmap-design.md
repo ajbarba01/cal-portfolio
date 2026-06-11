@@ -63,7 +63,11 @@ Full flow on existing stub: intent → webhook (signature-verified, idempotent) 
 
 Every admin surface tuned for a non-technical operator: straightforward industry-standard controls (time pickers, not minute integers), no exposed internals, no unnecessary work, zero functionality loss. Includes booking-rules-v2 owed UI (settings pickers, refund/no-show actions surfacing, debt view, series-conflict surfacing), manual booking entry polish, inquiry popup flow, ban/reject semantics, admin badges.
 
+**Planning session 2026-06-11 (senior-designer):** spec + 2 plans + 20 visual-companion mockups committed. Split **SP5a** (operational surfaces — settings/client-detail/availability/bookings-hub/clients/booking-flow/services/reviews) / **SP5b** (awareness layer — nav badges + dashboard); both schema-free. Maintainer override: every admin surface gets a Cal-friendly functional-UX pass, not just finding-tagged ones. **AD1 (series-conflict surfacing) re-routed** to the recurring rework below (reframed as a booking-time client-side concern — findings register §SP5). AD4 → debt spec; AD7 already shipped; no-show removed from the UI (backend rip-out → debt spec). Execution next session(s), SP5a first.
+
 ### SP6 — Cohesion + feedback + responsiveness sweep
+
+REMINDER FROM ALEX FOR SP6 (integrate into planning): add visible page loading and ensure all content widths are cohesive and make sense throughout pages. visual mockups should be made extensively for this SP.
 
 Sitewide application of SP3 primitives. Rule: **every user action produces visible feedback** — hover/click states, toasts, inline, redirects; nothing silent. Redirect-back after auth, post-booking redirect, text wrap/overflow states, empty states, toast redesign application, popup restyle application, own-bookings muted-clay, calendar polish, breakpoint-transition correctness, mobile parity (mobile as intentional as desktop).
 
@@ -77,7 +81,7 @@ Feature-sized DEV_NOTES items are **not** findings: booking-mutation P2-P4 (clie
 
 Two of these carry a **grill-required** marker (maintainer, 2026-06-10) — their spec sessions start with full maintainer grilling + industry research before any design lands:
 
-- **Recurring workflow rework** — big refactor; must follow industry scheduling standards (RFC 5545 semantics already partial via `skipped_starts`) + project specs. Touches series engine, roll cron, series UI.
+- **Recurring workflow rework** — big refactor; must follow industry scheduling standards (RFC 5545 semantics already partial via `skipped_starts`) + project specs. Touches series engine, roll cron, series UI. **Now also owns AD1** (re-routed from SP5, 2026-06-11): the maintainer's conflict model is booking-time + client-side (first-come-first-served; a new series reschedules its own conflicting occurrences at booking; no Cal-facing conflict surface), which is a series-engine change — today's roll cron lazily materializes future occurrences, which is how a slot gets taken from under a series.
 - **Cancellation-fee / debt ("blocking fee") system** — verify end-to-end how fees, debts, refunds, and the re-booking block interact (with SP4's PAY3 refund re-modeling). Maintainer wants the whole policy walked through before it's built on.
 
 ## Standing rules

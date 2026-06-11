@@ -48,9 +48,19 @@ Surfaced by the SP3a fresh-session `/code-review`. All were **pre-existing dupli
 
 Admin-powers inventory: all 17 expected powers exist in code with UI (approve/decline, cancel, no-show, refund grant, debt view/settle, create-on-behalf, edit-any, reschedule, windows, overnight nights, services CRUD, full settings, onboarding status, Kiche toggle, reviews moderation, inquiries, ban-via-declined). Gaps = AD1 (conflict UI), AD4 (reason), AD3 (friendliness, not capability). Ban-from-meet-greets needs no dedicated surface — `declined` covers it (maintainer decision 2026-06-10).
 
-## SP6 — cohesion + feedback + responsiveness
+### SP5 planning decisions (2026-06-11)
 
-REMINDER FROM ALEX FOR SP6 (integrate into planning): add visible page loading and ensure all content widths are cohesive and make sense throughout pages. visual mockups should be made extensively for this SP.
+Spec + plans committed ([spec](2026-06-11-sp5-admin-design.md), [SP5a plan](../plans/2026-06-11-sp5a-admin-operational-surfaces.md), [SP5b plan](../plans/2026-06-11-sp5b-admin-awareness-layer.md)); 20 maintainer-approved mockups in [`mockups/sp5/`](../mockups/sp5/NOTES.md). Split SP5a (operational surfaces) / SP5b (awareness layer); both schema-free. Maintainer override: **every** admin surface gets a Cal-friendly functional-UX pass, not just the finding-tagged ones.
+
+- **AD1 → RE-ROUTED out of SP5** to the grill-required **Recurring workflow rework** (interleaved item). Maintainer reframed conflicts as a **booking-time, client-side** concern — first-come-first-served; a new recurring series reschedules its own conflicting occurrences at booking time; **Cal needs no conflict inbox**. Root cause is the roll cron's lazy materialization → a recurring-engine fix, not an admin surface. No `series_conflicts` table; `AttentionCounts.flaggedConflicts` stays 0.
+- **AD2, AD3 → SP5a** (pruned at SP5a DoD). **AD5 → SP5b** (pruned at SP5b DoD).
+- **AD4 → deferred** to the cancellation-fee/debt spec (cancellation email doesn't exist; SP4b deferred it to SP6).
+- **AD7 → resolved already** (live-verify: admin inquiries-client shipped the preview cards + bottom-sheet popup + Email/Text/Resolve/View-client via the inquiries-tab + SP3b dialog work). Pruned, no SP5 work.
+- **No-show removed** (maintainer): SP5 strips it from all admin UI + the "No-Show Charge %" settings control + unwires `markNoShow`; the backend rip-out (action, `no_show_charge_pct` column, `no_show` debit reason) is deferred to the debt spec.
+- **SP4 payment-action polish** (deferred from SP4) lands in SP5a client-detail: payment-status pills, retained-half line, the `disputed_at`/`dispute_status` marker surface.
+- **SP6 notes recorded:** client booking-calendar premium-day legend; sidebar lucide icons; the unified `<BookingFlow>` then carries U1/U2 fixes for both public + admin.
+
+## SP6 — cohesion + feedback + responsiveness
 
 | ID  | Sev | Finding                                                                                                                                                                                                                                                                                                       |
 | --- | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
