@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SP5a preview — Admin Client detail (token-accurate)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400..700&family=Public+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* ── Real Trail palette (light), from src/app/globals.css ── */
+      :root {
+        --background: #faf6f0;
+        --foreground: #2b2520;
+        --card: #ffffff;
+        --muted: #f2ece1;
+        --muted-foreground: #6e6354;
+        --border: #e7decf;
+        --input: #e7decf;
+        --canvas: #e7decf;
+        --brand: #ae5a35;
+        --brand-foreground: #ffffff;
+        --brand-strong: #8a4226;
+        /* status tokens */
+        --status-available: #e3e7d2; --status-available-foreground: #4f5b33;
+        --status-booked: #d9e2e8; --status-booked-foreground: #3c5566;
+        --status-unavailable: #e7decf; --status-unavailable-foreground: #6e6354;
+        --warning: #f3e3c8; --warning-foreground: #7a5a1e;
+        /* destructive (red — disputes only) approximated from oklch(.577 .245 27) */
+        --destructive: #b23b29; --destructive-soft: #f7e3dd;
+        --radius-xl: 0.525rem;
+        --font-sans: "Public Sans", system-ui, sans-serif;
+        --font-heading: "Fraunces", Georgia, serif;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--canvas); font-family: var(--font-sans); color: var(--foreground); -webkit-font-smoothing: antialiased; }
+      .sheet { max-width: 760px; margin: 0 auto; background: var(--background); min-height: 100vh; border-left: 1px solid var(--border); border-right: 1px solid var(--border); padding: 28px 24px 64px; }
+      .banner { font-size: 12px; color: var(--muted-foreground); background: var(--muted); border-radius: 8px; padding: 8px 12px; margin-bottom: 18px; }
+      .page-head { margin-bottom: 22px; }
+      .page-head h1 { font-family: var(--font-heading); font-weight: 600; font-size: 28px; letter-spacing: -0.01em; margin: 0 0 4px; }
+      .page-head p { margin: 0; color: var(--muted-foreground); font-size: 14px; }
+      .stack { display: flex; flex-direction: column; gap: 16px; }
+
+      .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-xl); padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+      .legend { color: var(--brand-strong); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 6px; }
+      .legend .count { color: var(--muted-foreground); font-weight: 400; text-transform: none; letter-spacing: 0; }
+
+      dl.kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; font-size: 14px; margin: 0; }
+      dl.kv dt { color: var(--muted-foreground); }
+      dl.kv dd { margin: 0; }
+
+      /* switch toggle (Kiche) */
+      .switch-row { display: flex; align-items: center; gap: 10px; }
+      .switch { width: 38px; height: 22px; border-radius: 999px; background: var(--brand); position: relative; flex: none; }
+      .switch::after { content: ""; position: absolute; top: 2px; right: 2px; width: 18px; height: 18px; border-radius: 50%; background: #fff; }
+      .switch.off { background: var(--muted-foreground); }
+      .switch.off::after { right: auto; left: 2px; }
+      .help { font-size: 12px; color: var(--muted-foreground); }
+
+      .badge { font-size: 11px; font-weight: 600; border-radius: 999px; padding: 2px 9px; display: inline-flex; align-items: center; gap: 4px; }
+      .b-neutral { background: var(--muted); color: var(--muted-foreground); }
+      .b-booked { background: var(--status-booked); color: var(--status-booked-foreground); }
+      .b-pending { background: var(--warning); color: var(--warning-foreground); }
+
+      /* payment pills (icon + color) */
+      .pill { font-size: 11px; font-weight: 600; border-radius: 999px; padding: 2px 9px; display: inline-flex; align-items: center; gap: 4px; }
+      .pay-paid { background: var(--status-available); color: var(--status-available-foreground); }
+      .pay-unpaid { background: var(--muted); color: var(--muted-foreground); }
+      .pay-partial { background: var(--warning); color: var(--warning-foreground); }
+      .pay-refunded { background: var(--status-unavailable); color: var(--status-unavailable-foreground); }
+      .pay-dispute { background: var(--destructive-soft); color: var(--destructive); box-shadow: inset 0 0 0 1px var(--destructive); }
+      .ic { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 2.2; }
+
+      /* booking row */
+      .bk { display: flex; flex-direction: column; gap: 6px; padding: 10px 0; border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent); }
+      .bk:last-of-type { border-bottom: 0; }
+      .bk.disputed { background: var(--card); border: 1px solid var(--destructive); border-radius: 10px; padding: 12px; box-shadow: inset 0 0 0 1px var(--destructive); }
+      .bk .top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+      .bk .svc { font-weight: 600; font-size: 14px; }
+      .bk .amt { margin-left: auto; font-weight: 600; font-size: 14px; }
+      .bk .when { font-size: 12px; color: var(--muted-foreground); }
+      .refline { font-size: 12px; color: var(--warning-foreground); display: inline-flex; align-items: center; gap: 5px; }
+      .acts { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 2px; }
+      .btn { font-size: 12px; font-weight: 500; border-radius: 8px; padding: 5px 11px; border: 1px solid var(--border); color: var(--foreground); background: var(--card); cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
+      .btn.primary { background: var(--brand); color: var(--brand-foreground); border-color: var(--brand); }
+      .btn.warn { border-color: var(--destructive); color: var(--destructive); }
+      .new-booking { align-self: flex-start; margin-top: 4px; }
+
+      /* FormCard accordion */
+      .acc { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+      .acc + .acc { margin-top: 8px; }
+      .acc .h { display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer; }
+      .acc .h .ttl { font-size: 13px; font-weight: 600; }
+      .acc .h .car { margin-left: auto; color: var(--muted-foreground); transition: transform .15s; }
+      .acc.open .h .car { transform: rotate(90deg); }
+      .acc .status { font-size: 11px; font-weight: 600; color: var(--status-available-foreground); display: inline-flex; align-items: center; gap: 5px; }
+      .acc .status .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--status-available-foreground); }
+      .acc .c { border-top: 1px solid var(--border); padding: 10px 12px; display: none; }
+      .acc.open .c { display: block; }
+      .frow { display: flex; gap: 10px; font-size: 13px; padding: 4px 0; }
+      .frow .k { color: var(--muted-foreground); min-width: 140px; }
+      .frow .v { font-weight: 500; }
+
+      /* Pet item collapse */
+      .pet { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+      .pet + .pet { margin-top: 8px; }
+      .pet .h { display: flex; align-items: center; gap: 10px; padding: 9px 12px; cursor: pointer; }
+      .av { width: 36px; height: 36px; border-radius: 50%; background: var(--muted); display: flex; align-items: center; justify-content: center; font-size: 16px; flex: none; }
+      .pid { font-size: 13px; font-weight: 600; }
+      .psub { font-size: 11px; color: var(--muted-foreground); }
+      .pet .right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+      .pet .car { color: var(--muted-foreground); transition: transform .15s; }
+      .pet.open .car { transform: rotate(90deg); }
+      .pet .c { border-top: 1px solid var(--border); padding: 10px 12px; display: none; }
+      .pet.open .c { display: block; }
+
+      .onb-select { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--input); border-radius: 999px; padding: 3px 6px 3px 4px; width: fit-content; cursor: pointer; }
+      .out { font-weight: 700; color: var(--destructive); }
+      .debit { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 6px 0; }
+    </style>
+  </head>
+  <body>
+    <div class="sheet">
+      <div class="banner">
+        Token-accurate preview of the finished <b>/admin/clients/[id]</b> surface
+        (real Trail palette + Fraunces/Public Sans). Proposed "done" look for sign-off.
+        <b>No-show is gone</b>; payment/dispute data from SP4 is surfaced; forms &amp; pets
+        reuse the account components.
+      </div>
+
+      <div class="page-head">
+        <h1>Jane Doe</h1>
+        <p>Client since Mar 2, 2026</p>
+      </div>
+
+      <div class="stack">
+        <!-- Account -->
+        <section class="card">
+          <span class="legend">Account</span>
+          <dl class="kv">
+            <dt>Email</dt><dd>jane@example.com</dd>
+            <dt>Phone</dt><dd>(555) 014-2200</dd>
+            <dt>Address</dt><dd>418 Pine St, 81611</dd>
+            <dt>Joined</dt><dd>Mar 2, 2026, 9:14 AM</dd>
+          </dl>
+        </section>
+
+        <!-- Kiche -->
+        <section class="card">
+          <span class="legend">Kiche discount</span>
+          <div class="switch-row"><span class="switch"></span><span style="font-size:13px;">On</span></div>
+          <p class="help">Gives this client the friends-of-Kiche rate on every booking. Toggle off to charge standard pricing.</p>
+        </section>
+
+        <!-- Onboarding -->
+        <section class="card">
+          <span class="legend">Onboarding</span>
+          <p class="help">Meet &amp; greet: <b style="color:var(--foreground)">Mar 1, 2026, 4:00 PM</b> · Completed</p>
+          <div class="onb-select">
+            <span class="pill pay-paid" style="background:var(--status-available);">Active client</span>
+            <svg class="ic" viewBox="0 0 24 24" style="stroke:var(--muted-foreground)"><path d="M6 9l6 6 6-6"/></svg>
+          </div>
+          <p class="help">Settable status — opens a dropdown (Needs onboarding · Meet &amp; greet scheduled · Active · …).</p>
+        </section>
+
+        <!-- Pets -->
+        <section class="card">
+          <span class="legend">Pets <span class="count">(2)</span></span>
+          <div class="pet open">
+            <div class="h">
+              <span class="av">🐕</span>
+              <div><div class="pid">Cooper</div><div class="psub">Dog · Labrador</div></div>
+              <span class="right"><span class="btn">Edit</span><svg class="ic car" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span>
+            </div>
+            <div class="c">
+              <div class="frow"><span class="k">Feeding</span><span class="v">Twice daily, ½ cup</span></div>
+              <div class="frow"><span class="k">Notes</span><span class="v">Friendly, pulls on leash</span></div>
+            </div>
+          </div>
+          <div class="pet">
+            <div class="h">
+              <span class="av">🐈</span>
+              <div><div class="pid">Mittens</div><div class="psub">Cat · Tabby</div></div>
+              <span class="right"><span class="btn">Edit</span><svg class="ic car" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span>
+            </div>
+          </div>
+          <button class="btn primary new-booking"><svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg> Add a pet</button>
+          <p class="help">Add/Edit opens the shared PetForm bound to Jane's profile (AD2 fixed by construction).</p>
+        </section>
+
+        <!-- Forms -->
+        <section class="card">
+          <span class="legend">Forms <span class="count">(2 on file)</span></span>
+          <div class="acc open">
+            <div class="h">
+              <span class="ttl">Emergency contact &amp; vet info</span>
+              <span class="status"><span class="dot"></span> Completed</span>
+              <span class="btn">Edit</span>
+              <svg class="ic car" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+            </div>
+            <div class="c">
+              <div class="frow"><span class="k">Contact name</span><span class="v">Mark Doe</span></div>
+              <div class="frow"><span class="k">Contact phone</span><span class="v">(555) 014-2200</span></div>
+              <div class="frow"><span class="k">Relationship</span><span class="v">Spouse</span></div>
+              <div class="frow"><span class="k">Vet</span><span class="v">Aspen Animal Clinic</span></div>
+            </div>
+          </div>
+          <div class="acc">
+            <div class="h">
+              <span class="ttl">Vet release</span>
+              <span class="status"><span class="dot"></span> Completed</span>
+              <span class="btn">Edit</span>
+              <svg class="ic car" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+            </div>
+          </div>
+        </section>
+
+        <!-- Bookings -->
+        <section class="card">
+          <span class="legend">Bookings</span>
+
+          <div class="bk">
+            <div class="top">
+              <span class="svc">Dog Walk</span>
+              <span class="pill pay-paid"><svg class="ic" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg> Paid</span>
+              <span class="amt">$45.00</span>
+            </div>
+            <div class="when">Dec 23, 2:00 – 2:30 PM · Confirmed</div>
+            <div class="acts"><a class="btn">Edit</a><button class="btn">Cancel</button></div>
+          </div>
+
+          <div class="bk">
+            <div class="top">
+              <span class="svc">House Sit</span>
+              <span class="pill pay-partial"><svg class="ic" viewBox="0 0 24 24"><path d="M3 7v6h6M3 13a9 9 0 1 0 3-7"/></svg> Partially refunded</span>
+              <span class="amt">$200.00</span>
+            </div>
+            <div class="when">Dec 28 – Dec 30 · Cancelled (late)</div>
+            <div class="refline"><svg class="ic" viewBox="0 0 24 24"><path d="M3 7v6h6M3 13a9 9 0 1 0 3-7"/></svg> Refunded $100.00 · kept $100.00</div>
+          </div>
+
+          <div class="bk disputed">
+            <div class="top">
+              <span class="svc">Overnight</span>
+              <span class="pill pay-paid"><svg class="ic" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg> Paid</span>
+              <span class="pill pay-dispute"><svg class="ic" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg> Disputed · needs response</span>
+              <span class="amt">$320.00</span>
+            </div>
+            <div class="when">Nov 30 – Dec 2 · Confirmed</div>
+            <div class="acts"><a class="btn warn">View dispute in Stripe <svg class="ic" viewBox="0 0 24 24"><path d="M7 17 17 7M7 7h10v10"/></svg></a></div>
+          </div>
+
+          <button class="btn primary new-booking"><svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg> New booking for Jane</button>
+        </section>
+
+        <!-- Balance -->
+        <section class="card">
+          <span class="legend">Balance</span>
+          <p style="font-size:14px; margin:0;">Outstanding: <span class="out">$45.00</span></p>
+          <div class="debit">
+            <span>$45.00</span>
+            <span class="badge b-neutral">No-show charge</span>
+            <span class="help">Dec 9</span>
+            <button class="btn" style="margin-left:auto;">Mark settled</button>
+          </div>
+          <p class="help">From the Dec 9 Dog Walk · 100% of booking</p>
+        </section>
+      </div>
+    </div>
+  </body>
+</html>
