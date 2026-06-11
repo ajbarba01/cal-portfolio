@@ -21,6 +21,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
+import { BackToSite } from "@/components/layout/back-to-site";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { InfoStep } from "./_components/info-step";
@@ -119,6 +120,7 @@ export default async function OnboardingPage({
   if (status === "info_pending") {
     return (
       <PageContainer width="read" className="py-10">
+        <BackToSite className="mb-6" />
         <StepBar step={1} />
         <PageHeader
           title="Welcome — let's get you set up"
@@ -133,6 +135,7 @@ export default async function OnboardingPage({
     if (!meetGreetFormData || !meetGreetFormData.ok) {
       return (
         <PageContainer width="app" className="py-10">
+          <BackToSite className="mb-6" />
           <StepBar step={2} />
           <p className="text-destructive">
             Could not load scheduling. Please try again later.
@@ -142,6 +145,7 @@ export default async function OnboardingPage({
     }
     return (
       <PageContainer width="app" className="py-10">
+        <BackToSite className="mb-6" />
         <StepBar step={2} />
         <PageHeader
           title="Schedule your meet &amp; greet"
@@ -160,6 +164,7 @@ export default async function OnboardingPage({
   // declined (or any unrecognised future status). Copy is Cal's voice → placeholders.
   return (
     <PageContainer width="read" className="py-10">
+      <BackToSite className="mb-6" />
       <PageHeader
         title="[[HEADER: declined onboarding — invite the client to contact Cal]]"
         subtitle="[[BODY: declined onboarding — ask the client to reach out to Cal to sort it out]]"
