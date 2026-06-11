@@ -65,6 +65,19 @@
       .links a:hover { text-decoration: underline; }
       .ro { font-size: 11px; color: var(--muted-foreground); font-style: italic; margin-top: 8px; }
 
+      /* intraday timeline (week time-paint) */
+      .tl-section { margin-top: 16px; }
+      .tlwrap { border: 1px solid var(--border); border-radius: 10px; background: var(--card); display: grid; grid-template-columns: 56px 1fr; overflow: hidden; }
+      .timeline { border-right: 1px solid var(--border); padding: 8px 0; }
+      .tick { font-size: 9px; color: var(--muted-foreground); padding: 0 6px; height: 34px; border-top: 1px solid var(--border); }
+      .slots { position: relative; padding: 8px; }
+      .slotgrid { position: relative; height: 272px; }
+      .winblock { position: absolute; left: 8px; right: 8px; border-radius: 7px; background: var(--status-available); color: var(--status-available-foreground); border: 1.5px solid var(--status-available-foreground); font-size: 11px; font-weight: 600; padding: 4px 8px; }
+      .bkblock { position: absolute; left: 8px; right: 8px; border-radius: 7px; background: var(--status-booked); color: var(--status-booked-foreground); font-size: 11px; font-weight: 600; padding: 4px 8px; cursor: pointer; }
+      .tl-actions { display: flex; gap: 8px; align-items: end; flex-wrap: wrap; margin-top: 12px; }
+      .tfield { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--muted-foreground); }
+      .tinput { border: 1px solid var(--input); background: var(--background); border-radius: 8px; padding: 6px 9px; font-size: 13px; color: var(--foreground); }
+
       /* cancel-by-blocking confirm (alertdialog) */
       .scrim { margin-top: 22px; background: rgba(40,32,24,.28); border-radius: 12px; padding: 22px; display: flex; justify-content: center; }
       .confirm { width: 100%; max-width: 420px; background: var(--card); border-radius: 12px; overflow: hidden; box-shadow: 0 12px 40px rgba(60,40,20,.25); border: 1px solid var(--border); }
@@ -133,6 +146,34 @@
             <a href="#">View client <svg class="ic" viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg></a>
           </div>
           <p class="ro">Availability is paint-only — moderation lives on Bookings. No no-show, no inline status editing here.</p>
+        </div>
+      </div>
+
+      <!-- Intraday timeline — paint partial-day windows (WeekGrid/DayTimeline kept) -->
+      <div class="tl-section">
+        <p class="legend-top">Dec 25 · intraday timeline — paint a partial-day window</p>
+        <div class="card">
+          <div class="tlwrap">
+            <div class="timeline">
+              <div class="tick">8 AM</div><div class="tick">10 AM</div><div class="tick">12 PM</div>
+              <div class="tick">2 PM</div><div class="tick">4 PM</div><div class="tick">6 PM</div>
+              <div class="tick">8 PM</div>
+            </div>
+            <div class="slots">
+              <div class="slotgrid">
+                <!-- available window 9 AM–5 PM -->
+                <div class="winblock" style="top:17px; height:135px;">Available 9:00 AM – 5:00 PM</div>
+                <!-- a booking sits inside the window (read-only, click to inspect) -->
+                <div class="bkblock" style="top:104px; height:17px;">2:00 PM · Cooper — Dog Walk (Jane)</div>
+              </div>
+            </div>
+          </div>
+          <div class="tl-actions">
+            <label class="tfield">From <input class="tinput" type="time" value="09:00" /></label>
+            <label class="tfield">To <input class="tinput" type="time" value="17:00" /></label>
+            <button class="btn solid" style="height:34px;">Apply window to Dec 25</button>
+          </div>
+          <p class="ro">The single-day time grid for partial-day windows is kept. Painted availability shows as a green block; bookings inside it are read-only (click → inspect, manage on Bookings). Empty time can be blocked silently.</p>
         </div>
       </div>
 
