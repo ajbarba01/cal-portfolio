@@ -452,7 +452,8 @@ export function BookingsCalendarClient({
       confirmLabel: "Cancel booking",
       destructive: true,
     });
-    if (ok) run(() => cancelBooking({ bookingId: id, fullRefund: true }));
+    // fullRefund is forced server-side for admin cancels (decided by role).
+    if (ok) run(() => cancelBooking({ bookingId: id }));
   }
 
   // ── derived lists ────────────────────────────────────────────────────────────

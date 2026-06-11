@@ -125,9 +125,14 @@ export async function rescheduleBooking(input: {
  * The caller must own the booking (client_id === authenticated user's id),
  * OR be an admin. Admin check is performed here before delegating to core.
  * Refunds are MANUAL by Cal — no automatic refund logic.
+ *
+ * SECURITY: `fullRefund` is decided HERE by role, never accepted from the
+ * caller — the param type omits it. Only the admin branch sets it true (a
+ * Cal-initiated cancel refunds 100% regardless of timing); a client self-cancel
+ * always goes through the timing-based `computeRefund` penalty.
  */
 export async function cancelBooking(
-  input: Omit<CancelBookingInput, "userId">,
+  input: Omit<CancelBookingInput, "userId" | "fullRefund">,
 ): Promise<CancelBookingResult> {
   const authClient = await createClient();
   const {
@@ -169,7 +174,7 @@ export async function cancelBooking(
 
   return cancelBookingCore(
     { repo, now: new Date(), gateway },
-    { ...input, userId: user.id },
+    { ...input, userId: user.id, fullRefund: false },
   );
 }
 
