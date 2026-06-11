@@ -26,6 +26,7 @@ type CreateIntentResult =
 interface PaymentRow {
   status: "requires_payment" | "succeeded" | "refunded" | "failed";
   amount_cents: number;
+  refunded_cents: number;
 }
 
 interface BookingRow {
@@ -54,7 +55,9 @@ export async function runCreatePrepayIntent(
   // 2. Read booking + payments via session client (RLS enforces ownership).
   const { data, error: fetchError } = await deps.sessionClient
     .from("bookings")
-    .select("id, client_id, final_cents, payments(status, amount_cents)")
+    .select(
+      "id, client_id, final_cents, payments(status, amount_cents, refunded_cents)",
+    )
     .eq("id", bookingId)
     .maybeSingle();
 
@@ -80,6 +83,7 @@ export async function runCreatePrepayIntent(
   const txns = booking.payments.map((p) => ({
     status: p.status,
     amountCents: p.amount_cents,
+    refundedCents: p.refunded_cents,
   }));
   const owed = amountOwedCents(booking.final_cents, txns);
   if (owed <= 0) {
