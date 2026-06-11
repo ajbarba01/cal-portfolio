@@ -13,7 +13,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { PaymentGateway } from "./types";
+import type { PaymentGateway, RetrievedIntent } from "./types";
 import { amountOwedCents } from "./projection";
 import { StripeGateway } from "./stripe-gateway";
 
@@ -119,22 +119,35 @@ export async function runCreatePrepayIntent(
     }
 
     if (openFull?.stripe_payment_intent_id) {
-      const existing = await deps.gateway.retrieveIntent(
-        openFull.stripe_payment_intent_id,
-      );
+      let existing: RetrievedIntent | null = null;
+      try {
+        existing = await deps.gateway.retrieveIntent(
+          openFull.stripe_payment_intent_id,
+        );
+      } catch {
+        // Un-retrievable (e.g. a stale id that 404s at Stripe) → not reusable;
+        // fall through to retire the row + mint fresh.
+        existing = null;
+      }
+
       const reusable =
+        existing !== null &&
         openFull.amount_cents === owed &&
         (existing.status === "requires_payment_method" ||
           existing.status === "requires_confirmation") &&
         existing.clientSecret !== null;
 
       if (reusable) {
-        return { ok: true, clientSecret: existing.clientSecret! };
+        return { ok: true, clientSecret: existing!.clientSecret! };
       }
 
-      // Stale or amount-changed: cancel at Stripe + retire the row, then mint
-      // fresh under a key that won't collide with the canceled intent's cache.
-      await deps.gateway.cancelIntent(openFull.stripe_payment_intent_id);
+      // Stale or amount-changed: cancel at Stripe (tolerate a 404 — already gone)
+      // + retire the row, then mint fresh under a non-colliding key.
+      try {
+        await deps.gateway.cancelIntent(openFull.stripe_payment_intent_id);
+      } catch {
+        // Already canceled/un-cancelable — fine, we retire the row regardless.
+      }
       await deps.serviceClient
         .from("payments")
         .update({ status: "failed" })

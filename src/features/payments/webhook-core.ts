@@ -54,6 +54,12 @@ const chargeObjectSchema = z
     amountRefunded: c.amount_refunded,
   }));
 
+/** Dispute object: links to a PaymentIntent (present for PI-created charges). */
+const disputeObjectSchema = z.object({
+  payment_intent: z.string().nullable(),
+  status: z.string(),
+});
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 type PaymentTxnStatus = PaymentTxn["status"];
@@ -217,6 +223,53 @@ async function applyChargeRefund(
   );
 }
 
+/**
+ * Persists a dispute marker on the matching payments row + logs. Disputes are
+ * orthogonal to payment_status (a disputed charge can still be paid), so this
+ * NEVER writes payment_status or bookings.status. SP5 surfaces the markers.
+ */
+async function applyDispute(
+  serviceClient: SupabaseClient,
+  intentId: string | null,
+  status: string,
+  phase: "created" | "closed",
+): Promise<ApplyResult> {
+  if (!intentId) {
+    console.warn(`[stripe] dispute ${phase} with no payment_intent — skipped`);
+    return { ok: true, handled: false };
+  }
+
+  const { data: payment, error: fetchError } = await serviceClient
+    .from("payments")
+    .select("id")
+    .eq("stripe_payment_intent_id", intentId)
+    .maybeSingle();
+
+  if (fetchError)
+    return { ok: false, error: `DB error: ${fetchError.message}` };
+  if (!payment) return { ok: true, handled: false };
+
+  const patch =
+    phase === "created"
+      ? { disputed_at: new Date().toISOString(), dispute_status: status }
+      : { dispute_status: status };
+
+  const { error: updateError } = await serviceClient
+    .from("payments")
+    .update(patch)
+    .eq("id", payment.id);
+
+  if (updateError) {
+    return {
+      ok: false,
+      error: `Failed to record dispute: ${updateError.message}`,
+    };
+  }
+
+  console.info(`[stripe] dispute ${phase} for intent ${intentId} → ${status}`);
+  return { ok: true, handled: true };
+}
+
 // ─── Public entry point ───────────────────────────────────────────────────────
 
 /**
@@ -340,6 +393,21 @@ export async function applyStripeEvent(
         serviceClient,
         parsed.data.payment_intent,
         parsed.data.amountRefunded,
+      );
+    }
+
+    case "charge.dispute.created":
+    case "charge.dispute.closed": {
+      const parsed = disputeObjectSchema.safeParse(data.object);
+      if (!parsed.success) {
+        return { ok: false, error: "Malformed dispute object" };
+      }
+      const phase = type === "charge.dispute.created" ? "created" : "closed";
+      return applyDispute(
+        serviceClient,
+        parsed.data.payment_intent,
+        parsed.data.status,
+        phase,
       );
     }
 

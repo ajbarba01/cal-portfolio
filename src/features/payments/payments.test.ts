@@ -69,6 +69,8 @@ class FakeGateway implements PaymentGateway {
   public refunds: Array<{ id: string; amount: number; key?: string }> = [];
   /** intentId → status returned by retrieveIntent (default reusable). */
   public statuses = new Map<string, string>();
+  public throwOnRetrieve = false;
+  public throwOnCancel = false;
 
   async createIntent(args: CreateIntentArgs): Promise<CreatedIntent> {
     this.created.push(args);
@@ -82,12 +84,14 @@ class FakeGateway implements PaymentGateway {
     this.refunds.push({ id, amount, key });
   }
   async retrieveIntent(id: string): Promise<RetrievedIntent> {
+    if (this.throwOnRetrieve) throw new Error("404");
     return {
       status: this.statuses.get(id) ?? "requires_payment_method",
       clientSecret: `${id}_secret_xyz`,
     };
   }
   async cancelIntent(id: string): Promise<void> {
+    if (this.throwOnCancel) throw new Error("404");
     this.canceled.push(id);
   }
 }
@@ -740,6 +744,37 @@ describe("runCreatePrepayIntent — intent reuse (PAY4)", () => {
     expect(gw.created).toHaveLength(0);
     expect(result.clientSecret).toBe(`${newer}_secret_xyz`);
   });
+
+  it("mints fresh when retrieveIntent throws (stale id 404s at Stripe)", async () => {
+    const gw = new FakeGateway();
+    await runCreatePrepayIntent(
+      { sessionClient: sessionClient1, serviceClient, gateway: gw },
+      bookingId,
+    );
+    gw.throwOnRetrieve = true; // the open row's intent 404s
+    const again = await runCreatePrepayIntent(
+      { sessionClient: sessionClient1, serviceClient, gateway: gw },
+      bookingId,
+    );
+    expect(again.ok).toBe(true);
+    expect(gw.created.length).toBeGreaterThanOrEqual(2); // not reused → minted fresh
+  });
+
+  it("tolerates a 404 on cancelIntent for a stale intent", async () => {
+    const gw = new FakeGateway();
+    await runCreatePrepayIntent(
+      { sessionClient: sessionClient1, serviceClient, gateway: gw },
+      bookingId,
+    );
+    gw.statuses.set(FAKE_INTENT_ID, "canceled"); // not reusable → cancel path
+    gw.throwOnCancel = true; // cancel 404s
+    const again = await runCreatePrepayIntent(
+      { sessionClient: sessionClient1, serviceClient, gateway: gw },
+      bookingId,
+    );
+    expect(again.ok).toBe(true); // did not throw; minted fresh
+    expect(gw.created.length).toBeGreaterThanOrEqual(2);
+  });
 });
 
 // ─── 5. PAY5: overpay reconcile ───────────────────────────────────────────────
@@ -803,6 +838,75 @@ describe("applyStripeEvent — overpay reconcile (PAY5)", () => {
 
     const keys = new Set(gw.refunds.map((r) => r.key));
     expect(keys.size).toBe(1); // same key both times → Stripe would dedupe
+
+    await serviceClient.from("payments").delete().eq("booking_id", b);
+    await serviceClient.from("bookings").delete().eq("id", b);
+  });
+});
+
+// ─── 6. PAY6: dispute markers ─────────────────────────────────────────────────
+
+describe("applyStripeEvent — disputes (PAY6)", () => {
+  it("charge.dispute.created → stamps disputed_at + status, no payment_status change", async () => {
+    const intent = `pi_disp_${ts}`;
+    const b = await seedBooking(userId1, 6000, 3300);
+    await seedPayment(b, userId1, intent, 6000, "requires_payment");
+    // Project booking to paid state before firing the dispute.
+    await applyStripeEvent(serviceClient, {
+      type: "payment_intent.succeeded",
+      data: { object: { id: intent } },
+    });
+
+    const result = await applyStripeEvent(serviceClient, {
+      type: "charge.dispute.created",
+      data: { object: { payment_intent: intent, status: "needs_response" } },
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.handled).toBe(true);
+
+    const { data: payment } = await serviceClient
+      .from("payments")
+      .select("disputed_at, dispute_status, status")
+      .eq("stripe_payment_intent_id", intent)
+      .single();
+    expect(payment?.disputed_at).not.toBeNull();
+    expect(payment?.dispute_status).toBe("needs_response");
+    expect(payment?.status).toBe("succeeded"); // payment row status untouched
+
+    const { data: booking } = await serviceClient
+      .from("bookings")
+      .select("payment_status, status")
+      .eq("id", b)
+      .single();
+    expect(booking?.payment_status).toBe("paid"); // unchanged — disputes are orthogonal
+    expect(booking?.status).toBe("confirmed");
+
+    await serviceClient.from("payments").delete().eq("booking_id", b);
+    await serviceClient.from("bookings").delete().eq("id", b);
+  });
+
+  it("charge.dispute.closed updates dispute_status, leaves disputed_at", async () => {
+    const intent = `pi_dispclose_${ts}`;
+    const b = await seedBooking(userId1, 6000, 3200);
+    await seedPayment(b, userId1, intent, 6000, "succeeded");
+
+    await applyStripeEvent(serviceClient, {
+      type: "charge.dispute.created",
+      data: { object: { payment_intent: intent, status: "needs_response" } },
+    });
+    await applyStripeEvent(serviceClient, {
+      type: "charge.dispute.closed",
+      data: { object: { payment_intent: intent, status: "won" } },
+    });
+
+    const { data: payment } = await serviceClient
+      .from("payments")
+      .select("disputed_at, dispute_status")
+      .eq("stripe_payment_intent_id", intent)
+      .single();
+    expect(payment?.dispute_status).toBe("won");
+    expect(payment?.disputed_at).not.toBeNull();
 
     await serviceClient.from("payments").delete().eq("booking_id", b);
     await serviceClient.from("bookings").delete().eq("id", b);
