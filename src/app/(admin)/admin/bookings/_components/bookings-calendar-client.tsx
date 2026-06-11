@@ -180,7 +180,12 @@ function SelectedDayBridge({
 // untouched.
 // ──────────────────────────────────────────────────────────────────────────────
 
-const PX_PER_MIN = 0.7;
+// The timeline always shows the full day (00:00–24:00) so it stays stable
+// regardless of which bookings fall on the selected day. ~0.45px/min keeps a
+// full 24h ≈ 648px tall.
+const PX_PER_MIN = 0.45;
+const DAY_START_MIN = 0;
+const DAY_END_MIN = 1440;
 
 function denverMinutes(iso: string): number {
   // Minutes since Denver midnight for the given instant.
@@ -220,18 +225,14 @@ function BookingDayTimeline({
       .sort((a, b) => a.startMin - b.startMin);
   }, [dayBookings]);
 
-  if (placed.length === 0) {
-    return <EmptyState title={`No bookings on ${dayHeading(dayKey)}.`} />;
-  }
-
-  const minStart = Math.min(...placed.map((p) => p.startMin));
-  const maxEnd = Math.max(...placed.map((p) => p.endMin));
-  const trackTop = Math.floor(minStart / 60) * 60;
-  const trackBottom = Math.ceil(maxEnd / 60) * 60;
-  const trackHeight = Math.max((trackBottom - trackTop) * PX_PER_MIN, 60);
+  // Always render the full-day track (even when the day has no bookings) so the
+  // timeline is a stable, complete clock under the month grid.
+  const trackTop = DAY_START_MIN;
+  const trackBottom = DAY_END_MIN;
+  const trackHeight = (trackBottom - trackTop) * PX_PER_MIN;
 
   const hours: number[] = [];
-  for (let h = trackTop; h <= trackBottom; h += 60) hours.push(h);
+  for (let h = trackTop; h < trackBottom; h += 60) hours.push(h);
 
   function hourLabel(min: number): string {
     const h24 = Math.floor(min / 60) % 24;
@@ -276,6 +277,12 @@ function BookingDayTimeline({
             />
           );
         })}
+
+        {placed.length === 0 && (
+          <div className="text-muted-foreground absolute inset-0 flex items-center justify-center text-sm">
+            No bookings on {dayHeading(dayKey)}.
+          </div>
+        )}
 
         {placed.map(({ booking, startMin, endMin }) => {
           const top = (startMin - trackTop) * PX_PER_MIN;
