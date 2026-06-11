@@ -355,17 +355,28 @@ export function BookingsCalendarClient({
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<View>(deepLinkId ? "list" : "calendar");
   const [status, setStatus] = useState<BookingStatusFilter>("all");
+  const [service, setService] = useState("all");
   const [query, setQuery] = useState("");
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [isolatedId, setIsolatedId] = useState<string | null>(deepLinkId);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
-  const searching = query.trim() !== "" || status !== "all";
+  const searching =
+    query.trim() !== "" || status !== "all" || service !== "all";
+
+  // ── service options (distinct sorted service_names from all bookings) ───────
+  const serviceOptions = useMemo(() => {
+    const names = new Set<string>();
+    for (const b of bookings) {
+      if (b.service_name != null) names.add(b.service_name);
+    }
+    return [...names].sort();
+  }, [bookings]);
 
   // ── filtered rows (drives BOTH views) ───────────────────────────────────────
   const filtered = useMemo(
-    () => filterBookings(bookings, { status, query }),
-    [bookings, status, query],
+    () => filterBookings(bookings, { status, query, service }),
+    [bookings, status, query, service],
   );
 
   // ── matched ids + days (for greys) ──────────────────────────────────────────
@@ -492,6 +503,11 @@ export function BookingsCalendarClient({
     setIsolatedId(null);
     setVisibleCount(PAGE_SIZE);
   }
+  function onServiceChange(next: string) {
+    setService(next);
+    setIsolatedId(null);
+    setVisibleCount(PAGE_SIZE);
+  }
   function onQueryChange(next: string) {
     setQuery(next);
     setIsolatedId(null);
@@ -500,6 +516,9 @@ export function BookingsCalendarClient({
 
   const statusLabel =
     STATUS_OPTIONS.find((o) => o.value === status)?.label ?? "All statuses";
+
+  const serviceLabel =
+    service === "all" ? "All services" : (service ?? "All services");
 
   // ── filter bar (shared by both views) ───────────────────────────────────────
   const filterBar = (
@@ -517,6 +536,25 @@ export function BookingsCalendarClient({
           {STATUS_OPTIONS.map((o) => (
             <SelectItem key={o.value} value={o.value}>
               {o.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+
+      <Select
+        value={service}
+        onValueChange={(v) => {
+          if (v !== null) onServiceChange(v);
+        }}
+      >
+        <SelectTrigger aria-label="Filter by service" className="w-44">
+          <SelectValue>{serviceLabel}</SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">All services</SelectItem>
+          {serviceOptions.map((name) => (
+            <SelectItem key={name} value={name}>
+              {name}
             </SelectItem>
           ))}
         </SelectContent>

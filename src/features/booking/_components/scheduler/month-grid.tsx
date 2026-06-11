@@ -381,10 +381,15 @@ export function MonthGrid({ className }: { className?: string }) {
       const da = byKey.get(k);
       if (!da) return true; // adjacent month cell — no data
       if (da.state === "past") return true;
+      // Busy (booked) days: enabled when the view can edit OR inspect so the
+      // cell's pointerdown can fire inspectBooking. Public booking presets have
+      // neither flag set, so busy stays disabled there (unchanged behaviour).
+      if (da.state === "busy")
+        return !(capabilities.editable || capabilities.inspectable);
       if (!capabilities.editable && da.state !== "available") return true;
       return false;
     },
-    [byKey, capabilities.editable],
+    [byKey, capabilities.editable, capabilities.inspectable],
   );
 
   // ── Cell kind (pointer routing) ───────────────────────────────────────────

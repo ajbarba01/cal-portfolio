@@ -26,6 +26,13 @@ export interface SchedulerCapabilities {
   weekNavigable: boolean;
   /** Whether the admin can mark/unmark days as premium (holiday surcharge days). */
   premiumMarkable: boolean;
+  /**
+   * Whether busy (booked) days can be clicked for inspection even when editable
+   * is false. Used by the admin Bookings hub (INSPECT_CAPABILITIES) so booked
+   * cells are selectable/inspectable. Public booking presets leave this unset
+   * (busy stays disabled there).
+   */
+  inspectable?: boolean;
 }
 
 /** Admin view: full multi-select + free intraday painting, overnight, editable. */
@@ -65,6 +72,7 @@ export const INSPECT_CAPABILITIES: SchedulerCapabilities = {
   editable: false,
   weekNavigable: true,
   premiumMarkable: false,
+  inspectable: true,
 };
 
 /**
