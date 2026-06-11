@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { AlertDialog } from "@base-ui/react/alert-dialog";
+import { TriangleAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
@@ -11,12 +12,20 @@ type ConfirmOptions = {
   confirmLabel?: string;
   cancelLabel?: string;
   destructive?: boolean;
+  /**
+   * Optional async handler. When provided, clicking Confirm sets a busy/pending
+   * state, awaits this function, and only settles the dialog closed on `true`.
+   * If it returns `false` (or throws), the dialog stays open.
+   */
+  onConfirm?: () => Promise<boolean>;
 };
 
 type Pending = ConfirmOptions & { resolve: (ok: boolean) => void };
 
 export function useConfirm() {
   const [pending, setPending] = React.useState<Pending | null>(null);
+  const [busy, setBusy] = React.useState(false);
+  const cancelRef = React.useRef<HTMLButtonElement>(null);
 
   const confirm = React.useCallback(
     (opts: ConfirmOptions) =>
@@ -28,22 +37,42 @@ export function useConfirm() {
     if (!pending) return;
     pending.resolve(ok);
     setPending(null);
+    setBusy(false);
   }
+
+  async function onConfirmClick() {
+    if (!pending) return;
+    if (pending.onConfirm) {
+      setBusy(true);
+      try {
+        const ok = await pending.onConfirm();
+        if (ok) {
+          settle(true);
+        } else {
+          setBusy(false);
+        }
+      } catch {
+        setBusy(false);
+      }
+      return;
+    }
+    settle(true);
+  }
+
+  const isDestructive = pending?.destructive ?? false;
 
   const dialog = (
     <AlertDialog.Root
       open={pending !== null}
       onOpenChange={(open) => {
-        if (!open) settle(false);
+        if (!open && !busy) settle(false);
       }}
     >
       <AlertDialog.Portal>
-        <AlertDialog.Backdrop
-          onClick={() => settle(false)}
-          className="bg-foreground/20 fixed inset-0 z-50 backdrop-blur-[1px]"
-        />
+        <AlertDialog.Backdrop className="bg-foreground/20 fixed inset-0 z-50 backdrop-blur-[1px]" />
         <AlertDialog.Popup
           data-slot="confirm-dialog"
+          initialFocus={cancelRef}
           className={cn(
             "bg-popover text-popover-foreground border-border fixed inset-x-0 bottom-0 z-50 mx-auto flex w-full max-w-sm flex-col gap-3 rounded-t-xl border p-5 shadow-xl",
             "sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-xl",
@@ -51,28 +80,46 @@ export function useConfirm() {
         >
           {pending ? (
             <>
-              <AlertDialog.Title className="text-lg font-semibold">
+              {/* Icon badge */}
+              <div
+                aria-hidden="true"
+                className={cn(
+                  "flex size-10 items-center justify-center rounded-full",
+                  isDestructive
+                    ? "bg-destructive/10 text-destructive"
+                    : "bg-brand/15 text-brand-strong",
+                )}
+              >
+                <TriangleAlert className="size-5" />
+              </div>
+
+              <AlertDialog.Title className="font-heading text-lg font-semibold">
                 {pending.title}
               </AlertDialog.Title>
+
               {pending.description ? (
                 <AlertDialog.Description className="text-muted-foreground text-sm">
                   {pending.description}
                 </AlertDialog.Description>
               ) : null}
+
               <div className="mt-2 flex justify-end gap-2">
                 <Button
+                  ref={cancelRef}
                   variant="outline"
                   size="lg"
+                  disabled={busy}
                   onClick={() => settle(false)}
                 >
                   {pending.cancelLabel ?? "Cancel"}
                 </Button>
                 <Button
-                  variant={pending.destructive ? "destructive" : "default"}
+                  variant={isDestructive ? "destructive" : "default"}
                   size="lg"
-                  onClick={() => settle(true)}
+                  disabled={busy}
+                  onClick={onConfirmClick}
                 >
-                  {pending.confirmLabel ?? "Confirm"}
+                  {busy ? "Working…" : (pending.confirmLabel ?? "Confirm")}
                 </Button>
               </div>
             </>
