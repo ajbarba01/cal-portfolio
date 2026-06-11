@@ -43,7 +43,7 @@ Interleaved (not SPs, after SP4): booking-mutation P2-P4 + recurring rework + ca
 - Husky + lint-staged reformats markdown (prettier) and runs tsc on every commit — accept hook reformatting of tables; re-stage if modified.
 - Port 3000 often occupied by maintainer's dev server — use `-p 3001` for prod-server checks; don't kill port-3000 processes.
 - Local Supabase stack usually running (`npx supabase status`); prod is a separate Supabase project — never point local tooling at prod without explicit maintainer ask.
-- No Stripe keys exist in any env file yet (SP4 sets up test mode); payment paths can't run locally until then.
+- Stripe TEST keys (pk_test/sk_test, sandbox) are now in `.env.local`; `STRIPE_WEBHOOK_SECRET` is still absent — the webhook → `payment_status` projection needs the Stripe CLI (`stripe listen`) running locally. `.env.test` keeps a fake `whsec` for the fake-gateway integration suite (no real key needed for `npm test`). Setup runbook: `.env.example` Stripe block.
 - Doc-compression work: git history is the backup — create **no** `*.original.md` files (overrides caveman-compress skill default).
 - `scripts/check-doc-links.mjs` (exists after SP1 task 1) validates the **staged** version — `git add` before running.
 - `npm run db:seed -- <scenario>` (after SP2) wipes ALL non-admin local data then rebuilds it (wipe-first); local-only by host guard, no override flag. Bare `npx supabase db reset` re-creates the `admin@local.test` / `password123` login via `seed.sql`. Scenarios: `fresh`, `busy-week`, `payment-states`, `admin-demo`.
