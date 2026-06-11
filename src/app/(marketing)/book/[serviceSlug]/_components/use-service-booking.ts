@@ -526,7 +526,7 @@ export function useServiceBooking({
   })();
 
   // Step counter helpers
-  const step2Label = petAware ? "2" : "2";
+  const step2Label = "2";
   const step3Label = petAware ? "3" : "2";
   const step4Label = petAware ? "4" : "3";
 

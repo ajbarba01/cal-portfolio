@@ -39,7 +39,6 @@ import type {
   PublicBusyRange,
   BookingQuotePreview,
   EditBookingPatch,
-  AssignablePet,
   QuantityState,
   PetSpecies,
   ServiceDetail,
@@ -69,8 +68,6 @@ export interface UseEditBookingInput {
   service: ServiceDetail;
   rules: BookingRuleSettings;
   initialBusy: PublicBusyRange[];
-  pets: AssignablePet[];
-  priorFinalCents: number;
   initial: EditBookingInitial;
   admin?: {
     clientName: string;

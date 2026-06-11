@@ -113,8 +113,6 @@ export function EditBookingClient({
     service,
     rules,
     initialBusy,
-    pets,
-    priorFinalCents,
     initial,
     admin,
   });
