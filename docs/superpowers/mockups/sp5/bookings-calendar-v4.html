@@ -1,0 +1,81 @@
+<h2>Bookings · Calendar — stacked + search-aware</h2>
+<p class="subtitle">Searching "Jane": days without a match are hatched, non-matching timeline blocks grey. Everything stacks full-width.</p>
+
+<style>
+  .panel { border:1px solid #cdbfa8; border-radius:13px; background:#fbf7f0; overflow:hidden; max-width:560px; }
+  .panel h3 { margin:0; padding:10px 14px; font-size:11.5px; letter-spacing:.05em; text-transform:uppercase; background:#3f5d4e; color:#f3ede2; }
+  .bd { padding:13px; }
+  .toolbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:13px; }
+  .search { display:flex; align-items:center; gap:7px; border:1px solid #3f5d4e; background:#fff; border-radius:8px; padding:7px 10px; font-size:11.5px; color:#2b2419; min-width:150px; box-shadow:0 0 0 2px rgba(63,93,78,.12); }
+  .ctrl { border:1px solid #cdbfa8; background:#fff; border-radius:8px; padding:7px 10px; font-size:11.5px; color:#2b2419; display:flex; gap:6px; align-items:center; }
+  .seg { margin-left:auto; display:inline-flex; border:1px solid #cdbfa8; border-radius:8px; overflow:hidden; }
+  .seg span { padding:7px 13px; font-size:11.5px; font-weight:600; color:#5c5040; }
+  .seg span.on { background:#3f5d4e; color:#fff; }
+
+  .cal { display:grid; grid-template-columns:repeat(7,1fr); gap:5px; margin-bottom:14px; }
+  .dow { font-size:9px; text-transform:uppercase; color:#8a6b3a; text-align:center; }
+  .day { aspect-ratio:1; border-radius:7px; display:flex; align-items:center; justify-content:center; font-size:12px; background:#f1ebdf; color:#2b2419; position:relative; }
+  .day.b { background:#d3dfeb; color:#33506e; font-weight:600; }
+  .day.match { background:#d3dfeb; color:#33506e; font-weight:700; box-shadow:inset 0 0 0 2px #3f5d4e; }
+  .day.hatch { background:repeating-linear-gradient(45deg,#ece4d4,#ece4d4 3px,#e2d8c6 3px,#e2d8c6 6px); color:#a89madeira; color:#a89a82; }
+  .cnt { position:absolute; bottom:2px; right:4px; font-size:8px; font-weight:700; color:#33506e; }
+
+  .seclabel { font-size:9.5px; text-transform:uppercase; letter-spacing:.04em; color:#8a6b3a; font-weight:700; margin:0 0 7px; }
+  .tlwrap { border:1px solid #d9cdbb; border-radius:10px; background:#fff; display:grid; grid-template-columns:58px 1fr; margin-bottom:14px; overflow:hidden; }
+  .timeline { border-right:1px solid #ece4d4; padding:8px 0; }
+  .tick { font-size:8.5px; color:#8a7a5f; padding:0 6px; height:30px; border-top:1px solid #f0e8d9; }
+  .blocks { padding:8px; }
+  .blk { border-radius:7px; padding:6px 8px; font-size:10.5px; margin-bottom:6px; }
+  .blk.match { background:#f3e7cd; color:#946a1c; box-shadow:inset 0 0 0 1.5px #b6802f; font-weight:600; }
+  .blk.off { background:#efeade; color:#a89a82; }
+
+  .brow { border:1px solid #e3d9c8; border-radius:9px; background:#fff; padding:8px 10px; margin-bottom:7px; }
+  .brow.off { display:none; }
+  .btop { display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
+  .who { font-weight:700; font-size:12.5px; color:#2b2419; }
+  .meta { font-size:11px; color:#5c5040; }
+  .pill { font-size:10px; font-weight:600; border-radius:999px; padding:2px 8px; background:#f3e7cd; color:#946a1c; }
+  .acts { display:flex; gap:6px; flex-wrap:wrap; margin-top:7px; }
+  .b2 { font-size:10.5px; font-weight:600; border-radius:6px; padding:4px 9px; }
+  .b2.solid { background:#3f5d4e; color:#fff; } .b2.ghost { border:1px solid #cdbfa8; color:#5c5040; } .b2.warn { border:1px solid #d99; color:#9a3120; }
+  .ro { font-size:10.5px; color:#5c5040; font-style:italic; margin-top:6px; }
+  svg { width:13px; height:13px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; vertical-align:middle; }
+</style>
+
+<div class="panel">
+  <h3>Bookings · Calendar</h3>
+  <div class="bd">
+    <div class="toolbar">
+      <span class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg> Jane</span>
+      <span class="ctrl">Status: All <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span>
+      <span class="seg"><span class="on">Calendar</span><span>List</span></span>
+    </div>
+
+    <p class="seclabel">December · matches for "Jane" highlighted</p>
+    <div class="cal">
+      <div class="dow">S</div><div class="dow">M</div><div class="dow">T</div><div class="dow">W</div><div class="dow">T</div><div class="dow">F</div><div class="dow">S</div>
+      <div class="day">21</div><div class="day">22</div><div class="day match">23<span class="cnt">1</span></div><div class="day">24</div><div class="day hatch">25</div><div class="day">26</div><div class="day">27</div>
+      <div class="day hatch">28</div><div class="day">29</div><div class="day">30</div><div class="day">31</div>
+    </div>
+
+    <p class="seclabel">Tue Dec 23 · time of day</p>
+    <div class="tlwrap">
+      <div class="timeline"><div class="tick">8 AM</div><div class="tick">11 AM</div><div class="tick">2 PM</div><div class="tick">5 PM</div></div>
+      <div class="blocks">
+        <div class="blk off">9:00 · Bo — Dog Walk (Sam)</div>
+        <div class="blk match">2:00 · Cooper — Dog Walk (Jane)</div>
+        <div class="blk off">4:00 · Lux — Drop-in (Pat)</div>
+      </div>
+    </div>
+
+    <p class="seclabel">Bookings · 1 match</p>
+    <div class="brow">
+      <div class="btop"><span class="who">Jane Doe</span> <span class="pill">Pending</span></div>
+      <div class="meta">Dog Walk · 2:00–2:30 PM · Cooper</div>
+      <div class="acts"><span class="b2 solid">Approve</span><span class="b2 ghost">Decline</span><span class="b2 ghost">Edit</span><span class="b2 warn">Cancel</span></div>
+    </div>
+    <p class="ro">Days with no "Jane" booking → hatched. Non-matching timeline blocks → greyed (context kept, not hidden). List shows matches. Clear search to restore. Full-width stack — no pane-height mismatch.</p>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:13px;">Stacked: month → timeline → list, all full width. Search greys unrelated days (hatch) + timeline blocks, so matches pop while you keep the spatial picture. Status filter behaves the same way. Good?</p>

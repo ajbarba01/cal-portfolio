@@ -1,0 +1,90 @@
+<h2>Model A — Availability paints, Bookings page manages</h2>
+<p class="subtitle">Top: Availability (paint + read-only inspect on a booked cell). Bottom: the Bookings hub where all moderation now lives, humanized.</p>
+
+<style>
+  .panel { border:1px solid #cdbfa8; border-radius:13px; background:#fbf7f0; overflow:hidden; margin-bottom:16px; }
+  .panel h3 { margin:0; padding:10px 14px; font-size:11.5px; letter-spacing:.05em; text-transform:uppercase; background:#3f5d4e; color:#f3ede2; display:flex; gap:8px; align-items:center; }
+  .panel h3 .role { margin-left:auto; font-size:9.5px; background:#5c7a68; padding:1px 7px; border-radius:5px; }
+  .bd { padding:13px; }
+  .row { display:grid; grid-template-columns:1.5fr 17rem; gap:14px; }
+  @media (max-width:880px){ .row{ grid-template-columns:1fr; } }
+  .cal { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
+  .dow { font-size:9px; text-transform:uppercase; color:#8a6b3a; text-align:center; }
+  .day { aspect-ratio:1; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:11px; position:relative; }
+  .avail { background:#d6e3d6; color:#2f5340; }
+  .booked { background:#d3dfeb; color:#33506e; }
+  .unav { background:#e8e1d3; color:#6b5d49; }
+  .sel { box-shadow:inset 0 0 0 2px #3f5d4e; font-weight:700; }
+  .star::after { content:'★'; position:absolute; top:1px; right:3px; font-size:7px; color:#a06f1e; }
+  .star { box-shadow:inset 0 0 0 2px #b6802f; }
+  .dotc { position:absolute; bottom:2px; right:3px; font-size:8px; font-weight:700; color:#33506e; }
+  .inspect { border:1px solid #d9cdbb; border-radius:10px; background:#fff; padding:11px 12px; }
+  .ileg { font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:#8a6b3a; margin-bottom:7px; }
+  .kv { font-size:12px; color:#2b2419; margin:2px 0; } .kv .k { color:#6b5d49; }
+  .pill { font-size:10.5px; font-weight:600; border-radius:999px; padding:2px 8px; }
+  .p-pending { background:#f3e7cd; color:#946a1c; } .p-confirmed { background:#d6e3d6; color:#2f5340; } .p-paid { background:#d6e3d6; color:#2f5340; }
+  .lnk { font-size:11.5px; color:#3f5d4e; font-weight:600; display:block; margin-top:7px; }
+  .ro { font-size:10px; color:#5c5040; font-style:italic; margin-top:8px; }
+  .ctrls { display:flex; gap:7px; margin-bottom:11px; flex-wrap:wrap; }
+  .ctrl { border:1px solid #cdbfa8; background:#fff; border-radius:7px; padding:6px 9px; font-size:11.5px; color:#2b2419; display:flex; align-items:center; gap:6px; }
+  .bcard { border:1px solid #d9cdbb; border-radius:10px; background:#fff; padding:10px 12px; margin-bottom:8px; }
+  .btop { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:6px; }
+  .who { font-weight:700; color:#2b2419; font-size:13px; }
+  .when { color:#5c5040; font-size:11.5px; } .amt { margin-left:auto; font-weight:700; color:#2b2419; }
+  .acts { display:flex; gap:7px; flex-wrap:wrap; }
+  .b { font-size:11.5px; font-weight:600; border-radius:7px; padding:5px 11px; }
+  .b.solid { background:#3f5d4e; color:#fff; } .b.ghost { border:1px solid #cdbfa8; color:#5c5040; } .b.warn { border:1px solid #d99; color:#9a3120; }
+</style>
+
+<div class="panel">
+  <h3>Availability <span class="role">paint when Cal is free</span></h3>
+  <div class="bd">
+    <div class="row">
+      <div>
+        <div class="cal">
+          <div class="dow">S</div><div class="dow">M</div><div class="dow">T</div><div class="dow">W</div><div class="dow">T</div><div class="dow">F</div><div class="dow">S</div>
+          <div class="day avail">21</div><div class="day avail">22</div><div class="day booked sel">23</div><div class="day avail">24</div><div class="day avail star">25</div><div class="day avail">26</div><div class="day avail">27</div>
+          <div class="day booked">28</div><div class="day avail">29</div><div class="day unav">30</div><div class="day avail star">31</div>
+        </div>
+        <p class="ro">Paint windows, mark unavailable, ★ premium, overnight nights. Booked cells are context — not editable here.</p>
+      </div>
+      <div class="inspect">
+        <div class="ileg">Dec 23 · booked (read-only)</div>
+        <div class="kv"><span class="k">Client</span> Jane Doe</div>
+        <div class="kv"><span class="k">Service</span> Dog Walk</div>
+        <div class="kv"><span class="k">When</span> 2:00–2:30 PM</div>
+        <div class="kv"><span class="k">Pets</span> 🐕 Cooper</div>
+        <div style="margin-top:7px;"><span class="pill p-pending">Pending approval</span></div>
+        <a class="lnk">Manage on Bookings →</a>
+        <a class="lnk">View client →</a>
+        <p class="ro">No approve/cancel here — inspect only.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="panel">
+  <h3>Bookings <span class="role">the management hub</span></h3>
+  <div class="bd">
+    <div class="ctrls">
+      <span class="ctrl">Status: All ▾</span>
+      <span class="ctrl">🔍 Search client…</span>
+      <span class="ctrl" style="margin-left:auto; background:#f7e9d6; border-color:#e3c79a; color:#946a1c; font-weight:600;">2 awaiting approval</span>
+    </div>
+    <div class="cal" style="margin-bottom:12px;">
+      <div class="dow">S</div><div class="dow">M</div><div class="dow">T</div><div class="dow">W</div><div class="dow">T</div><div class="dow">F</div><div class="dow">S</div>
+      <div class="day avail" style="background:#f4eee2">21</div><div class="day avail" style="background:#f4eee2">22</div><div class="day booked sel">23<span class="dotc">1</span></div><div class="day avail" style="background:#f4eee2">24</div><div class="day avail" style="background:#f4eee2">25</div><div class="day avail" style="background:#f4eee2">26</div><div class="day avail" style="background:#f4eee2">27</div>
+      <div class="day booked">28<span class="dotc">2</span></div>
+    </div>
+    <div class="bcard">
+      <div class="btop"><span class="who">Jane Doe</span> <span class="pill p-pending">Pending approval</span> <span class="pill p-paid">● Paid</span> <span class="amt">$45.00</span></div>
+      <div class="when">Dog Walk · Tue Dec 23, 2:00–2:30 PM · 🐕 Cooper</div>
+      <div class="acts" style="margin-top:9px;">
+        <span class="b solid">Approve</span><span class="b ghost">Decline</span><span class="b ghost">Edit</span><span class="b warn">Cancel</span>
+      </div>
+    </div>
+    <p class="ro">Humanized status filter + badges, payment pill, readable times, client search. Approve/Decline/Cancel/Edit live here. No-show gone.</p>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:14px;">Open question: keep the Bookings page's own month grid (cheaper) or <b>unify it onto the Scheduler</b> so both calendars look/behave identically (more build, more cohesive). I'd keep its grid for SP5 and humanize it — note the unify as an optional follow-up — unless you want the cohesion now.</p>

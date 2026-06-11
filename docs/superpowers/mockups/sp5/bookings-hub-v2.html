@@ -1,0 +1,73 @@
+<h2>Bookings hub — inline actions, shared calendar</h2>
+<p class="subtitle">Actions live in the row (no redirect). Same booking-row component in List and in the Calendar day-panel. Calendar view = the shared &lt;Scheduler&gt;.</p>
+
+<style>
+  .panel { border:1px solid #cdbfa8; border-radius:13px; background:#fbf7f0; overflow:hidden; margin-bottom:15px; }
+  .panel h3 { margin:0; padding:10px 14px; font-size:11.5px; letter-spacing:.05em; text-transform:uppercase; background:#3f5d4e; color:#f3ede2; }
+  .bd { padding:13px; }
+  .toolbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:12px; }
+  .ctrl { border:1px solid #cdbfa8; background:#fff; border-radius:7px; padding:6px 10px; font-size:11.5px; color:#2b2419; display:flex; gap:6px; align-items:center; }
+  .seg { margin-left:auto; display:inline-flex; border:1px solid #cdbfa8; border-radius:8px; overflow:hidden; }
+  .seg span { padding:6px 13px; font-size:11.5px; font-weight:600; color:#5c5040; }
+  .seg span.on { background:#3f5d4e; color:#fff; }
+  .brow { border:1px solid #d9cdbb; border-radius:10px; background:#fff; padding:10px 12px; margin-bottom:8px; }
+  .btop { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .who { font-weight:700; color:#2b2419; font-size:13px; }
+  .meta { color:#5c5040; font-size:11.5px; }
+  .amt { margin-left:auto; font-weight:700; color:#2b2419; }
+  .pill { font-size:10px; font-weight:600; border-radius:999px; padding:2px 8px; }
+  .p-pending { background:#f3e7cd; color:#946a1c; } .p-confirmed { background:#d6e3d6; color:#2f5340; } .p-paid { background:#d6e3d6; color:#2f5340; } .p-unpaid { background:#e8e1d3; color:#6b5d49; }
+  .acts { display:flex; gap:7px; flex-wrap:wrap; margin-top:9px; }
+  .b { font-size:11.5px; font-weight:600; border-radius:7px; padding:5px 11px; }
+  .b.solid { background:#3f5d4e; color:#fff; } .b.ghost { border:1px solid #cdbfa8; color:#5c5040; } .b.warn { border:1px solid #d99; color:#9a3120; }
+  .shared { font-size:10px; color:#3f5d4e; background:#eef3ee; border:1px solid #cfdccd; border-radius:5px; padding:1px 6px; }
+  .ro { font-size:10.5px; color:#5c5040; font-style:italic; margin-top:9px; }
+  .cal { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; max-width:240px; }
+  .day { aspect-ratio:1; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:11px; background:#d6e3d6; color:#2f5340; position:relative; }
+  .day.b { background:#d3dfeb; color:#33506e; } .day.sel { box-shadow:inset 0 0 0 2px #3f5d4e; font-weight:700; }
+</style>
+
+<div class="panel">
+  <h3>Bookings · List view <span class="shared" style="margin-left:8px;">filter bar shared with Calendar</span></h3>
+  <div class="bd">
+    <div class="toolbar">
+      <span class="ctrl">Status: <b>Pending</b> ▾</span>
+      <span class="ctrl">🔍 Search client…</span>
+      <span class="seg"><span>Calendar</span><span class="on">List</span></span>
+    </div>
+
+    <div class="brow">
+      <div class="btop"><span class="who">Jane Doe</span> <span class="pill p-pending">Pending</span> <span class="pill p-paid">● Paid</span> <span class="amt">$45.00</span></div>
+      <div class="meta">Dog Walk · Tue Dec 23, 2:00–2:30 PM · 🐕 Cooper</div>
+      <div class="acts"><span class="b solid">Approve</span><span class="b ghost">Decline</span><span class="b ghost">Edit</span><span class="b warn">Cancel</span></div>
+    </div>
+    <div class="brow">
+      <div class="btop"><span class="who">Sam Reyes</span> <span class="pill p-pending">Pending</span> <span class="pill p-unpaid">○ Unpaid</span> <span class="amt">$200.00</span></div>
+      <div class="meta">Overnight · Jan 4 – Jan 6 · 🐕 Bo, 🐈 Lux</div>
+      <div class="acts"><span class="b solid">Approve</span><span class="b ghost">Decline</span><span class="b ghost">Edit</span><span class="b warn">Cancel</span></div>
+    </div>
+    <p class="ro">Buttons in the row — Approve/Decline/Cancel act in place (Cancel → confirm popup); Edit links to the edit page. Same row component reused below in Calendar.</p>
+  </div>
+</div>
+
+<div class="panel">
+  <h3>Bookings · Calendar view <span class="shared" style="margin-left:8px;">uses &lt;Scheduler.MonthGrid&gt;</span></h3>
+  <div class="bd">
+    <div class="toolbar"><span class="ctrl">Status: <b>All</b> ▾</span><span class="ctrl">🔍 Search…</span><span class="seg"><span class="on">Calendar</span><span>List</span></span></div>
+    <div style="display:flex; gap:14px; flex-wrap:wrap;">
+      <div class="cal">
+        <div class="day b sel">23</div><div class="day">24</div><div class="day">25</div><div class="day b">28</div><div class="day">29</div><div class="day">30</div><div class="day">31</div>
+      </div>
+      <div style="flex:1; min-width:200px;">
+        <div class="brow" style="margin-bottom:0;">
+          <div class="btop"><span class="who">Jane Doe</span> <span class="pill p-pending">Pending</span> <span class="amt">$45.00</span></div>
+          <div class="meta">Dog Walk · 2:00 PM · 🐕 Cooper</div>
+          <div class="acts"><span class="b solid">Approve</span><span class="b ghost">Decline</span><span class="b ghost">Edit</span><span class="b warn">Cancel</span></div>
+        </div>
+      </div>
+    </div>
+    <p class="ro">Same Scheduler grid as Availability (inspect/read mode). Click a day → the same booking rows with the same inline actions. One calendar component, one row component, two views.</p>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:12px;">No "Manage" hop — actions are in the row everywhere. Calendar unified onto &lt;Scheduler&gt;. List ⇄ Calendar share one filter bar; the booking-row-with-actions component is shared across both. Good to lock Availability + Bookings and move to the Clients index?</p>

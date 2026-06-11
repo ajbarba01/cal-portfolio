@@ -1,0 +1,90 @@
+<h2>Client detail — payment, refunds & disputes surfaced</h2>
+<p class="subtitle">SP4 shipped the data (payment_status, refunded_cents, disputed_at). Today the admin shows none of it. Right = the proposed surface. Reserve red for the one thing that's actually urgent.</p>
+
+<style>
+  .cmp { display:grid; grid-template-columns:1fr 1.15fr; gap:18px; }
+  @media (max-width:860px){ .cmp{ grid-template-columns:1fr; } }
+  .pane { border:1px solid #d9cdbb; border-radius:14px; background:#fbf7f0; overflow:hidden; }
+  .pane h3 { margin:0; padding:11px 15px; font-size:12px; letter-spacing:.05em; text-transform:uppercase; }
+  .pane.now h3 { background:#efe6d8; color:#8a7a5f; }
+  .pane.new h3 { background:#3f5d4e; color:#f3ede2; }
+  .pane .body { padding:13px 14px; display:flex; flex-direction:column; gap:10px; }
+  .bk { border:1px solid #e3d9c8; border-radius:10px; padding:10px 12px; background:#fff; display:flex; flex-direction:column; gap:7px; }
+  .bk .top { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .svc { font-weight:700; font-size:13.5px; color:#2b2419; }
+  .when { font-size:11.5px; color:#8a7a5f; }
+  .amt { margin-left:auto; font-weight:700; font-size:13.5px; color:#2b2419; }
+  .pill { font-size:11px; font-weight:600; border-radius:999px; padding:2px 9px; display:inline-flex; align-items:center; gap:4px; }
+  .p-status { background:#e7decd; color:#7a6a4e; }
+  .p-paid { background:#dfe9df; color:#33614a; }
+  .p-unpaid { background:#ece6da; color:#8a7a5f; }
+  .p-partial { background:#f3e7cd; color:#946a1c; }
+  .p-refunded { background:#e6e0d5; color:#7a6a4e; }
+  .alert { background:#f7e0db; color:#9a3120; box-shadow:inset 0 0 0 1px #e3a99a; }
+  .rawstat { font-family:ui-monospace,monospace; font-size:12px; color:#9a3b2e; background:#f1e7d8; border-radius:5px; padding:1px 6px; }
+  .acts { display:flex; gap:6px; flex-wrap:wrap; }
+  .b { font-size:11.5px; font-weight:600; border-radius:7px; padding:5px 10px; border:1px solid #cdbfa8; color:#6b5d49; }
+  .b.warn { border-color:#e3a99a; color:#9a3120; }
+  .refline { font-size:11.5px; color:#946a1c; display:flex; align-items:center; gap:5px; }
+  .bal { border:1px solid #e3d9c8; border-radius:10px; padding:11px 12px; background:#fff; }
+  .bal .t { font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:#a07a4a; margin-bottom:7px; }
+  .debit { display:flex; align-items:center; gap:8px; font-size:12.5px; padding:5px 0; border-bottom:1px solid #f0e8d9; }
+  .out { font-size:14px; font-weight:700; color:#9a3120; }
+  .note { font-size:11.5px; color:#8a7a5f; }
+</style>
+
+<div class="cmp">
+  <div class="pane now">
+    <h3>Current</h3>
+    <div class="body">
+      <div class="bk">
+        <div class="top"><span class="svc">Dog Walk</span> <span class="rawstat">confirmed</span> <span class="amt">$45.00</span></div>
+        <div class="when">Dec 23, 2:00 PM – 2:30 PM</div>
+        <div class="acts"><span class="b">Cancel</span><span class="b">No-show</span></div>
+      </div>
+      <div class="bk">
+        <div class="top"><span class="svc">House Sit</span> <span class="rawstat">confirmed</span> <span class="amt">$200.00</span></div>
+        <div class="when">Dec 28 – Dec 30</div>
+        <div class="acts"><span class="b">Cancel</span><span class="b">No-show</span></div>
+      </div>
+      <div class="bal">
+        <div class="t">Balance</div>
+        <div style="font-size:13px;">Outstanding: <b style="color:#9a3120">$45.00</b></div>
+        <div class="debit"><span>$45.00</span><span class="rawstat">no_show</span><span style="margin-left:auto;color:#8a7a5f">Dec 9</span></div>
+      </div>
+      <p class="note">No payment status, no refund detail, disputes invisible, raw enum text (confirmed / no_show).</p>
+    </div>
+  </div>
+
+  <div class="pane new">
+    <h3>Proposed</h3>
+    <div class="body">
+      <div class="bk">
+        <div class="top"><span class="svc">Dog Walk</span> <span class="pill p-paid">● Paid</span> <span class="amt">$45.00</span></div>
+        <div class="when">Dec 23, 2:00 – 2:30 PM · Confirmed</div>
+        <div class="acts"><span class="b">Cancel</span><span class="b">No-show</span></div>
+      </div>
+
+      <div class="bk">
+        <div class="top"><span class="svc">House Sit</span> <span class="pill p-partial">↩ Partially refunded</span> <span class="amt">$200.00</span></div>
+        <div class="when">Dec 28 – Dec 30 · Cancelled late</div>
+        <div class="refline">↩ Refunded $100.00 · kept $100.00 (50% late-cancel)</div>
+      </div>
+
+      <div class="bk" style="box-shadow:inset 0 0 0 1px #e3a99a;">
+        <div class="top"><span class="svc">Overnight</span> <span class="pill p-paid">● Paid</span> <span class="pill alert">⚠ Disputed · needs response</span> <span class="amt">$320.00</span></div>
+        <div class="when">Nov 30 – Dec 2 · Confirmed</div>
+        <div class="acts"><span class="b warn">View dispute in Stripe ↗</span></div>
+      </div>
+
+      <div class="bal">
+        <div class="t">Balance owed</div>
+        <div style="margin-bottom:6px;">Outstanding <span class="out">$45.00</span></div>
+        <div class="debit"><span class="pill p-status">No-show charge</span><span>$45.00</span><span style="margin-left:auto;"><span class="b">Mark settled</span></span></div>
+        <p class="note" style="margin-top:7px;">From the Dec 9 Dog Walk no-show · 100% of booking</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:16px;">Moves: <b>payment pills</b> (Paid / Unpaid / Partially refunded / Refunded) with icon+color, not color alone · <b>retained-half line</b> ("Refunded $100 · kept $100") so Cal sees what SP4b now models · <b>dispute = the one red alert</b> (ring + ⚠ pill + "needs response" + deep-link to Stripe) — everything else stays calm so the urgent thing stands out · humanized status + debit reasons. Reserve red for disputes only.</p>

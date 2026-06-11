@@ -1,0 +1,68 @@
+<h2>Refinements: block-time-cancels + Bookings dual view</h2>
+<p class="subtitle">Top: marking booked time unavailable cancels inline (no trip to the hub). Bottom: Bookings page gets Calendar ⇄ List sharing one filter bar.</p>
+
+<style>
+  .panel { border:1px solid #cdbfa8; border-radius:13px; background:#fbf7f0; overflow:hidden; margin-bottom:16px; }
+  .panel h3 { margin:0; padding:10px 14px; font-size:11.5px; letter-spacing:.05em; text-transform:uppercase; background:#3f5d4e; color:#f3ede2; }
+  .bd { padding:13px; }
+  .confirm { border:1px solid #e3a99a; border-radius:11px; background:#fff; max-width:380px; overflow:hidden; }
+  .confirm .ch { background:#f7e0db; color:#9a3120; padding:10px 13px; font-size:12.5px; font-weight:700; }
+  .confirm .cc { padding:12px 13px; }
+  .confirm .cc p { font-size:12px; color:#2b2419; margin:0 0 9px; }
+  .aff { border:1px solid #e8ddc9; border-radius:8px; background:#faf4ea; padding:8px 10px; font-size:11.5px; color:#5c5040; margin-bottom:10px; }
+  .aff b { color:#2b2419; }
+  .cbtns { display:flex; gap:8px; justify-content:flex-end; }
+  .b { font-size:11.5px; font-weight:600; border-radius:7px; padding:6px 12px; }
+  .b.ghost { border:1px solid #cdbfa8; color:#5c5040; } .b.warn { background:#9a3120; color:#fff; }
+
+  .toolbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:12px; }
+  .ctrl { border:1px solid #cdbfa8; background:#fff; border-radius:7px; padding:6px 10px; font-size:11.5px; color:#2b2419; display:flex; gap:6px; align-items:center; }
+  .seg { margin-left:auto; display:inline-flex; border:1px solid #cdbfa8; border-radius:8px; overflow:hidden; }
+  .seg span { padding:6px 13px; font-size:11.5px; font-weight:600; color:#5c5040; }
+  .seg span.on { background:#3f5d4e; color:#fff; }
+  table { width:100%; border-collapse:collapse; font-size:12px; }
+  th { text-align:left; font-size:9.5px; text-transform:uppercase; letter-spacing:.04em; color:#8a6b3a; padding:6px 8px; border-bottom:1px solid #d9cdbb; }
+  td { padding:8px; border-bottom:1px solid #ece4d4; color:#2b2419; }
+  .pill { font-size:10px; font-weight:600; border-radius:999px; padding:2px 8px; }
+  .p-pending { background:#f3e7cd; color:#946a1c; } .p-confirmed { background:#d6e3d6; color:#2f5340; } .p-completed { background:#e6e0d5; color:#5c5040; } .p-paid { background:#d6e3d6; color:#2f5340; } .p-unpaid { background:#e8e1d3; color:#6b5d49; }
+  .who { font-weight:600; }
+  .ro { font-size:10.5px; color:#5c5040; font-style:italic; margin-top:9px; }
+  .act { font-size:11px; color:#3f5d4e; font-weight:600; }
+</style>
+
+<div class="panel">
+  <h3>Availability · marking Dec 23 unavailable (has a booking)</h3>
+  <div class="bd">
+    <div class="confirm">
+      <div class="ch">⚠ This time has 1 booking</div>
+      <div class="cc">
+        <p>Blocking Tue Dec 23, 2:00–2:30 PM means cancelling what's booked then:</p>
+        <div class="aff"><b>Jane Doe</b> · Dog Walk · 🐕 Cooper<br>Refund: 50% ($22.50) per late-cancel policy</div>
+        <p style="font-size:11px;color:#5c5040;">The client is notified. This can't be undone.</p>
+        <div class="cbtns"><span class="b ghost">Keep booking</span><span class="b warn">Cancel &amp; block time</span></div>
+      </div>
+    </div>
+    <p class="ro">Cal blocks time where they stand — the cancel rides along (with the refund spelled out), instead of bouncing to the Bookings page. Empty slots just block silently as today.</p>
+  </div>
+</div>
+
+<div class="panel">
+  <h3>Bookings hub · List view</h3>
+  <div class="bd">
+    <div class="toolbar">
+      <span class="ctrl">Status: <b>Pending</b> ▾</span>
+      <span class="ctrl">🔍 jane</span>
+      <span class="seg"><span>Calendar</span><span class="on">List</span></span>
+    </div>
+    <table>
+      <thead><tr><th>Client</th><th>Service</th><th>When</th><th>Status</th><th>Payment</th><th></th></tr></thead>
+      <tbody>
+        <tr><td class="who">Jane Doe</td><td>Dog Walk</td><td>Tue Dec 23, 2:00 PM</td><td><span class="pill p-pending">Pending</span></td><td><span class="pill p-paid">Paid</span></td><td><span class="act">Manage ›</span></td></tr>
+        <tr><td class="who">Jane Doe</td><td>Overnight</td><td>Jan 4 – Jan 6</td><td><span class="pill p-pending">Pending</span></td><td><span class="pill p-unpaid">Unpaid</span></td><td><span class="act">Manage ›</span></td></tr>
+      </tbody>
+    </table>
+    <p class="ro">One filter bar (status + client search) drives both views. List = every match across all days (chronological, paginated, sortable). Calendar = same filters, click a day. Toggle top-right. On mobile the table becomes stacked cards (existing table→cards pattern).</p>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:14px;">So: Availability lets you cancel-by-blocking (confirmed, refund shown); empty time blocks silently. Bookings hub = filter bar + Calendar/List toggle — "show all pending," "search Jane," or "what's on Dec 23," all from the same controls. Row "Manage ›" expands actions (approve/decline/edit/cancel). Look right?</p>

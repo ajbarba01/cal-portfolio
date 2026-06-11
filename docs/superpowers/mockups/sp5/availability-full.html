@@ -1,0 +1,88 @@
+<h2>Availability — full pass</h2>
+<p class="subtitle">Premium-day toggle lives with the day actions; booking moderation humanized; no-show removed. Scheduler grid structure unchanged (its visual overhaul is the wireframe→design pass).</p>
+
+<style>
+  .layout { display:grid; grid-template-columns:1.4fr 18rem; gap:16px; }
+  @media (max-width:880px){ .layout{ grid-template-columns:1fr; } }
+  .panel { border:1px solid #cdbfa8; border-radius:13px; background:#fbf7f0; overflow:hidden; }
+  .panel h3 { margin:0; padding:10px 14px; font-size:11.5px; letter-spacing:.05em; text-transform:uppercase; background:#3f5d4e; color:#f3ede2; }
+  .panel .bd { padding:13px; }
+  .cal { display:grid; grid-template-columns:repeat(7,1fr); gap:5px; }
+  .dow { font-size:9.5px; text-transform:uppercase; letter-spacing:.04em; color:#8a6b3a; text-align:center; }
+  .day { aspect-ratio:1; border-radius:7px; display:flex; align-items:center; justify-content:center; font-size:11.5px; position:relative; }
+  .avail { background:#d6e3d6; color:#2f5340; }
+  .unav { background:#e8e1d3; color:#6b5d49; }
+  .booked { background:#d3dfeb; color:#33506e; }
+  .sel { box-shadow:inset 0 0 0 2px #3f5d4e; font-weight:700; }
+  .star { box-shadow:inset 0 0 0 2px #b6802f; }
+  .star::after { content:'★'; position:absolute; top:2px; right:3px; font-size:8px; color:#a06f1e; }
+  .legend { display:flex; flex-wrap:wrap; gap:9px; margin-top:11px; font-size:10.5px; color:#5c5040; }
+  .lg { display:inline-flex; align-items:center; gap:5px; }
+  .sw { width:11px; height:11px; border-radius:3px; display:inline-block; }
+  .actitle { font-size:12px; font-weight:700; color:#2b2419; margin-bottom:9px; }
+  .act { display:flex; flex-direction:column; gap:7px; }
+  .btn { font-size:12px; font-weight:600; border-radius:8px; padding:8px 11px; text-align:center; }
+  .btn.solid { background:#3f5d4e; color:#fff; }
+  .btn.gold { background:#b6802f; color:#fff; }
+  .btn.ghost { border:1px solid #cdbfa8; color:#5c5040; }
+  .sub { font-size:10.5px; color:#5c5040; margin-top:3px; }
+  .bk { border:1px solid #d9cdbb; border-radius:9px; background:#fff; padding:9px 11px; display:flex; align-items:center; gap:8px; font-size:12px; margin-bottom:7px; }
+  .pill { font-size:10.5px; font-weight:600; border-radius:999px; padding:2px 8px; }
+  .p-pending { background:#f3e7cd; color:#946a1c; }
+  .p-confirmed { background:#d6e3d6; color:#2f5340; }
+  .who { font-weight:600; color:#2b2419; }
+  .when { color:#5c5040; margin-left:auto; font-size:11px; }
+</style>
+
+<div class="layout">
+  <div class="panel">
+    <h3>December — paint availability</h3>
+    <div class="bd">
+      <div class="cal">
+        <div class="dow">S</div><div class="dow">M</div><div class="dow">T</div><div class="dow">W</div><div class="dow">T</div><div class="dow">F</div><div class="dow">S</div>
+        <div class="day avail">21</div><div class="day avail">22</div><div class="day booked">23</div>
+        <div class="day avail">24</div><div class="day avail sel star">25</div><div class="day avail">26</div><div class="day avail">27</div>
+        <div class="day avail">28</div><div class="day avail">29</div><div class="day unav">30</div><div class="day avail star">31</div>
+      </div>
+      <div class="legend">
+        <span class="lg"><span class="sw" style="background:#d6e3d6"></span> Open</span>
+        <span class="lg"><span class="sw" style="background:#d3dfeb"></span> Booked</span>
+        <span class="lg"><span class="sw" style="background:#e8e1d3"></span> Unavailable</span>
+        <span class="lg"><span class="sw" style="box-shadow:inset 0 0 0 2px #b6802f"></span> ★ Premium day</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3>Dec 25 selected</h3>
+    <div class="bd">
+      <div class="actitle">What happens this day?</div>
+      <div class="act">
+        <div class="btn solid">Set booking window</div>
+        <div class="btn ghost">Mark unavailable</div>
+        <div class="btn gold">★ Premium day — surcharge on</div>
+        <div class="sub">Premium writes the date to the surcharge list. Set the rate in Settings.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="panel" style="margin-top:16px;">
+  <h3>Bookings this month — click to manage</h3>
+  <div class="bd">
+    <div class="bk"><span class="who">Jane Doe</span> <span class="pill p-pending">Pending approval</span> <span class="when">Dec 23, 2:00–2:30 PM</span></div>
+    <div class="bk"><span class="who">Sam Reyes</span> <span class="pill p-confirmed">Confirmed</span> <span class="when">Dec 28 – Dec 30</span></div>
+    <div style="border:1px dashed #c3b69e; border-radius:9px; padding:10px 12px; margin-top:5px; background:#fff;">
+      <div style="font-size:11.5px; font-weight:700; color:#2b2419; margin-bottom:7px;">Jane Doe · <span class="pill p-pending">Pending approval</span></div>
+      <div style="font-size:11px; color:#5c5040; margin-bottom:9px;">🐕 Cooper (dog) · Tue Dec 23, 2:00–2:30 PM</div>
+      <div style="display:flex; gap:7px; flex-wrap:wrap;">
+        <span class="btn solid" style="padding:6px 12px;">Approve</span>
+        <span class="btn ghost" style="padding:6px 12px;">Decline</span>
+        <span class="btn ghost" style="padding:6px 12px; border-color:#d99; color:#9a3120;">Cancel</span>
+      </div>
+      <div class="sub">No-show button removed. Status reads as a badge, not <code>pending_approval</code>.</div>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:14px;">Premium toggle sits beside Set-window / Mark-unavailable so day-marking is one mental model. Bookings list + moderation panel get status badges + readable times; no-show gone. Grid paint/optimistic behavior unchanged — its deeper visual restyle is the separate scheduler design pass, not SP5.</p>

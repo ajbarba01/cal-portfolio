@@ -1,0 +1,64 @@
+<h2>Time control for "Bookings open / close at"</h2>
+<p class="subtitle">Stored as minutes-since-midnight either way. Question is the control Cal touches. Click the one you want.</p>
+
+<style>
+  .opts { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+  @media (max-width:820px){ .opts{ grid-template-columns:1fr; } }
+  .opt { border:1px solid #d9cdbb; border-radius:14px; background:#fbf7f0; padding:0; overflow:hidden; cursor:pointer; transition:box-shadow .15s; }
+  .opt:hover { box-shadow:0 4px 16px rgba(80,60,30,.12); }
+  .opt .hd { padding:10px 14px; background:#3f5d4e; color:#f3ede2; font-size:12px; letter-spacing:.04em; text-transform:uppercase; display:flex; justify-content:space-between; }
+  .opt .hd .rec { background:#b6802f; color:#fff; border-radius:6px; padding:0 6px; font-size:10px; }
+  .opt .bd { padding:16px 14px; }
+  .demo { display:flex; gap:6px; align-items:center; margin-bottom:14px; }
+  .sel { border:1px solid #cdbfa8; background:#fff; border-radius:8px; padding:8px 10px; font-size:14px; color:#2b2419; display:flex; align-items:center; gap:7px; }
+  .sel .car { color:#a08a66; font-size:10px; }
+  .native { border:1px solid #cdbfa8; background:#fff; border-radius:8px; padding:8px 10px; font-size:14px; color:#2b2419; display:inline-flex; gap:8px; align-items:center; }
+  .native .clk { margin-left:6px; opacity:.5; }
+  .hybrid { border:1px solid #cdbfa8; background:#fff; border-radius:8px; padding:8px 10px; font-size:14px; color:#2b2419; width:130px; }
+  .drop { border:1px solid #e0d6c4; border-radius:8px; margin-top:5px; background:#fff; font-size:12.5px; color:#6b5d49; overflow:hidden; }
+  .drop div { padding:5px 10px; }
+  .drop div.on { background:#eef3ee; color:#3f5d4e; font-weight:600; }
+  .pl { font-size:12px; color:#6b5d49; }
+  .pl b { color:#3f5d4e; }
+  .pc { font-size:11.5px; color:#9a7d52; }
+</style>
+
+<div class="opts" data-multiselect="false">
+  <div class="opt" data-choice="a" onclick="toggleSelect(this)">
+    <div class="hd"><span>A · Hour / Min / AM-PM selects</span><span class="rec">REC</span></div>
+    <div class="bd">
+      <div class="demo">
+        <span class="sel">6 <span class="car">▾</span></span><span style="color:#a08a66">:</span><span class="sel">30 <span class="car">▾</span></span><span class="sel">AM <span class="car">▾</span></span>
+      </div>
+      <p class="pl"><b>Built on the existing base-ui Select primitive.</b> Fully token-styled — wears the site's clothes. Keyboard + screen-reader ready. No new dependency.</p>
+      <p class="pc">✓ on-brand · ✓ a11y · ✓ zero deps · minute step 5/15</p>
+    </div>
+  </div>
+
+  <div class="opt" data-choice="b" onclick="toggleSelect(this)">
+    <div class="hd"><span>B · Native time input</span></div>
+    <div class="bd">
+      <div class="demo">
+        <span class="native">06:30 AM <span class="clk">🕑</span></span>
+      </div>
+      <p class="pl"><b>&lt;input type="time"&gt;.</b> Zero build, OS-native picker, fully accessible for free. But the control is browser chrome — can't be token-styled, so it looks generic / off-brand next to the rest of the site.</p>
+      <p class="pc">✓ simplest · ✗ can't match the palette · looks like a browser, not the site</p>
+    </div>
+  </div>
+
+  <div class="opt" data-choice="c" onclick="toggleSelect(this)">
+    <div class="hd"><span>C · Typeable hybrid</span></div>
+    <div class="bd">
+      <div class="demo" style="flex-direction:column; align-items:flex-start; gap:0;">
+        <input class="hybrid" value="6:30 AM" readonly>
+        <div class="drop">
+          <div>6:00 AM</div><div class="on">6:30 AM</div><div>7:00 AM</div><div>7:30 AM</div>
+        </div>
+      </div>
+      <p class="pl">Type <b>"6:30 AM"</b> OR pick from a dropdown of common times. Most flexible, what booking apps use. But it's the most code to build + test (parsing, validation).</p>
+      <p class="pc">✓ flexible · ✗ most build/test · overkill for a rarely-changed setting</p>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:16px;">I recommend <b>A</b>: it's the only one that fully wears the site's design tokens (B is un-styleable browser chrome; C is overkill for a setting Cal touches maybe twice a year). The same Select-trio pattern can serve the reminder-lead-time and any other clock fields.</p>
