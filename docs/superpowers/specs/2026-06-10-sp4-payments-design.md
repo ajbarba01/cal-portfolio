@@ -30,6 +30,15 @@ Out of scope (owned elsewhere): refund/no-show **admin surfaces** layout + copy 
 - **PAY4: reuse the open intent.** On repeat `Prepay`, reuse an existing `requires_payment` intent for the booking rather than minting a new row + intent each click; cancel genuinely-stale intents; booking-scoped **idempotency key** on `createIntent`. (Source [2].)
 - **PAY2: `.env.local` + Alex's Stripe TEST-mode account.** Test keys (`pk_test`/`sk_test`/`whsec_…`) live in gitignored `.env.local` (existing convention; `.env.example` already lists the three vars). Local webhooks via the Stripe CLI. **Live keys never enter any env file.** Account creation is a maintainer prerequisite recorded in the plan.
 
+## SP4b decisions (from maintainer grilling, 2026-06-11)
+
+The spec above left four items "decided at plan time". Resolved with the maintainer before the SP4b plan was written:
+
+- **Disputes (PAY6 rest) → persist a marker + handle the events.** Additive `payments.disputed_at timestamptz` + `payments.dispute_status text` (nullable). The webhook stamps `disputed_at` + the Stripe `status` on `charge.dispute.created` and updates `dispute_status` on `charge.dispute.closed`; also structured-logs. **No `payment_status` enum value** for disputes (they are orthogonal to paid/refunded — a disputed charge can still be `paid`). SP5 surfaces the marker; this slice only persists + logs. Chosen over log-only because SP5 (admin overhaul, next) needs the in-app signal and the column is cheap + reversible.
+- **Canceled intents → keep `canceled → failed`.** No dedicated `canceled` payments status. `payment_txn_status` already carries `failed`; a canceled intent is behaviourally identical (excluded from `paidSum`, never counts as captured money), so a new value adds enum + projection churn for zero gain. The 4a `payment_intent.canceled → "failed"` mapping **stands** — the 4a "provisional" note is hereby resolved, not revisited.
+- **Overpay reconcile (PAY5) → auto-refund the excess.** The webhook gains an (optional) `PaymentGateway` dependency; on `payment_intent.succeeded`, after projecting, if `netPaid > finalCents` it refunds the excess on the most-recent succeeded intent. The resulting `charge.refunded` re-projects. **Guarded against double-refund** by a deterministic refund idempotency key (new optional arg on `gateway.refund`) + the fact that the posted refund raises `refunded_cents`, collapsing the excess on re-delivery. Initiating the refund from the webhook keeps the single-writer rule (the subsequent `charge.refunded` still does the `payment_status` write).
+- **PAY7 email voice → first-person singular ("I" / "Cal").** Matches the existing `— Cal Barba` sign-off and the solo-operator reality; "we" implies a non-existent team, third person is awkward in an email from Cal. **This settles the PARKED "site voice (we vs third person)" decision for transactional email copy.** Payment-policy lines land on the **confirmation** email (which exists); a dedicated **cancellation** email does not exist yet and is deferred to SP6 (full email redesign), not built here. All policy values render from `settings` (`cancellation_full_refund_hours`, `late_cancel_refund_pct`), never hardcoded.
+
 ## Industry validation (standing rule)
 
 Validated against current Stripe guidance before finalizing; sources cited inline and listed below.
@@ -38,6 +47,9 @@ Validated against current Stripe guidance before finalizing; sources cited inlin
 - **Intent lifecycle + idempotency** — Stripe advises an idempotency key scoped to the cart/customer session to prevent duplicate PaymentIntents, and **reusing** the same PaymentIntent when a checkout resumes rather than creating a new one (the intent object tracks failed attempts for the cart); the key is a commitment — same key, same params, or Stripe 400s; cached 24 h ([2]).
 - **Partial refunds** — a charge may carry **multiple** refunds up to the original amount; Stripe recommends listening to the refund webhooks; the `charge.refunded` event carries the charge with cumulative `amount_refunded`, which is the source of truth for `refunded_cents` ([3], [4]).
 - **SCA** — `confirmPayment` with the Payment Element handles any required authentication (3DS) inline; no separate SCA code path needed for test mode.
+- **Cumulative refund source of truth (re-validated 2026-06-11, API `2026-05-27.dahlia`)** — the Charge object's `amount_refunded` is the **cumulative** amount refunded in cents (`< amount` for partial, `== amount` when fully refunded; the `refunded` boolean is true only when fully refunded). The `charge.refunded` event fires on every refund **including partials** and carries the charge object, so the webhook reads `data.object.amount_refunded` (cumulative) — **not** a per-refund delta. Sources [3][4] confirmed; `refund.created`/`refund.updated` carry refund-level detail (not needed for the row-level cumulative we track). The existing `chargeObjectSchema` (extracts `payment_intent` only) is extended to also read `amount_refunded` (+ `amount` to detect full vs partial).
+- **Dispute event shape (validated 2026-06-11)** — `charge.dispute.created` / `charge.dispute.closed` carry the Dispute object with `id`, `amount`, `charge`, `payment_intent`, `status`, `reason`. Closed statuses: `won` / `lost` / `warning_closed` / `prevented`. For PaymentIntent-created charges the dispute carries `payment_intent`, so the row is matched by `stripe_payment_intent_id` (fallback: look up by `charge` — defensive only; out of scope to build). Source [5].
+- **Additive enum migration (validated)** — `alter type ... add value if not exists 'partially_refunded'` is additive + safe; no existing row needs backfill (none partially refunded yet). Forward-only: Postgres provides no `drop value`, so the documented rollback is recreating the type (the new columns drop normally). The new value must not be _used_ in the adding transaction → own migration file.
 
 ## Current state (grounding, verified against code)
 
@@ -79,20 +91,30 @@ Validated against current Stripe guidance before finalizing; sources cited inlin
 
 **PAY3 — partial-refund re-model** (data model; lands before SP5 builds refund surfaces).
 
-- **Migration:** add `payments.refunded_cents int not null default 0`; add `partially_refunded` to the `bookings.payment_status` enum (the DB enum + the TS union).
+- **Migration:** add `payments.refunded_cents int not null default 0` and the dispute marker columns `payments.disputed_at timestamptz null` + `payments.dispute_status text null`; add `partially_refunded` to the `bookings.payment_status` enum (the DB enum + the TS union — the only booking-level union is `BookingPaymentStatus` in `projection.ts`; the repo has no generated DB types). The enum `add value if not exists` goes in **its own migration** (a new enum value can't be _used_ in the txn that adds it — repo precedent: `20260608120000_...meet_greet_enum.sql`); columns in a second migration. Additive + forward-only (Postgres has no `drop value`; column drops are the reverse path).
 - **Webhook:** on `charge.refunded`, read the charge's cumulative `amount_refunded` and write it to `refunded_cents` on the matching row (still never touching `bookings.status`; still forward-only). The row status becomes `refunded` only when fully refunded; otherwise it stays `succeeded` with a non-zero `refunded_cents`.
-- **Projection:** `computePaymentStatus(finalCents, txns)` revised — compute `refundedSum` from `refunded_cents`; precedence: fully refunded → `refunded`; partial refund present (`0 < refundedSum < paidSum`) → `partially_refunded`; `paidSum - refundedSum >= finalCents` → `paid`; else `unpaid`. `amountOwedCents` nets refunds too. `PaymentTxn` gains `refundedCents`. New cases in `projection.test.ts`.
+- **Projection:** `computePaymentStatus(finalCents, txns)` revised. Define over all txns:
+  - `capturedSum` = Σ `amountCents` where status ∈ {`succeeded`, `refunded`} (money that was captured — a fully-refunded row flips to `refunded` but its capture still counts here),
+  - `refundedSum` = Σ `refundedCents` (all rows),
+  - `netPaid` = `capturedSum − refundedSum`.
+
+  Precedence (**`paid` checked first**, a deliberate refinement of the spec's original ordering — see note): `finalCents > 0 && netPaid >= finalCents` → `paid`; else `capturedSum > 0 && refundedSum >= capturedSum` → `refunded`; else `refundedSum > 0` → `partially_refunded`; else `unpaid`. `amountOwedCents` nets refunds: `max(0, finalCents − netPaid)`. `PaymentTxn` gains `refundedCents`. New cases in `projection.test.ts`.
+
+  > **Why `paid` first (not the original "refunds before paid"):** the PAY5 overpay-reconcile path refunds a _duplicate_ full intent, leaving `refundedSum > 0` while `netPaid == finalCents`. The literal "fully/partial refund before paid" ordering would mislabel a fully-settled booking `partially_refunded`. Checking `netPaid >= finalCents` first labels it `paid` (truthful), while the late-cancel retained-half case (`netPaid < finalCents`) still falls through to `partially_refunded`. Full refund (`netPaid == 0`) still resolves to `refunded`.
+
 - **DESIGN.md (same commit):** correct the data model (`payments.refunded_cents`, the new `payment_status` value), and **rewrite the "No partial-payment edge case" bullet** (:197) — a full prepay with a 50% late-cancel refund is exactly the retained-half case the new model represents.
 
-**PAY5 — overpay reconcile.** If `paidSum > finalCents` (two intents both succeeded), auto-refund the excess via `gateway.refund` on the most-recent succeeded intent; the resulting `charge.refunded` re-projects. Define + test the reconcile in the projection/webhook path.
+**PAY5 — overpay reconcile.** If `netPaid > finalCents` (two intents both succeeded), the webhook auto-refunds the excess via `gateway.refund` on the most-recent succeeded intent; the resulting `charge.refunded` re-projects. The webhook gains an **optional** `PaymentGateway` arg (the route passes a real `StripeGateway`; tests pass the fake); reconcile is skipped when no gateway is supplied. Double-refund is prevented by a **deterministic refund idempotency key** (`overpay:{bookingId}:{finalCents}:{capturedSum}`, new optional arg on `gateway.refund`) — same key returns the same Stripe refund — plus the posted refund raising `refunded_cents` (collapsing the excess on re-delivery). Define + test in the webhook path with the fake gateway (no network).
 
-**PAY6 (4b rest) — disputes.** Handle `charge.dispute.created` / `.closed` (at minimum log + a status/flag the admin can later surface in SP5) or consciously ignore-with-comment in the `default` branch — decided at plan time; no silent drop.
+**PAY6 (4b rest) — disputes.** Handle `charge.dispute.created` / `.closed`. The dispute object carries `payment_intent` (populated for PaymentIntent-created charges) + `status` + `reason`; match the `payments` row by `stripe_payment_intent_id`, stamp `disputed_at` + the Stripe `status` on `.created`, update `dispute_status` on `.closed` (`won` / `lost` / `warning_closed` / `prevented`), and structured-log. **Never touches `payment_status` or `bookings.status`.** SP5 surfaces the marker. (Decision recorded under SP4b decisions above — persist a marker, not log-only, not a new enum value.)
 
-**PAY7 — payment-policy email copy.** Add prepay + cancellation-penalty lines to the confirmation/cancellation emails, **rendered from `settings`** (`cancellation_full_refund_hours`, `late_cancel_refund_pct`), never hardcoded. Minimal — `emails.ts` is wireframe-level; full redesign is SP6. Ties U6/U9.
+**PAY4 hardening (carry-over from 4a) — guard the reuse path against a 404.** `runCreatePrepayIntent`'s reuse branch calls `gateway.retrieveIntent` / `cancelIntent` un-guarded; a stale intent id that 404s at Stripe would throw. Wrap both: treat an un-retrievable intent as **not reusable** (mint fresh) and tolerate a 404 on cancel (already gone). Folded into SP4b per the 4a handoff log.
+
+**PAY7 — payment-policy email copy.** Add prepay + cancellation-penalty lines to the **confirmation** email (`buildBookingConfirmationEmail`), **rendered from `settings`** (`cancellation_full_refund_hours`, `late_cancel_refund_pct`), never hardcoded, in **first-person singular** voice (per SP4b decisions). The builder is pure → thread the two settings values in as new `BookingConfirmationInput` fields (caller reads `settings`). A dedicated **cancellation** email does not exist (only confirmation + reminder builders) and is **deferred to SP6** (full email redesign) — not built here. Minimal — `emails.ts` is wireframe-level. Ties U6/U9.
 
 ### Seams preserved (do not regress)
 
-- Webhook = **sole writer** of `bookings.payment_status`; `bookings.status` untouched by any payment code.
+- Webhook = **sole writer** of `bookings.payment_status`; `bookings.status` untouched by any payment code. (SP4b lets the webhook _initiate_ the PAY5 overpay refund — initiating ≠ writing; the resulting `charge.refunded` still performs the `payment_status` write. The dispute path writes only the `payments` marker columns, never `payment_status`.)
 - Cancel path **initiates** refunds via `StripeGateway.refund` only; never writes `payment_status`.
 - Amounts **server-derived**; identity from session, never payload; `payments` writes via service client.
 - All new logic lives in `features/payments/` behind the `PaymentGateway` DI seam; pure projection stays IO-free and unit-tested; the gateway is faked in tests (no network).
@@ -105,6 +127,11 @@ Validated against current Stripe guidance before finalizing; sources cited inlin
 - **Live `verify` (manual, per slice):** real `stripe listen`, test card — 4a: prepay succeeds, `payment_status` → `paid`, repeat click reuses; 4b: late-cancel a prepaid booking, confirm `partially_refunded` + correct `refunded_cents`, retained-half visible.
 - Gates per slice (WORKFLOW): `tsc --noEmit` strict, lint (boundaries), full test suite, fresh-session `/code-review`, manual `verify`.
 
+### Risks (SP4b additions)
+
+- **Webhook gains a gateway dep (PAY5).** Threaded as an _optional_ arg so existing call sites + tests stay green; only the route handler passes a real gateway. The reconcile is the one webhook action that touches Stripe — idempotency-keyed + `refunded_cents`-guarded against double-refund.
+- **Overpay status semantics.** A reconciled overpay reads `paid` (net == final), not `partially_refunded` — see the projection note. Deliberate; covered by a dedicated projection test.
+
 ## Risks / known gaps
 
 - **4a ships with PAY3 unfixed** — a partial refund still mis-projects to `refunded` until 4b. Acceptable: test mode, pre-launch, no real money, and no refund **surface** ships before SP5 (which follows 4b).
@@ -115,7 +142,7 @@ Validated against current Stripe guidance before finalizing; sources cited inlin
 ## Definition of done
 
 - **SP4a:** test-mode money moves end-to-end (prepay → `paid`) on a live `stripe listen`; repeat-click reuses the open intent; `payment_intent.canceled` handled; setup documented; `payment-states` seed extended; gates green; PAY1/PAY2/PAY4 + the canceled-event half of PAY6 pruned from the register.
-- **SP4b:** `refunded_cents` + `partially_refunded` modeled and projected correctly (retained-half representable + verified); overpay reconciled; disputes handled-or-ignored-with-comment; payment-policy email copy rendered from settings; DESIGN.md corrected (incl. the :197 claim); gates green; PAY3/PAY5/PAY6/PAY7 pruned.
+- **SP4b:** `refunded_cents` + `partially_refunded` modeled and projected correctly (retained-half representable + verified); overpay auto-reconciled; disputes persisted to the marker columns + logged; the reuse path 404-guarded; payment-policy email copy rendered from settings in first-person voice; DESIGN.md corrected (incl. the :197 claim); gates green; PAY3/PAY5/PAY6 (dispute half)/PAY7 pruned.
 
 ## Sources
 
@@ -123,7 +150,8 @@ Validated against current Stripe guidance before finalizing; sources cited inlin
 2. Stripe — The Payment Intents API (idempotency + reuse) & Idempotent requests. https://docs.stripe.com/payments/payment-intents · https://docs.stripe.com/api/idempotent_requests
 3. Stripe — Refund and cancel payments. https://docs.stripe.com/refunds
 4. Stripe — The Refund object / refund webhook update. https://docs.stripe.com/api/refunds/object · https://docs.stripe.com/changelog/acacia/2024-10-28/refund-webhook-update
+5. Stripe — The Dispute object (fields + status values) / Charge object `amount_refunded`. https://docs.stripe.com/api/disputes/object · https://docs.stripe.com/api/charges/object
 
 ---
 
-_Last reviewed: 2026-06-10_
+_Last reviewed: 2026-06-11 (SP4b decisions + industry re-validation added)_
