@@ -345,7 +345,13 @@ describe("applyStripeEvent — webhook projection", () => {
   it("charge.refunded → payments.status=refunded, booking.payment_status=refunded", async () => {
     const result = await applyStripeEvent(serviceClient, {
       type: "charge.refunded",
-      data: { object: { payment_intent: intentId } },
+      data: {
+        object: {
+          payment_intent: intentId,
+          amount: 8000,
+          amount_refunded: 8000,
+        },
+      },
     });
 
     expect(result.ok).toBe(true);
@@ -407,7 +413,13 @@ describe("applyStripeEvent — webhook projection", () => {
 
     const result = await applyStripeEvent(serviceClient, {
       type: "charge.refunded",
-      data: { object: { payment_intent: { id: expandedIntentId } } },
+      data: {
+        object: {
+          payment_intent: { id: expandedIntentId },
+          amount: 4000,
+          amount_refunded: 4000,
+        },
+      },
     });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -445,6 +457,95 @@ describe("applyStripeEvent — webhook projection", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.handled).toBe(false);
+  });
+
+  it("charge.refunded (partial) → refunded_cents set, row stays succeeded, partially_refunded", async () => {
+    const intent = `pi_partial_${ts}`;
+    const b = await seedBooking(userId1, 6000, 700);
+    await seedPayment(b, userId1, intent, 6000, "succeeded");
+
+    const result = await applyStripeEvent(serviceClient, {
+      type: "charge.refunded",
+      data: {
+        object: { payment_intent: intent, amount: 6000, amount_refunded: 3000 },
+      },
+    });
+    expect(result.ok).toBe(true);
+
+    const { data: payment } = await serviceClient
+      .from("payments")
+      .select("status, refunded_cents")
+      .eq("stripe_payment_intent_id", intent)
+      .single();
+    expect(payment?.status).toBe("succeeded");
+    expect(payment?.refunded_cents).toBe(3000);
+
+    const { data: booking } = await serviceClient
+      .from("bookings")
+      .select("payment_status, status")
+      .eq("id", b)
+      .single();
+    expect(booking?.payment_status).toBe("partially_refunded");
+    expect(booking?.status).toBe("confirmed"); // never touched
+
+    await serviceClient.from("payments").delete().eq("booking_id", b);
+    await serviceClient.from("bookings").delete().eq("id", b);
+  });
+
+  it("charge.refunded (full) → row refunded, booking refunded", async () => {
+    const intent = `pi_full_${ts}`;
+    const b = await seedBooking(userId1, 6000, 900);
+    await seedPayment(b, userId1, intent, 6000, "succeeded");
+
+    await applyStripeEvent(serviceClient, {
+      type: "charge.refunded",
+      data: {
+        object: { payment_intent: intent, amount: 6000, amount_refunded: 6000 },
+      },
+    });
+
+    const { data: payment } = await serviceClient
+      .from("payments")
+      .select("status, refunded_cents")
+      .eq("stripe_payment_intent_id", intent)
+      .single();
+    expect(payment?.status).toBe("refunded");
+    expect(payment?.refunded_cents).toBe(6000);
+
+    const { data: booking } = await serviceClient
+      .from("bookings")
+      .select("payment_status")
+      .eq("id", b)
+      .single();
+    expect(booking?.payment_status).toBe("refunded");
+
+    await serviceClient.from("payments").delete().eq("booking_id", b);
+    await serviceClient.from("bookings").delete().eq("id", b);
+  });
+
+  it("charge.refunded re-delivery is forward-only (never lowers refunded_cents)", async () => {
+    const intent = `pi_redeliver_${ts}`;
+    const b = await seedBooking(userId1, 6000, 1100);
+    await seedPayment(b, userId1, intent, 6000, "succeeded");
+
+    const ev = (amt: number) => ({
+      type: "charge.refunded",
+      data: {
+        object: { payment_intent: intent, amount: 6000, amount_refunded: amt },
+      },
+    });
+    await applyStripeEvent(serviceClient, ev(3000));
+    await applyStripeEvent(serviceClient, ev(1000)); // stale/out-of-order, lower
+
+    const { data: payment } = await serviceClient
+      .from("payments")
+      .select("refunded_cents")
+      .eq("stripe_payment_intent_id", intent)
+      .single();
+    expect(payment?.refunded_cents).toBe(3000); // not lowered
+
+    await serviceClient.from("payments").delete().eq("booking_id", b);
+    await serviceClient.from("bookings").delete().eq("id", b);
   });
 
   it("payment_intent.canceled → payments.status=failed, no booking.status change", async () => {

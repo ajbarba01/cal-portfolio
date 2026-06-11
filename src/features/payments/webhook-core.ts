@@ -34,19 +34,24 @@ const paymentIntentObjectSchema = z.object({
 });
 
 /**
- * Extracts the payment_intent id from a charge object. Stripe sends this as a
- * bare string when unexpanded, but as a nested `{ id }` object if the endpoint
- * or create call expands it — accept both and normalise to the id string.
+ * Extracts the payment_intent id and refund amounts from a charge object.
+ * Stripe sends payment_intent as a bare string when unexpanded, but as a
+ * nested `{ id }` object if the endpoint or create call expands it — accept
+ * both and normalise to the id string.
  */
 const chargeObjectSchema = z
   .object({
     payment_intent: z.union([z.string(), z.object({ id: z.string() })]),
+    amount: z.number(),
+    amount_refunded: z.number(),
   })
   .transform((c) => ({
     payment_intent:
       typeof c.payment_intent === "string"
         ? c.payment_intent
         : c.payment_intent.id,
+    amount: c.amount,
+    amountRefunded: c.amount_refunded,
   }));
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -164,6 +169,54 @@ async function applyPaymentIntentStatus(
   );
 }
 
+/**
+ * Writes the cumulative refunded amount (Stripe charge.amount_refunded) onto the
+ * matching payments row. Forward-only (max), so a re-delivered/out-of-order event
+ * never lowers it. The row flips to 'refunded' only when fully refunded; a partial
+ * refund leaves it 'succeeded' with refunded_cents > 0. NEVER touches bookings.status.
+ */
+async function applyChargeRefund(
+  serviceClient: SupabaseClient,
+  intentId: string,
+  amountRefunded: number,
+): Promise<ApplyResult> {
+  const { data: payment, error: fetchError } = await serviceClient
+    .from("payments")
+    .select("id, booking_id, amount_cents, refunded_cents")
+    .eq("stripe_payment_intent_id", intentId)
+    .maybeSingle();
+
+  if (fetchError)
+    return { ok: false, error: `DB error: ${fetchError.message}` };
+  if (!payment) return { ok: true, handled: false };
+
+  const newRefunded = Math.max(
+    payment.refunded_cents as number,
+    amountRefunded,
+  );
+  const fullyRefunded = newRefunded >= (payment.amount_cents as number);
+
+  const { error: updateError } = await serviceClient
+    .from("payments")
+    .update({
+      refunded_cents: newRefunded,
+      status: fullyRefunded ? "refunded" : "succeeded",
+    })
+    .eq("id", payment.id);
+
+  if (updateError) {
+    return {
+      ok: false,
+      error: `Failed to update payment refund: ${updateError.message}`,
+    };
+  }
+
+  return projectBookingPaymentStatus(
+    serviceClient,
+    payment.booking_id as string,
+  );
+}
+
 // ─── Public entry point ───────────────────────────────────────────────────────
 
 /**
@@ -221,13 +274,13 @@ export async function applyStripeEvent(
       if (!parsed.success) {
         return {
           ok: false,
-          error: "Malformed charge object: missing payment_intent",
+          error: "Malformed charge object: missing payment_intent/amounts",
         };
       }
-      return applyPaymentIntentStatus(
+      return applyChargeRefund(
         serviceClient,
         parsed.data.payment_intent,
-        "refunded",
+        parsed.data.amountRefunded,
       );
     }
 
