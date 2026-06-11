@@ -342,6 +342,8 @@ git commit -m "docs: record booking core and scheduler dedup decisions"
 
 (Append blocking criticals here during execution; resolve before Plan A DoD.)
 
+- 2026-06-10 · Task 1 (A14) · Minor deviation: `validateSlot` NOT extracted/used. The four cores do not share a clean guard/window pairing — each gates `passesGuards`/`fitsWindow` behind its own policy flags (`skipHoursLeadGuards`/`skipWindowFit`), short-circuits between them, fetches `openWindows` lazily, and `editBookingCore` vs `previewEditCore` diverge intentionally on warning-vs-silent admin-skip. A combined runner would change behavior (eager fetch / lost short-circuit / lost divergence), violating the behavior-preserving rule. Shipped only `toRuleSettings` (the genuinely clean dedup; removes the settings-literal drift the preview twin risked). ADR (Task 4) reflects this. Behavior-preserving; named tests 67/67 pass.
+
 ---
 
 _Last reviewed: 2026-06-10_
