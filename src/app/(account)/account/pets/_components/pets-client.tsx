@@ -1,8 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { deletePet } from "@/features/accounts";
-import { PetList } from "@/features/accounts/index.client";
+import { deletePet, PetList } from "@/features/accounts/index.client";
 import type { PetView } from "../page";
 
 // ─── Pets wrapper ─────────────────────────────────────────────────────────────
