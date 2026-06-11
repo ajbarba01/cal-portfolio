@@ -115,6 +115,13 @@ export type {
   AdminActionResult,
 } from "./onbehalf-actions";
 
+// premium-days-actions
+export {
+  togglePremiumDate,
+  setPremiumDayCore,
+  setPremiumDay,
+} from "./premium-days-actions";
+
 // attention-counts (typed seam — SP5 wires real counts)
 export type { AttentionCounts } from "./attention-counts";
 export { emptyAttentionCounts } from "./attention-counts";
