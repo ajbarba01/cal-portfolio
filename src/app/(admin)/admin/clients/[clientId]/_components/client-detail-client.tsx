@@ -162,7 +162,7 @@ export function ClientDetailClient({ client }: { client: ClientDetailView }) {
       destructive: true,
     });
     if (!isConfirmed) return;
-    run(() => cancelBooking({ bookingId: id }));
+    run(() => cancelBooking({ bookingId: id, fullRefund: true }));
   }
 
   const meetGreetBooking =

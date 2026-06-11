@@ -402,7 +402,7 @@ export function AvailabilityClient({
           onClose={() => setSelectedBookingId(null)}
           onCancel={(id) =>
             run(
-              () => cancelBooking({ bookingId: id }),
+              () => cancelBooking({ bookingId: id, fullRefund: true }),
               () => setSelectedBookingId(null),
             )
           }

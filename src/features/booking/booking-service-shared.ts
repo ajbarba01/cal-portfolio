@@ -79,6 +79,11 @@ export const createBookingInputSchema = z
 export const cancelBookingInputSchema = z.object({
   userId: z.string().uuid(),
   bookingId: z.string().uuid(),
+  /**
+   * When true, override timing policy and refund 100% of what was paid.
+   * Set by the admin cancel path (DESIGN: decision 14). Default false.
+   */
+  fullRefund: z.boolean().optional(),
 });
 
 // ──────────────────────────────────────────────────────────────────────────────

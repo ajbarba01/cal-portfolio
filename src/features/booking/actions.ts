@@ -155,14 +155,15 @@ export async function cancelBooking(
   if (isAdmin) {
     // Admin path: load the booking to get the actual client_id, then pass it
     // as userId to satisfy the core's ownership check without re-implementing
-    // admin logic in the pure core.
+    // admin logic in the pure core. fullRefund: true so Cal-initiated cancels
+    // always refund 100% regardless of timing (DESIGN: decision 14).
     const booking = await repo.getBookingById(input.bookingId);
     if (!booking) {
       return { kind: "not_found" };
     }
     return cancelBookingCore(
       { repo, now: new Date(), gateway },
-      { ...input, userId: booking.client_id },
+      { ...input, userId: booking.client_id, fullRefund: true },
     );
   }
 

@@ -75,6 +75,40 @@ describe("computeRefund", () => {
     });
     expect(r.refundCents).toBe(Math.round((999 * 33) / 100)); // 330
   });
+
+  // Actor-aware: admin (fullRefund: true) always gets paidCents back regardless of timing.
+  it("fullRefund: true — admin cancel inside cutoff refunds 100% of paidCents", () => {
+    const r = computeRefund({
+      ...base,
+      paidCents: FINAL,
+      startsAt: startsInHours(10), // well inside the 48h cutoff → would be late tier
+      fullRefund: true,
+    });
+    expect(r.refundCents).toBe(FINAL);
+    expect(r.tier).toBe("full");
+    expect(r.needsCalReview).toBe(false);
+  });
+
+  it("fullRefund: true — admin cancel when nothing paid still refunds 0", () => {
+    const r = computeRefund({
+      ...base,
+      paidCents: 0,
+      startsAt: startsInHours(10),
+      fullRefund: true,
+    });
+    expect(r.refundCents).toBe(0);
+    expect(r.tier).toBe("full");
+  });
+
+  it("client late-cancel (fullRefund: false/default) keeps late_cancel_refund_pct", () => {
+    const r = computeRefund({
+      ...base,
+      paidCents: FINAL,
+      startsAt: startsInHours(10), // inside cutoff → late tier
+    });
+    expect(r.refundCents).toBe(5000); // 50% of 10000
+    expect(r.tier).toBe("late");
+  });
 });
 
 describe("computeCancellationDebtCents", () => {

@@ -81,6 +81,7 @@ export async function cancelBookingCore(
     now,
     fullRefundHours: settings.cancellation_full_refund_hours,
     lateRefundPct: settings.late_cancel_refund_pct,
+    fullRefund: input.fullRefund ?? false,
   });
 
   // Initiate the default-tier refund (webhook re-projects payment_status).
