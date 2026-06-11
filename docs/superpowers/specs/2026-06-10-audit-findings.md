@@ -37,14 +37,21 @@ Surfaced by the SP3a fresh-session `/code-review`. All were **pre-existing dupli
 
 ## SP5 — admin (Cal-friendly)
 
+**SP5a (operational surfaces) DONE 2026-06-11 — AD2, AD3 resolved; AD7 confirmed; no-show stripped from UI; SP4 payment-polish surfaced.**
+
+- **AD2 resolved** — admin on-behalf actions (`onbehalf-actions.ts`) scope pet/form writes to the target `clientId` (admin-gated, writes pinned); client-detail reuses the shared profile-scoped `FormCard`/`PetForm`/`PetList`. Capability kept; the wrong-profile bind is gone by construction.
+- **AD3 resolved** — Settings humanized: `TimePicker` (Select-trio) for open/close, unit-labeled inputs for miles/horizon/refund-pct, Premium-days editor moved to the Availability calendar, Advanced collapse for rarely-changed fields.
+- **AD7 confirmed resolved** (shipped SP3b) — inquiries are preview/detail with Email/Text/Resolve/View-client; the SP5a unification then made them one-per-row rects on the shared filter bar.
+- **SP4 payment-action polish** landed in client-detail: payment-status pills, retained-half line, dispute marker (`disputed_at`/`dispute_status`) + Stripe deep-link.
+- **No-show removed from all admin UI** + the No-Show Charge % settings control + `markNoShow` unwired (backend rip-out deferred to the debt spec).
+
+Remaining open SP5 findings (AD1 re-routed, AD4 deferred, AD5 → SP5b):
+
 | ID  | Sev | Finding                                                                                                                                                                                                                                                                                                                                                                      |
 | --- | --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | AD1 | M   | Series-roll conflicts are flagged in cron output only — no admin surface lists "occurrences left pending due to conflict" (DEV_NOTES owed item). Cal can't see or resolve them.                                                                                                                                                                                              |
-| AD2 | M   | Admin create-on-behalf "add pet" binds to the wrong profile (UI-level; core `insertBookingPets` is correct). Root-cause fix: scope pet creation to the target client — do **not** remove the capability (rejects DEV_NOTES suggestion to drop the button).                                                                                                                   |
-| AD3 | M   | Settings UI exposes raw values (minutes-since-midnight integers etc.). Cal-friendly controls owed: hour+minute pickers for open/close, labeled inputs for miles/horizon/refund-pct/holiday dates. **(live-verify exact fields)**                                                                                                                                             |
 | AD4 | M   | Cancel-with-reason: no reason field on admin/client cancel; reason should flow into the cancellation email (with booking-mutation P3).                                                                                                                                                                                                                                       |
 | AD5 | m   | No admin notification badges (wordmark/tabs) for pending approvals / new inquiries / flagged conflicts — "what needs Cal's attention now" surface missing (ties SP3 nav). **Primitive-ready (SP3b):** shipped the `NavBadge` primitive + the typed `AttentionCounts` seam (`{pendingApprovals,newInquiries,flaggedConflicts}`); SP5 wires the real counts + final placement. |
-| AD7 | m   | Inquiry list: long messages overflow; show preview + popup with email/text/resolve actions (DEV_NOTES; better mobile too). **(live-verify)**                                                                                                                                                                                                                                 |
 
 Admin-powers inventory: all 17 expected powers exist in code with UI (approve/decline, cancel, no-show, refund grant, debt view/settle, create-on-behalf, edit-any, reschedule, windows, overnight nights, services CRUD, full settings, onboarding status, Kiche toggle, reviews moderation, inquiries, ban-via-declined). Gaps = AD1 (conflict UI), AD4 (reason), AD3 (friendliness, not capability). Ban-from-meet-greets needs no dedicated surface — `declined` covers it (maintainer decision 2026-06-10).
 
@@ -106,6 +113,7 @@ Spec + plans committed ([spec](2026-06-11-sp5-admin-design.md), [SP5a plan](../p
 - S1 resolved by SP2 (db seeding framework), 2026-06-10.
 - A1, A3, A4, A5, A6, A7, A8, A9, A10, A11 resolved by SP3a (codebase structure), 2026-06-10.
 - A2, A12, A13, A14, A16 resolved by SP3b (system IA + UI primitives), 2026-06-10. U3 resolved; U7/AD5 primitives built (sitewide application + count wiring remain SP6/SP5). A15 → SP7.
+- AD2, AD3 resolved + AD7 confirmed by SP5a (admin operational surfaces), 2026-06-11; SP4 payment-polish surfaced + no-show stripped from UI. AD1 re-routed (recurring rework), AD4 deferred (debt spec), AD5 → SP5b.
 
 ---
 
