@@ -5,6 +5,10 @@ import { AlertDialog } from "@base-ui/react/alert-dialog";
 import { TriangleAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import {
+  dialogBackdropClass,
+  dialogPanelClass,
+} from "@/components/feedback/dialog-shell";
 
 type ConfirmOptions = {
   title: React.ReactNode;
@@ -69,14 +73,11 @@ export function useConfirm() {
       }}
     >
       <AlertDialog.Portal>
-        <AlertDialog.Backdrop className="bg-foreground/20 fixed inset-0 z-50 backdrop-blur-[1px]" />
+        <AlertDialog.Backdrop className={dialogBackdropClass} />
         <AlertDialog.Popup
           data-slot="confirm-dialog"
           initialFocus={cancelRef}
-          className={cn(
-            "bg-popover text-popover-foreground border-border fixed inset-x-0 bottom-0 z-50 mx-auto flex w-full max-w-sm flex-col gap-3 rounded-t-xl border p-5 shadow-xl",
-            "sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-xl",
-          )}
+          className={cn(dialogPanelClass, "max-w-sm")}
         >
           {pending ? (
             <>
