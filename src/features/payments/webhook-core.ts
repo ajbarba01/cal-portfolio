@@ -12,7 +12,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { computePaymentStatus } from "./projection";
-import type { PaymentTxn } from "./types";
+import type { PaymentTxn, PaymentGateway } from "./types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -220,6 +220,60 @@ async function applyChargeRefund(
 // ─── Public entry point ───────────────────────────────────────────────────────
 
 /**
+ * If a booking's net paid exceeds final (two intents both succeeded), refund the
+ * excess against the most-recent succeeded intent. The resulting charge.refunded
+ * re-projects payment_status (webhook stays the sole writer). Idempotency-keyed +
+ * guarded by refunded_cents so a re-delivered succeeded event never double-refunds.
+ */
+async function reconcileOverpay(
+  serviceClient: SupabaseClient,
+  gateway: PaymentGateway,
+  intentId: string,
+): Promise<void> {
+  const { data: row } = await serviceClient
+    .from("payments")
+    .select("booking_id")
+    .eq("stripe_payment_intent_id", intentId)
+    .maybeSingle();
+  if (!row) return;
+
+  const { data: booking } = await serviceClient
+    .from("bookings")
+    .select(
+      "final_cents, payments(stripe_payment_intent_id, status, amount_cents, refunded_cents, created_at)",
+    )
+    .eq("id", row.booking_id as string)
+    .maybeSingle();
+  if (!booking) return;
+
+  const rows = booking.payments as Array<{
+    stripe_payment_intent_id: string;
+    status: string;
+    amount_cents: number;
+    refunded_cents: number;
+    created_at: string;
+  }>;
+
+  const capturedSum = rows
+    .filter((r) => r.status === "succeeded" || r.status === "refunded")
+    .reduce((a, r) => a + r.amount_cents, 0);
+  const refundedSum = rows.reduce((a, r) => a + r.refunded_cents, 0);
+  const finalCents = booking.final_cents as number;
+  const excess = capturedSum - refundedSum - finalCents;
+  if (excess <= 0) return;
+
+  const target = rows
+    .filter((r) => r.status === "succeeded")
+    .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))[0];
+  if (!target) return;
+
+  // Deterministic key: stable for this overpay state, so a re-delivered
+  // succeeded event (before the refund's charge.refunded lands) reuses it.
+  const key = `overpay:${finalCents}:${capturedSum}:${target.stripe_payment_intent_id}`;
+  await gateway.refund(target.stripe_payment_intent_id, excess, key);
+}
+
+/**
  * Applies a Stripe event to the database.
  *
  * Caller is responsible for verifying the webhook signature before invoking
@@ -228,6 +282,7 @@ async function applyChargeRefund(
 export async function applyStripeEvent(
   serviceClient: SupabaseClient,
   event: StripeEventInput,
+  gateway?: PaymentGateway,
 ): Promise<ApplyResult> {
   const { type, data } = event;
 
@@ -240,11 +295,15 @@ export async function applyStripeEvent(
           error: "Malformed payment_intent object: missing id",
         };
       }
-      return applyPaymentIntentStatus(
+      const result = await applyPaymentIntentStatus(
         serviceClient,
         parsed.data.id,
         "succeeded",
       );
+      if (result.ok && gateway) {
+        await reconcileOverpay(serviceClient, gateway, parsed.data.id);
+      }
+      return result;
     }
 
     case "payment_intent.payment_failed": {

@@ -54,11 +54,15 @@ export class StripeGateway implements PaymentGateway {
     };
   }
 
-  async refund(paymentIntentId: string, amountCents: number): Promise<void> {
-    await this.stripe.refunds.create({
-      payment_intent: paymentIntentId,
-      amount: amountCents,
-    });
+  async refund(
+    paymentIntentId: string,
+    amountCents: number,
+    idempotencyKey?: string,
+  ): Promise<void> {
+    await this.stripe.refunds.create(
+      { payment_intent: paymentIntentId, amount: amountCents },
+      idempotencyKey ? { idempotencyKey } : undefined,
+    );
     // payment_status is re-projected by the charge.refunded webhook — never here.
   }
 
