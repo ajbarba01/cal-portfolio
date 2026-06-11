@@ -1,5 +1,10 @@
 // Public API of the accounts feature.
-export type { Pet, PetInput } from "./account-actions";
+export type {
+  Pet,
+  PetInput,
+  ActionResult,
+  CreatePetResult,
+} from "./account-actions";
 export {
   changePassword,
   updateProfile,

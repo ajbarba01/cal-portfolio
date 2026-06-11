@@ -22,6 +22,7 @@ export type { PetListProps, PetViewLike } from "./_components/pet-list";
 // ─── PetForm (reused in booking pet-assignment dialog too) ───────────────────
 
 export { PetForm } from "./_components/pet-form";
+export type { PetFormActions } from "./_components/pet-form";
 
 // ─── Actions ("use server" — RPC-safe from client) ───────────────────────────
 
