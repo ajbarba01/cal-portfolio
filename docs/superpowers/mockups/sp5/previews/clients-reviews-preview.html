@@ -6,84 +6,335 @@
     <title>SP5a preview — Clients index + Reviews (token-accurate)</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400..700&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400..700&family=Public+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
     <style>
       :root {
-        --background: #faf6f0; --foreground: #2b2520; --card: #ffffff;
-        --muted: #f2ece1; --muted-foreground: #6e6354; --border: #e7decf; --input: #e7decf; --canvas: #e7decf;
-        --brand: #ae5a35; --brand-foreground: #ffffff; --brand-strong: #8a4226;
-        --status-available: #e3e7d2; --status-available-foreground: #4f5b33;
-        --warning: #f3e3c8; --warning-foreground: #7a5a1e;
+        --background: #faf6f0;
+        --foreground: #2b2520;
+        --card: #ffffff;
+        --muted: #f2ece1;
+        --muted-foreground: #6e6354;
+        --border: #e7decf;
+        --input: #e7decf;
+        --canvas: #e7decf;
+        --brand: #ae5a35;
+        --brand-foreground: #ffffff;
+        --brand-strong: #8a4226;
+        --status-available: #e3e7d2;
+        --status-available-foreground: #4f5b33;
+        --warning: #f3e3c8;
+        --warning-foreground: #7a5a1e;
         --destructive: #b23b29;
         --radius-xl: 0.525rem;
-        --font-sans: "Public Sans", system-ui, sans-serif; --font-heading: "Fraunces", Georgia, serif;
+        --font-sans: "Public Sans", system-ui, sans-serif;
+        --font-heading: "Fraunces", Georgia, serif;
       }
-      * { box-sizing: border-box; }
-      body { margin: 0; background: var(--canvas); font-family: var(--font-sans); color: var(--foreground); -webkit-font-smoothing: antialiased; }
-      .sheet { max-width: 800px; margin: 0 auto; background: var(--background); min-height: 100vh; border-left: 1px solid var(--border); border-right: 1px solid var(--border); padding: 28px 24px 64px; }
-      .banner { font-size: 12px; color: var(--muted-foreground); background: var(--muted); border-radius: 8px; padding: 8px 12px; margin-bottom: 18px; }
-      h1 { font-family: var(--font-heading); font-weight: 600; font-size: 28px; margin: 0 0 4px; }
-      .sub { color: var(--muted-foreground); font-size: 14px; margin: 0 0 18px; }
-      .legend-top { color: var(--brand-strong); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; margin: 24px 0 10px; }
-      .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-xl); padding: 16px; }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--canvas);
+        font-family: var(--font-sans);
+        color: var(--foreground);
+        -webkit-font-smoothing: antialiased;
+      }
+      .sheet {
+        max-width: 800px;
+        margin: 0 auto;
+        background: var(--background);
+        min-height: 100vh;
+        border-left: 1px solid var(--border);
+        border-right: 1px solid var(--border);
+        padding: 28px 24px 64px;
+      }
+      .banner {
+        font-size: 12px;
+        color: var(--muted-foreground);
+        background: var(--muted);
+        border-radius: 8px;
+        padding: 8px 12px;
+        margin-bottom: 18px;
+      }
+      h1 {
+        font-family: var(--font-heading);
+        font-weight: 600;
+        font-size: 28px;
+        margin: 0 0 4px;
+      }
+      .sub {
+        color: var(--muted-foreground);
+        font-size: 14px;
+        margin: 0 0 18px;
+      }
+      .legend-top {
+        color: var(--brand-strong);
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin: 24px 0 10px;
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-xl);
+        padding: 16px;
+      }
 
-      .toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
-      .search { flex: 1; min-width: 180px; max-width: 280px; border: 1px solid var(--input); background: var(--background); border-radius: 8px; padding: 7px 10px; font-size: 13px; display: inline-flex; align-items: center; gap: 7px; color: var(--muted-foreground); }
-      .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
-      .chip { font-size: 12px; font-weight: 600; border-radius: 999px; padding: 5px 12px; border: 1px solid var(--input); color: var(--muted-foreground); background: var(--card); cursor: pointer; }
-      .chip.on { background: var(--brand); color: var(--brand-foreground); border-color: var(--brand); }
-      .chip.warn.on { background: var(--destructive); border-color: var(--destructive); color: #fff; }
+      .toolbar {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin-bottom: 14px;
+      }
+      .search {
+        flex: 1;
+        min-width: 180px;
+        max-width: 280px;
+        border: 1px solid var(--input);
+        background: var(--background);
+        border-radius: 8px;
+        padding: 7px 10px;
+        font-size: 13px;
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        color: var(--muted-foreground);
+      }
+      .chips {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-left: auto;
+      }
+      .chip {
+        font-size: 12px;
+        font-weight: 600;
+        border-radius: 999px;
+        padding: 5px 12px;
+        border: 1px solid var(--input);
+        color: var(--muted-foreground);
+        background: var(--card);
+        cursor: pointer;
+      }
+      .chip.on {
+        background: var(--brand);
+        color: var(--brand-foreground);
+        border-color: var(--brand);
+      }
+      .chip.warn.on {
+        background: var(--destructive);
+        border-color: var(--destructive);
+        color: #fff;
+      }
 
-      table { width: 100%; border-collapse: collapse; font-size: 13px; }
-      th { text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted-foreground); padding: 8px 8px; border-bottom: 1px solid var(--border); cursor: pointer; font-weight: 600; }
-      th .ar { color: var(--brand-strong); }
-      td { padding: 10px 8px; border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent); }
-      .name a { color: var(--brand-strong); font-weight: 600; text-decoration: none; }
-      .name a:hover { text-decoration: underline; }
-      .csub { color: var(--muted-foreground); font-size: 12px; }
-      .owe { color: var(--destructive); font-weight: 700; }
-      .onb { font-size: 11px; border: 1px solid var(--input); border-radius: 999px; padding: 3px 8px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
-      .ic { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; vertical-align: middle; }
-      .star-ic { width: 14px; height: 14px; }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+      th {
+        text-align: left;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--muted-foreground);
+        padding: 8px 8px;
+        border-bottom: 1px solid var(--border);
+        cursor: pointer;
+        font-weight: 600;
+      }
+      th .ar {
+        color: var(--brand-strong);
+      }
+      td {
+        padding: 10px 8px;
+        border-bottom: 1px solid
+          color-mix(in srgb, var(--border) 60%, transparent);
+      }
+      tbody tr {
+        cursor: pointer;
+        transition: background 0.12s;
+      }
+      tbody tr:hover {
+        background: var(--muted);
+      }
+      .rowarrow {
+        color: var(--muted-foreground);
+        text-align: right;
+      }
+      .name a {
+        color: var(--brand-strong);
+        font-weight: 600;
+        text-decoration: none;
+      }
+      .name a:hover {
+        text-decoration: underline;
+      }
+      .csub {
+        color: var(--muted-foreground);
+        font-size: 12px;
+      }
+      .owe {
+        color: var(--destructive);
+        font-weight: 700;
+      }
+      .onb {
+        font-size: 11px;
+        border: 1px solid var(--input);
+        border-radius: 999px;
+        padding: 3px 8px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        cursor: pointer;
+      }
+      .ic {
+        width: 13px;
+        height: 13px;
+        stroke: currentColor;
+        fill: none;
+        stroke-width: 2;
+        vertical-align: middle;
+      }
+      .star-ic {
+        width: 14px;
+        height: 14px;
+      }
 
       /* reviews */
-      .tabs { display: inline-flex; gap: 2px; background: var(--muted); border-radius: 8px; padding: 3px; margin-bottom: 14px; }
-      .tabs span { font-size: 12px; padding: 6px 12px; border-radius: 6px; color: var(--muted-foreground); font-weight: 600; cursor: pointer; }
-      .tabs span.on { background: var(--card); color: var(--foreground); }
-      .rev { border: 1px solid var(--border); border-radius: 10px; background: var(--card); padding: 12px 14px; }
-      .rev + .rev { margin-top: 8px; }
-      .rtop { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-      .who { font-weight: 700; font-size: 13px; }
-      .stars { color: var(--warning-foreground); display: inline-flex; gap: 1px; }
-      .pill { font-size: 11px; font-weight: 600; border-radius: 999px; padding: 2px 9px; margin-left: auto; }
-      .p-pub { background: var(--status-available); color: var(--status-available-foreground); }
-      .p-pend { background: var(--warning); color: var(--warning-foreground); }
-      .p-rej { background: var(--muted); color: var(--muted-foreground); }
-      .rbody { font-size: 13px; margin: 8px 0; }
-      .rmeta { display: flex; align-items: center; gap: 8px; }
-      .rdate { font-size: 11px; color: var(--muted-foreground); }
-      .b { font-size: 12px; font-weight: 600; border-radius: 8px; padding: 5px 12px; border: 1px solid var(--border); background: var(--card); color: var(--foreground); cursor: pointer; margin-left: auto; }
-      .b + .b { margin-left: 6px; }
-      .b.solid { background: var(--brand); color: var(--brand-foreground); border-color: var(--brand); }
-      .b.warn { border-color: var(--destructive); color: var(--destructive); }
+      .tabs {
+        display: inline-flex;
+        gap: 2px;
+        background: var(--muted);
+        border-radius: 8px;
+        padding: 3px;
+        margin-bottom: 14px;
+      }
+      .tabs span {
+        font-size: 12px;
+        padding: 6px 12px;
+        border-radius: 6px;
+        color: var(--muted-foreground);
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .tabs span.on {
+        background: var(--card);
+        color: var(--foreground);
+      }
+      .rev {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: var(--card);
+        padding: 12px 14px;
+      }
+      .rev + .rev {
+        margin-top: 8px;
+      }
+      .rtop {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .who {
+        font-weight: 700;
+        font-size: 13px;
+      }
+      .stars {
+        color: var(--warning-foreground);
+        display: inline-flex;
+        gap: 1px;
+      }
+      .pill {
+        font-size: 11px;
+        font-weight: 600;
+        border-radius: 999px;
+        padding: 2px 9px;
+        margin-left: auto;
+      }
+      .p-pub {
+        background: var(--status-available);
+        color: var(--status-available-foreground);
+      }
+      .p-pend {
+        background: var(--warning);
+        color: var(--warning-foreground);
+      }
+      .p-rej {
+        background: var(--muted);
+        color: var(--muted-foreground);
+      }
+      .rbody {
+        font-size: 13px;
+        margin: 8px 0;
+      }
+      .rmeta {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .rdate {
+        font-size: 11px;
+        color: var(--muted-foreground);
+      }
+      .b {
+        font-size: 12px;
+        font-weight: 600;
+        border-radius: 8px;
+        padding: 5px 12px;
+        border: 1px solid var(--border);
+        background: var(--card);
+        color: var(--foreground);
+        cursor: pointer;
+        margin-left: auto;
+      }
+      .b + .b {
+        margin-left: 6px;
+      }
+      .b.solid {
+        background: var(--brand);
+        color: var(--brand-foreground);
+        border-color: var(--brand);
+      }
+      .b.warn {
+        border-color: var(--destructive);
+        color: var(--destructive);
+      }
     </style>
   </head>
   <body>
     <div class="sheet">
       <div class="banner">
         Token-accurate preview of the finished <b>/admin/clients</b> index +
-        <b>/admin/reviews</b> moderation (real Trail palette). Clients: quick-filter
-        chips + sortable headers (keeps search + the inline onboarding dropdown +
-        mobile stacked cards). Reviews: status pills + filter tabs + lucide stars.
+        <b>/admin/reviews</b> moderation (real Trail palette). Clients:
+        quick-filter chips + sortable headers (keeps search + the inline
+        onboarding dropdown + mobile stacked cards). Reviews: status pills +
+        filter tabs + lucide stars.
       </div>
 
       <!-- CLIENTS INDEX -->
       <h1>Clients</h1>
-      <p class="sub">Search, triage by status, and sort to find who owes or who needs onboarding.</p>
+      <p class="sub">
+        Search, triage by status, and sort to find who owes or who needs
+        onboarding.
+      </p>
 
       <div class="card">
         <div class="toolbar">
-          <span class="search"><svg class="ic" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg> Search name, email, phone…</span>
+          <span class="search"
+            ><svg class="ic" viewBox="0 0 24 24">
+              <circle cx="11" cy="11" r="7" />
+              <path d="m21 21-4.3-4.3" />
+            </svg>
+            Search name, email, phone…</span
+          >
           <span class="chips">
             <span class="chip on">All</span>
             <span class="chip warn">Owing</span>
@@ -92,51 +343,162 @@
           </span>
         </div>
         <table>
-          <thead><tr>
-            <th>Name <span class="ar">▲</span></th><th>Contact</th><th>Pets</th><th>Bookings</th><th>Balance</th><th>Onboarding</th>
-          </tr></thead>
+          <thead>
+            <tr>
+              <th>Name <span class="ar">▲</span></th>
+              <th>Contact</th>
+              <th>Pets</th>
+              <th>Bookings</th>
+              <th>Balance</th>
+              <th>Onboarding</th>
+              <th></th>
+            </tr>
+          </thead>
           <tbody>
             <tr>
               <td class="name"><a href="#">Jane Doe</a></td>
-              <td class="csub">jane@example.com<br>(555) 014-2200</td>
-              <td>2</td><td>7</td><td class="owe">$45.00</td>
-              <td><span class="onb">Active <svg class="ic" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span></td>
+              <td class="csub">jane@example.com<br />(555) 014-2200</td>
+              <td>2</td>
+              <td>7</td>
+              <td class="owe">$45.00</td>
+              <td>
+                <span class="onb"
+                  >Active
+                  <svg class="ic" viewBox="0 0 24 24">
+                    <path d="m6 9 6 6 6-6" /></svg
+                ></span>
+              </td>
+              <td class="rowarrow">
+                <svg class="ic" viewBox="0 0 24 24">
+                  <path d="M9 6l6 6-6 6" />
+                </svg>
+              </td>
             </tr>
             <tr>
               <td class="name"><a href="#">Sam Reyes</a></td>
               <td class="csub">sam@example.com</td>
-              <td>1</td><td>3</td><td>—</td>
-              <td><span class="onb">Meet &amp; greet <svg class="ic" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span></td>
+              <td>1</td>
+              <td>3</td>
+              <td>—</td>
+              <td>
+                <span class="onb"
+                  >Meet &amp; greet
+                  <svg class="ic" viewBox="0 0 24 24">
+                    <path d="m6 9 6 6 6-6" /></svg
+                ></span>
+              </td>
+              <td class="rowarrow">
+                <svg class="ic" viewBox="0 0 24 24">
+                  <path d="M9 6l6 6-6 6" />
+                </svg>
+              </td>
             </tr>
             <tr>
               <td class="name"><a href="#">Pat Lin</a></td>
-              <td class="csub">pat@example.com<br>(555) 200-7788</td>
-              <td>3</td><td>0</td><td>—</td>
-              <td><span class="onb">Info pending <svg class="ic" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span></td>
+              <td class="csub">pat@example.com<br />(555) 200-7788</td>
+              <td>3</td>
+              <td>0</td>
+              <td>—</td>
+              <td>
+                <span class="onb"
+                  >Info pending
+                  <svg class="ic" viewBox="0 0 24 24">
+                    <path d="m6 9 6 6 6-6" /></svg
+                ></span>
+              </td>
+              <td class="rowarrow">
+                <svg class="ic" viewBox="0 0 24 24">
+                  <path d="M9 6l6 6-6 6" />
+                </svg>
+              </td>
             </tr>
           </tbody>
         </table>
-        <p class="rdate" style="margin-top:10px; font-style:italic;">Sortable headers: Name, Balance, Bookings (click to toggle ▲/▼). Filter chips narrow the rows. Mobile keeps the existing stacked-card layout.</p>
+        <p class="rdate" style="margin-top: 10px; font-style: italic">
+          Sortable headers: Name, Balance, Bookings (click to toggle ▲/▼).
+          Filter chips narrow the rows. Mobile keeps the existing stacked-card
+          layout.
+        </p>
       </div>
 
       <!-- REVIEWS -->
       <p class="legend-top">Reviews moderation</p>
       <div class="card">
-        <div class="tabs"><span class="on">All</span><span>Pending</span><span>Published</span><span>Rejected</span></div>
+        <div class="toolbar">
+          <div class="tabs">
+            <span class="on">All</span><span>Pending</span><span>Published</span
+            ><span>Rejected</span>
+          </div>
+          <span class="search" style="margin-left: auto"
+            ><svg class="ic" viewBox="0 0 24 24">
+              <circle cx="11" cy="11" r="7" />
+              <path d="m21 21-4.3-4.3" />
+            </svg>
+            Search author or text…</span
+          >
+        </div>
 
         <div class="rev">
           <div class="rtop">
             <span class="who">Marta K.</span>
             <span class="stars">
-              <svg class="star-ic" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="m12 2 3 6.5 7 .7-5.2 4.7 1.5 6.9L12 17.8 5.2 20.8l1.5-6.9L1.5 9.2l7-.7z"/></svg>
-              <svg class="star-ic" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="m12 2 3 6.5 7 .7-5.2 4.7 1.5 6.9L12 17.8 5.2 20.8l1.5-6.9L1.5 9.2l7-.7z"/></svg>
-              <svg class="star-ic" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="m12 2 3 6.5 7 .7-5.2 4.7 1.5 6.9L12 17.8 5.2 20.8l1.5-6.9L1.5 9.2l7-.7z"/></svg>
-              <svg class="star-ic" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="m12 2 3 6.5 7 .7-5.2 4.7 1.5 6.9L12 17.8 5.2 20.8l1.5-6.9L1.5 9.2l7-.7z"/></svg>
-              <svg class="star-ic" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="m12 2 3 6.5 7 .7-5.2 4.7 1.5 6.9L12 17.8 5.2 20.8l1.5-6.9L1.5 9.2l7-.7z"/></svg>
+              <svg
+                class="star-ic"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                stroke="none"
+              >
+                <path
+                  d="m12 2 3 6.5 7 .7-5.2 4.7 1.5 6.9L12 17.8 5.2 20.8l1.5-6.9L1.5 9.2l7-.7z"
+                />
+              </svg>
+              <svg
+                class="star-ic"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                stroke="none"
+              >
+                <path
+                  d="m12 2 3 6.5 7 .7-5.2 4.7 1.5 6.9L12 17.8 5.2 20.8l1.5-6.9L1.5 9.2l7-.7z"
+                />
+              </svg>
+              <svg
+                class="star-ic"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                stroke="none"
+              >
+                <path
+                  d="m12 2 3 6.5 7 .7-5.2 4.7 1.5 6.9L12 17.8 5.2 20.8l1.5-6.9L1.5 9.2l7-.7z"
+                />
+              </svg>
+              <svg
+                class="star-ic"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                stroke="none"
+              >
+                <path
+                  d="m12 2 3 6.5 7 .7-5.2 4.7 1.5 6.9L12 17.8 5.2 20.8l1.5-6.9L1.5 9.2l7-.7z"
+                />
+              </svg>
+              <svg
+                class="star-ic"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                stroke="none"
+              >
+                <path
+                  d="m12 2 3 6.5 7 .7-5.2 4.7 1.5 6.9L12 17.8 5.2 20.8l1.5-6.9L1.5 9.2l7-.7z"
+                />
+              </svg>
             </span>
             <span class="pill p-pend">Pending</span>
           </div>
-          <p class="rbody">"Cal was amazing with our anxious rescue — daily photos, never late."</p>
+          <p class="rbody">
+            "Cal was amazing with our anxious rescue — daily photos, never
+            late."
+          </p>
           <div class="rmeta">
             <span class="rdate">Mar 8, 2026</span>
             <button class="b solid">Publish</button>
@@ -148,11 +510,57 @@
           <div class="rtop">
             <span class="who">Dan R.</span>
             <span class="stars">
-              <svg class="star-ic" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="m12 2 3 6.5 7 .7-5.2 4.7 1.5 6.9L12 17.8 5.2 20.8l1.5-6.9L1.5 9.2l7-.7z"/></svg>
-              <svg class="star-ic" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="m12 2 3 6.5 7 .7-5.2 4.7 1.5 6.9L12 17.8 5.2 20.8l1.5-6.9L1.5 9.2l7-.7z"/></svg>
-              <svg class="star-ic" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="m12 2 3 6.5 7 .7-5.2 4.7 1.5 6.9L12 17.8 5.2 20.8l1.5-6.9L1.5 9.2l7-.7z"/></svg>
-              <svg class="star-ic" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="m12 2 3 6.5 7 .7-5.2 4.7 1.5 6.9L12 17.8 5.2 20.8l1.5-6.9L1.5 9.2l7-.7z"/></svg>
-              <svg class="star-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m12 2 3 6.5 7 .7-5.2 4.7 1.5 6.9L12 17.8 5.2 20.8l1.5-6.9L1.5 9.2l7-.7z"/></svg>
+              <svg
+                class="star-ic"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                stroke="none"
+              >
+                <path
+                  d="m12 2 3 6.5 7 .7-5.2 4.7 1.5 6.9L12 17.8 5.2 20.8l1.5-6.9L1.5 9.2l7-.7z"
+                />
+              </svg>
+              <svg
+                class="star-ic"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                stroke="none"
+              >
+                <path
+                  d="m12 2 3 6.5 7 .7-5.2 4.7 1.5 6.9L12 17.8 5.2 20.8l1.5-6.9L1.5 9.2l7-.7z"
+                />
+              </svg>
+              <svg
+                class="star-ic"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                stroke="none"
+              >
+                <path
+                  d="m12 2 3 6.5 7 .7-5.2 4.7 1.5 6.9L12 17.8 5.2 20.8l1.5-6.9L1.5 9.2l7-.7z"
+                />
+              </svg>
+              <svg
+                class="star-ic"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                stroke="none"
+              >
+                <path
+                  d="m12 2 3 6.5 7 .7-5.2 4.7 1.5 6.9L12 17.8 5.2 20.8l1.5-6.9L1.5 9.2l7-.7z"
+                />
+              </svg>
+              <svg
+                class="star-ic"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  d="m12 2 3 6.5 7 .7-5.2 4.7 1.5 6.9L12 17.8 5.2 20.8l1.5-6.9L1.5 9.2l7-.7z"
+                />
+              </svg>
             </span>
             <span class="pill p-pub">Published</span>
           </div>
