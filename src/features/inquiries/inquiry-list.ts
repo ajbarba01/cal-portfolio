@@ -1,4 +1,9 @@
+import { paginate, type Page } from "@/lib/pagination";
+
 import type { InquiryRow } from "./inquiry-actions";
+
+// Re-exported for existing consumers; the implementation now lives in @/lib/pagination.
+export { paginate, type Page };
 
 const DENVER_TZ = "America/Denver";
 
@@ -36,29 +41,6 @@ export function filterInquiries(
       .toLowerCase();
     return haystack.includes(q);
   });
-}
-
-export interface Page<T> {
-  items: T[];
-  /** Clamped 1-based page actually shown. */
-  page: number;
-  /** Always >= 1. */
-  pageCount: number;
-}
-
-export function paginate<T>(
-  items: T[],
-  page: number,
-  pageSize: number,
-): Page<T> {
-  const pageCount = Math.max(1, Math.ceil(items.length / pageSize));
-  const clamped = Math.min(Math.max(1, page), pageCount);
-  const start = (clamped - 1) * pageSize;
-  return {
-    items: items.slice(start, start + pageSize),
-    page: clamped,
-    pageCount,
-  };
 }
 
 /** Client may edit only an unanswered, still-new inquiry. */
