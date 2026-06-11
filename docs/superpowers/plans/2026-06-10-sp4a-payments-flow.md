@@ -751,6 +751,18 @@ git commit -m "test: seed open and canceled payment intent states"
 - PAY5: overpay reconcile (auto-refund excess). PAY6 rest: `charge.dispute.*`. PAY7: payment-policy email copy rendered from settings.
 - The `failed`-on-cancel choice here is provisional; if SP4b adds a dedicated `canceled` payments status, revisit the Task 4 mapping.
 
+## Handoff log
+
+- 2026-06-11 · executed all 8 tasks (subagent-driven, fresh subagent per task + diff review). Gates green: typecheck, lint (0 errors; 3 pre-existing scheduler `useCallback` warnings, unrelated), `next build` (no server-only leak), payments suite 20/20. Commits `d6eadcc`→`c0c1c6d`.
+- **Deviations (minor, logged):**
+  - _Task 3 tests_ — the plan's raw test snippets fail against the real DB: (a) the three reuse tests share one booking, so added an `afterEach` clearing payments rows per test (otherwise tests 2/3 reuse a prior test's open row instead of minting); (b) `payments.stripe_payment_intent_id` is `UNIQUE`, so the fake gateway now mints a unique id after the first call (first stays `FAKE_INTENT_ID` to preserve the existing assertion), letting the stale-replace re-insert succeed. Production `runCreatePrepayIntent` logic unchanged from the plan.
+  - _Task 4 test_ — seeded booking offset 300→500 to clear the `no_same_class_overlap` exclusion constraint vs the other fixtures.
+  - _Task 7 (PAY2 docs)_ — placed the setup runbook in `.env.example` (the canonical env contract, which already lists the three Stripe vars) instead of `docs/DEV_NOTES.md`. DEV_NOTES is "inbox only, never authority" (doc-lifecycle rule); a permanent runbook there would violate it, and the spec explicitly allowed "a dev-setup doc … a comment helps."
+  - _Task 8 (seed)_ — the `payment-states` scenario already seeds an open `requires_payment` intent (`pay-open-intent`) and a `failed`/canceled intent (`pay-failed`) from SP2, so step 1 was already satisfied. Added one `pay-prepayable` booking (confirmed + owed, NO payment row) as a clean live-verify target — the `pi_seed_*` rows carry fake intent ids that can't be retrieved against real Stripe.
+- **Fresh-session `/code-review`** (independent subagent, opus): APPROVED WITH MINOR ISSUES; all constitution invariants verified (webhook sole-writer, server-derived amounts, no `any`, tokens-as-law, client/server boundary, idempotency-key rotation). Fixed the one Important finding in `c0c1c6d` — reuse select now takes the newest open row (`order created_at desc, limit 1`) and bails on a query error instead of falling through to mint a third intent; added a duplicate-open-rows regression test. Declined two cosmetic Minors (dead `clientSecret` guard; module-scope `getStripe()` throw timing) with reasoning.
+- **SP4b deferred finding (new):** the reuse path does not wrap `retrieveIntent`/`cancelIntent` in try/catch — a stale id that 404s at Stripe would throw. Fine for production rows (real ids); fold into SP4b hardening.
+- **OUTSTANDING — live `verify` (DoD gate):** money-movement on a real `stripe listen` is unrun. Stripe TEST keys are in `.env.local`, but no Stripe CLI is installed (no `STRIPE_WEBHOOK_SECRET` forwarding). Maintainer to install the CLI + run `stripe listen`, then walk the verify (desktop + mobile). Until then SP4a is code-complete + reviewed, not verified.
+
 ---
 
-_Last reviewed: 2026-06-10_
+_Last reviewed: 2026-06-11_
