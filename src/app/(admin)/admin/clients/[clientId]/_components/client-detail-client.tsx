@@ -30,7 +30,7 @@ import {
   paymentPill,
   retainedHalfLabel,
   disputeLabel,
-} from "@/features/payments";
+} from "@/features/payments/index.client";
 import { cancelBooking } from "@/features/booking/index.client";
 import {
   FormCard,

@@ -12,3 +12,10 @@ export type { PaymentGateway } from "./types";
 export * from "./client-balance";
 export { applyStripeEvent } from "./webhook-core";
 export { createPrepayIntent } from "./create-intent";
+// Pure display helpers (no server-only) — safe for client surfaces.
+export {
+  paymentPill,
+  retainedHalfLabel,
+  disputeLabel,
+  type BookingPaymentStatus,
+} from "./payment-display";
