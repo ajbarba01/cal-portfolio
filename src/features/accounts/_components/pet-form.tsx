@@ -11,7 +11,25 @@ import {
   updatePet,
   uploadPetPhoto,
 } from "@/features/accounts/account-actions";
-import type { Pet, PetInput } from "@/features/accounts/account-actions";
+import type {
+  Pet,
+  PetInput,
+  ActionResult,
+  CreatePetResult,
+} from "@/features/accounts/account-actions";
+
+/**
+ * Injectable action overrides for PetForm.
+ *
+ * The account zone omits this prop and falls back to the session-scoped
+ * account actions. The admin zone injects the on-behalf variants so writes
+ * go to the target client's profile, not the admin's own.
+ */
+export interface PetFormActions {
+  create: (input: PetInput) => Promise<CreatePetResult>;
+  update: (petId: string, input: PetInput) => Promise<ActionResult>;
+  uploadPhoto: (petId: string, file: File) => Promise<ActionResult>;
+}
 
 interface PetFormProps {
   /** Prefilled values for edit mode; undefined = add mode. */
@@ -19,6 +37,12 @@ interface PetFormProps {
   /** Called with the saved pet (server-assigned id on create). */
   onSaved: (pet: Pet) => void;
   onCancel?: () => void;
+  /**
+   * Optional action overrides. When omitted the form uses the standard
+   * session-scoped account actions (account zone — unchanged behavior).
+   * Inject admin on-behalf actions to write to a target client's profile.
+   */
+  actions?: PetFormActions;
 }
 
 /**
@@ -27,7 +51,18 @@ interface PetFormProps {
  * `createPet` returns the inserted row so callers get the new id without a
  * full-page reload.
  */
-export function PetForm({ initial, onSaved, onCancel }: PetFormProps) {
+export function PetForm({ initial, onSaved, onCancel, actions }: PetFormProps) {
+  // Resolve to injected actions (admin zone) or default account actions.
+  const resolvedActions: PetFormActions = actions ?? {
+    create: createPet,
+    update: updatePet,
+    uploadPhoto: async (petId: string, file: File) => {
+      const fd = new FormData();
+      fd.set("petId", petId);
+      fd.set("file", file, "pet.jpg");
+      return uploadPetPhoto(fd);
+    },
+  };
   const [values, setValues] = useState<PetInput>({
     name: initial?.name ?? "",
     species: initial?.species ?? "dog",
@@ -51,7 +86,7 @@ export function PetForm({ initial, onSaved, onCancel }: PetFormProps) {
     startTransition(async () => {
       let saved: Pet;
       if (initial) {
-        const result = await updatePet(initial.id, values);
+        const result = await resolvedActions.update(initial.id, values);
         if (result.kind !== "success") {
           setError(result.message);
           return;
@@ -64,7 +99,7 @@ export function PetForm({ initial, onSaved, onCancel }: PetFormProps) {
           notes: values.notes ?? null,
         };
       } else {
-        const result = await createPet(values);
+        const result = await resolvedActions.create(values);
         if (result.kind !== "success") {
           setError(result.message);
           return;
@@ -73,10 +108,10 @@ export function PetForm({ initial, onSaved, onCancel }: PetFormProps) {
       }
 
       if (croppedPhoto && croppedPhoto.size > 0) {
-        const fd = new FormData();
-        fd.set("petId", saved.id);
-        fd.set("file", croppedPhoto, "pet.jpg");
-        const upload = await uploadPetPhoto(fd);
+        const upload = await resolvedActions.uploadPhoto(
+          saved.id,
+          croppedPhoto as File,
+        );
         if (upload.kind !== "success") {
           setError(upload.message);
           return;

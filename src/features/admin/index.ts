@@ -99,6 +99,22 @@ export type { SettingsUpdate } from "./settings-schema";
 // components
 export { OnboardingStatusSelect } from "./_components/onboarding-status-select";
 
+// onbehalf-actions
+export {
+  adminCreatePet,
+  adminCreatePetCore,
+  adminUpdatePet,
+  adminUpdatePetCore,
+  adminSubmitForm,
+  adminSubmitFormCore,
+  adminUploadPetPhoto,
+  adminUploadPetPhotoCore,
+} from "./onbehalf-actions";
+export type {
+  AdminCreatePetResult,
+  AdminActionResult,
+} from "./onbehalf-actions";
+
 // attention-counts (typed seam — SP5 wires real counts)
 export type { AttentionCounts } from "./attention-counts";
 export { emptyAttentionCounts } from "./attention-counts";
