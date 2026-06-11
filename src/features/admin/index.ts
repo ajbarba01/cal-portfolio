@@ -126,6 +126,10 @@ export {
   setPremiumDaysBatch,
 } from "./premium-days-actions";
 
+// pricing-config-fields (pure helpers for the structured pricing editor)
+export { pricingFields, fieldsToConfig } from "./pricing-config-fields";
+export type { PricingField, FieldKind } from "./pricing-config-fields";
+
 // attention-counts (typed seam — SP5 wires real counts)
 export type { AttentionCounts } from "./attention-counts";
 export { emptyAttentionCounts } from "./attention-counts";
