@@ -2,12 +2,13 @@
 "use client";
 
 import * as React from "react";
-import { Search } from "lucide-react";
 
 import { EmptyState } from "@/components/feedback/empty-state";
 import { useConfirm } from "@/components/feedback/confirm-dialog";
-import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
+import { Multiswitch } from "@/components/ui/multiswitch";
+import { Pagination } from "@/components/ui/pagination";
+import { ResultCount } from "@/components/ui/result-count";
+import { SearchField } from "@/components/ui/search-field";
 import type { InquiryRow } from "@/features/inquiries/inquiry-actions";
 import {
   filterInquiries,
@@ -71,10 +72,10 @@ export function InquiryList({
     ? (inquiries.find((i) => i.id === openId) ?? null)
     : null;
 
-  const statuses: { key: StatusFilter; label: string }[] = [
-    { key: "all", label: "All" },
-    { key: "new", label: newLabel },
-    { key: "resolved", label: "Resolved" },
+  const statusOptions: { value: StatusFilter; label: string }[] = [
+    { value: "all", label: "All" },
+    { value: "new", label: newLabel },
+    { value: "resolved", label: "Resolved" },
   ];
 
   function changeQuery(value: string) {
@@ -119,48 +120,30 @@ export function InquiryList({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="relative flex-1">
-          <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
-          <Input
-            value={query}
-            onChange={(e) => changeQuery(e.target.value)}
-            placeholder={searchPlaceholder}
-            className="pl-9"
-            aria-label="Search inquiries"
-          />
-        </div>
-        <div
-          role="group"
-          aria-label="Filter by status"
-          className="bg-muted border-border inline-flex gap-1 rounded-md border p-1"
-        >
-          {statuses.map(({ key, label }) => (
-            <button
-              key={key}
-              type="button"
-              aria-pressed={status === key}
-              onClick={() => changeStatus(key)}
-              className={cn(
-                "rounded px-3 py-1.5 text-sm font-medium transition-colors",
-                status === key
-                  ? "bg-card text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        <span className="text-muted-foreground text-sm sm:ml-auto">
-          {filtered.length} {filtered.length === 1 ? "inquiry" : "inquiries"}
-        </span>
+      <div className="flex flex-wrap items-center gap-3">
+        <SearchField
+          value={query}
+          onValueChange={changeQuery}
+          placeholder={searchPlaceholder}
+          ariaLabel="Search inquiries"
+        />
+        <Multiswitch
+          options={statusOptions}
+          value={status}
+          onValueChange={changeStatus}
+          ariaLabel="Filter by status"
+        />
+        <ResultCount
+          count={filtered.length}
+          noun="inquiry"
+          pluralNoun="inquiries"
+        />
       </div>
 
       {view.items.length === 0 ? (
         <EmptyState title="No inquiries match your search." />
       ) : (
-        <ul className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+        <ul className="flex flex-col gap-2">
           {view.items.map((inquiry) => (
             <li key={inquiry.id}>
               <InquiryCard
@@ -180,45 +163,11 @@ export function InquiryList({
         </ul>
       )}
 
-      {view.pageCount > 1 ? (
-        <nav
-          aria-label="Pagination"
-          className="flex flex-wrap items-center justify-center gap-1.5"
-        >
-          <button
-            type="button"
-            disabled={view.page <= 1}
-            onClick={() => setPage(view.page - 1)}
-            className="border-border bg-card hover:bg-accent disabled:hover:bg-card h-9 rounded-md border px-3 text-sm disabled:opacity-40"
-          >
-            ‹ Prev
-          </button>
-          {Array.from({ length: view.pageCount }, (_, i) => i + 1).map((n) => (
-            <button
-              key={n}
-              type="button"
-              aria-current={n === view.page ? "page" : undefined}
-              onClick={() => setPage(n)}
-              className={cn(
-                "border-border h-9 min-w-9 rounded-md border px-2 text-sm",
-                n === view.page
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "bg-card hover:bg-accent",
-              )}
-            >
-              {n}
-            </button>
-          ))}
-          <button
-            type="button"
-            disabled={view.page >= view.pageCount}
-            onClick={() => setPage(view.page + 1)}
-            className="border-border bg-card hover:bg-accent disabled:hover:bg-card h-9 rounded-md border px-3 text-sm disabled:opacity-40"
-          >
-            Next ›
-          </button>
-        </nav>
-      ) : null}
+      <Pagination
+        page={view.page}
+        pageCount={view.pageCount}
+        onPageChange={setPage}
+      />
 
       <InquiryDetailDialog
         inquiry={openInquiry}

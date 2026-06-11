@@ -5,13 +5,19 @@ import { Star } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Multiswitch } from "@/components/ui/multiswitch";
+import { Pagination } from "@/components/ui/pagination";
+import { ResultCount } from "@/components/ui/result-count";
+import { SearchField } from "@/components/ui/search-field";
 import {
   moderateReview,
   type ReviewRow,
   type ReviewStatus,
 } from "@/features/admin";
+import { paginate } from "@/lib/pagination";
 import { cn } from "@/lib/utils";
+
+const PAGE_SIZE = 8;
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Stars
@@ -58,7 +64,7 @@ function StatusPill({ status }: { status: ReviewStatus }) {
 
 type ReviewFilter = "all" | ReviewStatus;
 
-const TABS: { label: string; value: ReviewFilter }[] = [
+const FILTER_OPTIONS: { label: string; value: ReviewFilter }[] = [
   { label: "All", value: "all" },
   { label: "Pending", value: "pending" },
   { label: "Published", value: "published" },
@@ -77,8 +83,9 @@ export function ReviewsClient({
   const [reviews, setReviews] = useState(initialReviews);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const [activeTab, setActiveTab] = useState<ReviewFilter>("all");
+  const [activeFilter, setActiveFilter] = useState<ReviewFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [page, setPage] = useState(1);
 
   function updateStatus(id: string, status: ReviewRow["status"]) {
     setReviews((prev) => prev.map((r) => (r.id === id ? { ...r, status } : r)));
@@ -100,8 +107,8 @@ export function ReviewsClient({
     });
   }
 
-  const displayed = reviews.filter((r) => {
-    if (activeTab !== "all" && r.status !== activeTab) return false;
+  const filtered = reviews.filter((r) => {
+    if (activeFilter !== "all" && r.status !== activeFilter) return false;
     const q = searchQuery.trim().toLowerCase();
     if (q === "") return true;
     return (
@@ -109,6 +116,17 @@ export function ReviewsClient({
       r.body.toLowerCase().includes(q)
     );
   });
+
+  const view = paginate(filtered, page, PAGE_SIZE);
+
+  function changeFilter(next: ReviewFilter) {
+    setActiveFilter(next);
+    setPage(1);
+  }
+  function changeQuery(next: string) {
+    setSearchQuery(next);
+    setPage(1);
+  }
 
   return (
     <div className="space-y-4">
@@ -118,48 +136,30 @@ export function ReviewsClient({
         </p>
       )}
 
-      {/* Search */}
-      <Input
-        type="search"
-        placeholder="Search author or review text..."
-        value={searchQuery}
-        onChange={(e) => setSearchQuery(e.target.value)}
-        className="max-w-sm"
-        aria-label="Search reviews"
-      />
-
-      {/* Filter tabs */}
-      <div
-        className="bg-muted inline-flex gap-0.5 rounded-lg p-1"
-        role="tablist"
-        aria-label="Filter reviews by status"
-      >
-        {TABS.map((tab) => (
-          <button
-            key={tab.value}
-            type="button"
-            role="tab"
-            aria-selected={activeTab === tab.value}
-            onClick={() => setActiveTab(tab.value)}
-            className={cn(
-              "rounded-md px-3 py-1.5 text-xs font-semibold transition-colors",
-              activeTab === tab.value
-                ? "bg-card text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {tab.label}
-          </button>
-        ))}
+      {/* Shared filter bar: search + multiswitch + reserved-width count */}
+      <div className="flex flex-wrap items-center gap-3">
+        <SearchField
+          value={searchQuery}
+          onValueChange={changeQuery}
+          placeholder="Search author or review text…"
+          ariaLabel="Search reviews"
+        />
+        <Multiswitch
+          options={FILTER_OPTIONS}
+          value={activeFilter}
+          onValueChange={changeFilter}
+          ariaLabel="Filter reviews by status"
+        />
+        <ResultCount count={filtered.length} noun="review" />
       </div>
 
-      {displayed.length === 0 ? (
+      {view.items.length === 0 ? (
         <p className="text-muted-foreground text-sm">
           No reviews match your filter.
         </p>
       ) : (
         <ul className="space-y-2">
-          {displayed.map((r) => (
+          {view.items.map((r) => (
             <li
               key={r.id}
               className="bg-card border-border rounded-xl border px-4 py-3"
@@ -198,6 +198,12 @@ export function ReviewsClient({
           ))}
         </ul>
       )}
+
+      <Pagination
+        page={view.page}
+        pageCount={view.pageCount}
+        onPageChange={setPage}
+      />
     </div>
   );
 }

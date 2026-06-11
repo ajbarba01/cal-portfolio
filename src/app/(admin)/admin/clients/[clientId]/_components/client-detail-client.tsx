@@ -162,7 +162,8 @@ export function ClientDetailClient({ client }: { client: ClientDetailView }) {
       destructive: true,
     });
     if (!isConfirmed) return;
-    run(() => cancelBooking({ bookingId: id, fullRefund: true }));
+    // fullRefund is forced server-side for admin cancels (decided by role).
+    run(() => cancelBooking({ bookingId: id }));
   }
 
   const meetGreetBooking =

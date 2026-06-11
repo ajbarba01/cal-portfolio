@@ -1,8 +1,10 @@
 "use client";
 
-import { submitForm } from "@/features/accounts";
-import type { FormKey } from "@/features/accounts";
-import { FormCard } from "@/features/accounts/index.client";
+import {
+  submitForm,
+  FormCard,
+  type FormKey,
+} from "@/features/accounts/index.client";
 import type { FormResponseRow } from "../page";
 
 // ─── Forms list ───────────────────────────────────────────────────────────────

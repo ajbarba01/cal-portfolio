@@ -454,10 +454,8 @@ export function AvailabilityClient({
       ),
       onConfirm: async () => {
         for (const b of affected) {
-          const res = await cancelBooking({
-            bookingId: b.bookingId,
-            fullRefund: true,
-          });
+          // fullRefund is forced server-side for admin cancels (decided by role).
+          const res = await cancelBooking({ bookingId: b.bookingId });
           if (res.kind !== "success") return false;
         }
         result = await applyBlock();

@@ -7,7 +7,13 @@ import { ChevronDown, ChevronRight, ChevronUp } from "lucide-react";
 
 import { EmptyState } from "@/components/feedback/empty-state";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
+import {
+  Multiswitch,
+  type MultiswitchOption,
+} from "@/components/ui/multiswitch";
+import { Pagination } from "@/components/ui/pagination";
+import { ResultCount } from "@/components/ui/result-count";
+import { SearchField } from "@/components/ui/search-field";
 import {
   applyClientFilter,
   matchesClientQuery,
@@ -18,15 +24,17 @@ import {
   type ClientSortKey,
   type SortDir,
 } from "@/features/admin";
-import { cn } from "@/lib/utils";
+import { paginate } from "@/lib/pagination";
 
 function dollars(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
-const FILTER_CHIPS: { label: string; value: ClientFilter; warn?: boolean }[] = [
+const PAGE_SIZE = 20;
+
+const FILTER_OPTIONS: MultiswitchOption<ClientFilter>[] = [
   { label: "All", value: "all" },
-  { label: "Owing", value: "owing", warn: true },
+  { label: "Owing", value: "owing", tone: "warn" },
   { label: "Needs onboarding", value: "needs_onboarding" },
   { label: "Active", value: "active" },
 ];
@@ -55,7 +63,7 @@ function SortableHeader({
   const isActive = current?.key === sortKey;
   return (
     <th
-      className="cursor-pointer py-2 pr-4 text-left font-medium select-none"
+      className="cursor-pointer px-4 py-2.5 text-left font-medium select-none"
       onClick={() => onSort(sortKey)}
       aria-sort={
         isActive ? (current.dir === "asc" ? "ascending" : "descending") : "none"
@@ -72,6 +80,7 @@ export function ClientsIndexClient({ clients }: { clients: ClientListRow[] }) {
   const [query, setQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState<ClientFilter>("all");
   const [sort, setSort] = useState<SortState>(null);
+  const [page, setPage] = useState(1);
 
   function handleSort(key: ClientSortKey) {
     setSort((prev) => {
@@ -82,11 +91,23 @@ export function ClientsIndexClient({ clients }: { clients: ClientListRow[] }) {
     });
   }
 
-  const displayed = useMemo(() => {
-    const filtered = applyClientFilter(clients, activeFilter);
-    const searched = filtered.filter((c) => matchesClientQuery(c, query));
+  const filtered = useMemo(() => {
+    const byFilter = applyClientFilter(clients, activeFilter);
+    const searched = byFilter.filter((c) => matchesClientQuery(c, query));
     return sort ? sortClients(searched, sort.key, sort.dir) : searched;
   }, [clients, activeFilter, query, sort]);
+
+  const view = paginate(filtered, page, PAGE_SIZE);
+  const displayed = view.items;
+
+  function changeFilter(next: ClientFilter) {
+    setActiveFilter(next);
+    setPage(1);
+  }
+  function changeQuery(next: string) {
+    setQuery(next);
+    setPage(1);
+  }
 
   function navigateToClient(id: string) {
     router.push(`/admin/clients/${id}`);
@@ -94,51 +115,30 @@ export function ClientsIndexClient({ clients }: { clients: ClientListRow[] }) {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Toolbar: search + filter chips */}
-      <div className="flex flex-wrap items-center gap-2">
-        <Input
-          type="search"
-          placeholder="Search name, email, or phone..."
+      {/* Shared filter bar: search + multiswitch + reserved-width count */}
+      <div className="flex flex-wrap items-center gap-3">
+        <SearchField
           value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          className="max-w-sm"
-          aria-label="Search clients"
+          onValueChange={changeQuery}
+          placeholder="Search name, email, or phone…"
+          ariaLabel="Search clients"
         />
-        <div
-          className="ml-auto flex flex-wrap gap-1.5"
-          role="group"
-          aria-label="Filter clients"
-        >
-          {FILTER_CHIPS.map((chip) => {
-            const isActive = activeFilter === chip.value;
-            return (
-              <button
-                key={chip.value}
-                type="button"
-                onClick={() => setActiveFilter(chip.value)}
-                aria-pressed={isActive}
-                className={cn(
-                  "rounded-full border px-3 py-1 text-xs font-semibold transition-colors",
-                  isActive && chip.warn
-                    ? "border-destructive bg-destructive text-white"
-                    : isActive
-                      ? "border-brand bg-brand text-brand-foreground"
-                      : "border-input bg-card text-muted-foreground hover:border-brand/40 hover:text-foreground",
-                )}
-              >
-                {chip.label}
-              </button>
-            );
-          })}
-        </div>
+        <Multiswitch
+          options={FILTER_OPTIONS}
+          value={activeFilter}
+          onValueChange={changeFilter}
+          ariaLabel="Filter clients"
+        />
+        <ResultCount count={filtered.length} noun="client" />
       </div>
 
       {displayed.length === 0 ? (
         <EmptyState title="No clients match your search." />
       ) : (
         <>
-          {/* Desktop table */}
-          <div className="hidden overflow-x-auto sm:block">
+          {/* Desktop table — wrapped in a card so cell padding insets the
+              clickable row highlight from the surface edge. */}
+          <div className="border-border bg-card hidden overflow-hidden rounded-xl border sm:block">
             <table className="w-full text-sm">
               <thead className="text-muted-foreground border-border border-b text-left">
                 <tr>
@@ -148,8 +148,8 @@ export function ClientsIndexClient({ clients }: { clients: ClientListRow[] }) {
                     current={sort}
                     onSort={handleSort}
                   />
-                  <th className="py-2 pr-4 font-medium">Contact</th>
-                  <th className="py-2 pr-4 font-medium">Pets</th>
+                  <th className="px-4 py-2.5 font-medium">Contact</th>
+                  <th className="px-4 py-2.5 font-medium">Pets</th>
                   <SortableHeader
                     label="Bookings"
                     sortKey="bookings"
@@ -162,9 +162,9 @@ export function ClientsIndexClient({ clients }: { clients: ClientListRow[] }) {
                     current={sort}
                     onSort={handleSort}
                   />
-                  <th className="py-2 pr-4 font-medium">Onboarding</th>
+                  <th className="px-4 py-2.5 font-medium">Onboarding</th>
                   {/* chevron column */}
-                  <th className="py-2" />
+                  <th className="px-4 py-2.5" />
                 </tr>
               </thead>
               <tbody>
@@ -181,7 +181,7 @@ export function ClientsIndexClient({ clients }: { clients: ClientListRow[] }) {
                     role="link"
                     aria-label={`View ${client.full_name ?? client.email ?? "client"}`}
                   >
-                    <td className="py-2 pr-4">
+                    <td className="px-4 py-2.5">
                       {/* Real <Link> for a11y + middle-click; stops propagation so click doesn't double-navigate */}
                       <Link
                         href={`/admin/clients/${client.id}`}
@@ -191,15 +191,15 @@ export function ClientsIndexClient({ clients }: { clients: ClientListRow[] }) {
                         {client.full_name ?? client.email ?? "(no name)"}
                       </Link>
                     </td>
-                    <td className="text-muted-foreground py-2 pr-4">
+                    <td className="text-muted-foreground px-4 py-2.5">
                       {client.email ?? "-"}
                       {client.phone ? (
                         <span className="block">{client.phone}</span>
                       ) : null}
                     </td>
-                    <td className="py-2 pr-4">{client.petCount}</td>
-                    <td className="py-2 pr-4">{client.bookingCount}</td>
-                    <td className="py-2 pr-4">
+                    <td className="px-4 py-2.5">{client.petCount}</td>
+                    <td className="px-4 py-2.5">{client.bookingCount}</td>
+                    <td className="px-4 py-2.5">
                       {client.outstandingCents > 0 ? (
                         <span className="text-destructive font-medium">
                           {dollars(client.outstandingCents)}
@@ -209,7 +209,7 @@ export function ClientsIndexClient({ clients }: { clients: ClientListRow[] }) {
                       )}
                     </td>
                     <td
-                      className="py-2 pr-4"
+                      className="px-4 py-2.5"
                       onClick={(e) => e.stopPropagation()}
                     >
                       {/* stopPropagation: changing onboarding status must not trigger row navigation */}
@@ -219,7 +219,7 @@ export function ClientsIndexClient({ clients }: { clients: ClientListRow[] }) {
                         meetGreetUpcoming={client.meetGreetUpcoming}
                       />
                     </td>
-                    <td className="text-muted-foreground py-2">
+                    <td className="text-muted-foreground px-4 py-2.5">
                       <ChevronRight className="h-4 w-4" />
                     </td>
                   </tr>
@@ -276,6 +276,12 @@ export function ClientsIndexClient({ clients }: { clients: ClientListRow[] }) {
               </li>
             ))}
           </ul>
+
+          <Pagination
+            page={view.page}
+            pageCount={view.pageCount}
+            onPageChange={setPage}
+          />
         </>
       )}
     </div>
