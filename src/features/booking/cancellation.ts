@@ -33,6 +33,12 @@ export interface RefundInput {
   now: Date;
   fullRefundHours: number;
   lateRefundPct: number;
+  /**
+   * When true, skip timing-based policy and return a full refund of whatever
+   * was paid. Used for admin/Cal-initiated cancellations (DESIGN: decision 14).
+   * Default false — preserves client late-cancel policy.
+   */
+  fullRefund?: boolean;
 }
 
 /**
@@ -42,6 +48,16 @@ export interface RefundInput {
  * can optionally grant the remainder.
  */
 export function computeRefund(input: RefundInput): RefundDecision {
+  // Admin/Cal-initiated cancel: always refund 100% of what was paid, regardless
+  // of timing. If nothing was paid, refund is 0. (DESIGN: decision 14)
+  if (input.fullRefund) {
+    return {
+      refundCents: input.paidCents,
+      tier: "full",
+      needsCalReview: false,
+    };
+  }
+
   const hoursUntilStart =
     (input.startsAt.getTime() - input.now.getTime()) / MS_PER_HOUR;
   const atOrBeforeCutoff = hoursUntilStart >= input.fullRefundHours;

@@ -115,7 +115,8 @@ export function BookingsCalendarClient({
       confirmLabel: "Cancel booking",
       destructive: true,
     });
-    if (isConfirmed) run(() => cancelBooking({ bookingId: id }));
+    if (isConfirmed)
+      run(() => cancelBooking({ bookingId: id, fullRefund: true }));
   }
 
   async function onNoShow(id: string) {

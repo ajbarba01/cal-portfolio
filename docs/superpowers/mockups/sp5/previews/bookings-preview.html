@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SP5a preview — Admin Bookings hub (token-accurate)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400..700&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        --background: #faf6f0; --foreground: #2b2520; --card: #ffffff;
+        --muted: #f2ece1; --muted-foreground: #6e6354; --border: #e7decf; --input: #e7decf; --canvas: #e7decf;
+        --brand: #ae5a35; --brand-foreground: #ffffff; --brand-strong: #8a4226;
+        --status-available: #e3e7d2; --status-available-foreground: #4f5b33;
+        --status-booked: #d9e2e8; --status-booked-foreground: #3c5566;
+        --status-unavailable: #e7decf; --status-unavailable-foreground: #6e6354;
+        --warning: #f3e3c8; --warning-foreground: #7a5a1e;
+        --destructive: #b23b29;
+        --radius-xl: 0.525rem;
+        --font-sans: "Public Sans", system-ui, sans-serif; --font-heading: "Fraunces", Georgia, serif;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--canvas); font-family: var(--font-sans); color: var(--foreground); -webkit-font-smoothing: antialiased; }
+      .sheet { max-width: 820px; margin: 0 auto; background: var(--background); min-height: 100vh; border-left: 1px solid var(--border); border-right: 1px solid var(--border); padding: 28px 24px 64px; }
+      .banner { font-size: 12px; color: var(--muted-foreground); background: var(--muted); border-radius: 8px; padding: 8px 12px; margin-bottom: 18px; }
+      h1 { font-family: var(--font-heading); font-weight: 600; font-size: 28px; margin: 0 0 4px; }
+      .sub { color: var(--muted-foreground); font-size: 14px; margin: 0 0 18px; }
+      .legend-top { color: var(--brand-strong); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; margin: 22px 0 10px; }
+      .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-xl); padding: 16px; }
+
+      .toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+      .ctrl { border: 1px solid var(--input); background: var(--background); border-radius: 8px; padding: 7px 10px; font-size: 13px; display: inline-flex; gap: 6px; align-items: center; }
+      .ctrl.search { min-width: 170px; flex: 1; max-width: 260px; }
+      .ctrl.search.active { border-color: var(--brand); box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand) 15%, transparent); }
+      .seg { margin-left: auto; display: inline-flex; border: 1px solid var(--input); border-radius: 8px; overflow: hidden; }
+      .seg span { padding: 7px 14px; font-size: 13px; font-weight: 600; color: var(--muted-foreground); cursor: pointer; }
+      .seg span.on { background: var(--brand); color: var(--brand-foreground); }
+      .ic { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; }
+
+      /* shared booking row */
+      .brow { border: 1px solid var(--border); border-radius: 10px; background: var(--card); padding: 11px 13px; }
+      .brow + .brow { margin-top: 8px; }
+      .btop { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+      .who { font-weight: 700; font-size: 14px; }
+      .meta { color: var(--muted-foreground); font-size: 12px; margin-top: 3px; }
+      .amt { margin-left: auto; font-weight: 700; }
+      .pill { font-size: 11px; font-weight: 600; border-radius: 999px; padding: 2px 9px; display: inline-flex; align-items: center; gap: 4px; }
+      .s-pending { background: var(--warning); color: var(--warning-foreground); }
+      .s-confirmed { background: var(--status-available); color: var(--status-available-foreground); }
+      .pay-paid { background: var(--status-available); color: var(--status-available-foreground); }
+      .pay-unpaid { background: var(--muted); color: var(--muted-foreground); }
+      .acts { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 10px; }
+      .b { font-size: 12px; font-weight: 600; border-radius: 8px; padding: 5px 11px; border: 1px solid var(--border); background: var(--card); color: var(--foreground); cursor: pointer; }
+      .b.solid { background: var(--brand); color: var(--brand-foreground); border-color: var(--brand); }
+      .b.warn { border-color: var(--destructive); color: var(--destructive); }
+      .ro { font-size: 11px; color: var(--muted-foreground); font-style: italic; margin-top: 10px; }
+
+      /* calendar */
+      .cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-bottom: 14px; }
+      .dow { font-size: 10px; text-transform: uppercase; color: var(--muted-foreground); text-align: center; }
+      .day { aspect-ratio: 1; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 13px; background: var(--muted); color: var(--foreground); position: relative; }
+      .day.b { background: var(--status-booked); color: var(--status-booked-foreground); font-weight: 600; cursor: pointer; }
+      .day.match { background: var(--status-booked); color: var(--status-booked-foreground); font-weight: 700; box-shadow: inset 0 0 0 2px var(--brand); }
+      .day.hatch { background: repeating-linear-gradient(45deg, #ece4d4, #ece4d4 3px, #e2d8c6 3px, #e2d8c6 6px); color: var(--muted-foreground); }
+      .cnt { position: absolute; bottom: 2px; right: 4px; font-size: 8px; font-weight: 700; }
+      .seclabel { font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--brand-strong); font-weight: 600; margin: 0 0 8px; }
+      .tlwrap { border: 1px solid var(--border); border-radius: 10px; background: var(--card); display: grid; grid-template-columns: 56px 1fr; margin-bottom: 14px; overflow: hidden; }
+      .timeline { border-right: 1px solid var(--border); padding: 8px 0; }
+      .tick { font-size: 9px; color: var(--muted-foreground); padding: 0 6px; height: 30px; border-top: 1px solid var(--border); }
+      .blocks { padding: 8px; }
+      .blk { border-radius: 7px; padding: 6px 8px; font-size: 11px; margin-bottom: 6px; cursor: pointer; }
+      .blk.match { background: var(--warning); color: var(--warning-foreground); box-shadow: inset 0 0 0 1.5px var(--warning-foreground); font-weight: 600; }
+      .blk.off { background: var(--muted); color: var(--muted-foreground); }
+    </style>
+  </head>
+  <body>
+    <div class="sheet">
+      <div class="banner">
+        Token-accurate preview of the finished <b>/admin/bookings</b> hub (real Trail palette).
+        Covers the <b>shared booking row (Task 7)</b> + the <b>dual List/Calendar hub (Task 8)</b>.
+        Inline actions everywhere (no "Manage" hop), one filter bar, one Scheduler calendar, search greys context.
+      </div>
+
+      <h1>Bookings</h1>
+      <p class="sub">Approve, edit, or cancel right from the row. Switch between list and calendar; search greys out the rest.</p>
+
+      <!-- LIST VIEW -->
+      <p class="legend-top">List view</p>
+      <div class="card">
+        <div class="toolbar">
+          <span class="ctrl">Status: <b>Pending</b> <svg class="ic" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span>
+          <span class="ctrl search"><svg class="ic" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg> Search client…</span>
+          <span class="seg"><span>Calendar</span><span class="on">List</span></span>
+        </div>
+
+        <div class="brow">
+          <div class="btop">
+            <span class="who">Jane Doe</span>
+            <span class="pill s-pending">Pending approval</span>
+            <span class="pill pay-paid"><svg class="ic" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg> Paid</span>
+            <span class="amt">$45.00</span>
+          </div>
+          <div class="meta">Dog Walk · Tue Dec 23, 2:00 – 2:30 PM · 🐕 Cooper</div>
+          <div class="acts"><button class="b solid">Approve</button><button class="b">Decline</button><a class="b">Edit</a><button class="b warn">Cancel</button></div>
+        </div>
+        <div class="brow">
+          <div class="btop">
+            <span class="who">Sam Reyes</span>
+            <span class="pill s-pending">Pending approval</span>
+            <span class="pill pay-unpaid"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/></svg> Unpaid</span>
+            <span class="amt">$200.00</span>
+          </div>
+          <div class="meta">Overnight · Jan 4 – Jan 6 · 🐕 Bo, 🐈 Lux</div>
+          <div class="acts"><button class="b solid">Approve</button><button class="b">Decline</button><a class="b">Edit</a><button class="b warn">Cancel</button></div>
+        </div>
+        <p class="ro">Same booking-row component used in the Calendar view below. Cancel → confirm popup (100% refund, Cal-initiated). Edit → the edit flow.</p>
+      </div>
+
+      <!-- CALENDAR VIEW (searching "Jane") -->
+      <p class="legend-top">Calendar view — searching "Jane"</p>
+      <div class="card">
+        <div class="toolbar">
+          <span class="ctrl search active"><svg class="ic" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg> Jane</span>
+          <span class="ctrl">Status: <b>All</b> <svg class="ic" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span>
+          <span class="seg"><span class="on">Calendar</span><span>List</span></span>
+        </div>
+
+        <p class="seclabel">December · matches for "Jane" highlighted</p>
+        <div class="cal">
+          <div class="dow">S</div><div class="dow">M</div><div class="dow">T</div><div class="dow">W</div><div class="dow">T</div><div class="dow">F</div><div class="dow">S</div>
+          <div class="day">21</div><div class="day">22</div><div class="day match">23<span class="cnt">1</span></div><div class="day">24</div><div class="day hatch">25</div><div class="day">26</div><div class="day">27</div>
+          <div class="day hatch">28</div><div class="day b">29</div><div class="day">30</div><div class="day">31</div>
+        </div>
+
+        <p class="seclabel">Tue Dec 23 · time of day (click a block to isolate)</p>
+        <div class="tlwrap">
+          <div class="timeline"><div class="tick">8 AM</div><div class="tick">11 AM</div><div class="tick">2 PM</div><div class="tick">5 PM</div></div>
+          <div class="blocks">
+            <div class="blk off">9:00 · Bo — Dog Walk (Sam)</div>
+            <div class="blk match">2:00 · Cooper — Dog Walk (Jane)</div>
+            <div class="blk off">4:00 · Lux — Drop-in (Pat)</div>
+          </div>
+        </div>
+
+        <p class="seclabel">Bookings · 1 match</p>
+        <div class="brow">
+          <div class="btop"><span class="who">Jane Doe</span> <span class="pill s-pending">Pending approval</span> <span class="pill pay-paid"><svg class="ic" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg> Paid</span> <span class="amt">$45.00</span></div>
+          <div class="meta">Dog Walk · 2:00 – 2:30 PM · 🐕 Cooper</div>
+          <div class="acts"><button class="b solid">Approve</button><button class="b">Decline</button><a class="b">Edit</a><button class="b warn">Cancel</button></div>
+        </div>
+        <p class="ro">Days with no "Jane" booking → hatched; non-matching timeline blocks → greyed (context kept, not hidden). Clicking a block isolates that booking ("Show all" restores). Clear search to restore. Full-width vertical stack: month → timeline → list.</p>
+      </div>
+    </div>
+  </body>
+</html>
