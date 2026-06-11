@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SP5a preview — Admin Availability (token-accurate)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400..700&family=Public+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --background: #faf6f0; --foreground: #2b2520; --card: #ffffff;
+        --muted: #f2ece1; --muted-foreground: #6e6354; --border: #e7decf; --input: #e7decf; --canvas: #e7decf;
+        --brand: #ae5a35; --brand-foreground: #ffffff; --brand-strong: #8a4226;
+        --status-available: #e3e7d2; --status-available-foreground: #4f5b33;
+        --status-booked: #d9e2e8; --status-booked-foreground: #3c5566;
+        --status-unavailable: #e7decf; --status-unavailable-foreground: #6e6354;
+        --warning: #f3e3c8; --warning-foreground: #7a5a1e;
+        --destructive: #b23b29; --destructive-soft: #f7e3dd;
+        --radius-xl: 0.525rem;
+        --font-sans: "Public Sans", system-ui, sans-serif; --font-heading: "Fraunces", Georgia, serif;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--canvas); font-family: var(--font-sans); color: var(--foreground); -webkit-font-smoothing: antialiased; }
+      .sheet { max-width: 980px; margin: 0 auto; background: var(--background); min-height: 100vh; border-left: 1px solid var(--border); border-right: 1px solid var(--border); padding: 28px 24px 64px; }
+      .banner { font-size: 12px; color: var(--muted-foreground); background: var(--muted); border-radius: 8px; padding: 8px 12px; margin-bottom: 18px; }
+      h1 { font-family: var(--font-heading); font-weight: 600; font-size: 28px; margin: 0 0 4px; }
+      .sub { color: var(--muted-foreground); font-size: 14px; margin: 0 0 22px; }
+      .legend-top { color: var(--brand-strong); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 10px; }
+
+      .layout { display: grid; grid-template-columns: 1.5fr 17rem; gap: 16px; align-items: start; }
+      @media (max-width: 880px) { .layout { grid-template-columns: 1fr; } }
+      .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-xl); padding: 18px; }
+
+      .cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+      .dow { font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted-foreground); text-align: center; padding-bottom: 4px; }
+      .day { aspect-ratio: 1; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 13px; position: relative; }
+      .avail { background: var(--status-available); color: var(--status-available-foreground); }
+      .unav { background: var(--status-unavailable); color: var(--status-unavailable-foreground); }
+      .booked { background: var(--status-booked); color: var(--status-booked-foreground); cursor: pointer; }
+      .sel { box-shadow: inset 0 0 0 2px var(--brand); font-weight: 700; }
+      .star::after { content: "★"; position: absolute; top: 2px; right: 4px; font-size: 9px; color: var(--warning-foreground); }
+      .legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 14px; font-size: 11px; color: var(--muted-foreground); }
+      .lg { display: inline-flex; align-items: center; gap: 5px; }
+      .sw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+
+      .actitle { font-size: 13px; font-weight: 700; margin: 0 0 10px; }
+      .act { display: flex; flex-direction: column; gap: 8px; }
+      .btn { font-size: 13px; font-weight: 600; border-radius: 8px; padding: 9px 12px; text-align: center; border: 1px solid var(--border); background: var(--card); color: var(--foreground); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+      .btn.solid { background: var(--brand); color: var(--brand-foreground); border-color: var(--brand); }
+      .btn.premium { background: var(--warning); color: var(--warning-foreground); border-color: var(--warning-foreground); }
+      .note { font-size: 11px; color: var(--muted-foreground); margin-top: 4px; }
+      .ic { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; }
+
+      /* booked-cell read-only inspect */
+      .inspect { margin-top: 16px; }
+      .inspect .card { padding: 14px; }
+      .ttl { font-size: 13px; font-weight: 700; }
+      .kv { font-size: 12px; color: var(--muted-foreground); margin: 6px 0 10px; }
+      .links { display: flex; gap: 14px; font-size: 12px; }
+      .links a { color: var(--brand-strong); font-weight: 500; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
+      .links a:hover { text-decoration: underline; }
+      .ro { font-size: 11px; color: var(--muted-foreground); font-style: italic; margin-top: 8px; }
+
+      /* cancel-by-blocking confirm (alertdialog) */
+      .scrim { margin-top: 22px; background: rgba(40,32,24,.28); border-radius: 12px; padding: 22px; display: flex; justify-content: center; }
+      .confirm { width: 100%; max-width: 420px; background: var(--card); border-radius: 12px; overflow: hidden; box-shadow: 0 12px 40px rgba(60,40,20,.25); border: 1px solid var(--border); }
+      .confirm .ch { background: var(--destructive-soft); color: var(--destructive); padding: 12px 15px; font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 7px; }
+      .confirm .cc { padding: 14px 15px; }
+      .confirm .cc p { font-size: 13px; margin: 0 0 10px; }
+      .aff { border: 1px solid var(--border); border-radius: 8px; background: var(--background); padding: 9px 11px; font-size: 12px; color: var(--muted-foreground); margin-bottom: 8px; }
+      .aff b { color: var(--foreground); }
+      .aff .ref { color: var(--status-available-foreground); font-weight: 600; }
+      .reason { border: 1px dashed var(--border); border-radius: 8px; padding: 8px 11px; font-size: 11px; color: var(--muted-foreground); margin: 4px 0 12px; }
+      .cbtns { display: flex; gap: 8px; justify-content: flex-end; }
+      .b { font-size: 13px; font-weight: 600; border-radius: 8px; padding: 8px 14px; border: 1px solid var(--border); background: var(--card); color: var(--foreground); cursor: pointer; }
+      .b.warn { background: var(--destructive); color: #fff; border-color: var(--destructive); }
+    </style>
+  </head>
+  <body>
+    <div class="sheet">
+      <div class="banner">
+        Token-accurate preview of the finished <b>/admin/availability</b> surface
+        (real Trail palette + Fraunces/Public Sans). Covers <b>premium days (Task 5)</b>
+        and <b>paint-only + cancel-by-blocking (Task 9)</b>. Proposed "done" look for sign-off.
+      </div>
+
+      <h1>Availability</h1>
+      <p class="sub">Paint your booking windows. Click a booked day to inspect it — manage it on Bookings.</p>
+
+      <div class="layout">
+        <!-- Calendar -->
+        <div class="card">
+          <p class="legend-top">December — paint availability</p>
+          <div class="cal">
+            <div class="dow">S</div><div class="dow">M</div><div class="dow">T</div><div class="dow">W</div><div class="dow">T</div><div class="dow">F</div><div class="dow">S</div>
+            <div class="day avail">21</div><div class="day avail">22</div><div class="day booked">23</div>
+            <div class="day avail">24</div><div class="day avail sel star">25</div><div class="day avail">26</div><div class="day avail">27</div>
+            <div class="day avail">28</div><div class="day booked">29</div><div class="day unav">30</div><div class="day avail star">31</div>
+          </div>
+          <div class="legend">
+            <span class="lg"><span class="sw" style="background:var(--status-available)"></span> Open</span>
+            <span class="lg"><span class="sw" style="background:var(--status-booked)"></span> Booked</span>
+            <span class="lg"><span class="sw" style="background:var(--status-unavailable)"></span> Unavailable</span>
+            <span class="lg"><span style="color:var(--warning-foreground)">★</span> Premium day</span>
+            <span class="lg"><span class="sw" style="box-shadow:inset 0 0 0 2px var(--brand)"></span> Selected</span>
+          </div>
+        </div>
+
+        <!-- Day actions — header is the current selection (1 day or a range) -->
+        <div class="card">
+          <p class="actitle">Dec 24 – Dec 27 · 4 days selected</p>
+          <div class="act">
+            <button class="btn solid"><svg class="ic" viewBox="0 0 24 24"><path d="M12 6v6l4 2"/><circle cx="12" cy="12" r="9"/></svg> Set booking window</button>
+            <button class="btn"><svg class="ic" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg> Mark unavailable</button>
+            <button class="btn premium"><svg class="ic" viewBox="0 0 24 24"><path d="m12 3 2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9 6.8 19.2l1-5.8L3.5 9.2l5.9-.9z"/></svg> ★ Premium day — surcharge on</button>
+            <p class="note">Premium writes this date to the surcharge list. Set the rate in Settings.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Booked-cell read-only inspect (Task 9 paint-only) -->
+      <div class="inspect">
+        <p class="legend-top">Booked day — read only (Dec 23)</p>
+        <div class="card">
+          <div class="ttl">Jane Doe · Dog Walk</div>
+          <div class="kv">🐕 Cooper (dog) · Tue Dec 23, 2:00 – 2:30 PM · Confirmed</div>
+          <div class="links">
+            <a href="#">Manage on Bookings <svg class="ic" viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg></a>
+            <a href="#">View client <svg class="ic" viewBox="0 0 24 24"><path d="M5 12h14M13 5l7 7-7 7"/></svg></a>
+          </div>
+          <p class="ro">Availability is paint-only — moderation lives on Bookings. No no-show, no inline status editing here.</p>
+        </div>
+      </div>
+
+      <!-- Cancel-by-blocking confirm -->
+      <div class="scrim">
+        <div class="confirm" role="alertdialog">
+          <div class="ch"><svg class="ic" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg> Blocking this day cancels 2 bookings</div>
+          <div class="cc">
+            <p>You're marking all of Tue Dec 23 unavailable. These will be cancelled and the clients <b>fully refunded</b>:</p>
+            <div class="aff"><b>Jane Doe</b> · Dog Walk · 2:00 PM<br><span class="ref">Refund $45.00 — 100% (you cancelled)</span></div>
+            <div class="aff"><b>Sam Reyes</b> · Dog Walk · 4:00 PM<br><span class="ref">Refund $45.00 — 100% (you cancelled)</span></div>
+            <div class="reason">One shared reason for the whole batch lands with the cancellation-email work (deferred). Clients are notified.</div>
+            <div class="cbtns"><button class="b">Keep bookings</button><button class="b warn">Cancel 2 &amp; block</button></div>
+          </div>
+        </div>
+      </div>
+      <p class="ro" style="text-align:center; max-width:420px; margin:8px auto 0;">Cal-initiated cancel = 100% refund (client late-cancel still uses the policy %). Empty time blocks silently. ConfirmDialog = bottom-sheet on mobile.</p>
+    </div>
+  </body>
+</html>

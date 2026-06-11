@@ -5,6 +5,7 @@ import { ChevronRight, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/feedback/confirm-dialog";
 import { PetForm } from "./pet-form";
+import type { PetFormActions } from "./pet-form";
 import { PetAvatar } from "@/features/booking/index.client";
 import type { Pet } from "@/features/accounts/account-actions";
 import type { ActionResult } from "@/features/accounts/account-actions";
@@ -29,10 +30,15 @@ export interface PetListProps {
    */
   onChanged: () => void;
   /**
-   * Injected delete action — account passes `deletePet`; admin passes a
-   * profile-scoped on-behalf variant that owns the pet-id check.
+   * Injected delete action — account passes `deletePet`; admin omits this to
+   * suppress the Delete button entirely (admin on-behalf zone has no delete).
    */
-  onDelete: (petId: string) => Promise<ActionResult>;
+  onDelete?: (petId: string) => Promise<ActionResult>;
+  /**
+   * Optional action overrides for PetForm (create/update/uploadPhoto).
+   * Account zone omits this; admin zone injects on-behalf variants.
+   */
+  actions?: PetFormActions;
 }
 
 // ─── Pet item ─────────────────────────────────────────────────────────────────
@@ -41,10 +47,12 @@ function PetItem({
   pet,
   onChanged,
   onDelete,
+  actions,
 }: {
   pet: PetViewLike;
   onChanged: () => void;
-  onDelete: (petId: string) => Promise<ActionResult>;
+  onDelete?: (petId: string) => Promise<ActionResult>;
+  actions?: PetFormActions;
 }) {
   const [editing, setEditing] = useState(false);
   const [open, setOpen] = useState(false);
@@ -63,6 +71,7 @@ function PetItem({
     });
     if (!ok) return;
     startTransition(async () => {
+      if (!onDelete) return;
       const result = await onDelete(pet.id);
       if (result.kind === "success") {
         onChanged();
@@ -83,6 +92,7 @@ function PetItem({
             onChanged();
           }}
           onCancel={() => setEditing(false)}
+          actions={actions}
         />
       </li>
     );
@@ -116,15 +126,17 @@ function PetItem({
           >
             Edit
           </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            className="text-destructive hover:text-destructive border-destructive/30"
-            onClick={() => void handleDelete()}
-            disabled={isPending}
-          >
-            {isPending ? "Deleting…" : "Delete"}
-          </Button>
+          {onDelete && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-destructive hover:text-destructive border-destructive/30"
+              onClick={() => void handleDelete()}
+              disabled={isPending}
+            >
+              {isPending ? "Deleting…" : "Delete"}
+            </Button>
+          )}
           <button
             type="button"
             aria-expanded={open}
@@ -170,7 +182,7 @@ function PetItem({
 
 // ─── Pet list ─────────────────────────────────────────────────────────────────
 
-export function PetList({ pets, onChanged, onDelete }: PetListProps) {
+export function PetList({ pets, onChanged, onDelete, actions }: PetListProps) {
   const [showAddForm, setShowAddForm] = useState(false);
 
   return (
@@ -192,6 +204,7 @@ export function PetList({ pets, onChanged, onDelete }: PetListProps) {
               pet={pet}
               onChanged={onChanged}
               onDelete={onDelete}
+              actions={actions}
             />
           ))}
         </ul>
@@ -206,6 +219,7 @@ export function PetList({ pets, onChanged, onDelete }: PetListProps) {
               onChanged();
             }}
             onCancel={() => setShowAddForm(false)}
+            actions={actions}
           />
         </div>
       ) : (
