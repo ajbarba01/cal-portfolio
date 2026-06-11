@@ -33,8 +33,10 @@ import { CalendarDays, List } from "lucide-react";
 
 import { useConfirm } from "@/components/feedback/confirm-dialog";
 import { EmptyState } from "@/components/feedback/empty-state";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Multiswitch } from "@/components/ui/multiswitch";
+import { Pagination } from "@/components/ui/pagination";
+import { ResultCount } from "@/components/ui/result-count";
+import { SearchField } from "@/components/ui/search-field";
 import {
   Select,
   SelectContent,
@@ -42,6 +44,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { paginate } from "@/lib/pagination";
 import { cn } from "@/lib/utils";
 import {
   approveBooking,
@@ -58,6 +61,7 @@ import {
   Scheduler,
   INSPECT_CAPABILITIES,
   denverDayKey,
+  buildInspectSchedulerData,
 } from "@/features/booking/index.client";
 import type { BusyBlock, SchedulerData } from "@/features/booking/index.client";
 
@@ -120,6 +124,11 @@ function toBusyBlock(b: BookingCalendarRow): BusyBlock {
 }
 
 type View = "calendar" | "list";
+
+const VIEW_OPTIONS = [
+  { value: "calendar" as const, label: "Calendar", icon: CalendarDays },
+  { value: "list" as const, label: "List", icon: List },
+];
 
 type ActionResult = { kind: string };
 
@@ -366,7 +375,7 @@ export function BookingsCalendarClient({
   const [query, setQuery] = useState("");
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [isolatedId, setIsolatedId] = useState<string | null>(deepLinkId);
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [page, setPage] = useState(1);
 
   const searching =
     query.trim() !== "" || status !== "all" || service !== "all";
@@ -406,44 +415,19 @@ export function BookingsCalendarClient({
   }, [searching, filtered, bookings]);
 
   // ── Scheduler data (bookings as busy blocks) ────────────────────────────────
-  // MonthGrid classifies a day "available" only when its day-key is in
-  // `overnightNights`; otherwise (with editable:false) the cell is inert and
-  // can't be selected. For a read inspector we want EVERY non-past day to be
-  // selectable (so clicking any day reveals its — possibly empty — timeline), so
-  // we mark a wide span of day-keys available. Booked days still classify
-  // "busy" (resident overlap wins), so they inspect rather than paint.
-  const allDayKeys = useMemo(() => {
-    const keys = new Set<string>();
-    const start = new Date(monthStartIso);
-    const base = Date.UTC(start.getUTCFullYear(), start.getUTCMonth() - 2, 1);
-    // ~5 months of day-keys around the month — covers prev/next navigation.
-    for (let i = 0; i < 150; i += 1) {
-      const d = new Date(base + i * 86_400_000);
-      const yyyy = d.getUTCFullYear();
-      const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
-      const dd = String(d.getUTCDate()).padStart(2, "0");
-      keys.add(`${yyyy}-${mm}-${dd}`);
-    }
-    return keys;
-  }, [monthStartIso]);
-
-  const data = useMemo<SchedulerData>(() => {
-    const blocks = bookings.map(toBusyBlock);
-    return {
-      overnightNights: allDayKeys,
-      windows: [],
-      busy: blocks,
-      busyResident: blocks,
-      rules: {
-        bookingOpenMinute: 0,
-        bookingCloseMinute: 1440,
-        minLeadTimeHours: 0,
-        hardMaxAdvanceDays: 3650,
-      },
-      now: new Date(nowIso),
-      dimmedDays,
-    };
-  }, [bookings, allDayKeys, nowIso, dimmedDays]);
+  // Read-only inspect calendar: every day is bookable (so any day can be clicked
+  // to reveal its — possibly empty — timeline) while booked days classify busy
+  // and inspect rather than paint. Shared with the account bookings calendar.
+  const data = useMemo<SchedulerData>(
+    () =>
+      buildInspectSchedulerData({
+        blocks: bookings.map(toBusyBlock),
+        monthStartIso,
+        nowIso,
+        dimmedDays,
+      }),
+    [bookings, monthStartIso, nowIso, dimmedDays],
+  );
 
   // ── action runner ───────────────────────────────────────────────────────────
   function run(action: () => Promise<ActionResult>) {
@@ -477,8 +461,9 @@ export function BookingsCalendarClient({
   const isolatedRow = isolatedId ? isolate(filtered, isolatedId) : null;
   const listRows =
     isolatedRow && isolatedRow.length > 0 ? isolatedRow : filtered;
-  const pagedRows = isolatedRow ? listRows : listRows.slice(0, visibleCount);
-  const hasMore = !isolatedRow && listRows.length > visibleCount;
+  // Isolated view shows the single row unpaginated; otherwise numbered pages.
+  const listPage = paginate(listRows, page, PAGE_SIZE);
+  const pagedRows = isolatedRow ? listRows : listPage.items;
 
   // Calendar: the selected day's bookings (filtered? — keep context: show ALL
   // that day, grey the non-matches in the timeline). Day list = matched-on-day,
@@ -508,17 +493,17 @@ export function BookingsCalendarClient({
   function onStatusChange(next: BookingStatusFilter) {
     setStatus(next);
     setIsolatedId(null);
-    setVisibleCount(PAGE_SIZE);
+    setPage(1);
   }
   function onServiceChange(next: string) {
     setService(next);
     setIsolatedId(null);
-    setVisibleCount(PAGE_SIZE);
+    setPage(1);
   }
   function onQueryChange(next: string) {
     setQuery(next);
     setIsolatedId(null);
-    setVisibleCount(PAGE_SIZE);
+    setPage(1);
   }
 
   const statusLabel =
@@ -567,52 +552,22 @@ export function BookingsCalendarClient({
         </SelectContent>
       </Select>
 
-      <Input
-        type="search"
+      <SearchField
         value={query}
-        onChange={(e) => onQueryChange(e.target.value)}
+        onValueChange={onQueryChange}
         placeholder="Search client…"
-        aria-label="Search client"
-        className="max-w-64 flex-1"
+        ariaLabel="Search client"
+        className="max-w-64"
       />
 
-      {/* segmented Calendar ⇄ List toggle */}
-      <div
-        role="tablist"
-        aria-label="Switch view"
-        className="border-input ml-auto inline-flex overflow-hidden rounded-lg border"
-      >
-        <button
-          type="button"
-          role="tab"
-          aria-selected={view === "calendar"}
-          onClick={() => setView("calendar")}
-          className={cn(
-            "focus-visible:ring-ring inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold transition-colors focus-visible:ring-2 focus-visible:outline-none",
-            view === "calendar"
-              ? "bg-brand text-brand-foreground"
-              : "text-muted-foreground hover:bg-muted",
-          )}
-        >
-          <CalendarDays className="size-4" aria-hidden="true" />
-          Calendar
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={view === "list"}
-          onClick={() => setView("list")}
-          className={cn(
-            "focus-visible:ring-ring inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold transition-colors focus-visible:ring-2 focus-visible:outline-none",
-            view === "list"
-              ? "bg-brand text-brand-foreground"
-              : "text-muted-foreground hover:bg-muted",
-          )}
-        >
-          <List className="size-4" aria-hidden="true" />
-          List
-        </button>
-      </div>
+      <Multiswitch
+        options={VIEW_OPTIONS}
+        value={view}
+        onValueChange={setView}
+        ariaLabel="Switch view"
+      />
+
+      <ResultCount count={filtered.length} noun="booking" />
     </div>
   );
 
@@ -632,129 +587,124 @@ export function BookingsCalendarClient({
         </p>
       ) : null}
 
-      <div className="bg-card border-border rounded-xl border p-4">
-        {filterBar}
+      {filterBar}
 
-        {/* "Show all" reset when a booking is isolated */}
-        {isolatedId ? (
-          <div className="mb-3 flex items-center gap-2 text-xs">
-            <span className="text-muted-foreground">
-              Showing 1 isolated booking.
-            </span>
-            <button
-              type="button"
-              onClick={resetIsolation}
-              className="text-brand-strong font-semibold hover:underline"
-            >
-              Show all
-            </button>
-          </div>
-        ) : null}
+      {/* "Show all" reset when a booking is isolated */}
+      {isolatedId ? (
+        <div className="mb-3 flex items-center gap-2 text-xs">
+          <span className="text-muted-foreground">
+            Showing 1 isolated booking.
+          </span>
+          <button
+            type="button"
+            onClick={resetIsolation}
+            className="text-brand-strong font-semibold hover:underline"
+          >
+            Show all
+          </button>
+        </div>
+      ) : null}
 
-        {view === "list" ? (
-          // ── LIST VIEW ──────────────────────────────────────────────────────
-          listRows.length === 0 ? (
-            <EmptyState title="No bookings match." />
-          ) : (
-            <>
-              <ul className="flex flex-col gap-2">
-                {pagedRows.map((booking) => (
-                  <BookingRow
-                    key={booking.id}
-                    booking={booking}
-                    onApprove={onApprove}
-                    onDecline={onDecline}
-                    onCancel={onCancel}
-                    pending={isPending}
-                  />
-                ))}
-              </ul>
-              {hasMore ? (
-                <div className="mt-3 flex justify-center">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
-                  >
-                    Show more ({listRows.length - visibleCount} more)
-                  </Button>
-                </div>
-              ) : null}
-            </>
-          )
+      {view === "list" ? (
+        // ── LIST VIEW ──────────────────────────────────────────────────────
+        listRows.length === 0 ? (
+          <EmptyState title="No bookings match." />
         ) : (
-          // ── CALENDAR VIEW ──────────────────────────────────────────────────
-          <Scheduler capabilities={INSPECT_CAPABILITIES} data={data}>
-            <InspectBridge onPickDay={resetIsolation} />
-            <SelectedDayBridge onSelect={setSelectedDay} />
+          <>
+            <ul className="flex flex-col gap-2">
+              {pagedRows.map((booking) => (
+                <BookingRow
+                  key={booking.id}
+                  booking={booking}
+                  onApprove={onApprove}
+                  onDecline={onDecline}
+                  onCancel={onCancel}
+                  pending={isPending}
+                />
+              ))}
+            </ul>
+            {isolatedRow ? null : (
+              <Pagination
+                page={listPage.page}
+                pageCount={listPage.pageCount}
+                onPageChange={setPage}
+                className="mt-3"
+              />
+            )}
+          </>
+        )
+      ) : (
+        // ── CALENDAR VIEW ──────────────────────────────────────────────────
+        <Scheduler capabilities={INSPECT_CAPABILITIES} data={data}>
+          <InspectBridge onPickDay={resetIsolation} />
+          <SelectedDayBridge onSelect={setSelectedDay} />
 
-            <div className="flex flex-col gap-4">
-              {/* month grid (shared) */}
+          <div className="flex flex-col gap-4">
+            {/* month grid (shared) */}
+            <div className="flex flex-col gap-2">
+              <SectionLabel>
+                {monthLabel}
+                {searching ? " · matches highlighted" : null}
+              </SectionLabel>
+              <Scheduler.MonthGrid />
+            </div>
+
+            {/* read-only day timeline for the selected day */}
+            {selectedDay ? (
               <div className="flex flex-col gap-2">
                 <SectionLabel>
-                  {monthLabel}
-                  {searching ? " · matches highlighted" : null}
+                  {dayHeading(selectedDay)} · time of day (click a block to
+                  isolate)
                 </SectionLabel>
-                <Scheduler.MonthGrid />
+                <BookingDayTimeline
+                  dayKey={selectedDay}
+                  dayBookings={dayBookings}
+                  matchedIds={matchedIds}
+                  searching={searching}
+                  onIsolate={(id) => {
+                    setView("calendar");
+                    setIsolatedId(id);
+                  }}
+                />
               </div>
+            ) : null}
 
-              {/* read-only day timeline for the selected day */}
-              {selectedDay ? (
-                <div className="flex flex-col gap-2">
-                  <SectionLabel>
-                    {dayHeading(selectedDay)} · time of day (click a block to
-                    isolate)
-                  </SectionLabel>
-                  <BookingDayTimeline
-                    dayKey={selectedDay}
-                    dayBookings={dayBookings}
-                    matchedIds={matchedIds}
-                    searching={searching}
-                    onIsolate={(id) => {
-                      setView("calendar");
-                      setIsolatedId(id);
-                    }}
-                  />
-                </div>
-              ) : null}
-
-              {/* the selected day's booking rows */}
-              {selectedDay ? (
-                <div className="flex flex-col gap-2">
-                  <SectionLabel>
-                    Bookings ·{" "}
-                    {isolatedId
-                      ? "1 isolated"
-                      : `${calendarDayList.length} ${
-                          searching ? "match" : "this day"
-                        }`}
-                  </SectionLabel>
-                  {calendarDayList.length === 0 ? (
-                    <EmptyState title="No bookings to show for this day." />
-                  ) : (
-                    <ul className="flex flex-col gap-2">
-                      {calendarDayList.map((booking) => (
-                        <BookingRow
-                          key={booking.id}
-                          booking={booking}
-                          onApprove={onApprove}
-                          onDecline={onDecline}
-                          onCancel={onCancel}
-                          pending={isPending}
-                        />
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              ) : (
-                <p className="text-muted-foreground text-sm">
-                  Pick a day above to see its bookings.
-                </p>
-              )}
-            </div>
-          </Scheduler>
-        )}
-      </div>
+            {/* the selected day's booking rows */}
+            {selectedDay ? (
+              <div className="flex flex-col gap-2">
+                <SectionLabel>
+                  Bookings ·{" "}
+                  {isolatedId
+                    ? "1 isolated"
+                    : `${calendarDayList.length} ${
+                        searching ? "match" : "this day"
+                      }`}
+                </SectionLabel>
+                {calendarDayList.length === 0 ? (
+                  <EmptyState title="No bookings to show for this day." />
+                ) : (
+                  <ul className="flex flex-col gap-2">
+                    {calendarDayList.map((booking) => (
+                      <BookingRow
+                        key={booking.id}
+                        booking={booking}
+                        onApprove={onApprove}
+                        onDecline={onDecline}
+                        onCancel={onCancel}
+                        pending={isPending}
+                      />
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-sm">
+                Pick a day above to see its bookings.
+              </p>
+            )}
+          </div>
+        </Scheduler>
+      )}
     </div>
   );
 }

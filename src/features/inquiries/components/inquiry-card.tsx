@@ -36,10 +36,11 @@ export function InquiryCard({
   const showResolve = isNew;
 
   return (
-    // Stacking: this card establishes its own context (hover translate creates one).
-    // The z-order of the overlay (z-0), content (z-[1]) and footer actions (z-10)
-    // is resolved *within* this card, so it survives ancestor stacking changes.
-    <div className="bg-card border-border hover:border-brand/40 relative flex h-47 flex-col rounded-xl border p-4 transition-all hover:-translate-y-px hover:shadow-lg">
+    // One-per-row rectangle (shared list-row style). Stacking: this row owns its
+    // context; the z-order of the overlay (z-0), content (z-[1]) and footer
+    // actions (z-10) is resolved *within* the row, so it survives ancestor
+    // stacking changes.
+    <div className="bg-card border-border hover:border-brand/40 hover:bg-muted/40 relative rounded-xl border px-4 py-3 transition-colors">
       {/* Stretched overlay button: opens the popup; sits below the content. */}
       <button
         type="button"
@@ -49,8 +50,8 @@ export function InquiryCard({
       />
 
       {/* Content layer — pointer-events-none so clicks reach the overlay. */}
-      <div className="pointer-events-none relative z-[1] flex min-h-0 flex-1 flex-col">
-        <div className="mb-2 flex items-start gap-2">
+      <div className="pointer-events-none relative z-[1]">
+        <div className="flex items-center gap-2">
           {inquiry.subject ? (
             <span className="font-heading flex-1 truncate text-base font-semibold">
               {inquiry.subject}
@@ -66,20 +67,20 @@ export function InquiryCard({
         </div>
 
         {renderIdentity ? (
-          <div className="text-muted-foreground -mt-1 mb-2 truncate text-xs font-medium">
+          <div className="text-muted-foreground mt-1 truncate text-xs font-medium">
             {renderIdentity(inquiry)}
           </div>
         ) : null}
 
-        <p className="text-foreground/80 line-clamp-3 min-h-0 flex-1 text-sm">
+        <p className="text-foreground/80 mt-1.5 line-clamp-2 text-sm">
           {inquiry.message}
         </p>
       </div>
 
       {/* Footer: meta always; Edit/Resolve desktop-only (mobile + reply/view
           actions all live in the popup). Date truncates so the row never
-          overflows a narrow tile. */}
-      <div className="border-border/60 relative z-10 mt-3 flex items-center gap-2 border-t pt-3">
+          overflows. */}
+      <div className="border-border/60 relative z-10 mt-2.5 flex items-center gap-2 border-t pt-2.5">
         <span className="text-muted-foreground pointer-events-none mr-auto min-w-0 truncate text-xs">
           {formatInquiryDate(inquiry.created_at)}
         </span>

@@ -58,6 +58,9 @@ export { useOvernightNights } from "./use-overnight-nights";
 // scheduler data
 export { hourlySchedulerData } from "./hourly-scheduler-data";
 
+// inspect-scheduler — read-only SchedulerData builder for the admin Bookings hub
+export { buildInspectSchedulerData, inspectDayKeys } from "./inspect-scheduler";
+
 // schedule-capabilities
 export {
   BOOK_WALK_CAPABILITIES,
