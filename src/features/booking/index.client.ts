@@ -84,6 +84,13 @@ export type {
   BusyBlock,
 } from "./_components/scheduler";
 
+// BookingFlow — shared stepped-booking layout for the three booking surfaces.
+export { BookingFlow } from "./_components/booking-flow";
+export type {
+  BookingFlowState,
+  BookingFlowProps,
+} from "./_components/booking-flow";
+
 // Other components
 export { PetAssignment } from "./_components/pet-assignment";
 export type { AssignablePet } from "./_components/pet-assignment";

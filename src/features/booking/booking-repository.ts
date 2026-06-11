@@ -298,7 +298,10 @@ export interface AdminBusyRange {
   startsAt: Date;
   endsAt: Date;
   status: BookingStatusDb;
+  clientId: string;
   clientName: string | null;
+  /** Booking total (cents). Under prepay-full this is what a Cal-cancel refunds. */
+  finalCents: number;
   pets: {
     id: string;
     name: string;
@@ -329,6 +332,8 @@ const adminBusyRowSchema = z.object({
   starts_at: z.string(),
   ends_at: z.string(),
   status: z.string(),
+  client_id: z.string(),
+  final_cents: z.number(),
   profiles: z.object({ full_name: z.string().nullable() }).nullable(),
   booking_pets: z
     .array(
@@ -951,7 +956,8 @@ export function createSupabaseBookingRepository(
       const { data, error } = await client
         .from("bookings")
         .select(
-          "id, starts_at, ends_at, status, profiles(full_name), " +
+          "id, starts_at, ends_at, status, client_id, final_cents, " +
+            "profiles(full_name), " +
             "booking_pets(pets(id, name, species, photo_url))",
         )
         .in("status", ACTIVE_BUSY_STATUSES)
@@ -976,7 +982,9 @@ export function createSupabaseBookingRepository(
           startsAt: new Date(r.starts_at),
           endsAt: new Date(r.ends_at),
           status: r.status as BookingStatusDb,
+          clientId: r.client_id,
           clientName: r.profiles?.full_name ?? null,
+          finalCents: r.final_cents,
           pets: (r.booking_pets ?? [])
             .map((bp) => bp.pets)
             .filter((p): p is NonNullable<typeof p> => p !== null)

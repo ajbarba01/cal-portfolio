@@ -29,7 +29,10 @@ export interface AdminBusyRangeView {
   startsAt: string; // ISO UTC
   endsAt: string; // ISO UTC
   status: BookingStatusDb;
+  clientId: string;
   clientName: string | null;
+  /** Booking total (cents); a Cal-initiated cancel refunds 100% of this. */
+  finalCents: number;
   pets: AdminBusyPet[];
 }
 
@@ -66,7 +69,9 @@ export async function getAdminBusyRanges(): Promise<AdminBusyResult> {
       startsAt: r.startsAt.toISOString(),
       endsAt: r.endsAt.toISOString(),
       status: r.status,
+      clientId: r.clientId,
       clientName: r.clientName,
+      finalCents: r.finalCents,
       pets: await Promise.all(
         r.pets.map(async (p) => ({
           id: p.id,
