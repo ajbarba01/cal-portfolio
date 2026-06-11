@@ -69,6 +69,8 @@ class FakeGateway implements PaymentGateway {
   public refunds: Array<{ id: string; amount: number; key?: string }> = [];
   /** intentId → status returned by retrieveIntent (default reusable). */
   public statuses = new Map<string, string>();
+  public throwOnRetrieve = false;
+  public throwOnCancel = false;
 
   async createIntent(args: CreateIntentArgs): Promise<CreatedIntent> {
     this.created.push(args);
@@ -82,12 +84,14 @@ class FakeGateway implements PaymentGateway {
     this.refunds.push({ id, amount, key });
   }
   async retrieveIntent(id: string): Promise<RetrievedIntent> {
+    if (this.throwOnRetrieve) throw new Error("404");
     return {
       status: this.statuses.get(id) ?? "requires_payment_method",
       clientSecret: `${id}_secret_xyz`,
     };
   }
   async cancelIntent(id: string): Promise<void> {
+    if (this.throwOnCancel) throw new Error("404");
     this.canceled.push(id);
   }
 }
@@ -739,6 +743,37 @@ describe("runCreatePrepayIntent — intent reuse (PAY4)", () => {
     // Reused the newest open intent — no new intent minted.
     expect(gw.created).toHaveLength(0);
     expect(result.clientSecret).toBe(`${newer}_secret_xyz`);
+  });
+
+  it("mints fresh when retrieveIntent throws (stale id 404s at Stripe)", async () => {
+    const gw = new FakeGateway();
+    await runCreatePrepayIntent(
+      { sessionClient: sessionClient1, serviceClient, gateway: gw },
+      bookingId,
+    );
+    gw.throwOnRetrieve = true; // the open row's intent 404s
+    const again = await runCreatePrepayIntent(
+      { sessionClient: sessionClient1, serviceClient, gateway: gw },
+      bookingId,
+    );
+    expect(again.ok).toBe(true);
+    expect(gw.created.length).toBeGreaterThanOrEqual(2); // not reused → minted fresh
+  });
+
+  it("tolerates a 404 on cancelIntent for a stale intent", async () => {
+    const gw = new FakeGateway();
+    await runCreatePrepayIntent(
+      { sessionClient: sessionClient1, serviceClient, gateway: gw },
+      bookingId,
+    );
+    gw.statuses.set(FAKE_INTENT_ID, "canceled"); // not reusable → cancel path
+    gw.throwOnCancel = true; // cancel 404s
+    const again = await runCreatePrepayIntent(
+      { sessionClient: sessionClient1, serviceClient, gateway: gw },
+      bookingId,
+    );
+    expect(again.ok).toBe(true); // did not throw; minted fresh
+    expect(gw.created.length).toBeGreaterThanOrEqual(2);
   });
 });
 
