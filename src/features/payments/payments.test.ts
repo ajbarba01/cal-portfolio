@@ -313,7 +313,7 @@ describe("applyStripeEvent — webhook projection", () => {
     // Amount owed recomputes to 0 once the 8000-cent intent succeeds.
     const { data: txnRows } = await serviceClient
       .from("payments")
-      .select("status, amount_cents")
+      .select("status, amount_cents, refunded_cents")
       .eq("booking_id", bookingId);
     const txns = (txnRows ?? []).map((t) => ({
       status: t.status as
@@ -322,6 +322,7 @@ describe("applyStripeEvent — webhook projection", () => {
         | "refunded"
         | "failed",
       amountCents: t.amount_cents as number,
+      refundedCents: t.refunded_cents as number,
     }));
     expect(amountOwedCents(8000, txns)).toBe(0);
   });

@@ -65,7 +65,7 @@ async function projectBookingPaymentStatus(
   // Re-read booking + all its payments via service role.
   const { data: booking, error: fetchError } = await serviceClient
     .from("bookings")
-    .select("final_cents, payments(status, amount_cents)")
+    .select("final_cents, payments(status, amount_cents, refunded_cents)")
     .eq("id", bookingId)
     .maybeSingle();
 
@@ -77,11 +77,16 @@ async function projectBookingPaymentStatus(
   }
 
   const txns = (
-    booking.payments as Array<{ status: string; amount_cents: number }>
+    booking.payments as Array<{
+      status: string;
+      amount_cents: number;
+      refunded_cents: number;
+    }>
   ).map(
     (p): PaymentTxn => ({
       status: p.status as PaymentTxnStatus,
       amountCents: p.amount_cents,
+      refundedCents: p.refunded_cents,
     }),
   );
 

@@ -52,4 +52,6 @@ export interface PaymentGateway {
 export interface PaymentTxn {
   status: "requires_payment" | "succeeded" | "refunded" | "failed";
   amountCents: number;
+  /** Cumulative cents refunded against this txn (Stripe charge.amount_refunded). */
+  refundedCents: number;
 }
