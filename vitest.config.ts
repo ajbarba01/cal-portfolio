@@ -11,9 +11,12 @@ export default defineConfig({
     },
   },
   test: {
+    // Default env is node (integration tests hit the local Supabase stack and
+    // load .env.test). DOM-dependent tests (React hooks/components) opt into
+    // jsdom per-file via a `// @vitest-environment jsdom` docblock.
     environment: "node",
     globals: true,
-    include: ["src/**/*.test.ts", "scripts/**/*.test.ts"],
+    include: ["src/**/*.test.ts", "src/**/*.test.tsx", "scripts/**/*.test.ts"],
     passWithNoTests: true,
     // setupFiles loads .env.test before any test runs so integration tests
     // can connect to the local Supabase stack without polluting .env.local.
