@@ -89,6 +89,7 @@ export async function createBookingMutation(
         if (parsed.success) {
           const row = parsed.data;
           const serviceName = row.services?.name ?? "Booking";
+          const settings = await repo.getSettings();
           await notifier.notify({
             type: "booking_confirmed",
             payload: {
@@ -97,6 +98,9 @@ export async function createBookingMutation(
               startsAt: new Date(row.starts_at),
               endsAt: new Date(row.ends_at),
               finalCents: row.final_cents,
+              cancellationFullRefundHours:
+                settings.cancellation_full_refund_hours,
+              lateCancelRefundPct: settings.late_cancel_refund_pct,
             },
           });
         }

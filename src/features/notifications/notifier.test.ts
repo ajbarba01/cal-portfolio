@@ -19,6 +19,8 @@ const PAYLOAD: BookingConfirmedPayload = {
   startsAt: new Date("2026-07-01T14:00:00Z"),
   endsAt: new Date("2026-07-01T15:00:00Z"),
   finalCents: 3000,
+  cancellationFullRefundHours: 48,
+  lateCancelRefundPct: 50,
 };
 
 /** Minimal no-op Mailer stub — satisfies the interface; never actually used

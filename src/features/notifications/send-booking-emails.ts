@@ -14,6 +14,8 @@ export interface BookingConfirmationDetails {
   startsAt: Date;
   endsAt: Date;
   finalCents: number;
+  cancellationFullRefundHours: number;
+  lateCancelRefundPct: number;
 }
 
 export async function sendBookingConfirmation(

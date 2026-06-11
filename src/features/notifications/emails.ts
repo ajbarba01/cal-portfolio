@@ -53,12 +53,24 @@ export interface BookingConfirmationInput {
   startsAt: Date;
   endsAt: Date;
   finalCents: number;
+  /** From settings.cancellation_full_refund_hours — never hardcoded. */
+  cancellationFullRefundHours: number;
+  /** From settings.late_cancel_refund_pct — never hardcoded. */
+  lateCancelRefundPct: number;
 }
 
 export function buildBookingConfirmationEmail(
   input: BookingConfirmationInput,
 ): EmailMessage {
-  const { to, serviceName, startsAt, endsAt, finalCents } = input;
+  const {
+    to,
+    serviceName,
+    startsAt,
+    endsAt,
+    finalCents,
+    cancellationFullRefundHours,
+    lateCancelRefundPct,
+  } = input;
   const startStr = formatDateTime(startsAt);
   const endStr = formatDateTime(endsAt);
   const priceStr = formatCents(finalCents);
@@ -74,6 +86,11 @@ export function buildBookingConfirmationEmail(
     `Starts: ${startStr} (Mountain Time)`,
     `Ends:   ${endStr} (Mountain Time)`,
     `Total:  ${priceStr}`,
+    ``,
+    `Payment`,
+    `You can prepay anytime from your bookings page, or pay after your ${serviceName}.`,
+    `Cancel ${cancellationFullRefundHours}+ hours before the start and I refund you in full;`,
+    `cancel within ${cancellationFullRefundHours} hours and I refund ${lateCancelRefundPct}%.`,
     ``,
     `Questions? Reply to this email.`,
     ``,
@@ -92,6 +109,9 @@ export function buildBookingConfirmationEmail(
     <tr><th style="text-align:left;padding:8px 0;border-bottom:1px solid #e5e5e5;">Ends</th><td style="padding:8px 0;border-bottom:1px solid #e5e5e5;">${endStr} (Mountain Time)</td></tr>
     <tr><th style="text-align:left;padding:8px 0;">Total</th><td style="padding:8px 0;">${priceStr}</td></tr>
   </table>
+  <h2 style="font-size:1.1rem;margin:1.5rem 0 0.5rem;">Payment</h2>
+  <p style="margin-bottom:0.5rem;">You can prepay anytime from your bookings page, or pay after your ${serviceHtml}.</p>
+  <p style="margin-bottom:1rem;">Cancel ${cancellationFullRefundHours}+ hours before the start and I refund you in full; cancel within ${cancellationFullRefundHours} hours and I refund ${lateCancelRefundPct}%.</p>
   <p style="margin-bottom:0.5rem;">Questions? Reply to this email.</p>
   <p style="color:#666;">— Cal Barba</p>
 </body>

@@ -121,6 +121,8 @@ describe("sendBookingConfirmation", () => {
       startsAt: new Date("2026-06-15T20:00:00.000Z"),
       endsAt: new Date("2026-06-15T21:00:00.000Z"),
       finalCents: 4500,
+      cancellationFullRefundHours: 48,
+      lateCancelRefundPct: 50,
     });
 
     expect(result.ok).toBe(true);
