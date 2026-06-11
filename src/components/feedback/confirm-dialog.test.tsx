@@ -119,5 +119,12 @@ describe("useConfirm", () => {
 
     // The outer confirm() promise should resolve true
     expect(await capturedOutcome).toBe(true);
+
+    // …and the dialog must CLOSE on success (guards the close-on-success leg —
+    // a regression that dropped setPending(null) would still resolve the promise
+    // but leave the dialog stuck open).
+    await waitFor(() => {
+      expect(screen.queryByRole("alertdialog")).toBeNull();
+    });
   });
 });

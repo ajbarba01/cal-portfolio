@@ -8,10 +8,12 @@ describe("toastDefaults", () => {
       priority: "high",
     });
   });
-  it("leaves success polite (provider default duration)", () => {
-    expect(toastDefaults({ type: "success", title: "x" })).toMatchObject({
-      priority: "low",
-    });
+  it("leaves success polite and inherits the provider default duration", () => {
+    const out = toastDefaults({ type: "success", title: "x" });
+    expect(out).toMatchObject({ priority: "low" });
+    // Must NOT pin an explicit timeout — success inherits the provider's 5 s
+    // default (guards against accidentally making success sticky).
+    expect(out.timeout).toBeUndefined();
   });
   it("respects an explicit timeout override", () => {
     expect(

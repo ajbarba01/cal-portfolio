@@ -17,6 +17,7 @@ export function NavBadge({
   if (count <= 0) return null;
   return (
     <span
+      data-slot="nav-badge"
       aria-label={`${count} ${label}`}
       className={cn(
         "bg-attention text-attention-foreground inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-xs leading-none font-semibold",

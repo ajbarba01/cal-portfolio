@@ -19,6 +19,7 @@ export function BackToTop({ threshold = 600 }: { threshold?: number }) {
   return (
     <button
       type="button"
+      data-slot="back-to-top"
       aria-label="Back to top"
       onClick={() =>
         window.scrollTo({
@@ -31,7 +32,7 @@ export function BackToTop({ threshold = 600 }: { threshold?: number }) {
       }
       className="bg-card text-foreground border-border hover:bg-muted fixed right-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-40 inline-flex size-11 items-center justify-center rounded-full border shadow-lg"
     >
-      <ArrowUp className="size-5" />
+      <ArrowUp className="size-5" aria-hidden="true" />
     </button>
   );
 }
