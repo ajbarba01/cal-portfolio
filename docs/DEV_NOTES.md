@@ -6,6 +6,8 @@
 
 - `npm run format:check` fails on 65 pre-existing files (src/ + configs, none docs) — repo-wide prettier drift predating SP1; needs a one-shot `prettier --write .` pass with its own commit (candidate: SP3 codebase work). (2026-06-10)
 - Link gate (`check-doc-links.mjs`) is manual discipline only — consider wiring into lint-staged for `*.md`; if checked corpus grows, batch blob reads via `git cat-file --batch` (~3s → ~0.2s). (2026-06-10, SP1 review)
+- Wordmark + sign-in button re-render on click of either, but not on marketing→marketing nav — perf candidate for SP7. (2026-06-12, maintainer)
+- 2026-06-12 "Now" snapshot (booking edit broken, notes-for-Cal on client paths, admin quote error, premium-day errors, header two-row band, booking-page alignment) baked into the SP6 Plan B task list — tracked there, not here.
 
 ---
 

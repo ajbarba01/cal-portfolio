@@ -20,10 +20,13 @@
 
 **Contract:** `home-chrome-preview.html` — header ~60px (today `py-6` ≈ 88px), tabs get a hover surface (`hover:bg-muted` rounded) + tucked active underline (inset to label width, not full-tab), burger optically flush right.
 
+**Plan-A preservation (do not regress):** desktop nav breakpoint is `lg:` (768 overflow fix); right cluster pinned `col-start-3`, tab row `col-start-2`, all cells `row-start-1` (auto-placement hazard — see grid comment in `site-header.tsx`); header is a sync shell with async `HeaderAuth` behind Suspense. Wordmark was just swapped to a logo image by the maintainer (`0995500`) — don't touch `wordmark.tsx`.
+
 - [ ] **Step 1:** Trim header vertical padding (`py-6` → `py-3`); tab links become padded rounded hover targets with the active state per contract. Keep `aria-current` behavior; focus-visible ring on every tab.
 - [ ] **Step 2:** Mobile: pull the burger trigger optically flush — `-mr-3` (or equivalent vs the container's `px-5`) so the icon lands on the content edge; the 44px hit target stays intact.
-- [ ] **Step 3:** Verify desktop tabs (hover/active/focus), wordmark admin tint unchanged, drawer unchanged, header height on all three zones; 390 burger flush.
-- [ ] **Step 4:** Typecheck + lint, commit: `feat: polish site header tabs and mobile menu alignment`
+- [ ] **Step 3 (DEV_NOTES bake-in):** Kill the two-row collapse band: there's a small viewport range where the header wraps to two rows as the wordmark collapses. Header must NEVER wrap regardless of wordmark width — enforce single-row (`row-start-1` on every cell is already there; fix the remaining cause, e.g. min-width pressure in the `1fr` columns → `min-w-0` / `overflow` guard / tab-row `shrink`). Verify by continuous drag-resize 320→1440.
+- [ ] **Step 4:** Verify desktop tabs (hover/active/focus), wordmark admin tint unchanged, drawer unchanged, header height on all three zones; 390 burger flush.
+- [ ] **Step 5:** Typecheck + lint, commit: `feat: polish site header tabs and mobile menu alignment`
 
 ## Task 2: Footer content (U12, U16 application)
 
@@ -59,11 +62,12 @@
 
 ## Task 5: Auth pages adopt the recipe (U15 application, U23)
 
-**Files:** Modify login + signup pages/components under `src/app/(auth)/`.
+**Files:** Modify login + signup pages/components under `src/app/(auth)/`; Plan-A carry-over: `src/features/accounts/_components/form-card.tsx`, `src/features/accounts/_components/pet-form.tsx`, `src/app/(onboarding)/onboarding/_components/info-step.tsx`.
 
 - [ ] **Step 1:** Apply the form-on-card recipe (Plan A): card styling consistent with contact, brand submit (done in Plan A Task 5 — verify), input fills/focus identical, links (`Sign up` / `Sign in` cross-links) clay. Trim the dead vertical space (U23): center the card vertically in the available sheet (`min-h` + flex centering) instead of top-anchored card + 1000px of empty sand.
-- [ ] **Step 2:** Verify both pages at 390/1440, keyboard pass, password managers still autofill (no name/id changes).
-- [ ] **Step 3:** Typecheck + lint, commit: `feat: align auth pages with shared form recipe`
+- [ ] **Step 2 (Plan-A carry-over):** Brand-submit residue — switch the primary submits in `form-card.tsx` + `pet-form.tsx` (shared with admin client-detail; still default near-black) and the onboarding info-step submit to `variant="brand"` per the FRONTEND.md hierarchy rule (brand = THE action of a surface).
+- [ ] **Step 3:** Verify both auth pages at 390/1440, keyboard pass, password managers still autofill (no name/id changes); spot-check account forms + admin client-detail + onboarding step for the brand submits.
+- [ ] **Step 4:** Typecheck + lint, commit: `feat: align auth pages with shared form recipe`
 
 ## Task 6: Marketing rest — reviews, about, resources, gallery, services (U21, U23)
 
@@ -92,11 +96,22 @@
 - [ ] **Step 3 — U28:** grep booking-detail + emails for "holiday" → premium-day wording; reword stale detail lines (premium days are a rate note, not a separate list — per SP5 label decision).
 - [ ] **Step 4 — U5 (clients list instance):** long client names truncate with `truncate` + `title` attr in the table cell + drawer/mobile card; sweep other user-text cells in the same table.
 - [ ] **Step 5 — U8 + U10 (account):** client's own bookings render muted-clay in the account calendar (token: `--sidebar-active`/clay-soft family — semantic, AA-checked) with a one-line legend; booking detail shows fuller service info (service name, duration/nights, pets, price breakdown from existing artifacts — no new reads if avoidable).
-- [ ] **Step 6:** Verify each on `busy-week` seed; typecheck + lint, commit: `feat: polish admin and account booking surfaces`
+- [ ] **Step 6 — Dashboard reviews signal (maintainer decided 2026-06-12: recency-based):** auto-publish made the "reviews to moderate" attention row permanently 0 (keyed on `status='pending'`). Replace it with a "New reviews (last 7 days)" row counting on `created_at`, linking the admin reviews surface newest-first. Update `computeAttentionCounts` (pure, tested) + the dashboard row. Also remove the vestigial "Pending" filter option from the admin reviews surface (auto-publish made the state app-unreachable).
+- [ ] **Step 7:** Verify each on `busy-week` seed; typecheck + lint, commit: `feat: polish admin and account booking surfaces`
 
 ## Task 9: U11 walkthrough — full sweep + fix list
 
 **Files:** fixes land wherever the walk finds them (lightweight-lane discipline per fix; escalate anything spec-sized).
+
+**Pre-seeded catch list (maintainer-reported, DEV_NOTES 2026-06-12 + Plan A residue) — reproduce + fix during the walk, same triage discipline:**
+
+- Account booking **edit does not work** — repro on `busy-week` as dana, fix at cause (systematic-debugging; U24's input-assembly fix may be adjacent, don't assume).
+- **Notes-for-Cal field missing on client booking paths** (maintainer clarified 2026-06-12): the field exists only on admin create-on-behalf; it should be available on EVERY client booking page (public create + account edit). Thread the existing field through `<BookingFlow>` client paths — no schema change expected.
+- **Admin booking quote error** — error when quoting during admin create; repro + fix.
+- **Mark-premium error** — error when marking a premium day from admin availability; repro + fix.
+- **Premium day doesn't surface in booking** — premium marking neither shows (dot/legend per booking-flow contract) nor applies; repro + fix (may share a cause with mark-premium error — diagnose before fixing twice).
+- **Booking page alignment mismatch** — service name + back button row misaligned with the width of the remaining flow content; align to the `narrow` container.
+- **LeadTimeNote off-by-one** (Plan A review minor): first-bookable day named in the note can disagree with the calendar's day-state anchor — advisory copy only; fix if cheap.
 
 - [ ] **Step 1:** Seed `busy-week`. Walk EVERY route (marketing, auth, onboarding, account, admin) at 390 / 768 / 1024 / 1440 **including the transitions between them** (drag-resize). Tooling: Chrome DevTools device toolbar; headless-Chrome screenshot matrix (audit-session pattern) for the record; Playwright MCP if available for auth'd flows. Capture: silent actions, overflow/wrap breaks (U5 class), off-center mobile filter stacks, empty states (each list with 0 items — `fresh` seed for that), confusing states, U27 (overnight rendering in bookings calendars), U22 residual.
 - [ ] **Step 2:** Triage the catch list IN THIS PLAN's Handoff log (one line each: surface · defect · severity). Fix all minor ones task-by-task (typecheck + lint per commit, conventional subjects). Anything structural → escalate, don't improvise.

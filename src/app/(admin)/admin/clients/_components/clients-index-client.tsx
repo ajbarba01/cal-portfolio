@@ -34,8 +34,8 @@ const PAGE_SIZE = 20;
 
 const FILTER_OPTIONS: MultiswitchOption<ClientFilter>[] = [
   { label: "All", value: "all" },
-  { label: "Owing", value: "owing", tone: "warn" },
-  { label: "Needs onboarding", value: "needs_onboarding" },
+  { label: "Owing", value: "owing" },
+  { label: "Onboarding", value: "needs_onboarding" },
   { label: "Active", value: "active" },
 ];
 
