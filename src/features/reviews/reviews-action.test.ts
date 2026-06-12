@@ -82,7 +82,7 @@ describe("runSubmitReview", () => {
     expect(result.ok).toBe(true);
   });
 
-  it("inserted row has status='pending' (DB enforces this)", async () => {
+  it("inserted row has status='published' (auto-publish on submit)", async () => {
     // Fetch the most-recent review for this user via service client.
     const { data: rows, error } = await serviceClient
       .from("reviews")
@@ -93,7 +93,7 @@ describe("runSubmitReview", () => {
 
     expect(error).toBeNull();
     expect(rows).toHaveLength(1);
-    expect(rows?.[0].status).toBe("pending");
+    expect(rows?.[0].status).toBe("published");
 
     createdReviewId = rows![0].id as string;
   });
@@ -114,23 +114,23 @@ describe("runSubmitReview", () => {
 // ---------------------------------------------------------------------------
 
 describe("listPublishedReviews visibility", () => {
-  it("anon client does NOT see the pending review", async () => {
+  it("anon client DOES see the review immediately after submission (auto-published)", async () => {
     const reviews = await listPublishedReviews(anonClient);
     const found = reviews.some((r) => r.id === createdReviewId);
-    expect(found).toBe(false);
+    expect(found).toBe(true);
   });
 
-  it("anon client DOES see the review after service client flips status to published", async () => {
-    // Promote the review to published via service role (bypasses RLS).
+  it("anon client does NOT see the review after admin rejects (unpublish via reject)", async () => {
+    // Reject the review via service role (simulates admin unpublish).
     const { error } = await serviceClient
       .from("reviews")
-      .update({ status: "published" })
+      .update({ status: "rejected" })
       .eq("id", createdReviewId);
 
     expect(error).toBeNull();
 
     const reviews = await listPublishedReviews(anonClient);
     const found = reviews.some((r) => r.id === createdReviewId);
-    expect(found).toBe(true);
+    expect(found).toBe(false);
   });
 });

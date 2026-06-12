@@ -110,10 +110,10 @@ const widths = {
 
 **Files:** `src/features/reviews/` (submit action / insert path); admin reviews surface (verify unpublish/remove action exists — shipped in SP5a polish).
 
-- [ ] **Step 1 (test-first):** Locate the review-create core/action test; add/adjust the case: a newly submitted review is created **published** (whatever the column is — `published: true` / `status: 'published'`; read the schema first). Run: FAIL.
-- [ ] **Step 2:** Flip the insert default; update the client submit feedback copy ("Thanks — your review is live") and remove any "appears after approval" copy. Run: PASS.
-- [ ] **Step 3:** Verify admin can still unpublish/remove (existing moderation surface — if no unpublish action exists, STOP and escalate via the Handoff log; do not improvise one).
-- [ ] **Step 4:** Typecheck + lint + reviews tests, commit: `feat: publish reviews immediately with admin unpublish`
+- [x] **Step 1 (test-first):** Locate the review-create core/action test; add/adjust the case: a newly submitted review is created **published** (whatever the column is — `published: true` / `status: 'published'`; read the schema first). Run: FAIL.
+- [x] **Step 2:** Flip the insert default; update the client submit feedback copy ("Thanks — your review is live") and remove any "appears after approval" copy. Run: PASS.
+- [x] **Step 3:** Verify admin can still unpublish/remove (existing moderation surface — if no unpublish action exists, STOP and escalate via the Handoff log; do not improvise one).
+- [x] **Step 4:** Typecheck + lint + reviews tests, commit: `feat: publish reviews immediately with admin unpublish`
 
 ## Task 9: BookingFlow rebuild — layout per contract (U14-stepper, U23-rhythm)
 
@@ -196,3 +196,9 @@ const widths = {
 ### Task 5 — shared account-component submits deferred to Plan B (2026-06-12)
 
 Sweep found two primary submits still on the default Button variant: `src/features/accounts/_components/form-card.tsx` and `src/features/accounts/_components/pet-form.tsx`. Both are account-zone primaries but are shared with the admin client-detail surface (SP5a), so per the task scope note they were left untouched. Plan B's surface sweep should switch them to `brand` per the hierarchy rule. Also noted: `src/app/(onboarding)/onboarding/_components/info-step.tsx` has a default-variant primary submit — `(onboarding)` is outside this task's zone list; include it in the Plan B sweep.
+
+### Task 8 — reviews auto-publish required a policy migration (2026-06-12)
+
+**Deviation:** SP6 was declared schema-free, but the reviews RLS `WITH CHECK` pinned `status='pending'`, so the maintainer's auto-publish decision was unimplementable without a policy migration → shipped `20260612120000_reviews_auto_publish.sql` (insert policy + column default flipped to `published`; enum/tables untouched; applied locally via non-destructive `npx supabase db push --local`). **Prod push of this migration is maintainer-owned at next deploy.**
+**Follow-up for Plan B (maintainer decision needed):** the admin dashboard's "reviews to moderate" attention row keys on `pending` and is now permanently 0 — reactive moderation currently has NO new-review awareness signal. Options: a recency-based "new reviews" row, or drop the row.
+**Cosmetic:** admin reviews Pending filter is vestigial; seeder still seeds a `pending` review (service-role bypasses RLS — fine, app-unreachable state).
