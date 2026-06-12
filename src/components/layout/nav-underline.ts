@@ -26,3 +26,33 @@ export function navUnderline(active: boolean, hoverReveal = true): string {
         : "text-foreground/80 hover:text-foreground",
   );
 }
+
+/**
+ * Tab-pill style for the desktop marketing nav row.
+ *
+ * Hover: muted background surface (rounded-lg). Active: brand-strong text +
+ * semibold + a 2px underline tucked inside the label (inset by the horizontal
+ * padding so the line matches the text width, not the full pill width). The
+ * underline is `after:` pseudo-element positioned at the bottom of the pill.
+ *
+ * Differs from `navUnderline` (center-grow animation) — used only in
+ * SiteNavTabs; `navUnderline` and `NAV_UNDERLINE_BASE` remain for the account
+ * link, sign-in link, and admin wordmark.
+ *
+ * @param active  whether the link targets the current section.
+ */
+export function navTab(active: boolean): string {
+  return cn(
+    // Pill geometry: padding matches the mockup (px-[11px] py-2 ≈ 8px 11px),
+    // rounded-lg hover surface, smooth color + bg transitions.
+    "relative px-[11px] py-2 text-[0.84375rem] rounded-lg transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2",
+    // Tucked underline: after:: sits bottom-[2px], inset left/right by the
+    // 11px horizontal padding so the line spans the text, not the full pill.
+    "after:absolute after:left-[11px] after:right-[11px] after:bottom-[2px] after:h-[2px] after:rounded-sm after:bg-brand-strong",
+    active
+      ? // Active: brand-strong text + semibold + underline visible.
+        "text-brand-strong font-semibold after:opacity-100"
+      : // Inactive: subdued text + hover bg surface; underline hidden.
+        "text-foreground/70 hover:text-foreground hover:bg-muted after:opacity-0",
+  );
+}
