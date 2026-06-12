@@ -26,6 +26,7 @@ export type CreateBookingResult =
   | { kind: "unavailable"; reason: string }
   | { kind: "blocked_debt"; owedCents: number }
   | { kind: "onboarding_incomplete" }
+  | { kind: "forms_incomplete" }
   | { kind: "validation_error"; message: string }
   | { kind: "error"; message: string };
 
@@ -73,6 +74,9 @@ export async function createBookingCore(
   }
   if (result.kind === "onboarding_incomplete") {
     return { kind: "onboarding_incomplete" };
+  }
+  if (result.kind === "forms_incomplete") {
+    return { kind: "forms_incomplete" };
   }
 
   const { repo, now } = deps;

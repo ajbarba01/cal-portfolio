@@ -1177,6 +1177,7 @@ function makeMockRepo(
       pricing_config: { rate_cents_per_hour: 3000, minimum_cents: 1500 },
       concurrency: "exclusive" as const,
       requires_approval: false,
+      form_key: null,
     })),
     getSettings: vi.fn(async () => ({
       origin_lat: 40.015,
@@ -1228,6 +1229,7 @@ function makeMockRepo(
     updateBookingEdited: vi.fn(),
     swapBookingPets: vi.fn(),
     appendSeriesSkip: vi.fn(),
+    hasFormResponse: vi.fn(async () => true),
   } as unknown as BookingRepository;
 
   return { repo, getLastInsertedStatuses: () => lastInsertedStatuses };

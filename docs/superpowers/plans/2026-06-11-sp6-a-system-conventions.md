@@ -139,12 +139,12 @@ const widths = {
 
 **Files:** `src/features/booking/booking-service-shared.ts` (+ repository), the booking-flow gate messaging, `scripts/db-seed/scenarios.ts`.
 
-- [ ] **Step 1 (discovery, ~15 min):** Define "required forms complete". `Grep -i "form" supabase/migrations` + read the forms feature under `src/features/accounts` (FormCard). Establish: which table holds form definitions/submissions, what marks a form required, what marks a submission complete. Write the definition into this plan's Handoff log before coding. If the data model can't express "required" without schema change, STOP — escalate (SP6 is schema-free).
-- [ ] **Step 2 (test-first):** Extend the `computeBookingArtifacts` test suite (pattern: existing onboarding/debt gate tests in `booking-service.test.ts`, repo faked): incomplete required forms → gate refuses with a distinct reason (e.g. `forms_incomplete`); complete → passes. Run: FAIL.
-- [ ] **Step 3:** Add the repo read + gate to the shared artifacts computation (join the existing `Promise.all` — don't add a serial await; A15 precedent). Run: PASS.
-- [ ] **Step 4:** UI: gate surfaces as **unavailability-style messaging** in BookingFlow — calm card "Finish your forms before booking" + link to `/account/forms` — never a thrown error. Admin create-on-behalf: confirm intended behavior — default **admin bypasses the gate** (Cal can book for anyone); escalate if the spec reading differs.
-- [ ] **Step 5:** Seed: extend a scenario (e.g. `payment-states` or `busy-week`) with one client having incomplete required forms; document in the seed registry.
-- [ ] **Step 6:** Typecheck + lint + booking suite, commit: `feat: gate booking on required form completion`
+- [x] **Step 1 (discovery, ~15 min):** Define "required forms complete". `Grep -i "form" supabase/migrations` + read the forms feature under `src/features/accounts` (FormCard). Establish: which table holds form definitions/submissions, what marks a form required, what marks a submission complete. Write the definition into this plan's Handoff log before coding. If the data model can't express "required" without schema change, STOP — escalate (SP6 is schema-free).
+- [x] **Step 2 (test-first):** Extend the `computeBookingArtifacts` test suite (pattern: existing onboarding/debt gate tests in `booking-service.test.ts`, repo faked): incomplete required forms → gate refuses with a distinct reason (e.g. `forms_incomplete`); complete → passes. Run: FAIL.
+- [x] **Step 3:** Add the repo read + gate to the shared artifacts computation (join the existing `Promise.all` — don't add a serial await; A15 precedent). Run: PASS.
+- [x] **Step 4:** UI: gate surfaces as **unavailability-style messaging** in BookingFlow — calm card "Finish your forms before booking" + link to `/account/forms` — never a thrown error. Admin create-on-behalf: confirm intended behavior — default **admin bypasses the gate** (Cal can book for anyone); escalate if the spec reading differs.
+- [x] **Step 5:** Seed: extend a scenario (e.g. `payment-states` or `busy-week`) with one client having incomplete required forms; document in the seed registry.
+- [x] **Step 6:** Typecheck + lint + booking suite, commit: `feat: gate booking on required form completion`
 
 ## Task 12: Onboarding double-submit (U25)
 
@@ -204,6 +204,21 @@ Sweep found two primary submits still on the default Button variant: `src/featur
 **U2:** lead-time blocking merged into day-state computation at both levels — `deriveBookableDays` (overnight/month-range) and `hourlyAvailableDayKeys` (hourly/week-slots) now accept lead-time args and mark blocked days `out-of-window`. Admin surfaces (availability painter, admin create) zero `minLeadTimeHours` to avoid blocking Cal's own calendar. `LeadTimeNote` guards on `minLeadTimeHours > 0`; renders null when lead time is 0.
 
 **U1:** success snapshot captured at submit time (not derived from live state) to survive the post-success busy refresh. `resetFlow` clears scheduler + quote + success state; `submitDone` is now derived from `success !== null`. Admin create keeps its server-side redirect; success panel is public/account-create only.
+
+### Task 11 — required-forms gate definition + implementation (2026-06-12)
+
+**"Required forms complete" definition:**
+
+- **Where:** `services.form_key text` (nullable) + `form_responses (client_id, form_key, data)`.
+- **What marks a form required:** `services.form_key IS NOT NULL` — the service declares which form key clients must submit before booking it. Currently only the `emergency` form key exists (registered in `src/features/accounts/form-registry.ts`).
+- **What marks a submission complete:** any row in `form_responses` matching `client_id = $userId AND form_key = $service.form_key`. The gate checks existence, not `data` content — a submitted (even empty) row satisfies the requirement. Data validity is enforced at form-submit time via `emergencySchema`.
+- **Schema-free:** no new columns needed. `ServiceRow` gained `form_key: string | null` (added to the existing Supabase select projection). No migrations.
+- **Gate result:** `forms_incomplete` — new variant in `ArtifactsResult`, `CreateBookingResult`, and `PreviewResult`.
+- **Admin bypass:** `ADMIN_POLICY.skipFormsGate = true` — Cal can book on behalf of any client; gate produces a warning instead of blocking. `CLIENT_POLICY.skipFormsGate = false`.
+- **UI:** calm `GatePanel` ("Finish your forms before booking" + `/account/forms` link) in `service-booking-client.tsx` receipt slot; fires only when `authState === "ready" && formsIncomplete`. Never a thrown error.
+- **Seed:** `admin-demo` scenario sets `form_key = 'emergency'` on the walk service via `setServiceFormKey`. Dana (has the form) books normally; Sam, Lee, Devon, Paula (no form) will see the gate card on `/book/walk`.
+- **New files:** `src/features/booking/forms-gate.test.ts` (4 pure unit tests, all green).
+- **Modified stubs:** `booking-service.test.ts` `makeMockRepo`, `edit-booking.test.ts` `makeRepo`, `mutations/create-booking.mutation.test.ts` `makeRepo` — all updated with `form_key: null` on service stub + `hasFormResponse: vi.fn(async () => true)`.
 
 ### Task 8 — reviews auto-publish required a policy migration (2026-06-12)
 

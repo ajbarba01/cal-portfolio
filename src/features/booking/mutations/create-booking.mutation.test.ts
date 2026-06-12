@@ -59,6 +59,7 @@ const walkService = {
   },
   concurrency: "resident" as const,
   requires_approval: false,
+  form_key: null,
 };
 
 /** A single 1h window that covers our test slot. */
@@ -95,6 +96,7 @@ function makeRepo(
     getOnboardingStatus: vi.fn(async () => "approved" as const),
     getOutstandingDebtCents: vi.fn(async () => 0),
     hasActiveBookingForServiceSlug: vi.fn(async () => false),
+    hasFormResponse: vi.fn(async () => true),
     getOpenWindows: vi.fn(async () => [WINDOW]),
     insertBookings: vi.fn(async () => {
       if (overrides.insertThrows) throw overrides.insertThrows;

@@ -274,6 +274,25 @@ export async function insertForm(
     );
 }
 
+/**
+ * Set (or clear) the required form key on a service.
+ * Used by the admin-demo scenario to show the forms-gate in action:
+ * services with form_key != null require clients to have submitted that form
+ * before booking. Pass null to clear.
+ */
+export async function setServiceFormKey(
+  ctx: Ctx,
+  serviceSlug: string,
+  formKey: string | null,
+): Promise<void> {
+  const { error } = await ctx.db
+    .from("services")
+    .update({ form_key: formKey })
+    .eq("slug", serviceSlug);
+  if (error)
+    throw new Error(`setServiceFormKey ${serviceSlug}: ${error.message}`);
+}
+
 export async function setPremiumDays(
   ctx: Ctx,
   dateKeys: string[],

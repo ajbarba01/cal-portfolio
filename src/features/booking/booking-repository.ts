@@ -44,6 +44,8 @@ export interface ServiceRow {
   pricing_config: unknown; // validated by parsePricingConfig before use
   concurrency: ConcurrencyClass;
   requires_approval: boolean;
+  /** Null when the service has no required form. */
+  form_key: string | null;
 }
 
 export interface SettingsRow {
@@ -166,6 +168,7 @@ const serviceRowSchema = z.object({
   pricing_config: z.unknown(),
   concurrency: z.enum(["exclusive", "resident"]),
   requires_approval: z.boolean(),
+  form_key: z.string().nullable(),
 });
 
 /** Parsed and validated booking_series row. */
@@ -515,6 +518,12 @@ export interface BookingRepository {
 
   /** Append a cadence start (ISO UTC) to a series' skipped_starts. */
   appendSeriesSkip(seriesId: string, startIso: string): Promise<void>;
+
+  /**
+   * True when the client has submitted the named form (any row in form_responses
+   * matching client_id + form_key). Used by the forms-gate in computeBookingArtifacts.
+   */
+  hasFormResponse(userId: string, formKey: string): Promise<boolean>;
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -536,7 +545,7 @@ export function createSupabaseBookingRepository(
       const { data, error } = await client
         .from("services")
         .select(
-          "id, slug, pricing_type, pricing_config, concurrency, requires_approval",
+          "id, slug, pricing_type, pricing_config, concurrency, requires_approval, form_key",
         )
         .eq("slug", slug)
         .eq("active", true)
@@ -561,7 +570,7 @@ export function createSupabaseBookingRepository(
       const { data, error } = await client
         .from("services")
         .select(
-          "id, slug, pricing_type, pricing_config, concurrency, requires_approval",
+          "id, slug, pricing_type, pricing_config, concurrency, requires_approval, form_key",
         )
         .eq("id", id)
         .single();
@@ -1166,6 +1175,22 @@ export function createSupabaseBookingRepository(
           `Failed to append series skip for '${seriesId}': ${upError.message}`,
         );
       }
+    },
+
+    async hasFormResponse(userId, formKey) {
+      const { data, error } = await client
+        .from("form_responses")
+        .select("id")
+        .eq("client_id", userId)
+        .eq("form_key", formKey)
+        .limit(1);
+
+      if (error) {
+        throw new Error(
+          `Failed to check form response for '${userId}' / '${formKey}': ${error.message}`,
+        );
+      }
+      return (data ?? []).length > 0;
     },
   };
 }

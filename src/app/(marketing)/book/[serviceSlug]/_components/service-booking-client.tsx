@@ -98,6 +98,7 @@ export function ServiceBookingClient({
     selectedPetIds,
     recurringOn,
     occurrenceCount,
+    formsIncomplete,
     step2Label,
     step3Label,
     step4Label,
@@ -252,8 +253,19 @@ export function ServiceBookingClient({
             />
           )}
 
-          {/* Receipt + Book — only for ready users */}
-          {authState === "ready" && (
+          {/* Forms gate — ready user has not submitted a required form */}
+          {authState === "ready" && formsIncomplete && (
+            <GatePanel
+              labelledById="gate-forms-heading"
+              title="Finish your forms before booking"
+              body="Please complete the required form so Cal has what's needed to care for your pets."
+              ctaHref="/account/forms"
+              ctaLabel="Go to forms →"
+            />
+          )}
+
+          {/* Receipt + Book — only for ready users who have completed all forms */}
+          {authState === "ready" && !formsIncomplete && (
             <section aria-labelledby="receipt-heading" aria-live="polite">
               <h2 id="receipt-heading" className="sr-only">
                 Your price
