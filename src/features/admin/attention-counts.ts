@@ -7,10 +7,13 @@ export interface AttentionCounts {
   pendingApprovals: number;
   newInquiries: number;
   flaggedConflicts: number;
+  /** Reviews submitted in the last 7 days (replaces the vestigial pending-moderation count). */
+  recentReviews: number;
 }
 
 export const emptyAttentionCounts: AttentionCounts = {
   pendingApprovals: 0,
   newInquiries: 0,
   flaggedConflicts: 0,
+  recentReviews: 0,
 };

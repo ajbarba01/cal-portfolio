@@ -12,11 +12,22 @@ import { PageHeader } from "@/components/layout/page-header";
 import {
   AccountBookingsClient,
   type AccountBookingRow,
+  type AccountBookingPet,
+  type AccountBookingQuoteInputs,
 } from "./_components/account-bookings-client";
 
 interface PaymentRow {
   amount_cents: number;
   status: string;
+}
+
+interface PetRow {
+  name: string;
+  species: string | null;
+}
+
+interface BookingPetRow {
+  pets: PetRow | PetRow[] | null;
 }
 
 interface RawBookingRow {
@@ -27,6 +38,8 @@ interface RawBookingRow {
   final_cents: number;
   payments: PaymentRow[];
   services: { name: string; slug: string }[] | null;
+  booking_pets: BookingPetRow[] | null;
+  quote_inputs: AccountBookingQuoteInputs | null;
 }
 
 /** Sum of succeeded payments (cents). */
@@ -34,6 +47,20 @@ function paidCents(payments: PaymentRow[]): number {
   return payments
     .filter((p) => p.status === "succeeded")
     .reduce((acc, p) => acc + p.amount_cents, 0);
+}
+
+function parsePets(bookingPets: BookingPetRow[] | null): AccountBookingPet[] {
+  if (!bookingPets) return [];
+  const result: AccountBookingPet[] = [];
+  for (const bp of bookingPets) {
+    if (!bp.pets) continue;
+    // Supabase returns a single object for a to-one join or an array for to-many
+    const petArr = Array.isArray(bp.pets) ? bp.pets : [bp.pets];
+    for (const pet of petArr) {
+      result.push({ name: pet.name, species: pet.species });
+    }
+  }
+  return result;
 }
 
 export default async function BookingsPage() {
@@ -55,7 +82,7 @@ export default async function BookingsPage() {
   const { data: bookings } = await supabase
     .from("bookings")
     .select(
-      "id, starts_at, ends_at, status, final_cents, payments(amount_cents, status), services(name, slug)",
+      "id, starts_at, ends_at, status, final_cents, quote_inputs, payments(amount_cents, status), services(name, slug), booking_pets(pets(name, species))",
     )
     .eq("client_id", user.id)
     .order("starts_at", { ascending: false });
@@ -70,6 +97,8 @@ export default async function BookingsPage() {
     paid_cents: paidCents(b.payments),
     service_name: b.services?.[0]?.name ?? "Service",
     service_slug: b.services?.[0]?.slug ?? "",
+    pets: parsePets(b.booking_pets),
+    quoteInputs: b.quote_inputs ?? undefined,
   }));
 
   return (

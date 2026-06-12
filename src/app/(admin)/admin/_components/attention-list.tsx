@@ -19,20 +19,20 @@ export interface AttentionListProps {
     topAmountCents?: number;
     totalCents?: number;
   };
-  reviewsToModerate: number;
+  recentReviews: number;
 }
 
 export function AttentionList({
   pendingApprovals,
   newInquiries,
   owing,
-  reviewsToModerate,
+  recentReviews,
 }: AttentionListProps) {
   const allClear =
     pendingApprovals === 0 &&
     newInquiries === 0 &&
     owing.count === 0 &&
-    reviewsToModerate === 0;
+    recentReviews === 0;
 
   return (
     <section
@@ -40,27 +40,27 @@ export function AttentionList({
       className="border-border bg-card overflow-hidden rounded-2xl border"
     >
       {/* Header band */}
-      <div className="bg-warning/20 text-warning-foreground px-4 py-[11px] text-[11.5px] font-bold tracking-[0.05em] uppercase">
+      <div className="bg-warning/20 text-warning-foreground px-4 py-2.75 text-[11.5px] font-bold tracking-wider uppercase">
         Needs your attention
       </div>
 
       {allClear ? (
         /* Empty state */
-        <div className="text-status-available-foreground flex items-center gap-2.5 px-4 py-[22px] text-sm font-medium">
-          <CheckCircle2 className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
+        <div className="text-status-available-foreground flex items-center gap-2.5 px-4 py-5.5 text-sm font-medium">
+          <CheckCircle2 className="h-5 w-5 shrink-0" aria-hidden="true" />
           All caught up ✓
         </div>
       ) : (
         <ul role="list">
           {/* Pending approvals */}
           {pendingApprovals > 0 && (
-            <li className="border-border flex items-center gap-[14px] border-t px-4 py-[14px]">
+            <li className="border-border flex items-center gap-3.5 border-t px-4 py-3.5">
               {/* chip: gold */}
               <span
-                className="bg-warning/20 text-warning-foreground flex h-[38px] w-[38px] flex-shrink-0 items-center justify-center rounded-[10px]"
+                className="bg-warning/20 text-warning-foreground flex h-9.5 w-9.5 shrink-0 items-center justify-center rounded-[10px]"
                 aria-hidden="true"
               >
-                <CheckSquare className="h-[19px] w-[19px]" />
+                <CheckSquare className="h-4.75 w-4.75" />
               </span>
               <div className="min-w-0 flex-1">
                 <p className="text-foreground text-sm font-semibold">
@@ -78,20 +78,20 @@ export function AttentionList({
                 className="text-brand-strong focus-visible:ring-ring ml-auto inline-flex items-center gap-1 text-sm font-semibold whitespace-nowrap hover:underline focus-visible:ring-2 focus-visible:outline-none"
               >
                 Review{" "}
-                <ArrowRight className="h-[13px] w-[13px]" aria-hidden="true" />
+                <ArrowRight className="h-3.25 w-3.25" aria-hidden="true" />
               </Link>
             </li>
           )}
 
           {/* New inquiries */}
           {newInquiries > 0 && (
-            <li className="border-border flex items-center gap-[14px] border-t px-4 py-[14px]">
+            <li className="border-border flex items-center gap-3.5 border-t px-4 py-3.5">
               {/* chip: gold */}
               <span
-                className="bg-warning/20 text-warning-foreground flex h-[38px] w-[38px] flex-shrink-0 items-center justify-center rounded-[10px]"
+                className="bg-warning/20 text-warning-foreground flex h-9.5 w-9.5 shrink-0 items-center justify-center rounded-[10px]"
                 aria-hidden="true"
               >
-                <MessageSquare className="h-[19px] w-[19px]" />
+                <MessageSquare className="h-4.75 w-4.75" />
               </span>
               <div className="min-w-0 flex-1">
                 <p className="text-foreground text-sm font-semibold">
@@ -106,21 +106,20 @@ export function AttentionList({
                 href="/admin/inquiries"
                 className="text-brand-strong focus-visible:ring-ring ml-auto inline-flex items-center gap-1 text-sm font-semibold whitespace-nowrap hover:underline focus-visible:ring-2 focus-visible:outline-none"
               >
-                Open{" "}
-                <ArrowRight className="h-[13px] w-[13px]" aria-hidden="true" />
+                Open <ArrowRight className="h-3.25 w-3.25" aria-hidden="true" />
               </Link>
             </li>
           )}
 
           {/* Owing clients — danger-warm only */}
           {owing.count > 0 && (
-            <li className="border-border flex items-center gap-[14px] border-t px-4 py-[14px]">
+            <li className="border-border flex items-center gap-3.5 border-t px-4 py-3.5">
               {/* chip: danger */}
               <span
-                className="bg-destructive-warm/10 text-destructive-warm flex h-[38px] w-[38px] flex-shrink-0 items-center justify-center rounded-[10px]"
+                className="bg-destructive-warm/10 text-destructive-warm flex h-9.5 w-9.5 shrink-0 items-center justify-center rounded-[10px]"
                 aria-hidden="true"
               >
-                <CircleDollarSign className="h-[19px] w-[19px]" />
+                <CircleDollarSign className="h-4.75 w-4.75" />
               </span>
               <div className="min-w-0 flex-1">
                 <p className="text-destructive-warm text-sm font-semibold">
@@ -143,36 +142,35 @@ export function AttentionList({
                 className="text-destructive-warm focus-visible:ring-ring ml-auto inline-flex items-center gap-1 text-sm font-semibold whitespace-nowrap hover:underline focus-visible:ring-2 focus-visible:outline-none"
               >
                 Settle{" "}
-                <ArrowRight className="h-[13px] w-[13px]" aria-hidden="true" />
+                <ArrowRight className="h-3.25 w-3.25" aria-hidden="true" />
               </Link>
             </li>
           )}
 
-          {/* Reviews to moderate */}
-          {reviewsToModerate > 0 && (
-            <li className="border-border flex items-center gap-[14px] border-t px-4 py-[14px]">
+          {/* New reviews in the last 7 days */}
+          {recentReviews > 0 && (
+            <li className="border-border flex items-center gap-3.5 border-t px-4 py-3.5">
               {/* chip: calm/green */}
               <span
-                className="bg-status-available text-status-available-foreground flex h-[38px] w-[38px] flex-shrink-0 items-center justify-center rounded-[10px]"
+                className="bg-status-available text-status-available-foreground flex h-9.5 w-9.5 shrink-0 items-center justify-center rounded-[10px]"
                 aria-hidden="true"
               >
-                <Star className="h-[19px] w-[19px]" />
+                <Star className="h-4.75 w-4.75" />
               </span>
               <div className="min-w-0 flex-1">
                 <p className="text-foreground text-sm font-semibold">
-                  {reviewsToModerate}{" "}
-                  {reviewsToModerate === 1 ? "review" : "reviews"} to moderate
+                  {recentReviews} new{" "}
+                  {recentReviews === 1 ? "review" : "reviews"} this week
                 </p>
                 <p className="text-muted-foreground text-xs">
-                  Publish or reject
+                  Submitted in the last 7 days
                 </p>
               </div>
               <Link
                 href="/admin/reviews"
                 className="text-brand-strong focus-visible:ring-ring ml-auto inline-flex items-center gap-1 text-sm font-semibold whitespace-nowrap hover:underline focus-visible:ring-2 focus-visible:outline-none"
               >
-                Moderate{" "}
-                <ArrowRight className="h-[13px] w-[13px]" aria-hidden="true" />
+                View <ArrowRight className="h-3.25 w-3.25" aria-hidden="true" />
               </Link>
             </li>
           )}

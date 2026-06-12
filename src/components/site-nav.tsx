@@ -4,7 +4,19 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Drawer } from "@base-ui/react/drawer";
-import { Menu, X } from "lucide-react";
+import {
+  Briefcase,
+  CalendarCheck,
+  CalendarDays,
+  LayoutDashboard,
+  Menu,
+  MessageSquare,
+  Settings,
+  Star,
+  Users,
+  X,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   isActiveNav,
@@ -19,6 +31,18 @@ import type {
   NavBadges,
 } from "@/components/layout/nav-config";
 import { NavBadge } from "@/components/ui/nav-badge";
+
+/** Admin nav icons keyed by href. Shared with AppSidebar's map. */
+const NAV_ICONS: Record<string, LucideIcon> = {
+  "/admin": LayoutDashboard,
+  "/admin/availability": CalendarDays,
+  "/admin/bookings": CalendarCheck,
+  "/admin/clients": Users,
+  "/admin/inquiries": MessageSquare,
+  "/admin/reviews": Star,
+  "/admin/services": Briefcase,
+  "/admin/settings": Settings,
+};
 
 /** Desktop-only centered tab row. */
 export function SiteNavTabs({ links }: { links: NavItem[] }) {
@@ -130,18 +154,25 @@ function SiteNavMobileDrawer({
                   {zoneNav.items.map(({ href, label }) => {
                     const active = isActiveNav(pathname, href);
                     const badge = navBadges?.[href];
+                    const Icon = NAV_ICONS[href];
                     return (
                       <li key={href}>
                         <Link
                           href={href}
                           aria-current={active ? "page" : undefined}
                           className={cn(
-                            "flex min-h-11 items-center rounded-lg px-3 text-base",
+                            "flex min-h-11 items-center gap-2 rounded-lg px-3 text-base",
                             active
                               ? "bg-sidebar-active text-brand-strong font-semibold"
                               : "text-foreground hover:bg-muted",
                           )}
                         >
+                          {Icon ? (
+                            <Icon
+                              className="size-4 shrink-0"
+                              aria-hidden="true"
+                            />
+                          ) : null}
                           {label}
                           {badge ? (
                             <NavBadge

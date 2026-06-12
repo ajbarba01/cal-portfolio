@@ -210,7 +210,7 @@ function quoteHouseSitting(
 
   if (holidayDays > 0) {
     lines.push({
-      label: `Holiday (${holidayDays} day${holidayDays !== 1 ? "s" : ""})`,
+      label: `Premium day${holidayDays !== 1 ? "s" : ""} (${holidayDays})`,
       amountCents: roundCents(holidayDays * cfg.holiday_cents_per_day),
     });
   }
