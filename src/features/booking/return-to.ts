@@ -59,7 +59,11 @@ export function buildReturnTo(selection: BookingSelection): string {
  * 2. Must start with exactly one `/` (not `//`, not `/\`) — rejects
  *    protocol-relative and backslash-normalisation vectors.
  * 3. Must not contain a `:` before the first `/` after position 0 — rejects
- *    absolute URLs (`https:`, `javascript:`, etc.).
+ *    absolute URLs (`https:`, `javascript:`, etc.). A colon anywhere AFTER the
+ *    leading slash is safe: the string already starts with `/`, so it cannot be
+ *    parsed as a scheme by any conforming URL parser. This allows ISO timestamps
+ *    in query values (e.g. `start=2026-07-01T16%3A00%3A00.000Z`) and literal
+ *    colons in path segments.
  * 4. Must not contain a backslash — some browsers normalise `/\host` as `//host`.
  * 5. Must not be an auth path (`/login`, `/signup`, `/logout`) — avoids
  *    redirect loops when the sign-in page itself is the origin page.
@@ -69,9 +73,12 @@ export function safeReturnTo(raw: string | null | undefined): string | null {
   // Rule 2: must start with exactly one slash (not // or /\)
   if (!raw.startsWith("/")) return null;
   if (raw.startsWith("//")) return null;
-  // Rule 3: reject anything with a scheme (colon before any slash after pos 0)
-  const colonIndex = raw.indexOf(":");
-  if (colonIndex !== -1) return null;
+  // Rule 3: no scheme check needed for strings that start with "/".
+  // A URL scheme must appear before the first "/", and we have already verified
+  // this string starts with exactly one "/". Therefore any colon in the
+  // remaining characters cannot form a scheme (`javascript:`, `https:`, etc.)
+  // and is safe — e.g. ISO timestamps in query values or colons in path segments.
+  // (Strings that do NOT start with "/" are rejected by Rule 2 above.)
   // Rule 4: reject backslash
   if (raw.includes("\\")) return null;
   // Rule 5: reject auth loop paths

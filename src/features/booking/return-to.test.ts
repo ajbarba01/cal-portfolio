@@ -70,4 +70,32 @@ describe("safeReturnTo (open-redirect guard)", () => {
     expect(safeReturnTo("evil.com")).toBeNull();
     expect(safeReturnTo("javascript:alert(1)")).toBeNull();
   });
+
+  // Round-trip: buildReturnTo emits ISO timestamps whose colons must survive
+  // safeReturnTo — the deferred-auth booking flow depends on this.
+  it("accepts a buildReturnTo-shaped path with ISO timestamps in the query", () => {
+    const built = buildReturnTo({
+      serviceSlug: "walk",
+      start: "2026-07-01T16:00:00.000Z",
+      end: "2026-07-01T17:00:00.000Z",
+      petIds: ["a", "b"],
+    });
+    // Sanity-check the shape (URLSearchParams %-encodes colons in values)
+    expect(built).toMatch(/^\/book\/walk\?/);
+    // The guard must pass it through verbatim
+    expect(safeReturnTo(built)).toBe(built);
+  });
+
+  // Colons after the leading slash (in a path segment or query value) are safe —
+  // the string already starts with "/" so it cannot be a scheme.  Only a colon
+  // BEFORE any slash (position 0…first-slash) forms a scheme.
+  it("accepts a path with a literal colon in a path segment", () => {
+    expect(safeReturnTo("/path:with-colon/sub")).toBe("/path:with-colon/sub");
+  });
+
+  // Scheme-like strings that don't start with "/" still rejected (no leading slash
+  // check catches them first, but colons confirm intent)
+  it("rejects javascript:alert(1) — no leading slash, caught before colon rule", () => {
+    expect(safeReturnTo("javascript:alert(1)")).toBeNull();
+  });
 });
