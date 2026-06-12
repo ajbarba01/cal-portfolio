@@ -72,13 +72,16 @@ export async function SiteHeader({
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 py-6">
           <Wordmark isAdmin={isAdmin} />
 
-          <div className="hidden justify-self-center md:block">
+          {/* Tab row + auth cluster need ~762px; at md (768) only ~689px is
+              available inside the container padding, so the desktop layout
+              starts at lg — the burger covers 768–1023. */}
+          <div className="hidden justify-self-center lg:block">
             <SiteNavTabs links={navLinks} />
           </div>
 
           <div className="flex items-center justify-end">
-            <div className="hidden md:block">{authCluster}</div>
-            <div className="md:hidden">
+            <div className="hidden lg:block">{authCluster}</div>
+            <div className="lg:hidden">
               <SiteNavMobile
                 links={navLinks}
                 zoneNav={zoneNav}

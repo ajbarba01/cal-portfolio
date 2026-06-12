@@ -30,11 +30,11 @@
 
 **Files:** investigation first; fix lands where the root cause is (suspect `page-shell.tsx` / `page-container.tsx` / a `min-w` in card rows).
 
-- [ ] **Step 1 (systematic-debugging):** Reproduce on real device emulation — `npm run dev` is usually on :3000 (maintainer's; don't kill it — use `next dev -p 3001` if needed). Chrome DevTools device toolbar at 390×844 on `/services`, `/book/walk`, `/reviews`, `/contact`, `/` (CTA band). Confirm horizontal scrollbar / right-edge clipping. If it does NOT reproduce outside headless capture, log that in the Handoff log and close U14/U22 as capture artifacts (skip to Step 4).
-- [ ] **Step 2:** Locate the shared cause. In DevTools, `document.querySelectorAll('*')` widest-element sweep (or toggle `outline: 1px solid red` via `* { outline … }`) on one affected page; identify the element wider than the viewport and the rule responsible (candidates: a fixed width, `min-w-*`, unpadded `w-full` + margin, grid `auto-cols` overflow). Verify the SAME rule explains the other affected pages before fixing.
-- [ ] **Step 3:** Fix at the root (one change, not five per-page patches). Add `min-w-0` / `max-w-full` / corrected padding at the shared layout level as the diagnosis dictates.
-- [ ] **Step 4:** Verify all five surfaces at 390 + 768 + 1024: no horizontal scroll, no clipped content. Record root cause in the Handoff log (non-blocking note).
-- [ ] **Step 5:** `npm run typecheck` + `npm run lint`, commit: `fix: stop mobile horizontal overflow on public pages`
+- [x] **Step 1 (systematic-debugging):** Reproduce on real device emulation — `npm run dev` is usually on :3000 (maintainer's; don't kill it — use `next dev -p 3001` if needed). Chrome DevTools device toolbar at 390×844 on `/services`, `/book/walk`, `/reviews`, `/contact`, `/` (CTA band). Confirm horizontal scrollbar / right-edge clipping. If it does NOT reproduce outside headless capture, log that in the Handoff log and close U14/U22 as capture artifacts (skip to Step 4).
+- [x] **Step 2:** Locate the shared cause. In DevTools, `document.querySelectorAll('*')` widest-element sweep (or toggle `outline: 1px solid red` via `* { outline … }`) on one affected page; identify the element wider than the viewport and the rule responsible (candidates: a fixed width, `min-w-*`, unpadded `w-full` + margin, grid `auto-cols` overflow). Verify the SAME rule explains the other affected pages before fixing.
+- [x] **Step 3:** Fix at the root (one change, not five per-page patches). Add `min-w-0` / `max-w-full` / corrected padding at the shared layout level as the diagnosis dictates.
+- [x] **Step 4:** Verify all five surfaces at 390 + 768 + 1024: no horizontal scroll, no clipped content. Record root cause in the Handoff log (non-blocking note).
+- [x] **Step 5:** `npm run typecheck` + `npm run lint`, commit: `fix: stop mobile horizontal overflow on public pages`
 
 ## Task 2: Width system — PageContainer `narrow` + footer alignment (U16)
 
@@ -168,3 +168,11 @@ const widths = {
 ## Handoff log
 
 (escalations + non-blocking notes per WORKFLOW.md)
+
+### Task 1 — 390px = capture artifacts; real overflow at 768 fixed in header (2026-06-11)
+
+**390px (U14/U22):** clean under CDP device emulation (scrollWidth = clientWidth = 390 on all 5 pages) — closed as headless-screenshot capture artifacts, not layout bugs.
+**Method correction:** the first verification matrix was invalid — the script ignored `Page.navigate` errorText and measured Chrome's error page; rerun with a navigation guard (assert `location.href` is on `localhost:3000` before measuring).
+**Real bug found at 768 (all public pages):** site-header desktop layout switched on at `md`, but wordmark (142px) + tab row (556px) + auth cluster (32px, signed out) + grid gaps (32px) = 762px against ~689px available inside container padding → ~73px horizontal overflow (worse signed-in).
+**Fix:** moved header desktop-nav breakpoint `md:` → `lg:` in `src/components/site-header.tsx` — burger persists 768–1023. Gap-tightening alone couldn't close 73px+ without severe crowding; header restyle deferred to SP6 Plan B.
+**Verification:** 5 pages × 390/768/800/834/1024 — scrollWidth = clientWidth, overflow = false on all 25. `npm run typecheck` + `npm run lint` — 0 errors (3 pre-existing scheduler warnings unchanged).
