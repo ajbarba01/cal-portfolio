@@ -48,6 +48,71 @@ const footerNavLinks = [
   { href: "/contact", label: "Contact" },
 ] as const;
 
+const socialIconClass =
+  "text-muted-foreground hover:bg-muted hover:text-brand-strong flex size-9 items-center justify-center rounded-[10px] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2";
+
+/** Social icon row. Icons with no URL render nothing (no dead links). */
+function SocialLinks() {
+  return (
+    <div className="flex gap-1.5" role="list" aria-label="Social links">
+      {socials.instagram ? (
+        <a
+          href={socials.instagram}
+          role="listitem"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Instagram"
+          className={socialIconClass}
+        >
+          <InstagramIcon className="size-4.25" />
+        </a>
+      ) : null}
+
+      {socials.tiktok ? (
+        <a
+          href={socials.tiktok}
+          role="listitem"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="TikTok"
+          className={socialIconClass}
+        >
+          <TikTokIcon className="size-4.25" />
+        </a>
+      ) : null}
+
+      {/* Mail always renders — links to /contact, NEVER mailto: */}
+      <Link
+        href="/contact"
+        role="listitem"
+        aria-label="Contact form"
+        className={socialIconClass}
+      >
+        <Mail size={17} strokeWidth={1.8} aria-hidden="true" />
+      </Link>
+    </div>
+  );
+}
+
+function FooterNav({ gapClass }: { gapClass: string }) {
+  return (
+    <nav aria-label="Footer navigation">
+      <ul className={`flex text-sm ${gapClass}`}>
+        {footerNavLinks.map(({ href, label }) => (
+          <li key={href}>
+            <Link
+              href={href}
+              className="text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {label}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  );
+}
+
 /** Shared sheet footer. Rendered by PageShell on every zone. */
 export function SiteFooter() {
   return (
@@ -63,118 +128,19 @@ export function SiteFooter() {
           </p>
 
           {/* Center/Right: nav links */}
-          <nav aria-label="Footer navigation">
-            <ul className="flex gap-4.5 text-sm">
-              {footerNavLinks.map(({ href, label }) => (
-                <li key={href}>
-                  <Link
-                    href={href}
-                    className="text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    {label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </nav>
+          <FooterNav gapClass="gap-4.5" />
 
           {/* Right: social icons */}
-
-          <div className="flex gap-1.5" role="list" aria-label="Social links">
-            {socials.instagram ? (
-              <a
-                href={socials.instagram}
-                role="listitem"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Instagram"
-                className="text-sand-700 hover:bg-muted hover:text-brand-strong flex size-9 items-center justify-center rounded-[10px] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
-              >
-                <InstagramIcon className="size-4.25" />
-              </a>
-            ) : null}
-
-            {socials.tiktok ? (
-              <a
-                href={socials.tiktok}
-                role="listitem"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="TikTok"
-                className="text-sand-700 hover:bg-muted hover:text-brand-strong flex size-9 items-center justify-center rounded-[10px] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
-              >
-                <TikTokIcon className="size-4.25" />
-              </a>
-            ) : null}
-
-            {/* Mail always renders — links to /contact, NEVER mailto: */}
-            <Link
-              href="/contact"
-              role="listitem"
-              aria-label="Contact form"
-              className="text-sand-700 hover:bg-muted hover:text-brand-strong flex size-9 items-center justify-center rounded-[10px] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
-            >
-              <Mail size={17} strokeWidth={1.8} aria-hidden="true" />
-            </Link>
-          </div>
+          <SocialLinks />
         </div>
 
         {/* ── Mobile: stacked, centered ───────────────────────────────── */}
         <div className="flex flex-col items-center gap-3.5 py-5.5 text-center sm:hidden">
           {/* Socials row first on mobile (matches mockup order) */}
-          <div className="flex gap-1.5" role="list" aria-label="Social links">
-            {socials.instagram ? (
-              <a
-                href={socials.instagram}
-                role="listitem"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Instagram"
-                className="text-sand-700 hover:bg-muted hover:text-brand-strong flex size-9 items-center justify-center rounded-[10px] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
-              >
-                <InstagramIcon className="size-4.25" />
-              </a>
-            ) : null}
-
-            {socials.tiktok ? (
-              <a
-                href={socials.tiktok}
-                role="listitem"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="TikTok"
-                className="text-sand-700 hover:bg-muted hover:text-brand-strong flex size-9 items-center justify-center rounded-[10px] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
-              >
-                <TikTokIcon className="size-4.25" />
-              </a>
-            ) : null}
-
-            {/* Mail always renders */}
-            <Link
-              href="/contact"
-              role="listitem"
-              aria-label="Contact form"
-              className="text-sand-700 hover:bg-muted hover:text-brand-strong flex size-9 items-center justify-center rounded-[10px] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
-            >
-              <Mail size={17} strokeWidth={1.8} aria-hidden="true" />
-            </Link>
-          </div>
+          <SocialLinks />
 
           {/* Nav row */}
-          <nav aria-label="Footer navigation">
-            <ul className="flex gap-3.5 text-sm">
-              {footerNavLinks.map(({ href, label }) => (
-                <li key={href}>
-                  <Link
-                    href={href}
-                    className="text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    {label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </nav>
+          <FooterNav gapClass="gap-3.5" />
 
           {/* Copyright last on mobile */}
           <p className="text-muted-foreground text-sm">
