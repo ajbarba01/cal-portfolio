@@ -4,19 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Drawer } from "@base-ui/react/drawer";
-import {
-  Briefcase,
-  CalendarCheck,
-  CalendarDays,
-  LayoutDashboard,
-  Menu,
-  MessageSquare,
-  Settings,
-  Star,
-  Users,
-  X,
-} from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   isActiveNav,
@@ -25,24 +13,13 @@ import {
 } from "@/components/layout/is-active-nav";
 import { navTab } from "@/components/layout/nav-underline";
 import { SignOutButton } from "@/components/sign-out-button";
+import { NAV_ICONS } from "@/components/layout/nav-config";
 import type {
   NavItem,
   ZoneNav,
   NavBadges,
 } from "@/components/layout/nav-config";
 import { NavBadge } from "@/components/ui/nav-badge";
-
-/** Admin nav icons keyed by href. Shared with AppSidebar's map. */
-const NAV_ICONS: Record<string, LucideIcon> = {
-  "/admin": LayoutDashboard,
-  "/admin/availability": CalendarDays,
-  "/admin/bookings": CalendarCheck,
-  "/admin/clients": Users,
-  "/admin/inquiries": MessageSquare,
-  "/admin/reviews": Star,
-  "/admin/services": Briefcase,
-  "/admin/settings": Settings,
-};
 
 /** Desktop-only centered tab row. */
 export function SiteNavTabs({ links }: { links: NavItem[] }) {

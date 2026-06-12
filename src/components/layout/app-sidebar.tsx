@@ -2,38 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  Briefcase,
-  CalendarCheck,
-  CalendarDays,
-  LayoutDashboard,
-  Lock,
-  LogOut,
-  MessageSquare,
-  Settings,
-  Star,
-  Users,
-} from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { Lock, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { activeNavHref } from "./is-active-nav";
+import { NAV_ICONS } from "./nav-config";
 import type { ZoneNav, NavBadges } from "./nav-config";
 import { SignOutButton } from "@/components/sign-out-button";
 import { NavBadge } from "@/components/ui/nav-badge";
 
 const ONBOARDING_HREF = "/onboarding";
-
-/** Map nav item hrefs to their lucide icon. Falls back to nothing if unmapped. */
-const NAV_ICONS: Record<string, LucideIcon> = {
-  "/admin": LayoutDashboard,
-  "/admin/availability": CalendarDays,
-  "/admin/bookings": CalendarCheck,
-  "/admin/clients": Users,
-  "/admin/inquiries": MessageSquare,
-  "/admin/reviews": Star,
-  "/admin/services": Briefcase,
-  "/admin/settings": Settings,
-};
 
 export function AppSidebar({
   nav,
