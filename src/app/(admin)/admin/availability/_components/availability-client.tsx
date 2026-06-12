@@ -400,7 +400,11 @@ export function AvailabilityClient({
       // (cosmetic only; admin can still select them). A future enrichment can
       // add class to narrow this.
       busyResident: initialBusy.map(toBusyBlock),
-      rules,
+      // ADMIN parity (U2): lead-time greying is a client-booking affordance —
+      // it must never grey days on Cal's availability-painting calendar (and
+      // ADMIN_POLICY skips the lead-time guard anyway). Zero it here; all
+      // other rules stay live from settings.
+      rules: { ...rules, minLeadTimeHours: 0 },
       now: new Date(nowIso),
       premiumDays: optimisticPremiumDays,
     }),

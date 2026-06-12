@@ -130,10 +130,10 @@ const widths = {
 
 **Files:** `booking-flow.tsx` + the create/edit submit paths in the wrappers; `src/features/booking/booking-service-shared.ts` only if U2 needs a flag surfaced.
 
-- [ ] **Step 1 — U1 (test-first where logic):** On `createBooking` success, render the terminal success panel per the contract (check-disc, summary line, approval copy variant when `requires_approval`, "View my bookings" → `/account/bookings`, "Book another" resets the flow). No more silent return. Admin create keeps its existing redirect behavior — the panel is for the public/account paths.
-- [ ] **Step 2 — U2:** Lead-time-blocked days render as **unavailable** in the calendar data (grey, not selectable) instead of surfacing a post-selection error; one quiet note under the calendar ("Days before {date} need more notice — contact Cal if you need something sooner" linking `/contact`). The core already returns `unavailable` correctly — this is UI mapping; trace where the lead-time guard result reaches the client and merge it into the day-state computation.
-- [ ] **Step 3 — U24 (systematic-debugging, test-first):** Reproduce the reschedule-overnight zod failure (`nights` undefined) — seed `busy-week`, edit an overnight booking. Root cause: the edit path's input assembly drops `nights` for overnight services. Write the failing test at the input-assembly/core level, fix, PASS. Do not band-aid with a default value in the schema.
-- [ ] **Step 4:** Verify the three flows again (create walk, create overnight, reschedule overnight; lead-time day grey; success panel both copy variants). Typecheck + lint + booking suite, commit: `fix: booking success state, lead-time availability, and overnight reschedule`
+- [x] **Step 1 — U1 (test-first where logic):** On `createBooking` success, render the terminal success panel per the contract (check-disc, summary line, approval copy variant when `requires_approval`, "View my bookings" → `/account/bookings`, "Book another" resets the flow). No more silent return. Admin create keeps its existing redirect behavior — the panel is for the public/account paths.
+- [x] **Step 2 — U2:** Lead-time-blocked days render as **unavailable** in the calendar data (grey, not selectable) instead of surfacing a post-selection error; one quiet note under the calendar ("Days before {date} need more notice — contact Cal if you need something sooner" linking `/contact`). The core already returns `unavailable` correctly — this is UI mapping; trace where the lead-time guard result reaches the client and merge it into the day-state computation.
+- [x] **Step 3 — U24 (systematic-debugging, test-first):** Reproduce the reschedule-overnight zod failure (`nights` undefined) — seed `busy-week`, edit an overnight booking. Root cause: the edit path's input assembly drops `nights` for overnight services. Write the failing test at the input-assembly/core level, fix, PASS. Do not band-aid with a default value in the schema.
+- [x] **Step 4:** Verify the three flows again (create walk, create overnight, reschedule overnight; lead-time day grey; success panel both copy variants). Typecheck + lint + booking suite, commit: `fix: booking success state, lead-time availability, and overnight reschedule`
 
 ## Task 11: Required-forms booking gate (U26)
 
@@ -196,6 +196,14 @@ const widths = {
 ### Task 5 — shared account-component submits deferred to Plan B (2026-06-12)
 
 Sweep found two primary submits still on the default Button variant: `src/features/accounts/_components/form-card.tsx` and `src/features/accounts/_components/pet-form.tsx`. Both are account-zone primaries but are shared with the admin client-detail surface (SP5a), so per the task scope note they were left untouched. Plan B's surface sweep should switch them to `brand` per the hierarchy rule. Also noted: `src/app/(onboarding)/onboarding/_components/info-step.tsx` has a default-variant primary submit — `(onboarding)` is outside this task's zone list; include it in the Plan B sweep.
+
+### Task 10 — U24 root cause: diffBookingPatch seeded quantities with current.nights (2026-06-12)
+
+**U24 root cause:** `diffBookingPatch` was computing both the "before" and "after" quantities using `current.nights` — so for a pure date reschedule the diff always matched (nights appeared unchanged), leaving `nights` absent from `patch.quantities`. `buildEditQuoteInput` then merged that empty patch over `booking.quote_inputs`, and legacy/seeded rows store no `nights` field, producing `quantities.nights = undefined` → Zod failure. Two-part fix: (1) `diffBookingPatch` now derives initial nights from the stored ISO timestamps (`initialNightsFromIso`) so a date change that alters night count produces a diff; (2) `buildEditQuoteInput` recomputes `nights` from the merged `startsAt`/`endsAt` unconditionally so even a same-count reschedule (where the diff legitimately omits quantities) always populates `nights`.
+
+**U2:** lead-time blocking merged into day-state computation at both levels — `deriveBookableDays` (overnight/month-range) and `hourlyAvailableDayKeys` (hourly/week-slots) now accept lead-time args and mark blocked days `out-of-window`. Admin surfaces (availability painter, admin create) zero `minLeadTimeHours` to avoid blocking Cal's own calendar. `LeadTimeNote` guards on `minLeadTimeHours > 0`; renders null when lead time is 0.
+
+**U1:** success snapshot captured at submit time (not derived from live state) to survive the post-success busy refresh. `resetFlow` clears scheduler + quote + success state; `submitDone` is now derived from `success !== null`. Admin create keeps its server-side redirect; success panel is public/account-create only.
 
 ### Task 8 — reviews auto-publish required a policy migration (2026-06-12)
 

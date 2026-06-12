@@ -14,6 +14,7 @@
  * a thin wiring layer. See use-admin-create-booking.ts for full logic documentation.
  */
 
+import { useMemo } from "react";
 import {
   BookingFlow,
   BookingFlowStepHead,
@@ -51,6 +52,15 @@ export function AdminCreateBookingClient({
   initialBusy,
   pets,
 }: AdminCreateBookingClientProps) {
+  // ADMIN_POLICY parity (U2): admin create skips the lead-time guard
+  // server-side, so the calendar must not grey lead-time days (and the
+  // "contact Cal" lead-time note makes no sense for Cal). Zero it for the
+  // scheduler + BookingFlow; all other rules stay live from settings.
+  const adminRules = useMemo(
+    () => ({ ...rules, minLeadTimeHours: 0 }),
+    [rules],
+  );
+
   const {
     mode,
     petAware,
@@ -87,7 +97,7 @@ export function AdminCreateBookingClient({
     clientId,
     clientName,
     service,
-    rules,
+    rules: adminRules,
     initialBusy,
     pets,
   });
@@ -104,7 +114,7 @@ export function AdminCreateBookingClient({
         stay,
         onSelectionChange,
       }}
-      rules={rules}
+      rules={adminRules}
       monthRangeIntro={
         <>
           Click the two ends of the stay — in any order, and across months if

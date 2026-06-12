@@ -36,7 +36,9 @@
  */
 
 import type { ReactNode, ComponentProps } from "react";
-import { Info } from "lucide-react";
+import { Check, Info } from "lucide-react";
+import Link from "next/link";
+import { buttonVariants } from "@/components/ui/button";
 import { Scheduler } from "./scheduler";
 import type { SchedulerData } from "./scheduler";
 import type { SchedulerCapabilities } from "../schedule-capabilities";
@@ -173,6 +175,119 @@ function CalendarStepHead({ mode }: { mode: BookingMode }) {
   );
 }
 
+// ── U2 lead-time note ─────────────────────────────────────────────────────────
+// Rendered when minLeadTimeHours > 0: one quiet note under the calendar with
+// the first bookable date and a link to /contact. No new visual class — uses
+// existing muted-foreground text. Renders null when lead time is zero.
+
+function LeadTimeNote({
+  minLeadTimeHours,
+  now,
+}: {
+  minLeadTimeHours: number;
+  now: Date;
+}) {
+  if (minLeadTimeHours <= 0) return null;
+
+  // First bookable calendar day = ceil(now + leadTimeHours) to next full day.
+  const firstBookableMs = now.getTime() + minLeadTimeHours * 60 * 60 * 1000;
+  const firstBookable = new Date(firstBookableMs);
+  // Format as "Mon, Jan 1" — short human-readable date.
+  const formatted = firstBookable.toLocaleDateString("en-US", {
+    timeZone: "America/Denver",
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+
+  return (
+    <p className="text-muted-foreground mt-2.5 flex gap-1.5 text-[12.5px] leading-snug">
+      <Info size={14} className="mt-px shrink-0" aria-hidden="true" />
+      <span>
+        Days before {formatted} need more notice —{" "}
+        <Link
+          href="/contact"
+          className="text-brand-strong font-medium hover:underline focus-visible:underline"
+        >
+          contact Cal
+        </Link>{" "}
+        if you need something sooner.
+      </span>
+    </p>
+  );
+}
+
+// ── U1 success panel ──────────────────────────────────────────────────────────
+// Terminal state after createBooking succeeds (public/account create paths —
+// admin create keeps its redirect). Visual contract: booking-flow-preview.html
+// "Success state (U1)" — centered card, check disc, one-line recap, copy
+// variant by requiresApproval, then "View my bookings" + "Book another".
+
+export interface BookingSuccessPanelProps {
+  /** True when the booking landed in pending_approval (copy variant). */
+  requiresApproval: boolean;
+  /** One-line recap, e.g. "Walk · Tue, Jun 16 · 1.5 hr · Juniper". */
+  summary: string | null;
+  /** Resets the flow so the user can start a fresh booking. */
+  onBookAnother: () => void;
+}
+
+export function BookingSuccessPanel({
+  requiresApproval,
+  summary,
+  onBookAnother,
+}: BookingSuccessPanelProps) {
+  return (
+    <section
+      role="status"
+      aria-labelledby="booking-success-heading"
+      className="mx-auto w-full max-w-md pb-12"
+    >
+      <div className="bg-card border-border rounded-2xl border p-7 text-center">
+        <div
+          aria-hidden="true"
+          className="bg-status-available mx-auto mb-3 flex size-11 items-center justify-center rounded-full"
+        >
+          <Check
+            size={22}
+            strokeWidth={2.5}
+            className="text-status-available-foreground"
+          />
+        </div>
+        <h2
+          id="booking-success-heading"
+          className="font-heading text-foreground m-0 text-xl font-semibold"
+        >
+          {requiresApproval ? "Booking requested" : "Booking confirmed"}
+        </h2>
+        <p className="text-muted-foreground mt-1.5 text-sm leading-relaxed">
+          {summary && (
+            <span className="text-foreground block font-medium">{summary}</span>
+          )}
+          {requiresApproval
+            ? "Cal approves requests within a day — you'll get an email either way."
+            : "You're all set — Cal has it on the calendar."}
+        </p>
+        <div className="mt-5 flex flex-wrap items-center justify-center gap-2.5">
+          <Link
+            href="/account/bookings"
+            className={cn(buttonVariants({ variant: "brand" }))}
+          >
+            View my bookings
+          </Link>
+          <button
+            type="button"
+            onClick={onBookAnother}
+            className={cn(buttonVariants({ variant: "outline" }))}
+          >
+            Book another
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // ── U6 policy line ─────────────────────────────────────────────────────────────
 // Rendered from settings: "Free cancellation until {n}h before; later
 // cancellations keep {pct}%." Never hardcoded — renders null when fields absent.
@@ -249,6 +364,13 @@ export function BookingFlow({
               <Scheduler.MonthGrid />
               {/* Legend sits directly under the month (B2), before the timeline. */}
               <Scheduler.Legend className="mt-5" />
+              {/* U2: lead-time note after legend (only when minLeadTimeHours > 0). */}
+              {rules && (
+                <LeadTimeNote
+                  minLeadTimeHours={rules.minLeadTimeHours ?? 0}
+                  now={schedulerData.now}
+                />
+              )}
               <div className="mt-6">
                 <Scheduler.DayTimeline />
               </div>
@@ -281,6 +403,13 @@ export function BookingFlow({
                   <Scheduler.ClearDates />
                 </div>
                 <Scheduler.Legend className="mt-5" />
+                {/* U2: lead-time note after legend (month-range mode). */}
+                {rules && (
+                  <LeadTimeNote
+                    minLeadTimeHours={rules.minLeadTimeHours ?? 0}
+                    now={schedulerData.now}
+                  />
+                )}
                 <Scheduler.BookingDetailsPanel />
               </Scheduler>
               {/* Reserved-height line for the invalid-range message only. */}

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { editBookingCore } from "./booking-service";
+import { buildEditQuoteInput } from "./edit-core";
 import { CLIENT_POLICY, ADMIN_POLICY } from "./mutation-policy";
 import type { BookingRepository, BookingEditRow } from "./booking-repository";
 
@@ -245,5 +246,52 @@ describe("editBookingCore", () => {
       },
     );
     expect(result.kind).toBe("not_found");
+  });
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
+// buildEditQuoteInput — U24: nights must follow the merged times
+// ──────────────────────────────────────────────────────────────────────────────
+
+describe("buildEditQuoteInput (U24)", () => {
+  // A 2-night house-sitting stay (6:30am Denver anchors → 12:30Z in June/MDT).
+  function hsRow(over: Partial<BookingEditRow> = {}): BookingEditRow {
+    return baseRow({
+      service_slug: "house-sitting",
+      startsAt: new Date("2026-06-19T12:30:00Z"),
+      endsAt: new Date("2026-06-21T12:30:00Z"),
+      quote_inputs: {}, // legacy/seeded row: nights never stored
+      ...over,
+    });
+  }
+
+  it("derives nights from the merged times when patch and stored inputs lack them", () => {
+    // Pure date reschedule, same night count → diff legitimately omits
+    // quantities; stored quote_inputs is empty. nights must still be present.
+    const { merged } = buildEditQuoteInput(hsRow(), {
+      startsAt: new Date("2026-06-24T12:30:00Z"),
+      endsAt: new Date("2026-06-26T12:30:00Z"),
+    });
+    expect(merged.quantities.nights).toBe(2);
+  });
+
+  it("recomputes stale stored nights from the merged times", () => {
+    // Stored nights says 5 (stale); the merged range is 2 nights.
+    const row = hsRow({
+      quote_inputs: { pricingType: "house_sitting", nights: 5 },
+    });
+    const { merged } = buildEditQuoteInput(row, {
+      startsAt: new Date("2026-06-24T12:30:00Z"),
+      endsAt: new Date("2026-06-26T12:30:00Z"),
+    });
+    expect(merged.quantities.nights).toBe(2);
+  });
+
+  it("leaves hourly bookings without a nights field", () => {
+    const { merged } = buildEditQuoteInput(baseRow(), {
+      startsAt: new Date("2026-06-20T18:00:00Z"),
+      endsAt: new Date("2026-06-20T19:00:00Z"),
+    });
+    expect(merged.quantities.nights).toBeUndefined();
   });
 });

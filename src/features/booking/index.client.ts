@@ -88,10 +88,15 @@ export type {
 } from "./_components/scheduler";
 
 // BookingFlow — shared stepped-booking layout for the three booking surfaces.
-export { BookingFlow, BookingFlowStepHead } from "./_components/booking-flow";
+export {
+  BookingFlow,
+  BookingFlowStepHead,
+  BookingSuccessPanel,
+} from "./_components/booking-flow";
 export type {
   BookingFlowState,
   BookingFlowProps,
+  BookingSuccessPanelProps,
 } from "./_components/booking-flow";
 
 // Other components

@@ -19,6 +19,7 @@ import Link from "next/link";
 import {
   BookingFlow,
   BookingFlowStepHead,
+  BookingSuccessPanel,
   PetAssignment,
   QuantityForm,
   QuotePanel,
@@ -32,6 +33,7 @@ import type {
 import { RecurringControls } from "./recurring-controls";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { bookingSuccessSummary } from "../../_components/messages";
 import { useServiceBooking } from "./use-service-booking";
 
 export type { ServiceDetail };
@@ -88,9 +90,10 @@ export function ServiceBookingClient({
     previewMsg,
     isPreviewing,
     isSubmitting,
-    submitDone,
+    success,
     bookEnabled,
     guestLoginHref,
+    resetFlow,
     quantities,
     selectedPetIds,
     recurringOn,
@@ -114,6 +117,24 @@ export function ServiceBookingClient({
     initialSelection,
     myBookingDayKeys,
   });
+
+  // U1: terminal success state — the panel replaces the flow until the user
+  // starts over ("Book another") or leaves for /account/bookings.
+  if (success) {
+    return (
+      <BookingSuccessPanel
+        requiresApproval={success.requiresApproval}
+        summary={bookingSuccessSummary({
+          serviceName: service.name,
+          mode,
+          startsAt: success.startsAt,
+          endsAt: success.endsAt,
+          petNames: success.petNames,
+        })}
+        onBookAnother={resetFlow}
+      />
+    );
+  }
 
   return (
     <BookingFlow
@@ -243,12 +264,14 @@ export function ServiceBookingClient({
                 </p>
               )}
               {quote ? (
+                // U1: success renders a terminal panel (early return above),
+                // so the Book CTA always shows alongside a quote here.
                 <QuotePanel
                   preview={quote}
                   onBook={handleBook}
                   bookLabel={isSubmitting ? "Submitting…" : "Book now"}
                   bookDisabled={!bookEnabled}
-                  showBook={!submitDone}
+                  showBook
                 />
               ) : (
                 <div className="border-border bg-card text-muted-foreground rounded-xl border border-dashed p-6 text-center text-sm">

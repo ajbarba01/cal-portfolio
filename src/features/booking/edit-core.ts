@@ -99,6 +99,8 @@ function quantitiesFromQuoteInputs(qi: unknown): Record<string, unknown> {
 // buildEditQuoteInput
 // ──────────────────────────────────────────────────────────────────────────────
 
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
 /** Merge an edit patch over a booking's current shape into a re-quote input. */
 export function buildEditQuoteInput(
   booking: BookingEditRow,
@@ -107,15 +109,27 @@ export function buildEditQuoteInput(
   const startsAt = patch.startsAt ?? booking.startsAt;
   const durationMs = booking.endsAt.getTime() - booking.startsAt.getTime();
   const endsAt = patch.endsAt ?? new Date(startsAt.getTime() + durationMs);
+  const quantities: Record<string, unknown> = {
+    ...quantitiesFromQuoteInputs(booking.quote_inputs),
+    ...(patch.quantities ?? {}),
+  };
+  // U24: `nights` is DERIVED state — the whole-day count of the merged time
+  // range — so recompute it here rather than trusting the stored/patched copy.
+  // A date-only reschedule legitimately omits `quantities` from the patch
+  // (nothing else changed), and stored `quote_inputs` may lack `nights`
+  // (legacy/seeded rows) — without this, the merged input fails the
+  // house_sitting quantity schema with `nights: undefined`. Rounding guards
+  // sub-ms drift across DST; hourly services (sub-day spans → 0) are untouched.
+  const nights = Math.round(
+    (endsAt.getTime() - startsAt.getTime()) / MS_PER_DAY,
+  );
+  if (nights >= 1) quantities.nights = nights;
   const merged: CreateBookingInput = {
     userId: booking.client_id,
     serviceSlug: booking.service_slug,
     startsAt,
     endsAt,
-    quantities: {
-      ...quantitiesFromQuoteInputs(booking.quote_inputs),
-      ...(patch.quantities ?? {}),
-    },
+    quantities,
     petIds: patch.petIds ?? booking.petIds,
     recurringRule: null,
   };

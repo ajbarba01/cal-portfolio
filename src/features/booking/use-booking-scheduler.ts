@@ -214,6 +214,13 @@ export interface UseBookingSchedulerReturn {
   // own setState, matching the originals' `requestQuote()` / `requestPreview()`.
   requestQuote: () => void;
 
+  /**
+   * Resets all scheduling inputs to initial defaults. Used by "Book another"
+   * to clear the calendar selection, quantities, and pets so the user can
+   * start a fresh booking without a page reload.
+   */
+  resetScheduler: () => void;
+
   // Event handlers
   onSelectionChange: (state: ScheduleSelectionState) => void;
   onQuantitiesChange: (s: QuantityState) => void;
@@ -512,6 +519,24 @@ export function useBookingScheduler({
     requestQuote();
   }
 
+  /**
+   * Resets all scheduling inputs to their initial defaults — used by "Book
+   * another" to clear the selection so the user can start a new booking.
+   * Clears the debounce timer so no stale preview fires after reset.
+   */
+  function resetScheduler() {
+    if (quoteTimerRef.current !== null) {
+      clearTimeout(quoteTimerRef.current);
+      quoteTimerRef.current = null;
+    }
+    setSelectedStart(null);
+    setRange(undefined);
+    setQuantities(initialQuantities);
+    setSelectedPetIds(initialPetIds);
+    setRecurringOn(false);
+    setOccurrenceCount(4);
+  }
+
   return {
     mode,
     petAware,
@@ -537,6 +562,7 @@ export function useBookingScheduler({
     buildSelectionInput,
     setSelectedPetIds,
     requestQuote,
+    resetScheduler,
     onSelectionChange,
     onQuantitiesChange,
     onPetIdsChange,

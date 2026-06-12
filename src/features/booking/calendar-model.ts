@@ -132,12 +132,21 @@ export interface DeriveBookableDaysArgs {
  * resident booking overlaps the day span `[dayStart, dayStart + 24h)`.
  * Busy uses the first matching block in `busyResident`; overlapping resident
  * bookings are prevented by the DB exclusion constraint in practice.
+ *
+ * U2: Days within the lead-time window (`rules.minLeadTimeHours`) are treated
+ * as `"out-of-window"` so they render grey in the calendar instead of
+ * surfacing a post-selection error. Lead-time applies to the check-in start
+ * (anchored at `bookingOpenMinute`); a day is blocked when that start instant
+ * is less than `now + minLeadTimeHours` ahead.
  */
 export function deriveBookableDays(
   args: DeriveBookableDaysArgs,
 ): DayAvailability[] {
   const { days, overnightNights, busyResident, rules, now } = args;
   const todayKey = denverDayKey(now);
+  // Earliest bookable check-in start (absolute ms) — accounts for lead time.
+  const leadTimeMs = rules.minLeadTimeHours * MS_PER_HOUR;
+  const bookingOpenMs = rules.bookingOpenMinute * MS_PER_MIN;
 
   return days.map((dayStart) => {
     const dayKey = denverDayKey(dayStart);
@@ -161,7 +170,14 @@ export function deriveBookableDays(
       } else if (!overnightNights.has(dayKey)) {
         state = "out-of-window";
       } else {
-        state = "available";
+        // U2: check-in start for this day (dayStart + bookingOpenMinute).
+        const checkInStartMs = dayStart.getTime() + bookingOpenMs;
+        if (checkInStartMs - now.getTime() < leadTimeMs) {
+          // Within lead-time window — show grey (same visual as out-of-window).
+          state = "out-of-window";
+        } else {
+          state = "available";
+        }
       }
     }
 
@@ -184,6 +200,15 @@ export interface HourlyAvailableDayKeysArgs {
   durationMin: number;
   /** Start-time granularity in minutes. */
   granularityMin: number;
+  /**
+   * U2: Minimum lead time in milliseconds. When provided with `now`, any start
+   * time before `now + leadTimeMs` is excluded from candidate starts — so a day
+   * with no remaining valid starts (all within the lead-time window) is omitted
+   * from the available set and renders grey in the calendar.
+   */
+  leadTimeMs?: number;
+  /** Current instant (required when `leadTimeMs` is provided). */
+  now?: Date;
 }
 
 /**
@@ -195,11 +220,22 @@ export interface HourlyAvailableDayKeysArgs {
  * grid and the day timeline never disagree. Pass this set as `overnightNights`
  * to {@link deriveBookableDays} to drive the hourly month "available" state, so
  * changing the duration re-derives which days are open.
+ *
+ * U2: When `leadTimeMs` + `now` are provided, starts before `now + leadTimeMs`
+ * are filtered out, making lead-time-blocked days appear unavailable (grey) in
+ * the month grid instead of surfacing a post-selection error.
  */
 export function hourlyAvailableDayKeys(
   args: HourlyAvailableDayKeysArgs,
 ): Set<string> {
-  const { days, windows, busy, durationMin, granularityMin } = args;
+  const { days, windows, busy, durationMin, granularityMin, leadTimeMs, now } =
+    args;
+  // Earliest bookable start instant (absolute ms). Undefined when no lead-time.
+  const earliestStartMs =
+    leadTimeMs !== undefined && now !== undefined
+      ? now.getTime() + leadTimeMs
+      : undefined;
+
   const out = new Set<string>();
 
   for (const dayStart of days) {
@@ -228,8 +264,13 @@ export function hourlyAvailableDayKeys(
       granularityMin,
     });
     const hasFree = starts.some((s) => {
+      const candidateStartMs = startMs + s * MS_PER_MIN;
+      // U2: skip any start that falls within the lead-time window.
+      if (earliestStartMs !== undefined && candidateStartMs < earliestStartMs) {
+        return false;
+      }
       const candidate: TimeRange = {
-        startsAt: new Date(startMs + s * MS_PER_MIN),
+        startsAt: new Date(candidateStartMs),
         endsAt: new Date(startMs + (s + durationMin) * MS_PER_MIN),
       };
       return !busy.some((b) => overlapsHalfOpen(candidate, b));
