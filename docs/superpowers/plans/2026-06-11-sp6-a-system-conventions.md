@@ -40,7 +40,7 @@
 
 **Files:** Modify `src/components/layout/page-container.tsx`, `src/components/layout/site-footer.tsx`, `docs/FRONTEND.md`.
 
-- [ ] **Step 1:** Add the `narrow` width to `PageContainer`:
+- [x] **Step 1:** Add the `narrow` width to `PageContainer`:
 
 ```tsx
 const widths = {
@@ -50,18 +50,18 @@ const widths = {
 } as const;
 ```
 
-- [ ] **Step 2:** `site-footer.tsx`: wrap content in the same inner container as the header — `mx-auto w-full max-w-6xl px-5 sm:px-8` (today the footer div has no `max-w`, so footer content misaligns with the boxed header). Leave link content for Plan B Task 2.
-- [ ] **Step 3:** Document the width scale in `docs/FRONTEND.md` (read 65ch · narrow 36rem · app 6xl; header+footer share the 6xl container; bands full-bleed bg + inner container; 50–75 CPL target) — same commit.
-- [ ] **Step 4:** Visual check (1440 + 390): footer edges align with header edges on marketing + account + admin.
-- [ ] **Step 5:** Typecheck + lint, commit: `feat: add narrow page width and align footer container`
+- [x] **Step 2:** `site-footer.tsx`: wrap content in the same inner container as the header — `mx-auto w-full max-w-6xl px-5 sm:px-8` (today the footer div has no `max-w`, so footer content misaligns with the boxed header). Leave link content for Plan B Task 2.
+- [x] **Step 3:** Document the width scale in `docs/FRONTEND.md` (read 65ch · narrow 36rem · app 6xl; header+footer share the 6xl container; bands full-bleed bg + inner container; 50–75 CPL target) — same commit.
+- [x] **Step 4:** Visual check (1440 + 390): footer edges align with header edges on marketing + account + admin.
+- [x] **Step 5:** Typecheck + lint, commit: `feat: add narrow page width and align footer container`
 
 ## Task 3: Select popup matches trigger width (U17)
 
 **Files:** Modify `src/components/ui/select.tsx`.
 
-- [ ] **Step 1:** In `SelectContent`, add the Base UI anchor-width var to the Popup classes: `min-w-[var(--anchor-width)]` (keep `min-w-[8rem]` as the floor: `min-w-[max(8rem,var(--anchor-width))]`).
-- [ ] **Step 2:** Verify on the widest consumers: admin bookings hub status filter, settings TimePicker trio, booking-flow selects — popup never narrower than its trigger; keyboard nav + focus ring unchanged.
-- [ ] **Step 3:** Typecheck + lint, commit: `fix: match select popup width to its trigger`
+- [x] **Step 1:** In `SelectContent`, add the Base UI anchor-width var to the Popup classes: `min-w-[var(--anchor-width)]` (keep `min-w-[8rem]` as the floor: `min-w-[max(8rem,var(--anchor-width))]`).
+- [x] **Step 2:** Verify on the widest consumers: admin bookings hub status filter, settings TimePicker trio, booking-flow selects — popup never narrower than its trigger; keyboard nav + focus ring unchanged.
+- [x] **Step 3:** Typecheck + lint, commit: `fix: match select popup width to its trigger`
 
 ## Task 4: `--attention` → slate (U31)
 
