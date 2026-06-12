@@ -150,10 +150,10 @@ const widths = {
 
 **Files:** `src/app/(onboarding)/onboarding/_components/info-step.tsx` (+ the action it calls).
 
-- [ ] **Step 1 (systematic-debugging):** Reproduce: fresh seeded user (`fresh` scenario), complete the info step — confirm it takes two attempts. **Known lead:** [`2026-06-09-onboarding-admin-batch-design.md`](../specs/2026-06-09-onboarding-admin-batch-design.md) §"Bad errors" documents this exact symptom — `runOnboarding` uses `.parse()` and throws a single generic `Error` (spurious error on first click, delayed transition); per-field zod messages never reach the user. Verify that diagnosis still holds before fixing.
-- [ ] **Step 2:** Root cause in the Handoff log, then fix at the cause. Add a regression test if the cause is in testable logic (action/core level); if purely a client wiring bug, the manual repro is the verify.
-- [ ] **Step 3:** Verify: one attempt completes the step; error states (invalid input) show visible inline feedback (feedback rule — nothing silent).
-- [ ] **Step 4:** Typecheck + lint, commit: `fix: onboarding info step completes on first submit`
+- [x] **Step 1 (systematic-debugging):** Reproduce: fresh seeded user (`fresh` scenario), complete the info step — confirm it takes two attempts. **Known lead:** [`2026-06-09-onboarding-admin-batch-design.md`](../specs/2026-06-09-onboarding-admin-batch-design.md) §"Bad errors" documents this exact symptom — `runOnboarding` uses `.parse()` and throws a single generic `Error` (spurious error on first click, delayed transition); per-field zod messages never reach the user. Verify that diagnosis still holds before fixing.
+- [x] **Step 2:** Root cause in the Handoff log, then fix at the cause. Add a regression test if the cause is in testable logic (action/core level); if purely a client wiring bug, the manual repro is the verify.
+- [x] **Step 3:** Verify: one attempt completes the step; error states (invalid input) show visible inline feedback (feedback rule — nothing silent).
+- [x] **Step 4:** Typecheck + lint, commit: `fix: onboarding info step completes on first submit`
 
 ---
 
@@ -225,3 +225,11 @@ Sweep found two primary submits still on the default Button variant: `src/featur
 **Deviation:** SP6 was declared schema-free, but the reviews RLS `WITH CHECK` pinned `status='pending'`, so the maintainer's auto-publish decision was unimplementable without a policy migration → shipped `20260612120000_reviews_auto_publish.sql` (insert policy + column default flipped to `published`; enum/tables untouched; applied locally via non-destructive `npx supabase db push --local`). **Prod push of this migration is maintainer-owned at next deploy.**
 **Follow-up for Plan B (maintainer decision needed):** the admin dashboard's "reviews to moderate" attention row keys on `pending` and is now permanently 0 — reactive moderation currently has NO new-review awareness signal. Options: a recency-based "new reviews" row, or drop the row.
 **Cosmetic:** admin reviews Pending filter is vestigial; seeder still seeds a `pending` review (service-role bypasses RLS — fine, app-unreachable state).
+
+### Task 12 — onboarding double-submit was a stale router-cache replay, not the `.parse()` lead (2026-06-12)
+
+**Lead correction:** the 2026-06-09 §"Bad errors" diagnosis (`.parse()` + generic throw) was already fixed in `6ea8a9c` (useActionState + `parseOnboardingForm` safeParse + inline `FormField` errors). The residual bug was the post-success redirect target.
+**Repro (CDP, seeded `admin-demo`, noor@local.test info_pending):** ONE valid submit → DB writes all succeed (status → `meet_greet_pending`, emergency form_response inserted) → action `303` with `x-action-redirect=/account;push` → **no RSC refetch** — the router renders `/account` from its client cache, and that entry was poisoned at login time (`GET /account?_rsc → 307 → /onboarding` followed transparently by fetch, so the step-1 flight payload is stored under the `/account` key). User sees an empty step-1 form at URL `/account` → reads as a failed submit → tries again.
+**Fix at cause:** success redirect now targets `/onboarding` itself (`onboardingSuccessPath` in `onboarding-form.ts`, returnTo preserved as query param) + `revalidatePath("/onboarding")` so the wizard re-renders fresh at `meet_greet_pending`. Never redirect onto a route middleware bounces for the user's new state.
+**Verify:** one click → step 2 in ~0.7s (network trace: `x-action-redirect=/onboarding;push` + fresh payload); exactly one `emergency` form_response row; invalid input shows inline per-field zod errors (red borders + messages), still step 1. Regression tests: `onboardingSuccessPath` red→green in `onboarding-form.test.ts`.
+**Non-blocking nit (Plan B candidate):** React 19 form-action reset clears typed values after a validation-error return — errors render correctly but the user must re-type valid fields. Fix would echo submitted values back through state as `defaultValue`s.

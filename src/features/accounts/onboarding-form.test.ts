@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseOnboardingForm } from "./onboarding-form";
+import { onboardingSuccessPath, parseOnboardingForm } from "./onboarding-form";
 
 function fd(values: Record<string, string>): FormData {
   const f = new FormData();
@@ -43,5 +43,21 @@ describe("parseOnboardingForm", () => {
     const r = parseOnboardingForm(fd({ ...valid, zip: "abcde" }));
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.fieldErrors.zip).toMatch(/valid 5-digit ZIP/i);
+  });
+});
+
+describe("onboardingSuccessPath", () => {
+  // Regression (U25): the success redirect must target /onboarding itself —
+  // never /account or the returnTo destination. A meet_greet_pending user is
+  // bounced off /account by middleware, and the client router then replays a
+  // stale cached payload (the empty info form), which read as a failed submit.
+  it("targets /onboarding when no returnTo survives validation", () => {
+    expect(onboardingSuccessPath(null)).toBe("/onboarding");
+  });
+
+  it("keeps a validated returnTo on the /onboarding URL", () => {
+    expect(onboardingSuccessPath("/book/walk?date=2026-06-20")).toBe(
+      "/onboarding?returnTo=%2Fbook%2Fwalk%3Fdate%3D2026-06-20",
+    );
   });
 });

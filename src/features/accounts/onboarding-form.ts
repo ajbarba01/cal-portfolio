@@ -9,6 +9,20 @@ export interface OnboardingInput {
   emergency: EmergencyInput;
 }
 
+/**
+ * Where a successful info-step submit lands. Always /onboarding (the wizard
+ * re-reads onboarding_status and shows the meet-and-greet step) — never
+ * /account, which middleware bounces for a meet_greet_pending user; the client
+ * router then replays a stale cached payload of the empty info form, making
+ * the submit look like it silently failed (U25). A validated returnTo rides
+ * along on the URL so the deferred-auth round trip survives the wizard.
+ */
+export function onboardingSuccessPath(safeReturnTo: string | null): string {
+  return safeReturnTo
+    ? `/onboarding?returnTo=${encodeURIComponent(safeReturnTo)}`
+    : "/onboarding";
+}
+
 /** Result state returned to the onboarding form via useActionState. */
 export type OnboardingFormState =
   | { status: "idle" }
