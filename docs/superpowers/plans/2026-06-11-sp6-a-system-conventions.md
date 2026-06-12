@@ -234,6 +234,16 @@ Sweep found two primary submits still on the default Button variant: `src/featur
 **Verify:** one click → step 2 in ~0.7s (network trace: `x-action-redirect=/onboarding;push` + fresh payload); exactly one `emergency` form_response row; invalid input shows inline per-field zod errors (red borders + messages), still step 1. Regression tests: `onboardingSuccessPath` red→green in `onboarding-form.test.ts`.
 **Non-blocking nit (Plan B candidate):** React 19 form-action reset clears typed values after a validation-error return — errors render correctly but the user must re-type valid fields. Fix would echo submitted values back through state as `defaultValue`s.
 
+### Fresh-session code-review — CHANGES-REQUIRED; both findings fixed (2026-06-12)
+
+**Verdict:** CHANGES-REQUIRED → both findings resolved.
+
+**Finding 1 (CRITICAL) — `return-to.ts` colon guard too broad:** The blanket `indexOf(":")` check rejected any value containing a colon, breaking the deferred-auth booking round-trip whenever `buildReturnTo` produced ISO timestamps (e.g. `start=2026-07-01T16%3A00%3A00.000Z`). Fix: dropped the colon rejection entirely — a string that already starts with `/` cannot be parsed as a scheme by any conforming URL parser; the existing leading-slash + `//` + backslash + auth-loop checks are sufficient. Doc comment updated. Unit tests added (ISO timestamp round-trip, path-segment colon, `javascript:alert(1)` still rejected). Red→green: 13 tests.
+
+**Finding 2 (IMPORTANT) — `PolicyLine` misstated money terms:** Copy read "later cancellations keep {pct}%" but `late_cancel_refund_pct` is the percentage REFUNDED (consistent with `emails.ts` "I refund {pct}%"). Changed to "cancellations refund {pct}%". `PolicyLine` exported for unit testing; 3 new tests pin the phrasing and settings-driven rendering. Red→green: 6 tests (3 new PolicyLine + 3 existing BookingSuccessPanel).
+
+**Minor deferred to Plan B:** `LeadTimeNote` first-bookable date can be off by one day vs the calendar's day-state anchor — advisory copy only, no booking logic affected.
+
 ### Task 11 follow-up — seed cross-contamination fixed (2026-06-12)
 
 Task 11's `setServiceFormKey` (sets `walk.form_key='emergency'` in `admin-demo`) persisted across subsequent seeds because `wipe()` treated `services` as migration-owned and never reset its config columns. Fixed by adding a baseline `update services set form_key = null` in the wipe phase (`scripts/db-seed/wipe.ts`), so every scenario seed starts from a clean services config. `admin-demo` remains the only scenario that sets `form_key`. Verified: `busy-week` seed → all null; `admin-demo` → walk='emergency'; reseed `busy-week` → all null (contamination gone). Zero `forms_incomplete` test failures.

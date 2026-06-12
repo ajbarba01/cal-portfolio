@@ -9,7 +9,57 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 
-import { BookingSuccessPanel } from "./booking-flow";
+import { BookingSuccessPanel, PolicyLine } from "./booking-flow";
+
+/** Minimal BookingRuleSettings stub — required fields + optional policy fields. */
+const BASE_RULES = {
+  bookingOpenMinute: 390,
+  bookingCloseMinute: 1320,
+  minLeadTimeHours: 0,
+  hardMaxAdvanceDays: 180,
+} as const;
+
+/**
+ * PolicyLine (U6) — pins the refund phrasing so it matches the emails.ts copy
+ * ("I refund {pct}%") rather than the incorrect "keep {pct}%" wording.
+ */
+describe("PolicyLine", () => {
+  it("renders refund phrasing — 'cancellations refund {pct}%'", () => {
+    render(
+      <PolicyLine
+        rules={{
+          ...BASE_RULES,
+          cancellationFullRefundHours: 48,
+          lateCancelRefundPct: 50,
+        }}
+      />,
+    );
+    // Must say "refund" not "keep"
+    expect(screen.getByText(/refund 50%/i)).toBeTruthy();
+    expect(screen.queryByText(/keep 50%/i)).toBeNull();
+  });
+
+  it("renders null when either field is absent", () => {
+    const { container } = render(
+      <PolicyLine rules={{ ...BASE_RULES, cancellationFullRefundHours: 48 }} />,
+    );
+    expect(container.firstChild).toBeNull();
+  });
+
+  it("reflects settings-driven values (not hardcoded)", () => {
+    render(
+      <PolicyLine
+        rules={{
+          ...BASE_RULES,
+          cancellationFullRefundHours: 24,
+          lateCancelRefundPct: 75,
+        }}
+      />,
+    );
+    expect(screen.getByText(/24h before/i)).toBeTruthy();
+    expect(screen.getByText(/refund 75%/i)).toBeTruthy();
+  });
+});
 
 describe("BookingSuccessPanel", () => {
   it("requiresApproval=true → 'Booking requested' + approval copy", () => {

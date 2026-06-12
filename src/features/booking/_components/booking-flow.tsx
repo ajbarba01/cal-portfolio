@@ -290,9 +290,10 @@ export function BookingSuccessPanel({
 
 // ── U6 policy line ─────────────────────────────────────────────────────────────
 // Rendered from settings: "Free cancellation until {n}h before; later
-// cancellations keep {pct}%." Never hardcoded — renders null when fields absent.
+// cancellations refund {pct}%." Never hardcoded — renders null when fields absent.
+// Exported for unit testing only.
 
-function PolicyLine({ rules }: { rules: BookingRuleSettings }) {
+export function PolicyLine({ rules }: { rules: BookingRuleSettings }) {
   const { cancellationFullRefundHours, lateCancelRefundPct } = rules;
   if (
     cancellationFullRefundHours === undefined ||
@@ -305,7 +306,7 @@ function PolicyLine({ rules }: { rules: BookingRuleSettings }) {
       <Info size={13} className="mt-px shrink-0" aria-hidden="true" />
       <span>
         Free cancellation until {cancellationFullRefundHours}h before; later
-        cancellations keep {lateCancelRefundPct}%.
+        cancellations refund {lateCancelRefundPct}%.
       </span>
     </p>
   );
