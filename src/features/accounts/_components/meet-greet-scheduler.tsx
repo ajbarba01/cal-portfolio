@@ -159,6 +159,7 @@ export function MeetGreetScheduler({
           });
       if (result.kind === "success") {
         toast.add({
+          type: "success",
           title: reschedule
             ? "Meet & greet rescheduled"
             : "Meet & greet booked",

@@ -30,10 +30,10 @@ export function AccountInquiriesClient({
     const result = await resolveMyInquiry(id);
     if (result.kind === "success") {
       patch(id, { status: "resolved", resolved_at: new Date().toISOString() });
-      toast.add({ title: "Marked resolved" });
+      toast.add({ type: "success", title: "Marked resolved" });
       return true;
     }
-    toast.add({ title: "Could not update the inquiry." });
+    toast.add({ type: "error", title: "Could not update the inquiry." });
     return false;
   }
 
@@ -47,10 +47,11 @@ export function AccountInquiriesClient({
     });
     if (result.kind === "success") {
       patch(id, { subject: next.subject, message: next.message });
-      toast.add({ title: "Inquiry updated" });
+      toast.add({ type: "success", title: "Inquiry updated" });
       return true;
     }
     toast.add({
+      type: "error",
       title:
         result.kind === "error" ? result.message : "Could not save changes.",
     });
