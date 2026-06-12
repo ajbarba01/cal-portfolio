@@ -17,21 +17,18 @@ const trustPoints = [
     titleId: "home.trust.1.title",
     bodyId: "home.trust.1.body",
     Icon: ShieldCheck,
-    iconLabel: "Safety shield",
   },
   {
     id: "trust-2",
     titleId: "home.trust.2.title",
     bodyId: "home.trust.2.body",
     Icon: Heart,
-    iconLabel: "Heart",
   },
   {
     id: "trust-3",
     titleId: "home.trust.3.title",
     bodyId: "home.trust.3.body",
     Icon: MapPin,
-    iconLabel: "Location pin",
   },
 ] as const;
 
@@ -73,24 +70,23 @@ export default function HomePage() {
 
           {/* Trust cards — centered grid, max-w ~944px; 1-col on mobile */}
           <ul
-            className="mx-auto grid max-w-[944px] grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-6"
+            className="mx-auto grid max-w-236 grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-6"
             role="list"
           >
             {trustPoints.map((p) => (
               <li
                 key={p.id}
-                className="bg-card border-border rounded-2xl border p-5 sm:p-[22px]"
+                className="bg-card border-border rounded-2xl border p-5 sm:p-5.5"
               >
                 {/* Icon disc + title row */}
                 <div className="mb-3 flex items-center gap-3">
                   <span
-                    className="bg-sidebar-active flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-full"
+                    className="bg-sidebar-active flex size-9.5 shrink-0 items-center justify-center rounded-full"
                     aria-hidden="true"
                   >
                     <p.Icon
-                      className="text-brand-strong h-[18px] w-[18px]"
+                      className="text-brand-strong size-4.5"
                       strokeWidth={1.9}
-                      aria-label={p.iconLabel}
                     />
                   </span>
                   <h3 className="font-heading text-foreground text-[17px] leading-snug font-semibold">
