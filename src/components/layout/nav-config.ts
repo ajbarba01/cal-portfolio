@@ -1,9 +1,42 @@
+import {
+  Briefcase,
+  CalendarCheck,
+  CalendarDays,
+  FileText,
+  LayoutDashboard,
+  MessageSquare,
+  PawPrint,
+  Settings,
+  Star,
+  UserRound,
+  Users,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+
 export type NavItem = {
   href: string;
   label: string;
   activeSections?: string[];
 };
 export type ZoneNav = { zoneLabel: string; items: NavItem[] };
+
+/** Zone nav icons keyed by item href. Single source for AppSidebar (desktop rail) and the mobile drawer. */
+export const NAV_ICONS: Record<string, LucideIcon> = {
+  "/admin": LayoutDashboard,
+  "/admin/availability": CalendarDays,
+  "/admin/bookings": CalendarCheck,
+  "/admin/clients": Users,
+  "/admin/inquiries": MessageSquare,
+  "/admin/reviews": Star,
+  "/admin/services": Briefcase,
+  "/admin/settings": Settings,
+
+  "/account": UserRound,
+  "/account/pets": PawPrint,
+  "/account/forms": FileText,
+  "/account/bookings": CalendarCheck,
+  "/account/inquiries": MessageSquare,
+};
 
 /** Keyed by item href. Passed down from a server layout; omitted in account/marketing zones. */
 export type NavBadges = Record<string, { count: number; label: string }>;
