@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SP6 preview — system sheet (badge color · loading · select width · buttons · feedback)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400..700&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --sand-0:#ffffff; --sand-50:#faf6f0; --sand-100:#f2ece1; --sand-200:#e7decf;
+    --sand-400:#b6a88f; --sand-500:#6e6354; --sand-700:#5a5044; --sand-900:#2b2520;
+    --clay-fill:#ae5a35; --clay-strong:#8a4226; --clay-soft:#e7d8cc; --clay-onfill:#ffffff;
+    --green-soft:#e3e7d2; --green-deep:#4f5b33;
+    --blue-soft:#d9e2e8; --blue-deep:#3c5566;
+    --amber-soft:#f3e3c8; --amber-deep:#7a5a1e;
+    --danger:#c0392b;
+    --background:var(--sand-50); --foreground:var(--sand-900);
+    --card:var(--sand-0); --muted:var(--sand-100); --muted-foreground:var(--sand-500);
+    --border:var(--sand-200); --input:var(--sand-200); --brand:var(--clay-fill);
+    --canvas:var(--sand-200); --sidebar:var(--sand-100); --sidebar-active:var(--clay-soft);
+    --brand-strong:var(--clay-strong);
+    --radius:0.375rem;
+    --font-sans:"Public Sans",ui-sans-serif,system-ui,sans-serif;
+    --font-heading:"Fraunces",Georgia,serif;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--canvas); color:var(--foreground); font-family:var(--font-sans); font-size:15px; line-height:1.5; -webkit-font-smoothing:antialiased; }
+  .page-note { max-width:1080px; margin:0 auto; padding:20px 20px 0; }
+  .page-note h1 { font-family:var(--font-heading); font-weight:600; font-size:22px; margin:0 0 4px; }
+  .page-note p { color:var(--sand-700); font-size:13.5px; margin:0 0 4px; max-width:80ch; }
+  .grid { max-width:1080px; margin:18px auto 40px; display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+  .panel { background:var(--background); border:1px solid var(--border); border-radius:calc(var(--radius)*2.2); padding:20px 22px; }
+  .panel.wide { grid-column:1 / -1; }
+  .panel h2 { font-family:var(--font-heading); font-size:17px; font-weight:600; margin:0 0 4px; }
+  .panel .why { font-size:12.5px; color:var(--muted-foreground); margin:0 0 14px; max-width:72ch; }
+  .panel .why b { color:var(--amber-deep); }
+
+  /* ── 1. Badge color candidates ── */
+  .cands { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+  .cand { border:1px solid var(--border); border-radius:12px; overflow:hidden; background:var(--card); }
+  .cand .lab { padding:8px 12px 6px; font-size:12px; font-weight:600; }
+  .cand .lab small { display:block; font-weight:400; color:var(--muted-foreground); font-size:11px; }
+  .mini-side { background:var(--sidebar); padding:8px; display:flex; flex-direction:column; gap:2px; }
+  .mini-nav { display:flex; align-items:center; gap:8px; font-size:12.5px; padding:7px 10px; border-radius:7px; }
+  .mini-nav.active { background:var(--sidebar-active); color:var(--brand-strong); font-weight:600; }
+  .mini-nav svg { width:14px; height:14px; stroke:currentColor; fill:none; stroke-width:2; }
+  .mini-badge { margin-left:auto; min-width:18px; height:18px; padding:0 5px; border-radius:99px; font-size:10.5px; font-weight:700; color:#fff; display:flex; align-items:center; justify-content:center; }
+  .b-gold { background:#8a6a1b; } .b-slate { background:#3c5566; } .b-clay { background:#8a4226; } .b-pine { background:#4f5b33; }
+
+  /* ── 2. Select width ── */
+  .sel-row { display:flex; gap:28px; flex-wrap:wrap; }
+  .sel-demo { flex:1; min-width:200px; }
+  .sel-demo .tag { font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; margin-bottom:8px; display:inline-block; padding:2px 8px; border-radius:99px; }
+  .tag.bad { background:#c0392b1a; color:#8a2a1e; }
+  .tag.good { background:var(--green-soft); color:var(--green-deep); }
+  .sel-trigger { width:240px; display:flex; justify-content:space-between; align-items:center; border:1px solid var(--input); background:var(--card); border-radius:10px; padding:7px 11px; font-size:13.5px; }
+  .sel-trigger svg { width:14px; height:14px; stroke:var(--muted-foreground); fill:none; stroke-width:2; }
+  .sel-pop { margin-top:4px; background:var(--card); border:1px solid var(--border); border-radius:10px; box-shadow:0 8px 24px -12px #2b252040; padding:4px; font-size:13.5px; }
+  .sel-pop.narrow { width:130px; }
+  .sel-pop.match { width:240px; }
+  .sel-item { padding:6px 9px; border-radius:7px; }
+  .sel-item.hl { background:var(--muted); }
+
+  /* ── 3. Buttons ── */
+  .btn-table { width:100%; border-collapse:collapse; font-size:13px; }
+  .btn-table td { padding:9px 10px; border-top:1px solid var(--border); vertical-align:middle; }
+  .btn-table td:first-child { width:170px; }
+  .btn-table .use { color:var(--muted-foreground); font-size:12.5px; }
+  .btn { font:inherit; font-size:13.5px; font-weight:600; border-radius:10px; padding:8px 16px; cursor:pointer; border:none; display:inline-flex; align-items:center; gap:7px; }
+  .btn svg { width:14px; height:14px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+  .btn.brand { background:var(--clay-fill); color:#fff; }
+  .btn.primary { background:var(--sand-900); color:var(--sand-50); }
+  .btn.outline { background:transparent; border:1px solid var(--border); color:var(--foreground); }
+  .btn.ghost { background:transparent; color:var(--sand-700); }
+  .btn.destructive { background:#c0392b; color:#fff; }
+
+  /* ── 4. Loading ── */
+  .skel-row { display:flex; gap:18px; flex-wrap:wrap; }
+  .skel-frame { flex:1; min-width:240px; border:1px solid var(--border); border-radius:12px; background:var(--card); overflow:hidden; }
+  .skel-frame .cap { font-size:11.5px; font-weight:600; color:var(--muted-foreground); padding:8px 12px; border-bottom:1px solid var(--border); }
+  .skel-body { padding:14px; display:flex; flex-direction:column; gap:10px; }
+  .sk { border-radius:7px; background:linear-gradient(90deg,var(--sand-100) 25%,var(--sand-200) 45%,var(--sand-100) 65%); background-size:200% 100%; animation:sh 1.4s infinite linear; }
+  @keyframes sh { from { background-position:200% 0 } to { background-position:-200% 0 } }
+  .sk.t { height:22px; width:45%; } .sk.l { height:12px; width:90%; } .sk.m { height:12px; width:70%; } .sk.card { height:64px; width:100%; }
+
+  /* ── 5. Feedback ── */
+  .toasts { display:flex; flex-direction:column; gap:10px; max-width:380px; }
+  .toast { display:flex; gap:10px; align-items:flex-start; background:var(--card); border:1px solid var(--border); border-left-width:4px; border-radius:10px; padding:11px 14px; font-size:13px; box-shadow:0 6px 18px -12px #2b252040; }
+  .toast svg { width:16px; height:16px; flex-shrink:0; margin-top:1px; stroke-width:2; fill:none; stroke-linecap:round; stroke-linejoin:round; }
+  .toast.ok { border-left-color:var(--green-deep); } .toast.ok svg { stroke:var(--green-deep); }
+  .toast.err { border-left-color:#c0392b; } .toast.err svg { stroke:#c0392b; }
+  .toast b { font-size:13px; }
+  .toast small { display:block; color:var(--muted-foreground); font-size:12px; }
+  .confirm { max-width:380px; background:var(--card); border:1px solid var(--border); border-radius:14px; padding:18px; box-shadow:0 16px 40px -20px #2b252060; }
+  .confirm .ch { display:flex; gap:10px; align-items:center; margin-bottom:6px; }
+  .confirm .ch svg { width:18px; height:18px; stroke:var(--amber-deep); fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+  .confirm h4 { font-family:var(--font-heading); margin:0; font-size:15.5px; }
+  .confirm p { font-size:12.5px; color:var(--sand-700); margin:0 0 14px; }
+  .confirm .row { display:flex; gap:8px; justify-content:flex-end; }
+</style>
+</head>
+<body>
+
+<div class="page-note">
+  <h1>SP6 — System sheet: tokens + primitives the sweep applies everywhere</h1>
+  <p>Not a page — the conventions layer (Plan A). Each panel is a sitewide rule; Plan B applies them surface by surface.</p>
+</div>
+
+<div class="grid">
+
+  <div class="panel wide">
+    <h2>1 · Attention-badge color — pick one (gold is out, maintainer 2026-06-11)</h2>
+    <p class="why">Constraints: must not be red (reserved for danger/owing), must not blend with the clay active-row treatment,
+       white text ≥ AA 4.5:1. Each candidate shown on the real sidebar row treatment. <b>Recommendation: slate</b> —
+       already in the palette as the "booked" status family, cool pop against an all-warm UI, zero collision with clay or danger
+       (white on #3c5566 ≈ 7.9:1).</p>
+    <div class="cands">
+      <div class="cand">
+        <div class="lab">Current — gold <small>#8a6a1b · rejected, for comparison</small></div>
+        <div class="mini-side">
+          <div class="mini-nav active"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Bookings<span class="mini-badge b-gold">3</span></div>
+          <div class="mini-nav"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Inquiries<span class="mini-badge b-gold">2</span></div>
+        </div>
+      </div>
+      <div class="cand">
+        <div class="lab">A — Slate (recommended) <small>#3c5566 · blue-deep, "booked" family</small></div>
+        <div class="mini-side">
+          <div class="mini-nav active"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Bookings<span class="mini-badge b-slate">3</span></div>
+          <div class="mini-nav"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Inquiries<span class="mini-badge b-slate">2</span></div>
+        </div>
+      </div>
+      <div class="cand">
+        <div class="lab">B — Clay strong <small>#8a4226 · brand-consistent</small></div>
+        <div class="mini-side">
+          <div class="mini-nav active"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Bookings<span class="mini-badge b-clay">3</span></div>
+          <div class="mini-nav"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Inquiries<span class="mini-badge b-clay">2</span></div>
+        </div>
+      </div>
+      <div class="cand">
+        <div class="lab">C — Pine <small>#4f5b33 · green-deep ("available" family)</small></div>
+        <div class="mini-side">
+          <div class="mini-nav active"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Bookings<span class="mini-badge b-pine">3</span></div>
+          <div class="mini-nav"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Inquiries<span class="mini-badge b-pine">2</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>2 · Dropdown width = trigger width</h2>
+    <p class="why">Alex's audit example. Base UI exposes <b>--anchor-width</b>; the popup gets <code>min-w-(--anchor-width)</code> — every Select sitewide.</p>
+    <div class="sel-row">
+      <div class="sel-demo">
+        <span class="tag bad">Today</span>
+        <div class="sel-trigger">Status: All<svg viewBox="0 0 24 24"><path d="m7 15 5 5 5-5M7 9l5-5 5 5"/></svg></div>
+        <div class="sel-pop narrow">
+          <div class="sel-item hl">All</div><div class="sel-item">Pending</div><div class="sel-item">Confirmed</div>
+        </div>
+      </div>
+      <div class="sel-demo">
+        <span class="tag good">SP6</span>
+        <div class="sel-trigger">Status: All<svg viewBox="0 0 24 24"><path d="m7 15 5 5 5-5M7 9l5-5 5 5"/></svg></div>
+        <div class="sel-pop match">
+          <div class="sel-item hl">All</div><div class="sel-item">Pending</div><div class="sel-item">Confirmed</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>3 · Button hierarchy — one rule sitewide</h2>
+    <p class="why">Today: login + contact submit near-black, booking CTAs clay — same action class, three looks. The rule:</p>
+    <table class="btn-table">
+      <tr><td><button class="btn brand">Request booking</button></td><td class="use"><b>brand</b> — THE action of the surface (book, send, save, pay). One per view.</td></tr>
+      <tr><td><button class="btn outline">Cancel</button></td><td class="use"><b>outline</b> — secondary/dismiss beside a brand action.</td></tr>
+      <tr><td><button class="btn ghost">View details</button></td><td class="use"><b>ghost</b> — tertiary/inline (table rows, list actions).</td></tr>
+      <tr><td><button class="btn destructive"><svg viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Delete pet</button></td><td class="use"><b>destructive</b> — destructive, always behind useConfirm.</td></tr>
+    </table>
+    <p class="why" style="margin-top:10px">The near-black <b>primary</b> variant retires from forms — it stays for neutral chrome only (e.g. "Sign out"). Login/signup/contact submits become <b>brand</b>.</p>
+  </div>
+
+  <div class="panel">
+    <h2>4 · Visible loading — zone skeletons + widget Suspense</h2>
+    <p class="why">loading.tsx per zone paints instantly on navigation; data-heavy widgets get their own Suspense skeletons.
+       <b>Catch from the Next.js docs:</b> a layout doing cookie/auth work blocks the fallback — SiteHeader's auth cluster
+       must move behind its own Suspense or skeletons never show.</p>
+    <div class="skel-row">
+      <div class="skel-frame">
+        <div class="cap">marketing zone — loading.tsx</div>
+        <div class="skel-body"><span class="sk t"></span><span class="sk l"></span><span class="sk m"></span><span class="sk card"></span></div>
+      </div>
+      <div class="skel-frame">
+        <div class="cap">admin hub — widget Suspense</div>
+        <div class="skel-body"><span class="sk m"></span><span class="sk card"></span><span class="sk card"></span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>5 · Toast types at every call site (U7)</h2>
+    <p class="why">Primitive shipped in SP3b; the sweep tags each of the ~30 call sites with the right type. Success auto-dismisses; errors stick + read assertively.</p>
+    <div class="toasts">
+      <div class="toast ok"><svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg><div><b>Booking requested</b><small>Cal will confirm within a day.</small></div></div>
+      <div class="toast err"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg><div><b>Couldn't save changes</b><small>That day was just booked — pick another. (sticky until dismissed)</small></div></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>6 · Confirm wherever an action is silent</h2>
+    <p class="why">NN/g: confirm destructive/consequential, name the object, don't overuse. Sweep audits every mutation button; e.g. Alex's mark-balance-settled:</p>
+    <div class="confirm">
+      <div class="ch"><svg viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4M12 17h.01"/></svg><h4>Settle Dana's balance?</h4></div>
+      <p>Marks the $45.00 outstanding balance as paid in full. This can't be undone from the app.</p>
+      <div class="row"><button class="btn outline">Keep balance</button><button class="btn brand">Settle $45.00</button></div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

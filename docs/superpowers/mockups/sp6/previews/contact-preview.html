@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SP6 preview — contact page (single centered card)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400..700&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  /* ── Real Trail tokens (lifted from src/app/globals.css light theme) ── */
+  :root {
+    --sand-0:#ffffff; --sand-50:#faf6f0; --sand-100:#f2ece1; --sand-200:#e7decf;
+    --sand-400:#b6a88f; --sand-500:#6e6354; --sand-700:#5a5044; --sand-900:#2b2520;
+    --clay-fill:#ae5a35; --clay-strong:#8a4226; --clay-soft:#e7d8cc; --clay-onfill:#ffffff;
+    --green-soft:#e3e7d2; --green-deep:#4f5b33;
+    --amber-soft:#f3e3c8; --amber-deep:#7a5a1e;
+    --background:var(--sand-50); --foreground:var(--sand-900);
+    --card:var(--sand-0); --muted:var(--sand-100); --muted-foreground:var(--sand-500);
+    --border:var(--sand-200); --input:var(--sand-200); --brand:var(--clay-fill);
+    --brand-foreground:var(--clay-onfill); --brand-strong:var(--clay-strong);
+    --canvas:var(--sand-200);
+    --radius:0.375rem;
+    --font-sans:"Public Sans",ui-sans-serif,system-ui,sans-serif;
+    --font-heading:"Fraunces",Georgia,serif;
+  }
+  * { box-sizing:border-box; }
+  body {
+    margin:0; background:var(--canvas); color:var(--foreground);
+    font-family:var(--font-sans); font-size:15px; line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  .page-note { max-width:1060px; margin:0 auto; padding:20px 20px 0; }
+  .page-note h1 { font-family:var(--font-heading); font-weight:600; font-size:22px; margin:0 0 4px; }
+  .page-note p { color:var(--sand-700); font-size:13.5px; margin:0 0 4px; max-width:78ch; }
+  .callout {
+    max-width:1060px; margin:14px auto 0; padding:13px 16px;
+    border:1px solid var(--amber-deep); border-left-width:4px;
+    background:var(--amber-soft); color:var(--sand-900);
+    border-radius:var(--radius); font-size:13px; line-height:1.55;
+  }
+  .callout b { color:var(--amber-deep); }
+  .callout code { font-family:ui-monospace,Menlo,monospace; font-size:12px; background:#fff8; padding:1px 5px; border-radius:4px; }
+  .frames { max-width:1060px; margin:18px auto 40px; display:flex; gap:24px; align-items:flex-start; flex-wrap:wrap; }
+  .frame-label { font-size:12px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:var(--muted-foreground); margin:0 0 8px 2px; }
+
+  /* ── Sheet (page) chrome ── */
+  .sheet {
+    background:var(--background); border:1px solid var(--border);
+    border-radius:calc(var(--radius)*2.6); overflow:hidden;
+    box-shadow:0 1px 0 #0000000a, 0 16px 40px -28px #2b252040;
+  }
+  .desktop { width:680px; }
+  .mobile  { width:340px; }
+
+  /* header strip (simplified chrome for context) */
+  .hdr { background:var(--card); border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; padding:14px 22px; }
+  .hdr .mark { font-family:var(--font-heading); font-weight:600; font-size:16px; display:flex; gap:8px; align-items:center; }
+  .hdr .mark svg { width:18px; height:18px; fill:var(--clay-fill); }
+  .hdr nav { font-size:12.5px; color:var(--muted-foreground); display:flex; gap:14px; }
+  .hdr nav .on { color:var(--foreground); font-weight:600; border-bottom:2px solid var(--clay-strong); padding-bottom:2px; }
+
+  .body-pad { padding:40px 28px 56px; }
+  .mobile .body-pad { padding:28px 16px 40px; }
+
+  /* ── The card ── */
+  .ccard {
+    max-width:560px; margin:0 auto; background:var(--card);
+    border:1px solid var(--border); border-radius:calc(var(--radius)*1.8);
+    padding:32px 32px 28px; box-shadow:0 1px 2px #2b25200d;
+  }
+  .mobile .ccard { padding:22px 18px 20px; }
+  .ccard h2 { font-family:var(--font-heading); font-size:26px; font-weight:600; margin:0 0 6px; }
+  .mobile .ccard h2 { font-size:22px; }
+  .ccard .sub { color:var(--muted-foreground); font-size:14px; margin:0 0 18px; max-width:42ch; }
+
+  /* reply-time note under the intro */
+  .reply-note { display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--muted-foreground); padding:0 0 16px; border-bottom:1px solid var(--border); margin-bottom:18px; }
+  .reply-note svg { width:14px; height:14px; stroke:var(--muted-foreground); fill:none; stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round; }
+
+  /* form — single column (Baymard: multi-column forms get misread/skipped) */
+  form { display:flex; flex-direction:column; gap:16px; }
+  .field { display:flex; flex-direction:column; gap:6px; }
+  label { font-size:13px; font-weight:600; }
+  label .opt { color:var(--muted-foreground); font-weight:400; }
+  input, textarea {
+    font:inherit; font-size:14px; color:var(--foreground);
+    background:var(--sand-50); border:1px solid var(--input);
+    border-radius:calc(var(--radius)*1.4); padding:9px 12px; outline:none; width:100%;
+  }
+  textarea { min-height:110px; resize:vertical; }
+  input:focus, textarea:focus { border-color:var(--clay-strong); box-shadow:0 0 0 3px #8a422626; }
+  .btn-brand {
+    font:inherit; font-size:14.5px; font-weight:600; cursor:pointer;
+    background:var(--brand); color:var(--brand-foreground); border:none;
+    border-radius:calc(var(--radius)*1.4); padding:11px 22px;
+    display:inline-flex; align-items:center; gap:8px; align-self:flex-start;
+  }
+  .mobile .btn-brand { align-self:stretch; justify-content:center; }
+  .btn-brand svg { width:15px; height:15px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+  .btn-brand:hover { background:var(--clay-strong); }
+
+  /* success state */
+  .success {
+    max-width:560px; margin:18px auto 0; background:var(--green-soft);
+    border:1px solid #4f5b3340; border-radius:calc(var(--radius)*1.8);
+    padding:18px 22px; display:flex; gap:12px; align-items:flex-start;
+  }
+  .success svg { width:20px; height:20px; stroke:var(--green-deep); fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; flex-shrink:0; margin-top:1px; }
+  .success b { color:var(--green-deep); }
+  .success p { margin:2px 0 0; font-size:13.5px; color:var(--sand-700); }
+  .success a { color:var(--brand-strong); font-weight:500; }
+</style>
+</head>
+<body>
+
+<div class="page-note">
+  <h1>SP6 — Contact page (single centered card)</h1>
+  <p>Replaces the bare left-aligned form floating in an empty 65ch sheet. One card, centered, on the sand sheet:
+     white card supplies the contrast Alex flagged. No public email/phone — the form IS the contact channel
+     (maintainer decision 2026-06-11; footer mail icon links here, not mailto). Fields stacked single-column
+     (Baymard: multi-column forms get misread); shared form convention = sand-50 input fill on white card,
+     clay focus ring; textarea matches the input primitive (today it's a one-off). Primary action = brand clay
+     (today's button is near-black default — inconsistent with every other marketing CTA).</p>
+</div>
+
+<div class="callout">
+  <b>Conventions this surface establishes (applied sitewide by Plan B):</b>
+  form-on-card = <code>bg-card</code> + <code>border</code> + radius-2xl; inputs = <code>bg-background</code> fill +
+  <code>border-input</code> + clay focus ring; primary form action = <code>brand</code> variant (marketing) /
+  <code>default</code> reserved for app chrome; success = inline state swap with icon + next-step link, never a dead end.
+  Login/signup cards adopt the same recipe.
+</div>
+
+<div class="frames">
+  <div>
+    <p class="frame-label">Desktop (≥768px)</p>
+    <div class="sheet desktop">
+      <div class="hdr">
+        <span class="mark"><svg viewBox="0 0 24 24"><path d="M7 3c-2 2-3 5-3 8 0 4 2 7 4 7s3-3 3-7c0-3-1-6-4-8zm10 0c2 2 3 5 3 8 0 4-2 7-4 7s-3-3-3-7c0-3 1-6 4-8z"/></svg>Cal Barba</span>
+        <nav><span>Home</span><span>About</span><span>Services</span><span>Gallery</span><span>Reviews</span><span>Resources</span><span class="on">Contact</span></nav>
+      </div>
+      <div class="body-pad">
+        <div class="ccard">
+          <h2>Contact me</h2>
+          <p class="sub">Questions about walks, sitting, or whether we're a fit — send a note.</p>
+          <div class="reply-note"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>I usually reply within a day.</div>
+          <form>
+            <div class="field"><label>Name</label><input /></div>
+            <div class="field"><label>Email</label><input /></div>
+            <div class="field"><label>Phone</label><input /></div>
+            <div class="field"><label>Subject <span class="opt">(optional)</span></label><input /></div>
+            <div class="field"><label>Message</label><textarea></textarea></div>
+            <button class="btn-brand" type="button"><svg viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/></svg>Send message</button>
+          </form>
+        </div>
+
+        <div class="success">
+          <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+          <div>
+            <b>Message sent.</b>
+            <p>Thanks — Cal will get back to you within a day. In the meantime you can <a href="#">check availability</a> or <a href="#">read the FAQ</a>. <em style="color:var(--muted-foreground)">(success state — replaces the form in place; toast fires too)</em></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <p class="frame-label">Mobile (390px)</p>
+    <div class="sheet mobile">
+      <div class="hdr">
+        <span class="mark"><svg viewBox="0 0 24 24"><path d="M7 3c-2 2-3 5-3 8 0 4 2 7 4 7s3-3 3-7c0-3-1-6-4-8zm10 0c2 2 3 5 3 8 0 4-2 7-4 7s-3-3-3-7c0-3 1-6 4-8z"/></svg>Cal Barba</span>
+        <svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:var(--foreground);fill:none;stroke-width:2;stroke-linecap:round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </div>
+      <div class="body-pad">
+        <div class="ccard">
+          <h2>Contact me</h2>
+          <p class="sub">Questions about walks, sitting, or whether we're a fit — send a note.</p>
+          <div class="reply-note"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>I usually reply within a day.</div>
+          <form>
+            <div class="field"><label>Name</label><input /></div>
+            <div class="field"><label>Email</label><input /></div>
+            <div class="field"><label>Phone</label><input /></div>
+            <div class="field"><label>Subject <span class="opt">(optional)</span></label><input /></div>
+            <div class="field"><label>Message</label><textarea style="min-height:90px"></textarea></div>
+            <button class="btn-brand" type="button"><svg viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/></svg>Send message</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
