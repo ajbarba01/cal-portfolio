@@ -3,6 +3,7 @@ import {
   overlapsHalfOpen,
   markSlotsBusy,
   deriveBookableDays,
+  hourlyAvailableDayKeys,
   validateStayRange,
 } from "./calendar-model";
 import type { TimeRange, BookingRuleSettings } from "./availability";
@@ -296,6 +297,47 @@ describe("deriveBookableDays", () => {
     expect(tooFar.bookingId).toBeUndefined();
   });
 
+  // -- U2: lead-time window renders grey (out-of-window), not error --
+
+  it("U2: a night-set day whose check-in falls inside the lead-time window is out-of-window", () => {
+    // lead 48h, now = Jun 10 12:00Z. Jun 11 check-in = Jun 11 12:30Z (6:30am
+    // MDT) → only 24.5h ahead → blocked, rendered grey like out-of-window.
+    const rules48 = { ...RULES, minLeadTimeHours: 48 };
+    const out = deriveBookableDays({
+      days: [denverMidnightMDT("2025-06-11")],
+      overnightNights: juneNights,
+      busyResident: [],
+      rules: rules48,
+      now,
+    });
+    expect(out[0].state).toBe("out-of-window");
+  });
+
+  it("U2: a check-in exactly at the lead-time boundary stays available (inclusive)", () => {
+    // Boundary semantics match passesGuards: startsAt - now >= lead is OK.
+    const rules48 = { ...RULES, minLeadTimeHours: 48 };
+    const out = deriveBookableDays({
+      days: [denverMidnightMDT("2025-06-11")],
+      overnightNights: juneNights,
+      busyResident: [],
+      rules: rules48,
+      now: new Date("2025-06-09T12:30:00Z"), // exactly 48h before Jun 11 12:30Z
+    });
+    expect(out[0].state).toBe("available");
+  });
+
+  it("U2: a day beyond the lead-time window is unaffected (available)", () => {
+    const rules48 = { ...RULES, minLeadTimeHours: 48 };
+    const out = deriveBookableDays({
+      days: [denverMidnightMDT("2025-06-15")],
+      overnightNights: juneNights,
+      busyResident: [],
+      rules: rules48,
+      now,
+    });
+    expect(out[0].state).toBe("available");
+  });
+
   it("first match wins: when two resident bookings overlap the same day, bookingId is the first entry's id", () => {
     const busyResident = [
       {
@@ -310,6 +352,60 @@ describe("deriveBookableDays", () => {
     const day = dayFor(denverMidnightMDT("2025-06-21"), { busyResident });
     expect(day.state).toBe("busy");
     expect(day.bookingId).toBe("bk-FIRST");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// hourlyAvailableDayKeys — U2 lead-time filtering
+// ---------------------------------------------------------------------------
+
+describe("hourlyAvailableDayKeys (U2 lead-time)", () => {
+  // One June day (MDT): window 9:00–17:00 Denver = 15:00Z–23:00Z.
+  const day = denverMidnightMDT("2025-06-12");
+  const windows = [range("2025-06-12T15:00:00Z", "2025-06-12T23:00:00Z")];
+  const base = {
+    days: [day],
+    windows,
+    busy: [],
+    durationMin: 60,
+    granularityMin: 15,
+  };
+
+  it("includes the day when no lead-time args are provided (back-compat)", () => {
+    const keys = hourlyAvailableDayKeys(base);
+    expect(keys.has("2025-06-12")).toBe(true);
+  });
+
+  it("U2: keeps the day when at least one start clears the lead-time window", () => {
+    // now = 2pm Denver, lead 1h → starts from 3pm remain (last 1h start is 4pm).
+    const keys = hourlyAvailableDayKeys({
+      ...base,
+      leadTimeMs: 1 * 60 * 60 * 1000,
+      now: new Date("2025-06-12T20:00:00Z"),
+    });
+    expect(keys.has("2025-06-12")).toBe(true);
+  });
+
+  it("U2: drops the day when every start falls inside the lead-time window", () => {
+    // now = 2pm Denver, lead 4h → earliest bookable 6pm, but the last valid
+    // 1h start is 4pm (close 5pm) → no start clears → day renders grey.
+    const keys = hourlyAvailableDayKeys({
+      ...base,
+      leadTimeMs: 4 * 60 * 60 * 1000,
+      now: new Date("2025-06-12T20:00:00Z"),
+    });
+    expect(keys.has("2025-06-12")).toBe(false);
+  });
+
+  it("U2: a start exactly at now + lead is kept (inclusive boundary)", () => {
+    // now = 3pm Denver, lead 1h → 4pm start (the last one) is exactly at the
+    // boundary and must remain bookable.
+    const keys = hourlyAvailableDayKeys({
+      ...base,
+      leadTimeMs: 1 * 60 * 60 * 1000,
+      now: new Date("2025-06-12T21:00:00Z"),
+    });
+    expect(keys.has("2025-06-12")).toBe(true);
   });
 });
 

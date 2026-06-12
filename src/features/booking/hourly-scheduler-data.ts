@@ -15,6 +15,11 @@ export interface HourlySchedulerDataInput {
 /**
  * Builds the week-slots SchedulerData for an hourly service.
  * Duration changes re-derive which days have at least one bookable start.
+ *
+ * U2: Days within the lead-time window are excluded from the available day set
+ * so they render grey (unavailable) in the month grid instead of surfacing a
+ * post-selection error. A day is lead-time-blocked when no start on that day
+ * can satisfy `startTime >= now + minLeadTimeHours`.
  */
 export function hourlySchedulerData({
   now,
@@ -39,6 +44,8 @@ export function hourlySchedulerData({
     busy,
     durationMin,
     granularityMin: 15,
+    leadTimeMs: rules.minLeadTimeHours * 60 * 60 * 1000,
+    now,
   });
 
   return {

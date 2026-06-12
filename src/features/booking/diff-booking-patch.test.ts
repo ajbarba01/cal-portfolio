@@ -16,6 +16,20 @@ const BASE_INITIAL: EditPatchInitial = {
   comments: "hello",
 };
 
+// House-sitting initial: 3-night stay (2025-08-10 → 2025-08-13 = 3 days = 3 nights)
+const HS_START_ISO = "2025-08-10T06:00:00.000Z"; // Denver midnight-ish for Aug 10
+const HS_END_ISO = "2025-08-13T06:00:00.000Z"; // Aug 13 = 3 nights
+const HS_INITIAL: EditPatchInitial = {
+  startsAtIso: HS_START_ISO,
+  endsAtIso: HS_END_ISO,
+  petIds: ["pet-1"],
+  quantities: {
+    type: "house_sitting",
+    qty: { cantBeLeftAloneDays: 0, walkMinutesPerDay: 0, holidayDays: 0 },
+  },
+  comments: "",
+};
+
 const BASE_CURRENT: EditPatchCurrent = {
   startsAt: new Date(START_ISO),
   endsAt: new Date(END_ISO),
@@ -87,6 +101,72 @@ describe("diffBookingPatch", () => {
       comments: "updated notes",
     });
     expect(patch.comments).toBe("updated notes");
+  });
+
+  // ── U24: overnight (house_sitting) reschedule tests ───────────────────────
+
+  it("U24: overnight date change includes patch.quantities with new nights", () => {
+    // User changes a 3-night stay to 5 nights. The quantities diff must detect
+    // the nights change and include quantities in the patch (was silently dropped,
+    // causing stale nights in the merged input → Zod failure).
+    const newStart = new Date("2025-08-15T06:00:00.000Z");
+    const newEnd = new Date("2025-08-20T06:00:00.000Z"); // 5 nights
+    const patch = diffBookingPatch(HS_INITIAL, {
+      startsAt: newStart,
+      endsAt: newEnd,
+      selectedPetIds: ["pet-1"],
+      quantities: {
+        type: "house_sitting",
+        qty: { cantBeLeftAloneDays: 0, walkMinutesPerDay: 0, holidayDays: 0 },
+      },
+      nights: 5,
+      comments: "",
+      petAware: true,
+    });
+    // startsAt + endsAt should be in the patch (time changed)
+    expect(patch.startsAt).toEqual(newStart);
+    expect(patch.endsAt).toEqual(newEnd);
+    // quantities MUST be present and contain the new nights value
+    expect(patch.quantities).toBeDefined();
+    expect(patch.quantities?.nights).toBe(5);
+  });
+
+  it("U24: overnight no-change returns empty patch", () => {
+    // When the date range is unchanged (nights = 3, same as initial), no patch.
+    const patch = diffBookingPatch(HS_INITIAL, {
+      startsAt: new Date(HS_START_ISO),
+      endsAt: new Date(HS_END_ISO),
+      selectedPetIds: ["pet-1"],
+      quantities: {
+        type: "house_sitting",
+        qty: { cantBeLeftAloneDays: 0, walkMinutesPerDay: 0, holidayDays: 0 },
+      },
+      nights: 3,
+      comments: "",
+      petAware: true,
+    });
+    expect(patch).toEqual({});
+  });
+
+  it("U24: overnight extras change without date change includes quantities with initial nights", () => {
+    // User adds 1 cantBeLeftAloneDays. Dates unchanged → nights stays 3.
+    // patch.quantities must NOT contain nights: 0 (old bug: current.nights was null).
+    const patch = diffBookingPatch(HS_INITIAL, {
+      startsAt: new Date(HS_START_ISO),
+      endsAt: new Date(HS_END_ISO),
+      selectedPetIds: ["pet-1"],
+      quantities: {
+        type: "house_sitting",
+        qty: { cantBeLeftAloneDays: 1, walkMinutesPerDay: 0, holidayDays: 0 },
+      },
+      nights: 3,
+      comments: "",
+      petAware: true,
+    });
+    expect(patch.quantities).toBeDefined();
+    // nights must be the real initial nights (3), NOT 0
+    expect(patch.quantities?.nights).toBe(3);
+    expect(patch.quantities?.cantBeLeftAloneDays).toBe(1);
   });
 
   it("includes all changed dimensions in a combined change", () => {

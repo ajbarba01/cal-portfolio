@@ -18,6 +18,8 @@
 import Link from "next/link";
 import {
   BookingFlow,
+  BookingFlowStepHead,
+  BookingSuccessPanel,
   PetAssignment,
   QuantityForm,
   QuotePanel,
@@ -31,6 +33,7 @@ import type {
 import { RecurringControls } from "./recurring-controls";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { bookingSuccessSummary } from "../../_components/messages";
 import { useServiceBooking } from "./use-service-booking";
 
 export type { ServiceDetail };
@@ -87,9 +90,10 @@ export function ServiceBookingClient({
     previewMsg,
     isPreviewing,
     isSubmitting,
-    submitDone,
+    success,
     bookEnabled,
     guestLoginHref,
+    resetFlow,
     quantities,
     selectedPetIds,
     recurringOn,
@@ -114,6 +118,24 @@ export function ServiceBookingClient({
     myBookingDayKeys,
   });
 
+  // U1: terminal success state — the panel replaces the flow until the user
+  // starts over ("Book another") or leaves for /account/bookings.
+  if (success) {
+    return (
+      <BookingSuccessPanel
+        requiresApproval={success.requiresApproval}
+        summary={bookingSuccessSummary({
+          serviceName: service.name,
+          mode,
+          startsAt: success.startsAt,
+          endsAt: success.endsAt,
+          petNames: success.petNames,
+        })}
+        onBookAnother={resetFlow}
+      />
+    );
+  }
+
   return (
     <BookingFlow
       flow={{
@@ -126,6 +148,7 @@ export function ServiceBookingClient({
         stay,
         onSelectionChange,
       }}
+      rules={rules}
       monthRangeIntro={
         <>
           Click the two ends of your stay — in any order, and across months if
@@ -137,12 +160,11 @@ export function ServiceBookingClient({
       petSection={
         petAware && (
           <section aria-labelledby="pets-heading">
-            <h2
-              id="pets-heading"
-              className="text-brand-strong mb-3 text-xs font-semibold tracking-wide uppercase"
-            >
-              {step2Label}. Which pets?
-            </h2>
+            <BookingFlowStepHead
+              num={step2Label}
+              label="Which pets?"
+              labelId="pets-heading"
+            />
             {authState === "ready" ? (
               <PetAssignment
                 pets={pets}
@@ -161,24 +183,23 @@ export function ServiceBookingClient({
       }
       detailsSection={
         <section aria-labelledby="qty-heading">
-          <h2
-            id="qty-heading"
-            className="text-brand-strong mb-3 text-xs font-semibold tracking-wide uppercase"
-          >
-            {step3Label}. Details
-          </h2>
+          <BookingFlowStepHead
+            num={step3Label}
+            label="Details"
+            labelId="qty-heading"
+          />
           <QuantityForm state={quantities} onChange={onQuantitiesChange} />
         </section>
       }
       extraSection={
         supportsRecurring && (
           <section aria-labelledby="recur-heading">
-            <h2
-              id="recur-heading"
-              className="text-brand-strong mb-3 text-xs font-semibold tracking-wide uppercase"
-            >
-              {step4Label}. Recurring (optional)
-            </h2>
+            <BookingFlowStepHead
+              num={step4Label}
+              label="Repeat weekly?"
+              labelId="recur-heading"
+              hint="optional"
+            />
             <RecurringControls
               enabled={recurringOn}
               count={occurrenceCount}
@@ -243,12 +264,14 @@ export function ServiceBookingClient({
                 </p>
               )}
               {quote ? (
+                // U1: success renders a terminal panel (early return above),
+                // so the Book CTA always shows alongside a quote here.
                 <QuotePanel
                   preview={quote}
                   onBook={handleBook}
                   bookLabel={isSubmitting ? "Submitting…" : "Book now"}
                   bookDisabled={!bookEnabled}
-                  showBook={!submitDone}
+                  showBook
                 />
               ) : (
                 <div className="border-border bg-card text-muted-foreground rounded-xl border border-dashed p-6 text-center text-sm">

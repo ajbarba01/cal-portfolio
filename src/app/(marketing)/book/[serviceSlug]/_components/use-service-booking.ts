@@ -63,6 +63,22 @@ export interface UseServiceBookingInput {
   myBookingDayKeys: string[];
 }
 
+// ── Success snapshot (U1) ─────────────────────────────────────────────────────
+
+/**
+ * Snapshot of the booking captured at createBooking success — drives the
+ * terminal success panel. Captured (not derived live) because the post-success
+ * busy refresh can re-derive calendar state while the panel is shown.
+ */
+export interface BookingSuccessInfo {
+  /** True when the booking landed in pending_approval (copy variant). */
+  requiresApproval: boolean;
+  startsAt: Date;
+  endsAt: Date;
+  /** Names of the assigned pets ([] for non-pet-aware services). */
+  petNames: string[];
+}
+
 // ── Hook return ───────────────────────────────────────────────────────────────
 
 export interface UseServiceBookingReturn {
@@ -83,6 +99,10 @@ export interface UseServiceBookingReturn {
   // Selection state (for JSX display)
   range: DateRange | undefined;
   stay: ReturnType<typeof validateStayRange> | null;
+  /** Resolved booking start instant (null when no valid selection). */
+  startsAt: Date | null;
+  /** Resolved booking end instant (null when no valid selection). */
+  endsAt: Date | null;
   hasSelection: boolean;
   petsOk: boolean;
 
@@ -92,8 +112,12 @@ export interface UseServiceBookingReturn {
   isPreviewing: boolean;
   isSubmitting: boolean;
   submitDone: boolean;
+  /** Non-null after createBooking success — renders the terminal panel (U1). */
+  success: BookingSuccessInfo | null;
   bookEnabled: boolean;
   guestLoginHref: string;
+  /** Resets all booking state so the user can book again ("Book another"). */
+  resetFlow: () => void;
 
   // Quantities / pets / recurring (for controlled inputs)
   quantities: QuantityState;
@@ -123,6 +147,7 @@ export function useServiceBooking({
   rules,
   initialBusy,
   authState,
+  pets,
   initialSelection,
   myBookingDayKeys,
 }: UseServiceBookingInput): UseServiceBookingReturn {
@@ -167,7 +192,9 @@ export function useServiceBooking({
   // ── Wrapper-owned quote-state ──────────────────────────────────────────────
   const [quote, setQuote] = useState<BookingQuotePreview | null>(null);
   const [previewMsg, setPreviewMsg] = useState<UserMessage | null>(null);
-  const [submitDone, setSubmitDone] = useState(false);
+  // U1: success snapshot — non-null is the flow's terminal state.
+  const [success, setSuccess] = useState<BookingSuccessInfo | null>(null);
+  const submitDone = success !== null;
 
   const [isSubmitting, startSubmitting] = useTransition();
 
@@ -216,6 +243,7 @@ export function useServiceBooking({
     refreshBusy,
     buildSelectionInput,
     setSelectedPetIds,
+    resetScheduler,
     onSelectionChange,
     onQuantitiesChange,
     onPetIdsChange,
@@ -276,11 +304,24 @@ export function useServiceBooking({
         router.push("/onboarding");
         return;
       }
-      const msg = createResultMessage(result, quote?.requiresApproval ?? true);
       if (result.kind === "success") {
-        toast.add({ title: "Booking requested", description: msg.text });
-        setSubmitDone(true);
+        // U1: capture the snapshot for the terminal success panel. No toast —
+        // the panel replaces the flow and is the success feedback.
+        setSuccess({
+          requiresApproval: quote?.requiresApproval ?? true,
+          startsAt,
+          endsAt,
+          petNames: petAware
+            ? pets
+                .filter((p) => selectedPetIds.includes(p.id))
+                .map((p) => p.name)
+            : [],
+        });
       } else {
+        const msg = createResultMessage(
+          result,
+          quote?.requiresApproval ?? true,
+        );
         toast.add({
           title: "Couldn't book",
           description: msg.text,
@@ -290,6 +331,13 @@ export function useServiceBooking({
       // Either way, refresh busy so the calendar reflects the latest state.
       void refreshBusy();
     });
+  }
+
+  function resetFlow() {
+    resetScheduler();
+    setQuote(null);
+    setPreviewMsg(null);
+    setSuccess(null);
   }
 
   function handlePetAdded(pet: Pet) {
@@ -337,6 +385,8 @@ export function useServiceBooking({
     schedulerData,
     range,
     stay,
+    startsAt,
+    endsAt,
     hasSelection,
     petsOk,
     quote,
@@ -344,8 +394,10 @@ export function useServiceBooking({
     isPreviewing,
     isSubmitting,
     submitDone,
+    success,
     bookEnabled,
     guestLoginHref,
+    resetFlow,
     quantities,
     selectedPetIds,
     recurringOn,

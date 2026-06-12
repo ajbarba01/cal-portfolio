@@ -83,6 +83,60 @@ function formatCents(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
+// ── Success-panel summary (U1) ────────────────────────────────────────────────
+
+const MS_PER_MIN = 60_000;
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+/** "Mon, Jun 16" in America/Denver. */
+function formatDenverDay(d: Date): string {
+  return d.toLocaleDateString("en-US", {
+    timeZone: "America/Denver",
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+/**
+ * One-line recap for the booking success panel, e.g.
+ *   "Walk · Mon, Jun 16 · 1.5 hr · Juniper"
+ *   "House sitting · Mon, Jun 16 – Thu, Jun 19 · 3 nights · Juniper, Moss"
+ *
+ * Pure string composition — duration/nights derived from the instants so the
+ * line always matches what was actually booked.
+ */
+export function bookingSuccessSummary(args: {
+  serviceName: string;
+  mode: "week-slots" | "month-range";
+  startsAt: Date;
+  endsAt: Date;
+  petNames: string[];
+}): string {
+  const { serviceName, mode, startsAt, endsAt, petNames } = args;
+  const parts: string[] = [serviceName];
+
+  if (mode === "month-range") {
+    const nights = Math.round(
+      (endsAt.getTime() - startsAt.getTime()) / MS_PER_DAY,
+    );
+    parts.push(
+      `${formatDenverDay(startsAt)} – ${formatDenverDay(endsAt)}`,
+      `${nights} night${nights === 1 ? "" : "s"}`,
+    );
+  } else {
+    const minutes = Math.round(
+      (endsAt.getTime() - startsAt.getTime()) / MS_PER_MIN,
+    );
+    // 60 → "1 hr", 90 → "1.5 hr", 45 → "45 min".
+    const duration = minutes < 60 ? `${minutes} min` : `${minutes / 60} hr`;
+    parts.push(formatDenverDay(startsAt), duration);
+  }
+
+  if (petNames.length > 0) parts.push(petNames.join(", "));
+  return parts.join(" · ");
+}
+
 // ── previewQuote result ───────────────────────────────────────────────────────
 
 /** Discriminated result for the quote preview path. */

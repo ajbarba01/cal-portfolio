@@ -88,10 +88,10 @@ describe("ServiceBookingClient (characterization)", () => {
       />,
     );
 
-    // Step 1 — calendar (week-slots → "Pick a day")
-    expect(
-      screen.getByRole("heading", { name: /1\. Pick a day/i }),
-    ).toBeTruthy();
+    // Step 1 — calendar (week-slots → "Pick a day").
+    // The step number (1) moved to an aria-hidden clay disc; the h2 text is now
+    // just the label (SP6 Task 9: step-card heading pattern).
+    expect(screen.getByRole("heading", { name: /Pick a day/i })).toBeTruthy();
     // Step 2 — pets (pet-aware service)
     expect(screen.getByRole("heading", { name: /Which pets\?/i })).toBeTruthy();
     // Step 3 — details / quantities

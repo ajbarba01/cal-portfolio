@@ -62,6 +62,18 @@ export interface BookingRuleSettings {
    * (pend-not-refuse) lives in the time gate, not here — see time-gate.ts.
    */
   hardMaxAdvanceDays: number;
+  /**
+   * Hours before the booking start within which a free-cancellation refund is
+   * available. From settings.cancellation_full_refund_hours.
+   * Optional: only loaded for surfaces that need to display the policy line.
+   */
+  cancellationFullRefundHours?: number;
+  /**
+   * Percentage of the booking total the client keeps on a late cancellation.
+   * From settings.late_cancel_refund_pct.
+   * Optional: only loaded for surfaces that need to display the policy line.
+   */
+  lateCancelRefundPct?: number;
 }
 
 // ---------------------------------------------------------------------------

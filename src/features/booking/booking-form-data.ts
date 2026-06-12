@@ -26,7 +26,7 @@ export async function loadBookingFormData(
   const { data: settingsData, error } = await svc
     .from("settings")
     .select(
-      "booking_open_minute, booking_close_minute, min_lead_time_hours, hard_max_advance_days",
+      "booking_open_minute, booking_close_minute, min_lead_time_hours, hard_max_advance_days, cancellation_full_refund_hours, late_cancel_refund_pct",
     )
     .limit(1)
     .single();
@@ -38,6 +38,9 @@ export async function loadBookingFormData(
     bookingCloseMinute: settingsData.booking_close_minute as number,
     minLeadTimeHours: settingsData.min_lead_time_hours as number,
     hardMaxAdvanceDays: settingsData.hard_max_advance_days as number,
+    cancellationFullRefundHours:
+      settingsData.cancellation_full_refund_hours as number,
+    lateCancelRefundPct: settingsData.late_cancel_refund_pct as number,
   };
 
   const initialBusy = await getPublicBusyRanges(serviceSlug);

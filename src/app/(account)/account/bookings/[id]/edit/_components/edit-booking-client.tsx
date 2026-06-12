@@ -18,6 +18,7 @@
 
 import {
   BookingFlow,
+  BookingFlowStepHead,
   PetAssignment,
   QuantityForm,
   QuotePanel,
@@ -129,6 +130,7 @@ export function EditBookingClient({
         onSelectionChange,
         initialSlot,
       }}
+      rules={rules}
       monthRangeIntro={
         <>
           Click the two ends of your stay — in any order, and across months if
@@ -155,12 +157,11 @@ export function EditBookingClient({
       petSection={
         petAware && (
           <section aria-labelledby="pets-heading">
-            <h2
-              id="pets-heading"
-              className="text-brand-strong mb-3 text-xs font-semibold tracking-wide uppercase"
-            >
-              {step2Label}. Which pets?
-            </h2>
+            <BookingFlowStepHead
+              num={step2Label}
+              label="Which pets?"
+              labelId="pets-heading"
+            />
             {admin?.paidLock ? (
               <p className="text-muted-foreground border-border bg-muted/30 rounded-lg border p-3 text-sm">
                 <span aria-hidden="true">🔒</span> This booking is paid — pets
@@ -182,24 +183,23 @@ export function EditBookingClient({
       detailsSection={
         !admin?.paidLock && (
           <section aria-labelledby="qty-heading">
-            <h2
-              id="qty-heading"
-              className="text-brand-strong mb-3 text-xs font-semibold tracking-wide uppercase"
-            >
-              {step3Label}. Details
-            </h2>
+            <BookingFlowStepHead
+              num={step3Label}
+              label="Details"
+              labelId="qty-heading"
+            />
             <QuantityForm state={quantities} onChange={onQuantitiesChange} />
           </section>
         )
       }
       extraSection={
         <section aria-labelledby="comments-heading">
-          <h2
-            id="comments-heading"
-            className="text-brand-strong mb-3 text-xs font-semibold tracking-wide uppercase"
-          >
-            {step4Label}. Notes for Cal (optional)
-          </h2>
+          <BookingFlowStepHead
+            num={step4Label}
+            label="Notes for Cal"
+            labelId="comments-heading"
+            hint="optional"
+          />
           <label htmlFor="edit-comments" className="sr-only">
             Notes for Cal
           </label>

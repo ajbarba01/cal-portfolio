@@ -4,7 +4,11 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { createResultMessage, previewResultMessage } from "./messages";
+import {
+  bookingSuccessSummary,
+  createResultMessage,
+  previewResultMessage,
+} from "./messages";
 import type { CreateBookingResult } from "@/features/booking/booking-service";
 import type { PreviewActionResult } from "@/features/booking/quote-action";
 
@@ -153,5 +157,61 @@ describe("previewResultMessage", () => {
     if (out.kind === "message") {
       expect(out.message.tone).toBe("error");
     }
+  });
+});
+
+// ── bookingSuccessSummary (U1) ────────────────────────────────────────────────
+
+describe("bookingSuccessSummary", () => {
+  it("week-slots: service · day · fractional-hour duration · pets", () => {
+    // 2025-06-16 is a Monday; 10:00–11:30 Denver (MDT, UTC-6).
+    expect(
+      bookingSuccessSummary({
+        serviceName: "Walk",
+        mode: "week-slots",
+        startsAt: new Date("2025-06-16T16:00:00Z"),
+        endsAt: new Date("2025-06-16T17:30:00Z"),
+        petNames: ["Juniper"],
+      }),
+    ).toBe("Walk · Mon, Jun 16 · 1.5 hr · Juniper");
+  });
+
+  it("week-slots: sub-hour duration renders minutes; no pets segment when empty", () => {
+    expect(
+      bookingSuccessSummary({
+        serviceName: "Drop-in",
+        mode: "week-slots",
+        startsAt: new Date("2025-06-16T16:00:00Z"),
+        endsAt: new Date("2025-06-16T16:45:00Z"),
+        petNames: [],
+      }),
+    ).toBe("Drop-in · Mon, Jun 16 · 45 min");
+  });
+
+  it("month-range: service · date range · nights · pets", () => {
+    // Check-in Jun 16, check-out Jun 19 (both 6:30am Denver) = 3 nights.
+    expect(
+      bookingSuccessSummary({
+        serviceName: "House sitting",
+        mode: "month-range",
+        startsAt: new Date("2025-06-16T12:30:00Z"),
+        endsAt: new Date("2025-06-19T12:30:00Z"),
+        petNames: ["Juniper", "Moss"],
+      }),
+    ).toBe(
+      "House sitting · Mon, Jun 16 – Thu, Jun 19 · 3 nights · Juniper, Moss",
+    );
+  });
+
+  it("month-range: a single night is singular", () => {
+    expect(
+      bookingSuccessSummary({
+        serviceName: "House sitting",
+        mode: "month-range",
+        startsAt: new Date("2025-06-16T12:30:00Z"),
+        endsAt: new Date("2025-06-17T12:30:00Z"),
+        petNames: [],
+      }),
+    ).toBe("House sitting · Mon, Jun 16 – Tue, Jun 17 · 1 night");
   });
 });
