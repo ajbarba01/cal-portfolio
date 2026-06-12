@@ -149,6 +149,7 @@ export function ClientDetailClient({ client }: { client: ClientDetailView }) {
       () => setKicheAllowed(client.id, next),
       () =>
         toast.add({
+          type: "success",
           title: next ? "Kiche discount enabled" : "Kiche discount disabled",
         }),
     );
@@ -521,12 +522,24 @@ export function ClientDetailClient({ client }: { client: ClientDetailView }) {
                     variant="outline"
                     className="ml-auto"
                     disabled={isPending}
-                    onClick={() =>
+                    onClick={async () => {
+                      const ok = await confirm({
+                        title: `Mark ${client.full_name ?? "this client"}'s ${dollars(debit.amount_cents)} balance as settled?`,
+                        description:
+                          "This marks the debit settled and cannot be undone.",
+                        confirmLabel: "Mark settled",
+                        destructive: false,
+                      });
+                      if (!ok) return;
                       run(
                         () => settleDebit(debit.id, client.id),
-                        () => toast.add({ title: "Debit settled" }),
-                      )
-                    }
+                        () =>
+                          toast.add({
+                            type: "success",
+                            title: "Debit settled",
+                          }),
+                      );
+                    }}
                   >
                     Mark settled
                   </Button>

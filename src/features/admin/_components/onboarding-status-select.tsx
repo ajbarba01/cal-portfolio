@@ -71,7 +71,7 @@ export function OnboardingStatusSelect({
     startTransition(async () => {
       const result = await setOnboardingStatus(clientId, next);
       if (result.kind === "success") {
-        toast.add({ title: "Onboarding status updated" });
+        toast.add({ type: "success", title: "Onboarding status updated" });
         router.refresh();
       } else {
         toast.add({

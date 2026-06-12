@@ -267,6 +267,7 @@ export function useAdminCreateBooking({
       });
       if (result.kind === "success") {
         toast.add({
+          type: "success",
           title: "Booking created",
           description: result.warnings.length
             ? `${result.warnings.length} override(s) applied.`

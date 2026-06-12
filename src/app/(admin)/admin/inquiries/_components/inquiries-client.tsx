@@ -36,10 +36,10 @@ export function InquiriesClient({
     const result = await markInquiryResolved(id);
     if (result.kind === "success") {
       patch(id, { status: "resolved", resolved_at: new Date().toISOString() });
-      toast.add({ title: "Marked resolved" });
+      toast.add({ type: "success", title: "Marked resolved" });
       return true;
     }
-    toast.add({ title: "Could not update the inquiry." });
+    toast.add({ type: "error", title: "Could not update the inquiry." });
     return false;
   }
 

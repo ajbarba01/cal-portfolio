@@ -33,6 +33,7 @@ import { CalendarDays, List } from "lucide-react";
 
 import { useConfirm } from "@/components/feedback/confirm-dialog";
 import { EmptyState } from "@/components/feedback/empty-state";
+import { BackToTop } from "@/components/ui/back-to-top";
 import { Multiswitch } from "@/components/ui/multiswitch";
 import { Pagination } from "@/components/ui/pagination";
 import { ResultCount } from "@/components/ui/result-count";
@@ -720,6 +721,7 @@ export function BookingsCalendarClient({
           </div>
         </Scheduler>
       )}
+      <BackToTop />
     </div>
   );
 }

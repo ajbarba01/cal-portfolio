@@ -57,6 +57,7 @@ export function ContactForm({
         setIsDone(true);
         form.reset();
         toast.add({
+          type: "success",
           title: "Message sent",
           description: "Thanks - Cal will get back to you.",
         });

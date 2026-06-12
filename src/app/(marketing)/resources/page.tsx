@@ -7,6 +7,7 @@ import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
 import { Eyebrow } from "@/components/marketing/eyebrow";
 import { MarketingCopy } from "@/components/marketing/marketing-copy";
+import { BackToTop } from "@/components/ui/back-to-top";
 import { copy, type CopyId } from "@/content/marketing";
 
 // Health & Safety — each topic links out to an external resource Cal supplied.
@@ -213,6 +214,7 @@ export default function ResourcesPage() {
           ))}
         </Accordion.Root>
       </section>
+      <BackToTop />
     </PageContainer>
   );
 }

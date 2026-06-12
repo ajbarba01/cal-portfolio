@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 import { ChevronDown, ChevronRight, ChevronUp } from "lucide-react";
 
 import { EmptyState } from "@/components/feedback/empty-state";
+import { BackToTop } from "@/components/ui/back-to-top";
 import { Badge } from "@/components/ui/badge";
 import {
   Multiswitch,
@@ -284,6 +285,7 @@ export function ClientsIndexClient({ clients }: { clients: ClientListRow[] }) {
           />
         </>
       )}
+      <BackToTop />
     </div>
   );
 }

@@ -16,6 +16,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { CalendarDays, List } from "lucide-react";
 
 import { EmptyState } from "@/components/feedback/empty-state";
+import { BackToTop } from "@/components/ui/back-to-top";
 import { Badge } from "@/components/ui/badge";
 import { Multiswitch } from "@/components/ui/multiswitch";
 import { Pagination } from "@/components/ui/pagination";
@@ -469,6 +470,7 @@ export function AccountBookingsClient({
           </div>
         </Scheduler>
       )}
+      <BackToTop />
     </div>
   );
 }

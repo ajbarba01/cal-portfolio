@@ -351,7 +351,7 @@ export function useEditBooking({
       const result = await editBooking({ bookingId, patch, forceConfirm });
       switch (result.kind) {
         case "success":
-          toast.add({ title: "Booking updated" });
+          toast.add({ type: "success", title: "Booking updated" });
           router.push(
             admin ? `/admin/clients/${admin.clientId}` : "/account/bookings",
           );
