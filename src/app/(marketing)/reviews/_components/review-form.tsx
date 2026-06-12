@@ -105,7 +105,11 @@ export function ReviewForm({ isSignedIn }: ReviewFormProps) {
       )}
 
       <div>
-        <Button type="submit" disabled={isPending || body.trim().length === 0}>
+        <Button
+          type="submit"
+          variant="brand"
+          disabled={isPending || body.trim().length === 0}
+        >
           {isPending ? "Submitting…" : "Submit review"}
         </Button>
       </div>

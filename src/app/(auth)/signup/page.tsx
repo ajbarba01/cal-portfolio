@@ -150,7 +150,12 @@ export default function SignupPage() {
               </p>
             )}
 
-            <Button type="submit" disabled={isLoading} className="mt-2 w-full">
+            <Button
+              type="submit"
+              variant="brand"
+              disabled={isLoading}
+              className="mt-2 w-full"
+            >
               {isLoading ? "Creating account…" : "Create account"}
             </Button>
           </form>

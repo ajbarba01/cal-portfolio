@@ -78,7 +78,12 @@ function PrepayForm({
   return (
     <form onSubmit={handleSubmit} className="mt-4 space-y-4">
       <PaymentElement />
-      <Button type="submit" disabled={!stripe || submitting} className="w-full">
+      <Button
+        type="submit"
+        variant="brand"
+        disabled={!stripe || submitting}
+        className="w-full"
+      >
         {submitting ? "Processing…" : "Pay now"}
       </Button>
     </form>

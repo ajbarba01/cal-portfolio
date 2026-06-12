@@ -83,9 +83,9 @@ const widths = {
 
 **Files:** Create `src/components/ui/textarea.tsx`; modify `docs/FRONTEND.md`; modify the submit buttons in `src/app/(auth)/login/page.tsx` + `src/app/(auth)/signup/page.tsx` (+ their form components) and `src/app/(marketing)/contact/_components/contact-form.tsx`.
 
-- [ ] **Step 1:** Create `Textarea` mirroring `src/components/ui/input.tsx` styling exactly (same border/bg/focus classes, `data-slot="textarea"`, `min-h` + `resize-y`). Replace the hand-rolled `<textarea>` in `contact-form.tsx` with it.
-- [ ] **Step 2:** Button hierarchy (system-preview contract): switch the login/signup/contact submit buttons from the near-black default to `variant="brand"`. Grep for other form submits using the default variant in `(auth)`/`(marketing)`/`(account)` and switch any found — the rule: **brand = THE action of a surface (one per view); outline = secondary; ghost = tertiary; destructive behind `useConfirm`; near-black `primary` only for neutral chrome.**
-- [ ] **Step 3:** Document the button rule + form-on-card recipe (`bg-card` + border + `rounded-2xl` card; inputs `bg-background` + `border-input` + clay focus ring) in `docs/FRONTEND.md` — same commit.
+- [x] **Step 1:** Create `Textarea` mirroring `src/components/ui/input.tsx` styling exactly (same border/bg/focus classes, `data-slot="textarea"`, `min-h` + `resize-y`). Replace the hand-rolled `<textarea>` in `contact-form.tsx` with it.
+- [x] **Step 2:** Button hierarchy (system-preview contract): switch the login/signup/contact submit buttons from the near-black default to `variant="brand"`. Grep for other form submits using the default variant in `(auth)`/`(marketing)`/`(account)` and switch any found — the rule: **brand = THE action of a surface (one per view); outline = secondary; ghost = tertiary; destructive behind `useConfirm`; near-black `primary` only for neutral chrome.**
+- [x] **Step 3:** Document the button rule + form-on-card recipe (`bg-card` + border + `rounded-2xl` card; inputs `bg-background` + `border-input` + clay focus ring) in `docs/FRONTEND.md` — same commit.
 - [ ] **Step 4:** Visual check login/signup/contact; typecheck + lint, commit: `feat: unify form action buttons and add textarea primitive`
 
 ## Task 6: Visible loading — zone skeletons + header Suspense (P3-lite)
