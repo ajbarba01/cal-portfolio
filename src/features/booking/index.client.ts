@@ -54,6 +54,7 @@ export type { BookingEvent, BookingStatus } from "./state-machine";
 export { useAvailability } from "./use-availability";
 export { useBusyRanges } from "./use-busy-ranges";
 export { useOvernightNights } from "./use-overnight-nights";
+export { usePremiumDays } from "./use-premium-days";
 
 // scheduler data
 export { hourlySchedulerData } from "./hourly-scheduler-data";

@@ -70,6 +70,7 @@ import type { ServiceDetail } from "./service-detail";
 import type { useAvailability } from "./use-availability";
 import type { useBusyRanges } from "./use-busy-ranges";
 import type { useOvernightNights } from "./use-overnight-nights";
+import type { usePremiumDays } from "./use-premium-days";
 import type { DateRange } from "@/components/ui/calendar";
 
 // ── Local date helpers (browser-local calendar keys; layout, not business rules) ──
@@ -127,6 +128,7 @@ export interface BookingSchedulerIo {
   useAvailability: typeof useAvailability;
   useBusyRanges: typeof useBusyRanges;
   useOvernightNights: typeof useOvernightNights;
+  usePremiumDays: typeof usePremiumDays;
 }
 
 export interface UseBookingSchedulerInput {
@@ -246,7 +248,8 @@ export function useBookingScheduler({
   clearOnSelectRef,
   clearOnIdleRef,
 }: UseBookingSchedulerInput): UseBookingSchedulerReturn {
-  const { useAvailability, useBusyRanges, useOvernightNights } = io;
+  const { useAvailability, useBusyRanges, useOvernightNights, usePremiumDays } =
+    io;
   const mode: BookingMode =
     service.pricingType === "house_sitting" ? "month-range" : "week-slots";
   const petAware =
@@ -312,6 +315,7 @@ export function useBookingScheduler({
     error: windowsError,
   } = useAvailability({ durationMs, rules });
   const { overnightNights } = useOvernightNights();
+  const { premiumDays } = usePremiumDays();
   const { busy, refresh: refreshBusy } = useBusyRanges(
     service.slug,
     initialBusy,
@@ -357,10 +361,12 @@ export function useBookingScheduler({
       myBookings,
       rules,
       now,
+      premiumDays,
     };
   }, [
     mode,
     overnightNights,
+    premiumDays,
     openWindows,
     busyRanges,
     durationMin,
