@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Mail } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -163,14 +163,32 @@ export default function SignupPage() {
 
         <p className="text-muted-foreground mt-4 text-center text-sm">
           Have an account?{" "}
-          <Link
-            href="/login"
-            className="text-brand-strong font-medium hover:underline"
-          >
-            Sign in
-          </Link>
+          <Suspense fallback={<AuthSwitchLink href="/login" />}>
+            <LoginLink />
+          </Suspense>
         </p>
       </div>
     </PageContainer>
+  );
+}
+
+/**
+ * Forwards the raw returnTo param so switching to login keeps the deferred-auth
+ * destination. No validation here — the redirect-time guard (`safeReturnTo`)
+ * stays the single validation point.
+ */
+function LoginLink() {
+  const returnTo = useSearchParams().get("returnTo");
+  const href = returnTo
+    ? `/login?returnTo=${encodeURIComponent(returnTo)}`
+    : "/login";
+  return <AuthSwitchLink href={href} />;
+}
+
+function AuthSwitchLink({ href }: { href: string }) {
+  return (
+    <Link href={href} className="text-brand-strong font-medium hover:underline">
+      Sign in
+    </Link>
   );
 }
