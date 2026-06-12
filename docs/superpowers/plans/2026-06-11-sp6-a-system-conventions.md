@@ -59,9 +59,9 @@ const widths = {
 
 **Files:** Modify `src/components/ui/select.tsx`.
 
-- [ ] **Step 1:** In `SelectContent`, add the Base UI anchor-width var to the Popup classes: `min-w-[var(--anchor-width)]` (keep `min-w-[8rem]` as the floor: `min-w-[max(8rem,var(--anchor-width))]`).
-- [ ] **Step 2:** Verify on the widest consumers: admin bookings hub status filter, settings TimePicker trio, booking-flow selects — popup never narrower than its trigger; keyboard nav + focus ring unchanged.
-- [ ] **Step 3:** Typecheck + lint, commit: `fix: match select popup width to its trigger`
+- [x] **Step 1:** In `SelectContent`, add the Base UI anchor-width var to the Popup classes: `min-w-[var(--anchor-width)]` (keep `min-w-[8rem]` as the floor: `min-w-[max(8rem,var(--anchor-width))]`).
+- [x] **Step 2:** Verify on the widest consumers: admin bookings hub status filter, settings TimePicker trio, booking-flow selects — popup never narrower than its trigger; keyboard nav + focus ring unchanged.
+- [x] **Step 3:** Typecheck + lint, commit: `fix: match select popup width to its trigger`
 
 ## Task 4: `--attention` → slate (U31)
 
