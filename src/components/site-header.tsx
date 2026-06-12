@@ -79,7 +79,10 @@ export async function SiteHeader({
             <SiteNavTabs links={navLinks} />
           </div>
 
-          <div className="flex items-center justify-end">
+          {/* col-start-3: below lg the hidden tabs wrapper generates no box,
+              so without an explicit column this cluster would auto-place into
+              the centered `auto` column. */}
+          <div className="col-start-3 flex items-center justify-end">
             <div className="hidden lg:block">{authCluster}</div>
             <div className="lg:hidden">
               <SiteNavMobile
