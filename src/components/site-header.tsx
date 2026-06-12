@@ -82,8 +82,9 @@ async function HeaderAuth({
     <>
       {/* col 1: wordmark — tint depends on role, so lives in the async child.
           Wrapped so the grid cell is explicit (Wordmark's root is a Link that
-          doesn't take placement classes). */}
-      <div className="col-start-1 row-start-1 justify-self-start">
+          doesn't take placement classes). min-w-0 lets the 1fr column shrink
+          below its content's min-content width, preventing two-row wrap. */}
+      <div className="col-start-1 row-start-1 min-w-0 justify-self-start">
         <Wordmark isAdmin={isAdmin} />
       </div>
 
@@ -114,7 +115,7 @@ function HeaderAuthSkeleton() {
     <>
       {/* col 1 — wordmark placeholder: ~same width/height as "Cal Barba" + ears mark */}
       <div
-        className="col-start-1 row-start-1 flex items-center gap-5"
+        className="col-start-1 row-start-1 flex min-w-0 items-center gap-5"
         aria-hidden="true"
       >
         {/* ears mark placeholder */}
@@ -149,14 +150,14 @@ export function SiteHeader({
 }) {
   return (
     <header className="bg-card border-border border-b">
-      <div className="mx-auto w-full max-w-6xl px-5 sm:px-8">
+      <div className="mx-auto w-full max-w-6xl overflow-hidden px-5 sm:px-8">
         {/* Three explicit columns: wordmark (col 1) · tabs (col 2) · auth (col 3).
             Suspense is not a DOM node; its fragment children are direct grid items.
             Every cell is pinned with explicit col-start-* + row-start-1 — relying on
             auto-placement breaks here because the grid cursor is forward-only: once
             the auth cluster claims col 3, a later DOM sibling targeting col 2 wraps
             to row 2. */}
-        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 py-6">
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 py-3">
           <Suspense fallback={<HeaderAuthSkeleton />}>
             <HeaderAuth zoneNav={zoneNav} navBadgesPromise={navBadgesPromise} />
           </Suspense>

@@ -11,7 +11,7 @@ import {
   isActiveNavItem,
   isCurrentNavItem,
 } from "@/components/layout/is-active-nav";
-import { navUnderline } from "@/components/layout/nav-underline";
+import { navTab } from "@/components/layout/nav-underline";
 import { SignOutButton } from "@/components/sign-out-button";
 import type {
   NavItem,
@@ -26,7 +26,7 @@ export function SiteNavTabs({ links }: { links: NavItem[] }) {
 
   return (
     <nav aria-label="Main navigation">
-      <ul className="flex items-center justify-center gap-7 text-sm">
+      <ul className="flex items-center justify-center gap-1">
         {links.map((item) => {
           const active = isActiveNavItem(pathname, item);
           const current = isCurrentNavItem(pathname, item);
@@ -35,7 +35,7 @@ export function SiteNavTabs({ links }: { links: NavItem[] }) {
               <Link
                 href={item.href}
                 aria-current={current ? "page" : undefined}
-                className={navUnderline(active)}
+                className={navTab(active)}
               >
                 {item.label}
               </Link>
@@ -102,7 +102,7 @@ function SiteNavMobileDrawer({
     >
       <Drawer.Trigger
         aria-label="Open menu"
-        className="text-foreground inline-flex size-11 items-center justify-center rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2"
+        className="text-foreground -mr-3 inline-flex size-11 items-center justify-center rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2"
       >
         <Menu className="size-5" />
       </Drawer.Trigger>
