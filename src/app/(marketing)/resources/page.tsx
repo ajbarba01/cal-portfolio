@@ -5,6 +5,7 @@ import { Accordion } from "@base-ui/react/accordion";
 
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
+import { Eyebrow } from "@/components/marketing/eyebrow";
 import { MarketingCopy } from "@/components/marketing/marketing-copy";
 import { copy, type CopyId } from "@/content/marketing";
 
@@ -122,9 +123,10 @@ export default function ResourcesPage() {
       />
 
       <section aria-labelledby="health-heading" className="mb-12">
+        <Eyebrow>First aid &amp; prevention</Eyebrow>
         <h2
           id="health-heading"
-          className="font-heading mb-4 text-xl font-semibold"
+          className="font-heading mt-2 mb-4 text-xl font-semibold"
         >
           Health &amp; Safety
         </h2>
@@ -156,9 +158,10 @@ export default function ResourcesPage() {
       </section>
 
       <section aria-labelledby="tools-heading" className="mb-12">
+        <Eyebrow>Gear &amp; methods</Eyebrow>
         <h2
           id="tools-heading"
-          className="font-heading mb-4 text-xl font-semibold"
+          className="font-heading mt-2 mb-4 text-xl font-semibold"
         >
           Tools &amp; Training
         </h2>
@@ -166,9 +169,10 @@ export default function ResourcesPage() {
       </section>
 
       <section aria-labelledby="enrichment-heading" className="mb-12">
+        <Eyebrow>Beyond the walk</Eyebrow>
         <h2
           id="enrichment-heading"
-          className="font-heading mb-4 text-xl font-semibold"
+          className="font-heading mt-2 mb-4 text-xl font-semibold"
         >
           Enrichment &amp; Well-Being
         </h2>
@@ -180,9 +184,10 @@ export default function ResourcesPage() {
       </p>
 
       <section aria-labelledby="faq-heading">
+        <Eyebrow>Common questions</Eyebrow>
         <h2
           id="faq-heading"
-          className="font-heading mb-4 text-xl font-semibold"
+          className="font-heading mt-2 mb-4 text-xl font-semibold"
         >
           Frequently asked questions
         </h2>
