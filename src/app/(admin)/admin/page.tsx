@@ -69,10 +69,13 @@ export default async function AdminDashboardPage() {
     0,
   );
 
-  // Reviews to moderate
-  const pendingReviews =
+  // Reviews created in the last 7 days
+  const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+  const recentReviews =
     reviewsResult.kind === "success"
-      ? reviewsResult.reviews.filter((r) => r.status === "pending").length
+      ? reviewsResult.reviews.filter(
+          (r) => new Date(r.created_at).getTime() > now.getTime() - sevenDaysMs,
+        ).length
       : 0;
 
   // Today's bookings (TodayTimeline orders them internally).
@@ -94,7 +97,7 @@ export default async function AdminDashboardPage() {
             topAmountCents: topOwing?.outstandingCents,
             totalCents: totalOwingCents,
           }}
-          reviewsToModerate={pendingReviews}
+          recentReviews={recentReviews}
         />
 
         <TodayTimeline bookings={todaysBookings} now={now} />

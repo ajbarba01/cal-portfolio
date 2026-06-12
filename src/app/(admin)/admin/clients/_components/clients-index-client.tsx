@@ -182,20 +182,26 @@ export function ClientsIndexClient({ clients }: { clients: ClientListRow[] }) {
                     role="link"
                     aria-label={`View ${client.full_name ?? client.email ?? "client"}`}
                   >
-                    <td className="px-4 py-2.5">
+                    <td className="max-w-45 px-4 py-2.5">
                       {/* Real <Link> for a11y + middle-click; stops propagation so click doesn't double-navigate */}
                       <Link
                         href={`/admin/clients/${client.id}`}
-                        className="text-brand-strong font-medium underline-offset-2 hover:underline"
+                        className="text-brand-strong block truncate font-medium underline-offset-2 hover:underline"
+                        title={client.full_name ?? client.email ?? "(no name)"}
                         onClick={(e) => e.stopPropagation()}
                       >
                         {client.full_name ?? client.email ?? "(no name)"}
                       </Link>
                     </td>
-                    <td className="text-muted-foreground px-4 py-2.5">
-                      {client.email ?? "-"}
+                    <td className="text-muted-foreground max-w-50 px-4 py-2.5">
+                      <span
+                        className="block truncate"
+                        title={client.email ?? undefined}
+                      >
+                        {client.email ?? "-"}
+                      </span>
                       {client.phone ? (
-                        <span className="block">{client.phone}</span>
+                        <span className="block truncate">{client.phone}</span>
                       ) : null}
                     </td>
                     <td className="px-4 py-2.5">{client.petCount}</td>
@@ -243,17 +249,21 @@ export function ClientsIndexClient({ clients }: { clients: ClientListRow[] }) {
                 role="link"
                 aria-label={`View ${client.full_name ?? client.email ?? "client"}`}
               >
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2">
                   <Link
                     href={`/admin/clients/${client.id}`}
-                    className="text-brand-strong font-medium"
+                    className="text-brand-strong min-w-0 truncate font-medium"
+                    title={client.full_name ?? client.email ?? "(no name)"}
                     onClick={(e) => e.stopPropagation()}
                   >
                     {client.full_name ?? client.email ?? "(no name)"}
                   </Link>
                   <ChevronRight className="text-muted-foreground h-4 w-4 shrink-0" />
                 </div>
-                <p className="text-muted-foreground text-xs">
+                <p
+                  className="text-muted-foreground truncate text-xs"
+                  title={client.email ?? undefined}
+                >
                   {client.email ?? "-"}
                   {client.phone ? ` · ${client.phone}` : ""}
                 </p>

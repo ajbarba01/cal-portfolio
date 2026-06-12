@@ -429,12 +429,20 @@ export function MonthGrid({ className }: { className?: string }) {
           fill = "bg-status-available text-status-available-foreground";
           break;
         case "busy": {
-          const lifted =
-            hoveredBookingId != null && da.bookingId === hoveredBookingId;
-          fill = cn(
-            lifted ? "bg-status-booked/70" : "bg-status-booked",
-            "text-status-booked-foreground",
-          );
+          // Own bookings (account calendar) render in muted clay so the client
+          // can recognise their days at a glance without competing with admin
+          // "booked by someone else" blue fills.
+          const isOwn = data.myBookings?.has(dayKey) ?? false;
+          if (isOwn) {
+            fill = "bg-sidebar-active text-brand-strong";
+          } else {
+            const lifted =
+              hoveredBookingId != null && da.bookingId === hoveredBookingId;
+            fill = cn(
+              lifted ? "bg-status-booked/70" : "bg-status-booked",
+              "text-status-booked-foreground",
+            );
+          }
           break;
         }
         case "out-of-window":
@@ -478,6 +486,7 @@ export function MonthGrid({ className }: { className?: string }) {
       previewDays,
       previewMode,
       hoveredBookingId,
+      data.myBookings,
     ],
   );
 

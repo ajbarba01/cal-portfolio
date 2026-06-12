@@ -76,7 +76,7 @@ const HOUSE_SITTING_FIELDS: FieldSpec[] = [
   },
   {
     key: "holiday_cents_per_day",
-    label: "Holiday add-on (per day)",
+    label: "Premium-day add-on (per day)",
     kind: "cents",
   },
   { key: "kiche_discount_pct", label: "Kiche discount", kind: "pct" },

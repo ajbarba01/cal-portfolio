@@ -64,9 +64,11 @@ function StatusPill({ status }: { status: ReviewStatus }) {
 
 type ReviewFilter = "all" | ReviewStatus;
 
+// "Pending" is omitted: auto-publish makes that state app-unreachable.
+// (Seeder may still create pending rows via service role — that's fine; they
+// show under "All" if present but are not a normal workflow state.)
 const FILTER_OPTIONS: { label: string; value: ReviewFilter }[] = [
   { label: "All", value: "all" },
-  { label: "Pending", value: "pending" },
   { label: "Published", value: "published" },
   { label: "Rejected", value: "rejected" },
 ];

@@ -160,7 +160,7 @@ export function QuantityForm({
         />
         <StepperField
           id="hs-holiday"
-          label="Holiday days"
+          label="Premium days"
           value={qty.holidayDays}
           min={0}
           unit="days"
