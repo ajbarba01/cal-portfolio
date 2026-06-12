@@ -3,6 +3,7 @@
  * Server component.
  */
 import Link from "next/link";
+import { ShieldCheck, Heart, MapPin } from "lucide-react";
 import { MarketingHero } from "@/components/marketing/marketing-hero";
 import { Eyebrow } from "@/components/marketing/eyebrow";
 import { MarketingCopy } from "@/components/marketing/marketing-copy";
@@ -15,16 +16,19 @@ const trustPoints = [
     id: "trust-1",
     titleId: "home.trust.1.title",
     bodyId: "home.trust.1.body",
+    Icon: ShieldCheck,
   },
   {
     id: "trust-2",
     titleId: "home.trust.2.title",
     bodyId: "home.trust.2.body",
+    Icon: Heart,
   },
   {
     id: "trust-3",
     titleId: "home.trust.3.title",
     bodyId: "home.trust.3.body",
+    Icon: MapPin,
   },
 ] as const;
 
@@ -54,7 +58,7 @@ export default function HomePage() {
       {/* Why Cal — section-alt band (alternates with the sand-50 CTA below) */}
       <section aria-labelledby="why-heading" className="bg-section-alt">
         <PageContainer width="app" className="py-12 sm:py-16">
-          <div className="mx-auto mb-10 max-w-[34ch] text-center">
+          <div className="mx-auto mb-8 max-w-[34ch] text-center sm:mb-10">
             <Eyebrow>Why Cal</Eyebrow>
             <h2
               id="why-heading"
@@ -63,16 +67,35 @@ export default function HomePage() {
               <MarketingCopy id="home.why.header" />
             </h2>
           </div>
-          <ul className="grid gap-10 sm:grid-cols-3" role="list">
+
+          {/* Trust cards — centered grid, max-w ~944px; 1-col on mobile */}
+          <ul
+            className="mx-auto grid max-w-236 grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-6"
+            role="list"
+          >
             {trustPoints.map((p) => (
               <li
                 key={p.id}
-                className="flex flex-col items-center gap-2 text-center"
+                className="bg-card border-border rounded-2xl border p-5 sm:p-5.5"
               >
-                <span className="font-heading text-foreground text-lg font-semibold">
-                  <MarketingCopy id={p.titleId} />
-                </span>
-                <p className="text-muted-foreground max-w-[28ch] text-sm leading-relaxed">
+                {/* Icon disc + title row */}
+                <div className="mb-3 flex items-center gap-3">
+                  <span
+                    className="bg-sidebar-active flex size-9.5 shrink-0 items-center justify-center rounded-full"
+                    aria-hidden="true"
+                  >
+                    <p.Icon
+                      className="text-brand-strong size-4.5"
+                      strokeWidth={1.9}
+                    />
+                  </span>
+                  <h3 className="font-heading text-foreground text-[17px] leading-snug font-semibold">
+                    <MarketingCopy id={p.titleId} />
+                  </h3>
+                </div>
+
+                {/* Long-form body — left-aligned, full width within card */}
+                <p className="text-muted-foreground text-[13.5px] leading-[1.65]">
                   <MarketingCopy id={p.bodyId} />
                 </p>
               </li>
