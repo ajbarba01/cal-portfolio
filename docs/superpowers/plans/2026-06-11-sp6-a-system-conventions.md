@@ -67,7 +67,7 @@ const widths = {
 
 **Files:** Modify `src/app/globals.css`.
 
-- [ ] **Step 1:** Repoint the token (stays theme-independent, white foreground):
+- [x] **Step 1:** Repoint the token (stays theme-independent, white foreground):
 
 ```css
 /* Attention badge — slate (#3c5566, blue-deep family), white text ≈7.9:1 AA.
@@ -76,8 +76,8 @@ const widths = {
 --attention: #3c5566;
 ```
 
-- [ ] **Step 2:** Verify badges on seeded `admin-demo`: sidebar + mobile drawer, light + dark theme, AA holds, renders nothing at 0 (behavior untouched — token-only change).
-- [ ] **Step 3:** Commit: `feat: repoint attention badge token to slate`
+- [x] **Step 2:** Verify badges on seeded `admin-demo`: sidebar + mobile drawer, light + dark theme, AA holds, renders nothing at 0 (behavior untouched — token-only change).
+- [x] **Step 3:** Commit: `feat: repoint attention badge token to slate`
 
 ## Task 5: Textarea primitive + form-on-card recipe + button hierarchy (U15)
 

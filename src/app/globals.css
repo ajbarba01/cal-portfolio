@@ -146,10 +146,10 @@
   --brand-strong: var(--clay-strong);
   --destructive: var(--danger);
   --destructive-warm: var(--danger-warm);
-  /* Attention badge — honey-gold (#8a6a1b), white text passes WCAG AA (≈5.05:1).
-     Gold = "do something" (routine); red stays reserved for danger/owing.
-     Theme-independent (no .dark override). */
-  --attention: #8a6a1b;
+  /* Attention badge — slate (#3c5566, blue-deep family), white text ≈7.9:1 AA.
+     Slate = "do something" (routine); red stays reserved for danger/owing.
+     Gold (#8a6a1b) rejected by maintainer 2026-06-11. Theme-independent. */
+  --attention: #3c5566;
   --attention-foreground: #ffffff;
   --border: var(--sand-200);
   --input: var(--sand-200);
