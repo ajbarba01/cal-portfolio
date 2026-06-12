@@ -196,3 +196,9 @@ const widths = {
 ### Task 5 — shared account-component submits deferred to Plan B (2026-06-12)
 
 Sweep found two primary submits still on the default Button variant: `src/features/accounts/_components/form-card.tsx` and `src/features/accounts/_components/pet-form.tsx`. Both are account-zone primaries but are shared with the admin client-detail surface (SP5a), so per the task scope note they were left untouched. Plan B's surface sweep should switch them to `brand` per the hierarchy rule. Also noted: `src/app/(onboarding)/onboarding/_components/info-step.tsx` has a default-variant primary submit — `(onboarding)` is outside this task's zone list; include it in the Plan B sweep.
+
+### Task 8 — reviews auto-publish required a policy migration (2026-06-12)
+
+**Deviation:** SP6 was declared schema-free, but the reviews RLS `WITH CHECK` pinned `status='pending'`, so the maintainer's auto-publish decision was unimplementable without a policy migration → shipped `20260612120000_reviews_auto_publish.sql` (insert policy + column default flipped to `published`; enum/tables untouched; applied locally via non-destructive `npx supabase db push --local`). **Prod push of this migration is maintainer-owned at next deploy.**
+**Follow-up for Plan B (maintainer decision needed):** the admin dashboard's "reviews to moderate" attention row keys on `pending` and is now permanently 0 — reactive moderation currently has NO new-review awareness signal. Options: a recency-based "new reviews" row, or drop the row.
+**Cosmetic:** admin reviews Pending filter is vestigial; seeder still seeds a `pending` review (service-role bypasses RLS — fine, app-unreachable state).
