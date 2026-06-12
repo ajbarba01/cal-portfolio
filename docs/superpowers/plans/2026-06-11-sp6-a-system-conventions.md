@@ -92,10 +92,10 @@ const widths = {
 
 **Files:** Create `src/app/(marketing)/loading.tsx`, `src/app/(account)/loading.tsx`, `src/app/(admin)/loading.tsx`; modify `src/components/site-header.tsx` and the shells that render it.
 
-- [ ] **Step 1 (the load-bearing bit):** `SiteHeader` is async (auth+role queries) inside zone layouts — per the Next.js docs, runtime data in the layout blocks `loading.tsx` fallbacks. Split it: header chrome (wordmark, tab row) renders statically; the auth cluster + admin wordmark tint become a child async component wrapped in `<Suspense fallback={<Skeleton className="h-5 w-16" />}>`. Keep one header render path — only the auth-dependent fragment suspends.
-- [ ] **Step 2:** Zone `loading.tsx` ×3 using the existing `Skeleton` primitive, matching each zone's shell (marketing: header-height bar + title + text rows; account/admin: sidebar rail + content rows — see system-preview panel 4). Lightweight, token-colored, no spinners.
-- [ ] **Step 3:** Verify with DevTools "Slow 3G" + hard navigations: skeleton paints immediately on nav to a dynamic page; no layout shift when content swaps in (CLS stays 0 — match real dimensions).
-- [ ] **Step 4:** Typecheck + lint + `npm run build` (Suspense splits can surface server-only leaks — SP3a/5a precedent), commit: `feat: add zone loading skeletons and non-blocking header auth`
+- [x] **Step 1 (the load-bearing bit):** `SiteHeader` is async (auth+role queries) inside zone layouts — per the Next.js docs, runtime data in the layout blocks `loading.tsx` fallbacks. Split it: header chrome (wordmark, tab row) renders statically; the auth cluster + admin wordmark tint become a child async component wrapped in `<Suspense fallback={<Skeleton className="h-5 w-16" />}>`. Keep one header render path — only the auth-dependent fragment suspends.
+- [x] **Step 2:** Zone `loading.tsx` ×3 using the existing `Skeleton` primitive, matching each zone's shell (marketing: header-height bar + title + text rows; account/admin: sidebar rail + content rows — see system-preview panel 4). Lightweight, token-colored, no spinners.
+- [x] **Step 3:** Verify with DevTools "Slow 3G" + hard navigations: skeleton paints immediately on nav to a dynamic page; no layout shift when content swaps in (CLS stays 0 — match real dimensions).
+- [x] **Step 4:** Typecheck + lint + `npm run build` (Suspense splits can surface server-only leaks — SP3a/5a precedent), commit: `feat: add zone loading skeletons and non-blocking header auth`
 
 ## Task 7: Generalize returnTo redirect-back (U4)
 
@@ -178,6 +178,20 @@ const widths = {
 **Verification:** 5 pages × 390/768/800/834/1024 — scrollWidth = clientWidth, overflow = false on all 25. `npm run typecheck` + `npm run lint` — 0 errors (3 pre-existing scheduler warnings unchanged).
 **Maintainer-reported follow-up (same day):** below `lg` the burger floated near header center. Root cause: with the tabs wrapper `display:none` it stops being a grid item, so the right cluster auto-placed into the centered `auto` column of `grid-cols-[1fr_auto_1fr]`; fix = `col-start-3` on the right cluster. Flaw predated Task 1 (existed below 768 with the old `md:` classes); the `md:`→`lg:` move only widened the visible band to 768–1023.
 **Re-verify:** `/` at 390/600/768/1000/1024/1440 — cluster right edge == container content edge exactly at all six; scrollWidth == clientWidth everywhere.
+
+### Task 6 — header split + navBadges deferral + loading skeletons (2026-06-12)
+
+**Header split shape:** `SiteHeader` is now a SYNC component rendering the tab-row chrome + a `<Suspense>` boundary. `HeaderAuth` is the async server component that does auth+role queries and renders the wordmark, desktop auth cluster, and mobile drawer.
+
+**Wordmark decision:** Wordmark moved INTO the async child (`HeaderAuth`). The admin clay tint (`text-brand-strong`, different `href`) requires knowing `isAdmin` — rendering a tint-neutral wordmark statically would cause a flash-swap for admins on every page load. One render path, no visual pop; the tradeoff is the wordmark shows as a skeleton (~12w × ~h-12 ears + ~24w × ~h-5 text) during the auth Suspense window, which is brief.
+
+**Grid safety:** Tab row pinned to `col-start-2` explicitly (was implicit before), so DOM ordering of Suspense children vs. tab row never affects placement.
+
+**navBadges finding:** Admin layout was `await`ing `getAttentionCounts()` before rendering PageShell — this blocked the admin `loading.tsx`. Fixed by changing `attentionPromise = getAttentionCounts().then(...)` (not awaited) and threading it as `navBadgesPromise: Promise<NavBadges>` through both `PageShell→SiteHeader→HeaderAuth` (header mobile drawer) and `AppShell→SidebarWithBadges` (desktop sidebar). Both resolve inside Suspense boundaries. The prop name changed from `navBadges: NavBadges` to `navBadgesPromise: Promise<NavBadges>` on `PageShell`, `SiteHeader`, and `AppShell`. `AppSidebar` and `SiteNavMobile` still accept the resolved `NavBadges` type — the promise is awaited one layer above.
+
+**loading.tsx files:** Three created. Marketing: single `max-w-[65ch]` column with title + prose rows + card block. Account + Admin: both mirror `AppShell` layout (sidebar rail on md+, content area with title + cards). Admin sidebar rail has 8 skeleton rows (matches adminNav items), account has 5 (matches accountNav items).
+
+**Verification gates:** `npm run typecheck` 0 errors · `npm run lint` 0 errors (3 pre-existing scheduler warnings) · `npm run build` clean (32/32 static pages + 35 dynamic routes, no bundle leaks).
 
 ### Task 5 — shared account-component submits deferred to Plan B (2026-06-12)
 
