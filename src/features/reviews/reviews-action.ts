@@ -4,8 +4,8 @@
  * Server action for submitting a client review.
  *
  * SECURITY: Uses the SESSION client only. The DB INSERT policy enforces
- * `status = 'pending'` via WITH CHECK — attempting to insert 'published'
- * is rejected at the DB level. Identity comes from getUser(), never from payload.
+ * `status = 'published'` via WITH CHECK — auto-publish on submit; admins
+ * moderate reactively. Identity comes from getUser(), never from payload.
  */
 
 import { createClient } from "@/lib/supabase/server";
@@ -20,8 +20,8 @@ export type ReviewSubmitResult = { ok: true } | { ok: false; error: string };
 
 /**
  * Pure-ish core: validates input, asserts identity via session, inserts
- * with status='pending'. Returns a discriminated-union result; never throws
- * across the action boundary.
+ * with status='published' (auto-publish). Returns a discriminated-union result;
+ * never throws across the action boundary.
  */
 export async function runSubmitReview(
   supabase: SupabaseClient,
@@ -64,7 +64,7 @@ export async function runSubmitReview(
     author_name: authorName,
     rating,
     body,
-    status: "pending" as const,
+    status: "published" as const,
   });
 
   if (error) {

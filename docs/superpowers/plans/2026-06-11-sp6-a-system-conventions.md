@@ -110,10 +110,10 @@ const widths = {
 
 **Files:** `src/features/reviews/` (submit action / insert path); admin reviews surface (verify unpublish/remove action exists — shipped in SP5a polish).
 
-- [ ] **Step 1 (test-first):** Locate the review-create core/action test; add/adjust the case: a newly submitted review is created **published** (whatever the column is — `published: true` / `status: 'published'`; read the schema first). Run: FAIL.
-- [ ] **Step 2:** Flip the insert default; update the client submit feedback copy ("Thanks — your review is live") and remove any "appears after approval" copy. Run: PASS.
-- [ ] **Step 3:** Verify admin can still unpublish/remove (existing moderation surface — if no unpublish action exists, STOP and escalate via the Handoff log; do not improvise one).
-- [ ] **Step 4:** Typecheck + lint + reviews tests, commit: `feat: publish reviews immediately with admin unpublish`
+- [x] **Step 1 (test-first):** Locate the review-create core/action test; add/adjust the case: a newly submitted review is created **published** (whatever the column is — `published: true` / `status: 'published'`; read the schema first). Run: FAIL.
+- [x] **Step 2:** Flip the insert default; update the client submit feedback copy ("Thanks — your review is live") and remove any "appears after approval" copy. Run: PASS.
+- [x] **Step 3:** Verify admin can still unpublish/remove (existing moderation surface — if no unpublish action exists, STOP and escalate via the Handoff log; do not improvise one).
+- [x] **Step 4:** Typecheck + lint + reviews tests, commit: `feat: publish reviews immediately with admin unpublish`
 
 ## Task 9: BookingFlow rebuild — layout per contract (U14-stepper, U23-rhythm)
 

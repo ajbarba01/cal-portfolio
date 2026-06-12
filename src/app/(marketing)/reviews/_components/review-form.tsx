@@ -40,8 +40,7 @@ export function ReviewForm({ isSignedIn }: ReviewFormProps) {
   if (submitted) {
     return (
       <p role="status" className="text-foreground text-sm leading-relaxed">
-        Thank you for your review! It&apos;s been submitted and will appear
-        after moderation.
+        Thanks — your review is live!
       </p>
     );
   }
