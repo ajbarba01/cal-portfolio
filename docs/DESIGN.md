@@ -143,7 +143,7 @@ Supabase Postgres. Auth via Supabase `auth.users` (username / password **not** a
 
 ## Local data seeding
 
-`supabase/seed.sql` creates the local admin login (`admin@local.test` / `password123`) on every `npx supabase db reset` (local-only; seeds never run on prod). Named DB states: `npm run db:seed -- <scenario>` — `fresh`, `busy-week`, `payment-states`, `admin-demo`. Wipe-first + deterministic; the seeder refuses non-local URLs; services + settings stay migration-owned. All seeded users share the admin password. Design: [SP2 spec](superpowers/specs/2026-06-10-db-seeding-design.md). Each later SP extends scenarios for the states it changes (roadmap standing rule).
+`supabase/seed.sql` creates the local admin login (`admin@local.test` / `password123`) on every `npx supabase db reset` (local-only; seeds never run on prod). Named DB states: `npm run db:seed -- <scenario>` — `fresh`, `busy-week`, `payment-states`, `admin-demo` (sets `form_key='emergency'` on walk, exercising the forms-gate state). Wipe-first + deterministic; the seeder refuses non-local URLs; services + settings stay migration-owned. All seeded users share the admin password. Design: [SP2 spec](superpowers/specs/2026-06-10-db-seeding-design.md). Each later SP extends scenarios for the states it changes (roadmap standing rule).
 
 ## Pricing model
 

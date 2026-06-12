@@ -306,6 +306,14 @@ export function useEditBooking({
           );
           setBlocked(true);
           break;
+        case "forms_incomplete":
+          setQuote(null);
+          setApprovalWillReReview(false);
+          setErrorMsg(
+            "Finish your required forms before changing this booking — see Account → Forms.",
+          );
+          setBlocked(true);
+          break;
         case "validation_error":
           setQuote(null);
           setApprovalWillReReview(false);
@@ -313,8 +321,8 @@ export function useEditBooking({
           setBlocked(true);
           break;
         default:
-          // Unreachable from the gated UI — not_found/forbidden/error don't
-          // surface via previewEdit. Block defensively but don't persist stale state.
+          // not_found/forbidden/error don't surface via previewEdit.
+          // Block defensively but don't persist stale state.
           setQuote(null);
           setApprovalWillReReview(false);
           setErrorMsg("Couldn't preview this change. Please contact Cal.");
@@ -361,14 +369,22 @@ export function useEditBooking({
           // Transient: user should pick a different slot, not permanently blocked.
           setErrorMsg("That time was just taken. Please pick another slot.");
           break;
+        case "forms_incomplete":
+          toast.add({
+            title: "Forms required",
+            description:
+              "Finish your required forms before changing this booking — see Account → Forms.",
+            type: "error",
+          });
+          break;
         case "validation_error":
           // Transient: user can fix input — keep Save available for retry.
           setErrorMsg(result.message);
           break;
         default:
           // price_locked | forbidden | invalid_status | blocked_debt |
-          // onboarding_incomplete | not_found | error — not reachable from the
-          // gated UI, but must not crash.
+          // onboarding_incomplete | not_found | error — not expected here,
+          // but must not crash.
           toast.add({
             title: "Couldn't save",
             description: "Please contact Cal.",

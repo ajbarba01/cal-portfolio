@@ -19,6 +19,8 @@ export interface MutationPolicy {
   skipDebtGate: boolean;
   /** Bypass the onboarding / meet-greet gate. */
   skipOnboardingGate: boolean;
+  /** Bypass the required-forms gate (Cal can book on behalf of any client). */
+  skipFormsGate: boolean;
   /** Bypass the distance hard-cutoff refuse. */
   skipDistanceRefuse: boolean;
   /** Bypass availability-window containment. */
@@ -41,6 +43,7 @@ export interface MutationPolicy {
 export const CLIENT_POLICY: MutationPolicy = {
   skipDebtGate: false,
   skipOnboardingGate: false,
+  skipFormsGate: false,
   skipDistanceRefuse: false,
   skipWindowFit: false,
   skipHoursLeadGuards: false,
@@ -52,6 +55,7 @@ export const CLIENT_POLICY: MutationPolicy = {
 export const ADMIN_POLICY: MutationPolicy = {
   skipDebtGate: true,
   skipOnboardingGate: true,
+  skipFormsGate: true,
   skipDistanceRefuse: true,
   skipWindowFit: true,
   skipHoursLeadGuards: true,

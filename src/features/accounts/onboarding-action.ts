@@ -1,11 +1,13 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { profileSchema } from "./profile-schema";
 import { emergencySchema } from "@/features/accounts/emergency-schema";
 import {
+  onboardingSuccessPath,
   parseOnboardingForm,
   type OnboardingInput,
   type OnboardingFormState,
@@ -110,8 +112,9 @@ export async function runOnboarding(
  * which is what surfaced the NEXT_REDIRECT error string in the old version.
  *
  * `returnTo` (deferred-auth round-trip) rides along as a hidden form field and is
- * validated against the open-redirect guard; on success the user lands back on
- * their booking selection, else /account.
+ * validated against the open-redirect guard; on success it is re-attached to the
+ * /onboarding URL (see onboardingSuccessPath for why the redirect never targets
+ * /account or the returnTo destination directly).
  */
 export async function completeOnboarding(
   _prevState: OnboardingFormState,
@@ -138,8 +141,12 @@ export async function completeOnboarding(
   );
 
   const returnTo = formData.get("returnTo");
+  // Purge the cached /onboarding payload (it still holds the info form) so the
+  // redirect renders the wizard fresh at its new meet_greet_pending state.
+  revalidatePath("/onboarding");
   redirect(
-    safeReturnTo(typeof returnTo === "string" ? returnTo : undefined) ??
-      "/account",
+    onboardingSuccessPath(
+      safeReturnTo(typeof returnTo === "string" ? returnTo : undefined),
+    ),
   );
 }

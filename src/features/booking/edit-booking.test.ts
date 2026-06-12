@@ -43,12 +43,14 @@ function makeRepo(
       pricing_config: { rate_cents_per_hour: 3000, minimum_cents: 1500 },
       concurrency: "exclusive",
       requires_approval: false,
+      form_key: null,
     })),
     getSettings: vi.fn(async () => SETTINGS),
     getProfileLatLng: vi.fn(async () => ({ lat: 40.0, lng: -105.27 })),
     getOutstandingDebtCents: vi.fn(async () => 0),
     getOnboardingStatus: vi.fn(async () => "approved"),
     hasActiveBookingForServiceSlug: vi.fn(async () => false),
+    hasFormResponse: vi.fn(async () => true),
     getPetsByIds: vi.fn(async () => []),
     getOpenWindows: vi.fn(async () => [
       {

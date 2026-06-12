@@ -319,6 +319,7 @@ export type ArtifactsResult =
   | { kind: "refuse"; reason: string }
   | { kind: "blocked_debt"; owedCents: number }
   | { kind: "onboarding_incomplete" }
+  | { kind: "forms_incomplete" }
   | { kind: "validation_error"; message: string }
   | { kind: "error"; message: string };
 
@@ -390,7 +391,7 @@ export async function computeBookingArtifacts(
     }
   }
 
-  // 2. Load from DB
+  // 2. Load from DB (service + settings + profile in parallel per A15).
   const [service, settings, profileLatLng] = await Promise.all([
     repo.getServiceBySlug(input.serviceSlug),
     repo.getSettings(),
@@ -404,6 +405,14 @@ export async function computeBookingArtifacts(
     };
   }
 
+  // Forms gate: if the service requires a form (form_key is set), the client must
+  // have submitted it. Check runs in parallel with parsePricingConfig (sync) by
+  // firing the repo call immediately — no serial await before the gate check.
+  const formResponsePromise =
+    service.form_key !== null
+      ? repo.hasFormResponse(input.userId, service.form_key)
+      : Promise.resolve(true); // no required form → trivially satisfied
+
   let pricingConfig: ReturnType<typeof parsePricingConfig>;
   try {
     pricingConfig = parsePricingConfig(
@@ -415,6 +424,18 @@ export async function computeBookingArtifacts(
       kind: "error",
       message: `Invalid pricing_config for service '${input.serviceSlug}': ${e instanceof Error ? e.message : String(e)}`,
     };
+  }
+
+  // Await the form response check (fired above, overlaps with parsePricingConfig).
+  const hasForm = await formResponsePromise;
+  if (!hasForm) {
+    if (policy.skipFormsGate) {
+      warnings.push(
+        `Client has not completed the required '${service.form_key}' form.`,
+      );
+    } else {
+      return { kind: "forms_incomplete" };
+    }
   }
 
   // 3. Derive pet-aware counts from assigned pets (server-trusted, like money),

@@ -42,6 +42,7 @@ export type PreviewResult =
   | { kind: "refuse"; reason: string }
   | { kind: "blocked_debt"; owedCents: number }
   | { kind: "onboarding_incomplete" }
+  | { kind: "forms_incomplete" }
   | { kind: "validation_error"; message: string }
   | { kind: "error"; message: string };
 

@@ -26,6 +26,13 @@ export async function wipe(db: SupabaseClient): Promise<string> {
     const { error } = await db.from(table).delete().not(col, "is", null);
     if (error) throw new Error(`wipe ${table}: ${error.message}`);
   }
+  // Reset mutable services config so scenario-specific overrides (e.g.
+  // admin-demo's setServiceFormKey) don't bleed into subsequent seeds.
+  const { error: svcErr } = await db
+    .from("services")
+    .update({ form_key: null })
+    .not("id", "is", null);
+  if (svcErr) throw new Error(`wipe services config: ${svcErr.message}`);
   for (;;) {
     const { data, error } = await db.auth.admin.listUsers({
       page: 1,

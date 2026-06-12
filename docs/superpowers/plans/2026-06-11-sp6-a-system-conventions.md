@@ -139,21 +139,21 @@ const widths = {
 
 **Files:** `src/features/booking/booking-service-shared.ts` (+ repository), the booking-flow gate messaging, `scripts/db-seed/scenarios.ts`.
 
-- [ ] **Step 1 (discovery, ~15 min):** Define "required forms complete". `Grep -i "form" supabase/migrations` + read the forms feature under `src/features/accounts` (FormCard). Establish: which table holds form definitions/submissions, what marks a form required, what marks a submission complete. Write the definition into this plan's Handoff log before coding. If the data model can't express "required" without schema change, STOP — escalate (SP6 is schema-free).
-- [ ] **Step 2 (test-first):** Extend the `computeBookingArtifacts` test suite (pattern: existing onboarding/debt gate tests in `booking-service.test.ts`, repo faked): incomplete required forms → gate refuses with a distinct reason (e.g. `forms_incomplete`); complete → passes. Run: FAIL.
-- [ ] **Step 3:** Add the repo read + gate to the shared artifacts computation (join the existing `Promise.all` — don't add a serial await; A15 precedent). Run: PASS.
-- [ ] **Step 4:** UI: gate surfaces as **unavailability-style messaging** in BookingFlow — calm card "Finish your forms before booking" + link to `/account/forms` — never a thrown error. Admin create-on-behalf: confirm intended behavior — default **admin bypasses the gate** (Cal can book for anyone); escalate if the spec reading differs.
-- [ ] **Step 5:** Seed: extend a scenario (e.g. `payment-states` or `busy-week`) with one client having incomplete required forms; document in the seed registry.
-- [ ] **Step 6:** Typecheck + lint + booking suite, commit: `feat: gate booking on required form completion`
+- [x] **Step 1 (discovery, ~15 min):** Define "required forms complete". `Grep -i "form" supabase/migrations` + read the forms feature under `src/features/accounts` (FormCard). Establish: which table holds form definitions/submissions, what marks a form required, what marks a submission complete. Write the definition into this plan's Handoff log before coding. If the data model can't express "required" without schema change, STOP — escalate (SP6 is schema-free).
+- [x] **Step 2 (test-first):** Extend the `computeBookingArtifacts` test suite (pattern: existing onboarding/debt gate tests in `booking-service.test.ts`, repo faked): incomplete required forms → gate refuses with a distinct reason (e.g. `forms_incomplete`); complete → passes. Run: FAIL.
+- [x] **Step 3:** Add the repo read + gate to the shared artifacts computation (join the existing `Promise.all` — don't add a serial await; A15 precedent). Run: PASS.
+- [x] **Step 4:** UI: gate surfaces as **unavailability-style messaging** in BookingFlow — calm card "Finish your forms before booking" + link to `/account/forms` — never a thrown error. Admin create-on-behalf: confirm intended behavior — default **admin bypasses the gate** (Cal can book for anyone); escalate if the spec reading differs.
+- [x] **Step 5:** Seed: extend a scenario (e.g. `payment-states` or `busy-week`) with one client having incomplete required forms; document in the seed registry.
+- [x] **Step 6:** Typecheck + lint + booking suite, commit: `feat: gate booking on required form completion`
 
 ## Task 12: Onboarding double-submit (U25)
 
 **Files:** `src/app/(onboarding)/onboarding/_components/info-step.tsx` (+ the action it calls).
 
-- [ ] **Step 1 (systematic-debugging):** Reproduce: fresh seeded user (`fresh` scenario), complete the info step — confirm it takes two attempts. **Known lead:** [`2026-06-09-onboarding-admin-batch-design.md`](../specs/2026-06-09-onboarding-admin-batch-design.md) §"Bad errors" documents this exact symptom — `runOnboarding` uses `.parse()` and throws a single generic `Error` (spurious error on first click, delayed transition); per-field zod messages never reach the user. Verify that diagnosis still holds before fixing.
-- [ ] **Step 2:** Root cause in the Handoff log, then fix at the cause. Add a regression test if the cause is in testable logic (action/core level); if purely a client wiring bug, the manual repro is the verify.
-- [ ] **Step 3:** Verify: one attempt completes the step; error states (invalid input) show visible inline feedback (feedback rule — nothing silent).
-- [ ] **Step 4:** Typecheck + lint, commit: `fix: onboarding info step completes on first submit`
+- [x] **Step 1 (systematic-debugging):** Reproduce: fresh seeded user (`fresh` scenario), complete the info step — confirm it takes two attempts. **Known lead:** [`2026-06-09-onboarding-admin-batch-design.md`](../specs/2026-06-09-onboarding-admin-batch-design.md) §"Bad errors" documents this exact symptom — `runOnboarding` uses `.parse()` and throws a single generic `Error` (spurious error on first click, delayed transition); per-field zod messages never reach the user. Verify that diagnosis still holds before fixing.
+- [x] **Step 2:** Root cause in the Handoff log, then fix at the cause. Add a regression test if the cause is in testable logic (action/core level); if purely a client wiring bug, the manual repro is the verify.
+- [x] **Step 3:** Verify: one attempt completes the step; error states (invalid input) show visible inline feedback (feedback rule — nothing silent).
+- [x] **Step 4:** Typecheck + lint, commit: `fix: onboarding info step completes on first submit`
 
 ---
 
@@ -205,8 +205,45 @@ Sweep found two primary submits still on the default Button variant: `src/featur
 
 **U1:** success snapshot captured at submit time (not derived from live state) to survive the post-success busy refresh. `resetFlow` clears scheduler + quote + success state; `submitDone` is now derived from `success !== null`. Admin create keeps its server-side redirect; success panel is public/account-create only.
 
+### Task 11 — required-forms gate definition + implementation (2026-06-12)
+
+**"Required forms complete" definition:**
+
+- **Where:** `services.form_key text` (nullable) + `form_responses (client_id, form_key, data)`.
+- **What marks a form required:** `services.form_key IS NOT NULL` — the service declares which form key clients must submit before booking it. Currently only the `emergency` form key exists (registered in `src/features/accounts/form-registry.ts`).
+- **What marks a submission complete:** any row in `form_responses` matching `client_id = $userId AND form_key = $service.form_key`. The gate checks existence, not `data` content — a submitted (even empty) row satisfies the requirement. Data validity is enforced at form-submit time via `emergencySchema`.
+- **Schema-free:** no new columns needed. `ServiceRow` gained `form_key: string | null` (added to the existing Supabase select projection). No migrations.
+- **Gate result:** `forms_incomplete` — new variant in `ArtifactsResult`, `CreateBookingResult`, and `PreviewResult`.
+- **Admin bypass:** `ADMIN_POLICY.skipFormsGate = true` — Cal can book on behalf of any client; gate produces a warning instead of blocking. `CLIENT_POLICY.skipFormsGate = false`.
+- **UI:** calm `GatePanel` ("Finish your forms before booking" + `/account/forms` link) in `service-booking-client.tsx` receipt slot; fires only when `authState === "ready" && formsIncomplete`. Never a thrown error.
+- **Seed:** `admin-demo` scenario sets `form_key = 'emergency'` on the walk service via `setServiceFormKey`. Dana (has the form) books normally; Sam, Lee, Devon, Paula (no form) will see the gate card on `/book/walk`.
+- **New files:** `src/features/booking/forms-gate.test.ts` (4 pure unit tests, all green).
+- **Modified stubs:** `booking-service.test.ts` `makeMockRepo`, `edit-booking.test.ts` `makeRepo`, `mutations/create-booking.mutation.test.ts` `makeRepo` — all updated with `form_key: null` on service stub + `hasFormResponse: vi.fn(async () => true)`.
+
 ### Task 8 — reviews auto-publish required a policy migration (2026-06-12)
 
 **Deviation:** SP6 was declared schema-free, but the reviews RLS `WITH CHECK` pinned `status='pending'`, so the maintainer's auto-publish decision was unimplementable without a policy migration → shipped `20260612120000_reviews_auto_publish.sql` (insert policy + column default flipped to `published`; enum/tables untouched; applied locally via non-destructive `npx supabase db push --local`). **Prod push of this migration is maintainer-owned at next deploy.**
 **Follow-up for Plan B (maintainer decision needed):** the admin dashboard's "reviews to moderate" attention row keys on `pending` and is now permanently 0 — reactive moderation currently has NO new-review awareness signal. Options: a recency-based "new reviews" row, or drop the row.
 **Cosmetic:** admin reviews Pending filter is vestigial; seeder still seeds a `pending` review (service-role bypasses RLS — fine, app-unreachable state).
+
+### Task 12 — onboarding double-submit was a stale router-cache replay, not the `.parse()` lead (2026-06-12)
+
+**Lead correction:** the 2026-06-09 §"Bad errors" diagnosis (`.parse()` + generic throw) was already fixed in `6ea8a9c` (useActionState + `parseOnboardingForm` safeParse + inline `FormField` errors). The residual bug was the post-success redirect target.
+**Repro (CDP, seeded `admin-demo`, noor@local.test info_pending):** ONE valid submit → DB writes all succeed (status → `meet_greet_pending`, emergency form_response inserted) → action `303` with `x-action-redirect=/account;push` → **no RSC refetch** — the router renders `/account` from its client cache, and that entry was poisoned at login time (`GET /account?_rsc → 307 → /onboarding` followed transparently by fetch, so the step-1 flight payload is stored under the `/account` key). User sees an empty step-1 form at URL `/account` → reads as a failed submit → tries again.
+**Fix at cause:** success redirect now targets `/onboarding` itself (`onboardingSuccessPath` in `onboarding-form.ts`, returnTo preserved as query param) + `revalidatePath("/onboarding")` so the wizard re-renders fresh at `meet_greet_pending`. Never redirect onto a route middleware bounces for the user's new state.
+**Verify:** one click → step 2 in ~0.7s (network trace: `x-action-redirect=/onboarding;push` + fresh payload); exactly one `emergency` form_response row; invalid input shows inline per-field zod errors (red borders + messages), still step 1. Regression tests: `onboardingSuccessPath` red→green in `onboarding-form.test.ts`.
+**Non-blocking nit (Plan B candidate):** React 19 form-action reset clears typed values after a validation-error return — errors render correctly but the user must re-type valid fields. Fix would echo submitted values back through state as `defaultValue`s.
+
+### Fresh-session code-review — CHANGES-REQUIRED; both findings fixed (2026-06-12)
+
+**Verdict:** CHANGES-REQUIRED → both findings resolved.
+
+**Finding 1 (CRITICAL) — `return-to.ts` colon guard too broad:** The blanket `indexOf(":")` check rejected any value containing a colon, breaking the deferred-auth booking round-trip whenever `buildReturnTo` produced ISO timestamps (e.g. `start=2026-07-01T16%3A00%3A00.000Z`). Fix: dropped the colon rejection entirely — a string that already starts with `/` cannot be parsed as a scheme by any conforming URL parser; the existing leading-slash + `//` + backslash + auth-loop checks are sufficient. Doc comment updated. Unit tests added (ISO timestamp round-trip, path-segment colon, `javascript:alert(1)` still rejected). Red→green: 13 tests.
+
+**Finding 2 (IMPORTANT) — `PolicyLine` misstated money terms:** Copy read "later cancellations keep {pct}%" but `late_cancel_refund_pct` is the percentage REFUNDED (consistent with `emails.ts` "I refund {pct}%"). Changed to "cancellations refund {pct}%". `PolicyLine` exported for unit testing; 3 new tests pin the phrasing and settings-driven rendering. Red→green: 6 tests (3 new PolicyLine + 3 existing BookingSuccessPanel).
+
+**Minor deferred to Plan B:** `LeadTimeNote` first-bookable date can be off by one day vs the calendar's day-state anchor — advisory copy only, no booking logic affected.
+
+### Task 11 follow-up — seed cross-contamination fixed (2026-06-12)
+
+Task 11's `setServiceFormKey` (sets `walk.form_key='emergency'` in `admin-demo`) persisted across subsequent seeds because `wipe()` treated `services` as migration-owned and never reset its config columns. Fixed by adding a baseline `update services set form_key = null` in the wipe phase (`scripts/db-seed/wipe.ts`), so every scenario seed starts from a clean services config. `admin-demo` remains the only scenario that sets `form_key`. Verified: `busy-week` seed → all null; `admin-demo` → walk='emergency'; reseed `busy-week` → all null (contamination gone). Zero `forms_incomplete` test failures.

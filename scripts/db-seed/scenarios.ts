@@ -13,6 +13,7 @@ import {
   insertSeries,
   insertWindow,
   setPremiumDays,
+  setServiceFormKey,
 } from "./factories";
 import { SEED_TZ, slot, statusFor, weekAnchor } from "./dates";
 
@@ -627,6 +628,14 @@ const adminDemoExtras: Step = {
       body: "Juniper loves her walks.",
       status: "rejected",
     });
+
+    // ── SP6: forms-gate demo ──────────────────────────────────────────────────
+    // Walk service now requires the emergency form (form_key = 'emergency').
+    // Dana has submitted it (inserted above); Sam, Lee, Devon, and Paula have not
+    // → those clients will see "Finish your forms before booking" when visiting
+    // /book/walk. Dana books normally.
+    // The gate is bypassed for admin create-on-behalf (ADMIN_POLICY).
+    await setServiceFormKey(ctx, "walk", "emergency");
   },
 };
 

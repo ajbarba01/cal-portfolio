@@ -109,6 +109,12 @@ export interface UseServiceBookingReturn {
   // Quote / submit state
   quote: BookingQuotePreview | null;
   previewMsg: UserMessage | null;
+  /**
+   * True when the server returned forms_incomplete — the client is authenticated
+   * and ready but hasn't submitted a required form. Renders a calm gate card
+   * instead of the price box.
+   */
+  formsIncomplete: boolean;
   isPreviewing: boolean;
   isSubmitting: boolean;
   submitDone: boolean;
@@ -192,6 +198,7 @@ export function useServiceBooking({
   // ── Wrapper-owned quote-state ──────────────────────────────────────────────
   const [quote, setQuote] = useState<BookingQuotePreview | null>(null);
   const [previewMsg, setPreviewMsg] = useState<UserMessage | null>(null);
+  const [formsIncomplete, setFormsIncomplete] = useState(false);
   // U1: success snapshot — non-null is the flow's terminal state.
   const [success, setSuccess] = useState<BookingSuccessInfo | null>(null);
   const submitDone = success !== null;
@@ -261,6 +268,13 @@ export function useServiceBooking({
     canQuoteRef.current = hasSelection && petsOk && authState === "ready";
     runPreviewRef.current = async () => {
       const result = await previewQuote(buildSelectionInput());
+      if (result.kind === "forms_incomplete") {
+        setQuote(null);
+        setPreviewMsg(null);
+        setFormsIncomplete(true);
+        return;
+      }
+      setFormsIncomplete(false);
       const out = previewResultMessage(result);
       if (out.kind === "quote") {
         setQuote(out.preview);
@@ -273,10 +287,12 @@ export function useServiceBooking({
     clearOnSelectRef.current = () => {
       setQuote(null);
       setPreviewMsg(null);
+      setFormsIncomplete(false);
     };
     clearOnIdleRef.current = () => {
       setQuote(null);
       setPreviewMsg(null);
+      setFormsIncomplete(false);
     };
   });
 
@@ -337,6 +353,7 @@ export function useServiceBooking({
     resetScheduler();
     setQuote(null);
     setPreviewMsg(null);
+    setFormsIncomplete(false);
     setSuccess(null);
   }
 
@@ -391,6 +408,7 @@ export function useServiceBooking({
     petsOk,
     quote,
     previewMsg,
+    formsIncomplete,
     isPreviewing,
     isSubmitting,
     submitDone,
