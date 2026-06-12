@@ -122,7 +122,12 @@ export function InfoStep({ returnTo }: { returnTo?: string }) {
         </div>
       </fieldset>
 
-      <Button type="submit" disabled={isPending} className="w-full">
+      <Button
+        type="submit"
+        variant="brand"
+        disabled={isPending}
+        className="w-full"
+      >
         {isPending ? "Saving…" : "Continue →"}
       </Button>
     </form>

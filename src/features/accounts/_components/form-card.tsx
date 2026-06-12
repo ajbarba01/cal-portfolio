@@ -239,7 +239,12 @@ export function FormCard({ formKey, existing, onSubmit }: FormCardProps) {
             </p>
           )}
 
-          <Button type="submit" disabled={isPending} className="self-start">
+          <Button
+            type="submit"
+            variant="brand"
+            disabled={isPending}
+            className="self-start"
+          >
             {isPending ? "Saving…" : submitted ? "Update" : "Submit"}
           </Button>
         </form>

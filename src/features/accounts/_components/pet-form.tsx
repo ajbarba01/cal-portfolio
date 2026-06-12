@@ -207,7 +207,7 @@ export function PetForm({ initial, onSaved, onCancel, actions }: PetFormProps) {
       )}
 
       <div className="flex gap-2">
-        <Button type="submit" disabled={isPending} size="sm">
+        <Button type="submit" variant="brand" disabled={isPending} size="sm">
           {isPending ? "Saving…" : initial ? "Update" : "Add pet"}
         </Button>
         {onCancel && (

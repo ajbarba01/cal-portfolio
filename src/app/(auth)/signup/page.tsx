@@ -9,7 +9,6 @@ import { safeReturnTo } from "@/features/booking/index.client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageContainer } from "@/components/layout/page-container";
 
 export default function SignupPage() {
@@ -71,50 +70,54 @@ export default function SignupPage() {
 
   if (isSuccess) {
     return (
-      <PageContainer width="read" className="py-12">
+      <PageContainer width="narrow" className="w-full">
         <div className="mx-auto w-full max-w-sm">
-          <Card className="gap-3 p-6 text-center sm:p-7">
+          <div className="border-border bg-card rounded-2xl border p-6 text-center shadow-sm sm:p-8">
             <Mail
               aria-hidden="true"
               className="text-brand mx-auto size-8"
               strokeWidth={1.5}
             />
-            <CardTitle>Check your email</CardTitle>
-            <p className="text-muted-foreground text-sm">
+            <h1 className="font-heading text-foreground mt-3 text-xl font-semibold">
+              Check your email
+            </h1>
+            <p className="text-muted-foreground mt-2 text-sm">
               We sent a confirmation link to <strong>{email}</strong>. Click it
               to activate your account.
             </p>
-          </Card>
+          </div>
         </div>
       </PageContainer>
     );
   }
 
   return (
-    <PageContainer width="read" className="py-12">
+    <PageContainer width="narrow" className="w-full">
       <div className="mx-auto w-full max-w-sm">
-        <Card className="gap-5 p-6 sm:p-7">
-          <CardHeader>
-            <CardTitle>Create account</CardTitle>
-            <p className="text-muted-foreground text-sm">
-              Book Cal for walks, check-ins &amp; house-sitting.
-            </p>
-          </CardHeader>
+        <div className="border-border bg-card rounded-2xl border p-6 shadow-sm sm:p-8">
+          <h1 className="font-heading text-foreground text-2xl font-semibold tracking-tight">
+            Create account
+          </h1>
+          <p className="text-muted-foreground mt-1.5 text-sm">
+            Book Cal for walks, check-ins &amp; house-sitting.
+          </p>
 
           <form
             onSubmit={handleSubmit}
             noValidate
-            className="flex flex-col gap-4"
+            className="mt-5 flex flex-col gap-4"
           >
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
+                name="email"
                 type="email"
                 autoComplete="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                className="bg-background"
               />
             </div>
 
@@ -122,12 +125,14 @@ export default function SignupPage() {
               <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
+                name="password"
                 type="password"
                 autoComplete="new-password"
                 required
                 minLength={6}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                className="bg-background"
               />
             </div>
 
@@ -135,12 +140,14 @@ export default function SignupPage() {
               <Label htmlFor="confirm_password">Confirm password</Label>
               <Input
                 id="confirm_password"
+                name="confirm_password"
                 type="password"
                 autoComplete="new-password"
                 required
                 minLength={6}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
+                className="bg-background"
               />
             </div>
 
@@ -154,16 +161,18 @@ export default function SignupPage() {
               type="submit"
               variant="brand"
               disabled={isLoading}
-              className="mt-2 w-full"
+              className="mt-1 w-full"
             >
               {isLoading ? "Creating account…" : "Create account"}
             </Button>
           </form>
-        </Card>
+        </div>
 
         <p className="text-muted-foreground mt-4 text-center text-sm">
           Have an account?{" "}
-          <Suspense fallback={<AuthSwitchLink href="/login" />}>
+          <Suspense
+            fallback={<AuthSwitchLink href="/login">Sign in</AuthSwitchLink>}
+          >
             <LoginLink />
           </Suspense>
         </p>
@@ -182,13 +191,22 @@ function LoginLink() {
   const href = returnTo
     ? `/login?returnTo=${encodeURIComponent(returnTo)}`
     : "/login";
-  return <AuthSwitchLink href={href} />;
+  return <AuthSwitchLink href={href}>Sign in</AuthSwitchLink>;
 }
 
-function AuthSwitchLink({ href }: { href: string }) {
+function AuthSwitchLink({
+  href,
+  children,
+}: {
+  href: string;
+  children: React.ReactNode;
+}) {
   return (
-    <Link href={href} className="text-brand-strong font-medium hover:underline">
-      Sign in
+    <Link
+      href={href}
+      className="text-brand-strong underline underline-offset-4 hover:opacity-70"
+    >
+      {children}
     </Link>
   );
 }

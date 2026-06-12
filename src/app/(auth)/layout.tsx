@@ -7,7 +7,9 @@ export default function AuthLayout({
 }) {
   return (
     <PageShell>
-      <main className="flex-1">{children}</main>
+      <main className="flex flex-1 items-center justify-center py-12">
+        {children}
+      </main>
     </PageShell>
   );
 }
