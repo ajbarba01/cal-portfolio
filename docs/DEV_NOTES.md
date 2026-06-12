@@ -1,3 +1,14 @@
+## Now
+
+- edit on account booking does not work
+- notes for cal only shows on admin (should lonly show on account)
+- error for quoting for admin booking
+- error when marking premium
+- premium doesn't show up for booking and doesnt seem to work either
+- there's still a small range where the header becomes two rows as "Cal Barba" collapses. this should never happen despite what the wordmark width might be.
+- why does the wordmark and the sign in button re-render when you click either but not when you go from marketing page to marketing page (might be a perf issue fixed later)
+- alignment mismatch on booking page for a service between the service name and back button and the width of the remaining content
+
 # Dev notes — capture inbox
 
 > Inbox only, never authority (lifecycle rule: [WORKFLOW.md](WORKFLOW.md) "Doc lifecycle"). Add raw observations here; triage them out to the [audit findings register](superpowers/specs/2026-06-10-audit-findings.md) (bugs/UX), the [roadmap](superpowers/specs/2026-06-10-professionalization-roadmap-design.md) (scope), or DESIGN.md open questions (Cal decisions). Snapshot of 2026-06-10 fully triaged into the register.
