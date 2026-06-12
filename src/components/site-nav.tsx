@@ -212,7 +212,11 @@ function SiteNavMobileDrawer({
                 ) : (
                   <li>
                     <Link
-                      href="/login"
+                      href={
+                        pathname && pathname !== "/"
+                          ? `/login?returnTo=${encodeURIComponent(pathname)}`
+                          : "/login"
+                      }
                       className="border-border text-foreground flex min-h-11 items-center border-b px-4 text-base"
                     >
                       Sign in

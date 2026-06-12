@@ -101,10 +101,10 @@ const widths = {
 
 **Files:** Modify login/signup pages + the place "Sign in" links are emitted (`site-header.tsx`, drawer in `site-nav.tsx`); reuse the existing open-redirect guard (grep `returnTo` under `src/app/(auth)`).
 
-- [ ] **Step 1 (test-first):** The guard is pure — extend its unit test (or create one beside it) covering: relative path allowed (`/reviews` → `/reviews`), absolute URL rejected (`https://evil.com` → default), protocol-relative rejected (`//evil.com` → default), empty → default. Run: FAIL if behavior missing.
-- [ ] **Step 2:** Generalize: login/signup read `returnTo` for ANY guard-passing path (today only `/book/` paths round-trip). Header/drawer "Sign in" links append `returnTo=<current pathname>` (client components already have `usePathname`). Post-auth redirect goes through the guard.
-- [ ] **Step 3:** Run tests — PASS. Manual: sign in from /reviews → back on /reviews; from /book/walk → /book/walk (unchanged); crafted `?returnTo=https://evil.com` → default landing.
-- [ ] **Step 4:** Typecheck + lint, commit: `feat: return to origin page after sign-in from anywhere`
+- [x] **Step 1 (test-first):** The guard is pure — extend its unit test (or create one beside it) covering: relative path allowed (`/reviews` → `/reviews`), absolute URL rejected (`https://evil.com` → default), protocol-relative rejected (`//evil.com` → default), empty → default. Run: FAIL if behavior missing.
+- [x] **Step 2:** Generalize: login/signup read `returnTo` for ANY guard-passing path (today only `/book/` paths round-trip). Header/drawer "Sign in" links append `returnTo=<current pathname>` (client components already have `usePathname`). Post-auth redirect goes through the guard.
+- [x] **Step 3:** Run tests — PASS. Manual: sign in from /reviews → back on /reviews; from /book/walk → /book/walk (unchanged); crafted `?returnTo=https://evil.com` → default landing.
+- [x] **Step 4:** Typecheck + lint, commit: `feat: return to origin page after sign-in from anywhere`
 
 ## Task 8: Reviews auto-publish + admin unpublish
 

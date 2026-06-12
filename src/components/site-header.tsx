@@ -19,11 +19,10 @@
  * awaits whichever is provided.
  */
 import { Suspense } from "react";
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { AccountMenu } from "./account-menu";
 import { SiteNavTabs, SiteNavMobile } from "./site-nav";
-import { navUnderline } from "@/components/layout/nav-underline";
+import { SignInLink } from "@/components/layout/sign-in-link";
 import { Wordmark } from "@/components/layout/wordmark";
 import { Skeleton } from "@/components/ui/skeleton";
 import type {
@@ -75,13 +74,7 @@ async function HeaderAuth({
 
   const authCluster = (
     <div className="flex items-center gap-5 text-sm">
-      {user ? (
-        <AccountMenu />
-      ) : (
-        <Link href="/login" className={navUnderline(false)}>
-          Sign in
-        </Link>
-      )}
+      {user ? <AccountMenu /> : <SignInLink />}
     </div>
   );
 

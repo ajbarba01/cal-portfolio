@@ -28,20 +28,46 @@ describe("safeReturnTo (open-redirect guard)", () => {
     );
   });
 
+  // U4: generalized returnTo — any safe relative path is allowed
+  it("accepts any relative in-app path", () => {
+    expect(safeReturnTo("/reviews")).toBe("/reviews");
+    expect(safeReturnTo("/services")).toBe("/services");
+    expect(safeReturnTo("/account/bookings")).toBe("/account/bookings");
+    expect(safeReturnTo("/reviews?page=2")).toBe("/reviews?page=2");
+  });
+
   it("rejects null / empty", () => {
     expect(safeReturnTo(null)).toBeNull();
     expect(safeReturnTo(undefined)).toBeNull();
     expect(safeReturnTo("")).toBeNull();
   });
 
-  it("rejects other in-app paths", () => {
-    expect(safeReturnTo("/account")).toBeNull();
+  // Redirect-loop protection: auth paths must be rejected to avoid /login → /login loops
+  it("rejects auth-loop paths (/login, /signup, /logout)", () => {
     expect(safeReturnTo("/login")).toBeNull();
+    expect(safeReturnTo("/signup")).toBeNull();
+    expect(safeReturnTo("/logout")).toBeNull();
+    expect(safeReturnTo("/login?next=x")).toBeNull();
   });
 
-  it("rejects protocol-relative and absolute URLs", () => {
-    expect(safeReturnTo("//evil.com")).toBeNull();
+  it("rejects absolute URLs (open-redirect)", () => {
     expect(safeReturnTo("https://evil.com")).toBeNull();
+    expect(safeReturnTo("http://evil.com")).toBeNull();
+    expect(safeReturnTo("https://evil.com/looks/like/a/path")).toBeNull();
+  });
+
+  it("rejects protocol-relative URLs (open-redirect)", () => {
+    expect(safeReturnTo("//evil.com")).toBeNull();
+    expect(safeReturnTo("//evil.com/path")).toBeNull();
+  });
+
+  it("rejects backslash paths (browser normalisation open-redirect)", () => {
     expect(safeReturnTo("/book/\\evil.com")).toBeNull();
+    expect(safeReturnTo("/\\evil.com")).toBeNull();
+  });
+
+  it("rejects non-absolute-path strings (no leading slash)", () => {
+    expect(safeReturnTo("evil.com")).toBeNull();
+    expect(safeReturnTo("javascript:alert(1)")).toBeNull();
   });
 });
