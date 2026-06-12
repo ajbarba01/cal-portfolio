@@ -133,7 +133,11 @@ export const copy = {
 
   // Contact — src/app/(marketing)/contact/page.tsx
   // No subtitle: Cal dropped it ("actually i don't think we need this") — 2026-06-09.
+  // intro + replyNote: from the maintainer-approved SP6 contact mockup (2026-06-11).
   "contact.header": "Contact Me",
+  "contact.intro":
+    "Questions about walks, sitting, or whether we're a fit — send a note.",
+  "contact.replyNote": "I usually reply within a day.",
 
   // Footer — src/components/layout/site-footer.tsx
   "footer.tagline": "[[Pet care tagline]]",

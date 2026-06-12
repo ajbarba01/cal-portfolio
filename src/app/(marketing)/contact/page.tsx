@@ -1,9 +1,8 @@
-import { PageContainer } from "@/components/layout/page-container";
-import { PageHeader } from "@/components/layout/page-header";
 import { createClient } from "@/lib/supabase/server";
 
-import { ContactForm } from "./_components/contact-form";
+import { PageContainer } from "@/components/layout/page-container";
 import { MarketingCopy } from "@/components/marketing/marketing-copy";
+import { ContactForm } from "./_components/contact-form";
 
 export const metadata = { title: "Contact" };
 
@@ -28,12 +27,14 @@ export default async function ContactPage() {
   }
 
   return (
-    <PageContainer width="read" className="py-12 sm:py-16">
-      <PageHeader title={<MarketingCopy id="contact.header" />} />
+    <PageContainer width="narrow" className="py-10 sm:py-14">
       <ContactForm
         defaultName={defaults.name}
         defaultEmail={defaults.email}
         defaultPhone={defaults.phone}
+        heading={<MarketingCopy id="contact.header" />}
+        intro={<MarketingCopy id="contact.intro" />}
+        replyNote={<MarketingCopy id="contact.replyNote" />}
       />
     </PageContainer>
   );
