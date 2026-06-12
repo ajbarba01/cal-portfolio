@@ -8,7 +8,6 @@ import { safeReturnTo } from "@/features/booking/index.client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageContainer } from "@/components/layout/page-container";
 
 export default function LoginPage() {
@@ -45,28 +44,30 @@ export default function LoginPage() {
   }
 
   return (
-    <PageContainer width="read" className="py-12">
+    <PageContainer width="narrow" className="w-full">
       <div className="mx-auto w-full max-w-sm">
-        <Card className="gap-5 p-6 sm:p-7">
-          <CardHeader>
-            <CardTitle>Sign in</CardTitle>
-            <p className="text-muted-foreground text-sm">Welcome back.</p>
-          </CardHeader>
+        <div className="border-border bg-card rounded-2xl border p-6 shadow-sm sm:p-8">
+          <h1 className="font-heading text-foreground text-2xl font-semibold tracking-tight">
+            Sign in
+          </h1>
+          <p className="text-muted-foreground mt-1.5 text-sm">Welcome back.</p>
 
           <form
             onSubmit={handleSubmit}
             noValidate
-            className="flex flex-col gap-4"
+            className="mt-5 flex flex-col gap-4"
           >
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
+                name="email"
                 type="email"
                 autoComplete="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                className="bg-background"
               />
             </div>
 
@@ -74,11 +75,13 @@ export default function LoginPage() {
               <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
+                name="password"
                 type="password"
                 autoComplete="current-password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                className="bg-background"
               />
             </div>
 
@@ -92,16 +95,18 @@ export default function LoginPage() {
               type="submit"
               variant="brand"
               disabled={isLoading}
-              className="mt-2 w-full"
+              className="mt-1 w-full"
             >
               {isLoading ? "Signing in…" : "Sign in"}
             </Button>
           </form>
-        </Card>
+        </div>
 
         <p className="text-muted-foreground mt-4 text-center text-sm">
           No account?{" "}
-          <Suspense fallback={<AuthSwitchLink href="/signup" />}>
+          <Suspense
+            fallback={<AuthSwitchLink href="/signup">Sign up</AuthSwitchLink>}
+          >
             <SignupLink />
           </Suspense>
         </p>
@@ -120,13 +125,22 @@ function SignupLink() {
   const href = returnTo
     ? `/signup?returnTo=${encodeURIComponent(returnTo)}`
     : "/signup";
-  return <AuthSwitchLink href={href} />;
+  return <AuthSwitchLink href={href}>Sign up</AuthSwitchLink>;
 }
 
-function AuthSwitchLink({ href }: { href: string }) {
+function AuthSwitchLink({
+  href,
+  children,
+}: {
+  href: string;
+  children: React.ReactNode;
+}) {
   return (
-    <Link href={href} className="text-brand-strong font-medium hover:underline">
-      Sign up
+    <Link
+      href={href}
+      className="text-brand-strong underline underline-offset-4 hover:opacity-70"
+    >
+      {children}
     </Link>
   );
 }
