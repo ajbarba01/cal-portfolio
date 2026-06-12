@@ -34,7 +34,7 @@ other empty states); admin manual booking (its own future spec).
    delayed transition.
 2. **Bad errors.** `runOnboarding` uses `.parse()` and throws a single generic
    `Error`. The zod schemas ([`profile-schema.ts`](../../../src/features/accounts/profile-schema.ts),
-   [`emergency-schema.ts`](../../../src/features/forms/emergency-schema.ts))
+   [`emergency-schema.ts`](../../../src/features/accounts/emergency-schema.ts))
    already carry good per-field messages, but none of them reach the user.
 
 ### Decision

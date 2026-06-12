@@ -1,0 +1,170 @@
+# SP6 Plan A — System conventions + shared fixes Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Land the systemic layer of the cohesion sweep — the overflow root-cause fix, width system, select width, attention token, button/form conventions, visible loading, returnTo generalization, the unified `<BookingFlow>` rebuild (U1/U2/U6/U24), the required-forms booking gate (U26), the onboarding double-submit bug (U25), and reviews auto-publish — so Plan B can apply conventions per surface.
+
+**Architecture:** Schema-free. Conventions live in primitives + FRONTEND.md; `<BookingFlow>` (`src/features/booking/_components/booking-flow.tsx`) is the single place booking-UX fixes land (public + admin create/edit + account edit all wrap it). The forms gate extends `computeBookingArtifacts` (pure, repo-injected — TDD). Every task: typecheck + lint gate; commit per task; subject-line-only Conventional Commits, no plan/phase IDs in subjects.
+
+**Tech Stack:** Next.js App Router (RSC), TypeScript strict, Tailwind semantic tokens, Base UI, lucide-react, vitest.
+
+**Spec:** [`2026-06-11-sp6-cohesion-design.md`](../specs/2026-06-11-sp6-cohesion-design.md). **Visual contracts (signed off, see [mockups/sp6/NOTES.md](../mockups/sp6/NOTES.md)):** `system-preview.html` (Tasks 3–7), `booking-flow-preview.html` (Tasks 9–10).
+
+**Standing rules:** tokens are law (semantic Tailwind only); lucide over emoji; AA contrast + visible focus + keyboard nav; mobile parity; `frontend-design` skill before UI tasks; escalation via `## Handoff log` below.
+
+---
+
+## File map
+
+- **Overflow fix:** TBD by Task 1 root cause — suspect shared layout (`src/components/layout/page-shell.tsx` / `page-container.tsx` / `globals.css`).
+- **Width system:** `src/components/layout/page-container.tsx` (add `narrow`), `src/components/layout/site-footer.tsx` (container), `docs/FRONTEND.md` (conventions section).
+- **Primitives:** `src/components/ui/select.tsx` (anchor width), new `src/components/ui/textarea.tsx`, `src/app/globals.css` (`--attention`).
+- **Loading:** new `src/app/(marketing)/loading.tsx`, `src/app/(account)/loading.tsx`, `src/app/(admin)/loading.tsx`; `src/components/site-header.tsx` (Suspense split); reuse `src/components/ui/skeleton.tsx`.
+- **Auth redirect:** `src/app/(auth)/login/page.tsx` + signup + the existing `returnTo` guard helper (grep `returnTo` in `(auth)`).
+- **BookingFlow:** `src/features/booking/_components/booking-flow.tsx` + its three client wrappers; `src/features/booking/booking-service-shared.ts` (forms gate); `scripts/db-seed/` (scenario extension).
+- **Reviews policy:** `src/features/reviews/` submit action + admin reviews surface (verify unpublish exists).
+
+---
+
+## Task 1: Mobile horizontal overflow — root cause + fix (U14, U22)
+
+**Files:** investigation first; fix lands where the root cause is (suspect `page-shell.tsx` / `page-container.tsx` / a `min-w` in card rows).
+
+- [ ] **Step 1 (systematic-debugging):** Reproduce on real device emulation — `npm run dev` is usually on :3000 (maintainer's; don't kill it — use `next dev -p 3001` if needed). Chrome DevTools device toolbar at 390×844 on `/services`, `/book/walk`, `/reviews`, `/contact`, `/` (CTA band). Confirm horizontal scrollbar / right-edge clipping. If it does NOT reproduce outside headless capture, log that in the Handoff log and close U14/U22 as capture artifacts (skip to Step 4).
+- [ ] **Step 2:** Locate the shared cause. In DevTools, `document.querySelectorAll('*')` widest-element sweep (or toggle `outline: 1px solid red` via `* { outline … }`) on one affected page; identify the element wider than the viewport and the rule responsible (candidates: a fixed width, `min-w-*`, unpadded `w-full` + margin, grid `auto-cols` overflow). Verify the SAME rule explains the other affected pages before fixing.
+- [ ] **Step 3:** Fix at the root (one change, not five per-page patches). Add `min-w-0` / `max-w-full` / corrected padding at the shared layout level as the diagnosis dictates.
+- [ ] **Step 4:** Verify all five surfaces at 390 + 768 + 1024: no horizontal scroll, no clipped content. Record root cause in the Handoff log (non-blocking note).
+- [ ] **Step 5:** `npm run typecheck` + `npm run lint`, commit: `fix: stop mobile horizontal overflow on public pages`
+
+## Task 2: Width system — PageContainer `narrow` + footer alignment (U16)
+
+**Files:** Modify `src/components/layout/page-container.tsx`, `src/components/layout/site-footer.tsx`, `docs/FRONTEND.md`.
+
+- [ ] **Step 1:** Add the `narrow` width to `PageContainer`:
+
+```tsx
+const widths = {
+  read: "max-w-[65ch]",
+  narrow: "max-w-xl", // forms / booking flow (~36rem)
+  app: "max-w-6xl",
+} as const;
+```
+
+- [ ] **Step 2:** `site-footer.tsx`: wrap content in the same inner container as the header — `mx-auto w-full max-w-6xl px-5 sm:px-8` (today the footer div has no `max-w`, so footer content misaligns with the boxed header). Leave link content for Plan B Task 2.
+- [ ] **Step 3:** Document the width scale in `docs/FRONTEND.md` (read 65ch · narrow 36rem · app 6xl; header+footer share the 6xl container; bands full-bleed bg + inner container; 50–75 CPL target) — same commit.
+- [ ] **Step 4:** Visual check (1440 + 390): footer edges align with header edges on marketing + account + admin.
+- [ ] **Step 5:** Typecheck + lint, commit: `feat: add narrow page width and align footer container`
+
+## Task 3: Select popup matches trigger width (U17)
+
+**Files:** Modify `src/components/ui/select.tsx`.
+
+- [ ] **Step 1:** In `SelectContent`, add the Base UI anchor-width var to the Popup classes: `min-w-[var(--anchor-width)]` (keep `min-w-[8rem]` as the floor: `min-w-[max(8rem,var(--anchor-width))]`).
+- [ ] **Step 2:** Verify on the widest consumers: admin bookings hub status filter, settings TimePicker trio, booking-flow selects — popup never narrower than its trigger; keyboard nav + focus ring unchanged.
+- [ ] **Step 3:** Typecheck + lint, commit: `fix: match select popup width to its trigger`
+
+## Task 4: `--attention` → slate (U31)
+
+**Files:** Modify `src/app/globals.css`.
+
+- [ ] **Step 1:** Repoint the token (stays theme-independent, white foreground):
+
+```css
+/* Attention badge — slate (#3c5566, blue-deep family), white text ≈7.9:1 AA.
+   Slate = "do something" (routine); red stays reserved for danger/owing.
+   Gold (#8a6a1b) rejected by maintainer 2026-06-11. Theme-independent. */
+--attention: #3c5566;
+```
+
+- [ ] **Step 2:** Verify badges on seeded `admin-demo`: sidebar + mobile drawer, light + dark theme, AA holds, renders nothing at 0 (behavior untouched — token-only change).
+- [ ] **Step 3:** Commit: `feat: repoint attention badge token to slate`
+
+## Task 5: Textarea primitive + form-on-card recipe + button hierarchy (U15)
+
+**Files:** Create `src/components/ui/textarea.tsx`; modify `docs/FRONTEND.md`; modify the submit buttons in `src/app/(auth)/login/page.tsx` + `src/app/(auth)/signup/page.tsx` (+ their form components) and `src/app/(marketing)/contact/_components/contact-form.tsx`.
+
+- [ ] **Step 1:** Create `Textarea` mirroring `src/components/ui/input.tsx` styling exactly (same border/bg/focus classes, `data-slot="textarea"`, `min-h` + `resize-y`). Replace the hand-rolled `<textarea>` in `contact-form.tsx` with it.
+- [ ] **Step 2:** Button hierarchy (system-preview contract): switch the login/signup/contact submit buttons from the near-black default to `variant="brand"`. Grep for other form submits using the default variant in `(auth)`/`(marketing)`/`(account)` and switch any found — the rule: **brand = THE action of a surface (one per view); outline = secondary; ghost = tertiary; destructive behind `useConfirm`; near-black `primary` only for neutral chrome.**
+- [ ] **Step 3:** Document the button rule + form-on-card recipe (`bg-card` + border + `rounded-2xl` card; inputs `bg-background` + `border-input` + clay focus ring) in `docs/FRONTEND.md` — same commit.
+- [ ] **Step 4:** Visual check login/signup/contact; typecheck + lint, commit: `feat: unify form action buttons and add textarea primitive`
+
+## Task 6: Visible loading — zone skeletons + header Suspense (P3-lite)
+
+**Files:** Create `src/app/(marketing)/loading.tsx`, `src/app/(account)/loading.tsx`, `src/app/(admin)/loading.tsx`; modify `src/components/site-header.tsx` and the shells that render it.
+
+- [ ] **Step 1 (the load-bearing bit):** `SiteHeader` is async (auth+role queries) inside zone layouts — per the Next.js docs, runtime data in the layout blocks `loading.tsx` fallbacks. Split it: header chrome (wordmark, tab row) renders statically; the auth cluster + admin wordmark tint become a child async component wrapped in `<Suspense fallback={<Skeleton className="h-5 w-16" />}>`. Keep one header render path — only the auth-dependent fragment suspends.
+- [ ] **Step 2:** Zone `loading.tsx` ×3 using the existing `Skeleton` primitive, matching each zone's shell (marketing: header-height bar + title + text rows; account/admin: sidebar rail + content rows — see system-preview panel 4). Lightweight, token-colored, no spinners.
+- [ ] **Step 3:** Verify with DevTools "Slow 3G" + hard navigations: skeleton paints immediately on nav to a dynamic page; no layout shift when content swaps in (CLS stays 0 — match real dimensions).
+- [ ] **Step 4:** Typecheck + lint + `npm run build` (Suspense splits can surface server-only leaks — SP3a/5a precedent), commit: `feat: add zone loading skeletons and non-blocking header auth`
+
+## Task 7: Generalize returnTo redirect-back (U4)
+
+**Files:** Modify login/signup pages + the place "Sign in" links are emitted (`site-header.tsx`, drawer in `site-nav.tsx`); reuse the existing open-redirect guard (grep `returnTo` under `src/app/(auth)`).
+
+- [ ] **Step 1 (test-first):** The guard is pure — extend its unit test (or create one beside it) covering: relative path allowed (`/reviews` → `/reviews`), absolute URL rejected (`https://evil.com` → default), protocol-relative rejected (`//evil.com` → default), empty → default. Run: FAIL if behavior missing.
+- [ ] **Step 2:** Generalize: login/signup read `returnTo` for ANY guard-passing path (today only `/book/` paths round-trip). Header/drawer "Sign in" links append `returnTo=<current pathname>` (client components already have `usePathname`). Post-auth redirect goes through the guard.
+- [ ] **Step 3:** Run tests — PASS. Manual: sign in from /reviews → back on /reviews; from /book/walk → /book/walk (unchanged); crafted `?returnTo=https://evil.com` → default landing.
+- [ ] **Step 4:** Typecheck + lint, commit: `feat: return to origin page after sign-in from anywhere`
+
+## Task 8: Reviews auto-publish + admin unpublish
+
+**Files:** `src/features/reviews/` (submit action / insert path); admin reviews surface (verify unpublish/remove action exists — shipped in SP5a polish).
+
+- [ ] **Step 1 (test-first):** Locate the review-create core/action test; add/adjust the case: a newly submitted review is created **published** (whatever the column is — `published: true` / `status: 'published'`; read the schema first). Run: FAIL.
+- [ ] **Step 2:** Flip the insert default; update the client submit feedback copy ("Thanks — your review is live") and remove any "appears after approval" copy. Run: PASS.
+- [ ] **Step 3:** Verify admin can still unpublish/remove (existing moderation surface — if no unpublish action exists, STOP and escalate via the Handoff log; do not improvise one).
+- [ ] **Step 4:** Typecheck + lint + reviews tests, commit: `feat: publish reviews immediately with admin unpublish`
+
+## Task 9: BookingFlow rebuild — layout per contract (U14-stepper, U23-rhythm)
+
+**Files:** Modify `src/features/booking/_components/booking-flow.tsx` (+ the three wrappers only if their props must thread new bits: `service-booking-client.tsx`, `admin-create-booking-client.tsx`, `edit-booking-client.tsx`).
+
+**Visual contract:** `booking-flow-preview.html` — stacked single column (`PageContainer narrow` / max-w ~36rem), step **cards** (numbered clay disc + Fraunces heading), summary card inline after the steps with live quote, brand CTA. **No sticky side receipt. Calendar visuals unchanged** (maintainer-approved as-is) — do not restyle day cells.
+
+- [ ] **Step 1 (frontend-design first):** Restructure the flow markup into step cards + inline summary per the contract. The `NumberStepper` and any row content get `min-w-0`/`max-w-full` so the column never overflows at 390 (Task 1's fix should already cover the substrate; verify here).
+- [ ] **Step 2:** Summary card: service, date, duration/nights, pets, server-derived total (existing quote artifacts — no client math), CTA, and the U6 policy line **rendered from settings** (prepay availability + cancellation/refund pct via the existing settings read — exact copy pattern: "Free cancellation until {window}; later cancellations keep {pct}%". If a needed value has no settings field, escalate, don't hardcode).
+- [ ] **Step 3:** Verify all three consumers render correctly (public create, admin create-on-behalf, account edit) — desktop + 390 + 768. The characterization test (`service-booking-client.characterization.test.tsx`) still passes.
+- [ ] **Step 4:** Typecheck + lint + `npx vitest run src/features/booking`, commit: `feat: rebuild booking flow as stacked step cards with inline summary`
+
+## Task 10: BookingFlow behavior bucket — U1 success, U2 lead-time, U24 overnight zod
+
+**Files:** `booking-flow.tsx` + the create/edit submit paths in the wrappers; `src/features/booking/booking-service-shared.ts` only if U2 needs a flag surfaced.
+
+- [ ] **Step 1 — U1 (test-first where logic):** On `createBooking` success, render the terminal success panel per the contract (check-disc, summary line, approval copy variant when `requires_approval`, "View my bookings" → `/account/bookings`, "Book another" resets the flow). No more silent return. Admin create keeps its existing redirect behavior — the panel is for the public/account paths.
+- [ ] **Step 2 — U2:** Lead-time-blocked days render as **unavailable** in the calendar data (grey, not selectable) instead of surfacing a post-selection error; one quiet note under the calendar ("Days before {date} need more notice — contact Cal if you need something sooner" linking `/contact`). The core already returns `unavailable` correctly — this is UI mapping; trace where the lead-time guard result reaches the client and merge it into the day-state computation.
+- [ ] **Step 3 — U24 (systematic-debugging, test-first):** Reproduce the reschedule-overnight zod failure (`nights` undefined) — seed `busy-week`, edit an overnight booking. Root cause: the edit path's input assembly drops `nights` for overnight services. Write the failing test at the input-assembly/core level, fix, PASS. Do not band-aid with a default value in the schema.
+- [ ] **Step 4:** Verify the three flows again (create walk, create overnight, reschedule overnight; lead-time day grey; success panel both copy variants). Typecheck + lint + booking suite, commit: `fix: booking success state, lead-time availability, and overnight reschedule`
+
+## Task 11: Required-forms booking gate (U26)
+
+**Files:** `src/features/booking/booking-service-shared.ts` (+ repository), the booking-flow gate messaging, `scripts/db-seed/scenarios.ts`.
+
+- [ ] **Step 1 (discovery, ~15 min):** Define "required forms complete". `Grep -i "form" supabase/migrations` + read the forms feature under `src/features/accounts` (FormCard). Establish: which table holds form definitions/submissions, what marks a form required, what marks a submission complete. Write the definition into this plan's Handoff log before coding. If the data model can't express "required" without schema change, STOP — escalate (SP6 is schema-free).
+- [ ] **Step 2 (test-first):** Extend the `computeBookingArtifacts` test suite (pattern: existing onboarding/debt gate tests in `booking-service.test.ts`, repo faked): incomplete required forms → gate refuses with a distinct reason (e.g. `forms_incomplete`); complete → passes. Run: FAIL.
+- [ ] **Step 3:** Add the repo read + gate to the shared artifacts computation (join the existing `Promise.all` — don't add a serial await; A15 precedent). Run: PASS.
+- [ ] **Step 4:** UI: gate surfaces as **unavailability-style messaging** in BookingFlow — calm card "Finish your forms before booking" + link to `/account/forms` — never a thrown error. Admin create-on-behalf: confirm intended behavior — default **admin bypasses the gate** (Cal can book for anyone); escalate if the spec reading differs.
+- [ ] **Step 5:** Seed: extend a scenario (e.g. `payment-states` or `busy-week`) with one client having incomplete required forms; document in the seed registry.
+- [ ] **Step 6:** Typecheck + lint + booking suite, commit: `feat: gate booking on required form completion`
+
+## Task 12: Onboarding double-submit (U25)
+
+**Files:** `src/app/(onboarding)/onboarding/_components/info-step.tsx` (+ the action it calls).
+
+- [ ] **Step 1 (systematic-debugging):** Reproduce: fresh seeded user (`fresh` scenario), complete the info step — confirm it takes two attempts. **Known lead:** [`2026-06-09-onboarding-admin-batch-design.md`](../specs/2026-06-09-onboarding-admin-batch-design.md) §"Bad errors" documents this exact symptom — `runOnboarding` uses `.parse()` and throws a single generic `Error` (spurious error on first click, delayed transition); per-field zod messages never reach the user. Verify that diagnosis still holds before fixing.
+- [ ] **Step 2:** Root cause in the Handoff log, then fix at the cause. Add a regression test if the cause is in testable logic (action/core level); if purely a client wiring bug, the manual repro is the verify.
+- [ ] **Step 3:** Verify: one attempt completes the step; error states (invalid input) show visible inline feedback (feedback rule — nothing silent).
+- [ ] **Step 4:** Typecheck + lint, commit: `fix: onboarding info step completes on first submit`
+
+---
+
+## Final gates + close-out
+
+- [ ] `npm run typecheck` · `npm run lint` (0 errors) · `npx vitest run` (no new failures vs the 7 known shared-DB ones) · `npm run build`.
+- [ ] Manual `verify`: the five U14 pages at 390; login→returnTo round-trip; booking create/edit happy paths; skeletons on slow nav.
+- [ ] Fresh-session `/code-review`; address findings (receiving-code-review discipline).
+- [ ] Prune from the register: U1, U2, U4, U14, U15 (primitive half), U16 (container half), U17, U22 (if confirmed U14 instance), U24, U25, U26, U31 + the reviews-auto-publish decision note. U6 prunes here if the policy line shipped; leave surface-application findings (U5/U7/U8/…) for Plan B.
+- [ ] HANDOFF session-log line (same commit).
+
+## Handoff log
+
+(escalations + non-blocking notes per WORKFLOW.md)
