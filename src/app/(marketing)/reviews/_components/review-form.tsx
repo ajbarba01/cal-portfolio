@@ -8,6 +8,7 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { submitReview } from "@/features/reviews";
 
 interface ReviewFormProps {
@@ -82,7 +83,7 @@ export function ReviewForm({ isSignedIn }: ReviewFormProps) {
 
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="review-body">Your review</Label>
-        <textarea
+        <Textarea
           id="review-body"
           name="body"
           value={body}
@@ -91,7 +92,6 @@ export function ReviewForm({ isSignedIn }: ReviewFormProps) {
           required
           maxLength={2000}
           placeholder="Tell us about your experience…"
-          className="bg-background text-foreground border-border placeholder:text-muted-foreground w-full rounded-md border px-3 py-2 text-sm leading-relaxed focus-visible:outline-2 focus-visible:outline-offset-2"
         />
         <p className="text-muted-foreground text-right text-xs">
           {body.length} / 2000
