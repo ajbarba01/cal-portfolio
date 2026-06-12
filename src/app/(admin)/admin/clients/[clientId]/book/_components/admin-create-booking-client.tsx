@@ -16,6 +16,7 @@
 
 import {
   BookingFlow,
+  BookingFlowStepHead,
   PetAssignment,
   QuantityForm,
   QuotePanel,
@@ -103,6 +104,7 @@ export function AdminCreateBookingClient({
         stay,
         onSelectionChange,
       }}
+      rules={rules}
       monthRangeIntro={
         <>
           Click the two ends of the stay — in any order, and across months if
@@ -125,12 +127,11 @@ export function AdminCreateBookingClient({
       petSection={
         petAware && (
           <section aria-labelledby="pets-heading">
-            <h2
-              id="pets-heading"
-              className="text-brand-strong mb-3 text-xs font-semibold tracking-wide uppercase"
-            >
-              2. Which pets?
-            </h2>
+            <BookingFlowStepHead
+              num={2}
+              label="Which pets?"
+              labelId="pets-heading"
+            />
             <PetAssignment
               pets={pets}
               allowedSpecies={allowedSpecies}
@@ -143,24 +144,23 @@ export function AdminCreateBookingClient({
       }
       detailsSection={
         <section aria-labelledby="qty-heading">
-          <h2
-            id="qty-heading"
-            className="text-brand-strong mb-3 text-xs font-semibold tracking-wide uppercase"
-          >
-            {step3Label}. Details
-          </h2>
+          <BookingFlowStepHead
+            num={step3Label}
+            label="Details"
+            labelId="qty-heading"
+          />
           <QuantityForm state={quantities} onChange={onQuantitiesChange} />
         </section>
       }
       extraSection={
         supportsRecurring && (
           <section aria-labelledby="recur-heading">
-            <h2
-              id="recur-heading"
-              className="text-brand-strong mb-3 text-xs font-semibold tracking-wide uppercase"
-            >
-              {step4Label}. Recurring (optional)
-            </h2>
+            <BookingFlowStepHead
+              num={step4Label}
+              label="Repeat weekly?"
+              labelId="recur-heading"
+              hint="optional"
+            />
             <RecurringControls
               enabled={recurringOn}
               count={occurrenceCount}

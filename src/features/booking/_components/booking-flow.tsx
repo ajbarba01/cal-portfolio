@@ -4,6 +4,11 @@
  * BookingFlow — the shared stepped-booking layout behind the three booking
  * surfaces (public self-serve, admin on-behalf create, owner/admin edit).
  *
+ * SP6 Task 9: rebuilt as stacked step cards (numbered clay disc + Fraunces
+ * heading) in a single column at all viewports — no sticky side receipt.
+ * The summary card lives inline after the steps, above the primary CTA.
+ * Calendar visuals are unchanged (maintainer-approved as-is).
+ *
  * Extracted from the three near-identical client components (SP5a Task 10). The
  * three already share the `useBookingScheduler` substrate + the primitives, but
  * each DUPLICATED the stepped JSX. This component owns the parts that were
@@ -23,11 +28,15 @@
  *   - `receipt`       — the gated QuotePanel block (public's auth gating +
  *                       GatePanels, admin/edit's footer + warnings + deltas).
  *
- * Presentational only: it holds no booking state or logic. The load-bearing
- * booking GATES live in the cores/hooks; this component just renders them.
+ * Layout contract (SP6 visual contract, signed off 2026-06-11):
+ *   - Stacked single column, max-w-xl (~36rem), all viewports — no side receipt.
+ *   - Step 1 (calendar) and caller-supplied steps 2–4 each rendered inside a
+ *     step-card shell (rounded card + numbered clay disc + Fraunces heading).
+ *   - Summary card inline after the steps: existing receipt slot + U6 policy line.
  */
 
-import type { ReactNode } from "react";
+import type { ReactNode, ComponentProps } from "react";
+import { Info } from "lucide-react";
 import { Scheduler } from "./scheduler";
 import type { SchedulerData } from "./scheduler";
 import type { SchedulerCapabilities } from "../schedule-capabilities";
@@ -36,6 +45,8 @@ import type { BookingMode } from "../use-booking-scheduler";
 import type { validateStayRange } from "../calendar-model";
 import type { ScheduleSelectionState } from "../schedule-selection";
 import type { DateRange } from "@/components/ui/calendar";
+import type { BookingRuleSettings } from "../availability";
+import { cn } from "@/lib/utils";
 
 /**
  * The common subset of the three hooks' returns that the shared calendar
@@ -52,6 +63,45 @@ export interface BookingFlowState {
   onSelectionChange: (state: ScheduleSelectionState) => void;
   /** Pre-select an existing slot on mount (edit only; week-slots). */
   initialSlot?: { dayKey: string; minute: number };
+}
+
+/**
+ * Numbered clay disc + Fraunces heading for steps 2-4 in the booking flow.
+ * Exported so the three consumer wrappers (ServiceBookingClient,
+ * AdminCreateBookingClient, EditBookingClient) render a consistent step header
+ * inside their section elements — keeps a11y structure at the caller while the
+ * visual chrome matches the Step 1 heading in BookingFlow.
+ */
+export function BookingFlowStepHead({
+  num,
+  label,
+  labelId,
+  hint,
+}: {
+  num: number | string;
+  label: string;
+  labelId: string;
+  hint?: ReactNode;
+}) {
+  return (
+    <div className="mb-3 flex items-center gap-2.5">
+      <span
+        aria-hidden="true"
+        className="bg-clay-soft text-brand-strong flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold"
+      >
+        {num}
+      </span>
+      <h2
+        id={labelId}
+        className="font-heading text-foreground m-0 text-base leading-tight font-semibold"
+      >
+        {label}
+      </h2>
+      {hint && (
+        <span className="text-muted-foreground ml-auto text-xs">{hint}</span>
+      )}
+    </div>
+  );
 }
 
 export interface BookingFlowProps {
@@ -71,7 +121,82 @@ export interface BookingFlowProps {
   extraSection?: ReactNode;
   /** The gated price receipt + primary CTA block. */
   receipt: ReactNode;
+  /**
+   * Booking rule settings — used for the U6 policy line (cancellation window +
+   * late-cancel refund pct). Thread from the page's `loadBookingFormData` result.
+   */
+  rules?: BookingRuleSettings;
 }
+
+// ── Shared card shell ─────────────────────────────────────────────────────────
+// Step 1 (calendar) is wrapped here. Steps 2-4 are provided by callers as
+// section elements whose own headings carry the step numbers; we wrap them in the
+// same card shell transparently so the column rhythm is uniform.
+
+function StepShell({ children, className, ...rest }: ComponentProps<"div">) {
+  return (
+    <div
+      className={cn(
+        "bg-card border-border min-w-0 rounded-2xl border p-4.5",
+        className,
+      )}
+      {...rest}
+    >
+      {children}
+    </div>
+  );
+}
+
+// ── Step 1 heading (numbered clay disc + Fraunces label) ──────────────────────
+// Only Step 1 is owned by BookingFlow; callers provide the h2 + disc for their
+// own sections. The disc + heading pattern is documented here as the canonical
+// reference.
+
+function CalendarStepHead({ mode }: { mode: BookingMode }) {
+  const label = mode === "month-range" ? "Pick your dates" : "Pick a day";
+  return (
+    <div className="mb-3 flex items-center gap-2.5">
+      {/* Clay numbered disc — identical to callers' step discs. */}
+      <span
+        aria-hidden="true"
+        className="bg-clay-soft text-brand-strong flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold"
+      >
+        1
+      </span>
+      <h2
+        id="cal-heading"
+        className="font-heading text-foreground m-0 text-base leading-tight font-semibold"
+      >
+        {label}
+      </h2>
+    </div>
+  );
+}
+
+// ── U6 policy line ─────────────────────────────────────────────────────────────
+// Rendered from settings: "Free cancellation until {n}h before; later
+// cancellations keep {pct}%." Never hardcoded — renders null when fields absent.
+
+function PolicyLine({ rules }: { rules: BookingRuleSettings }) {
+  const { cancellationFullRefundHours, lateCancelRefundPct } = rules;
+  if (
+    cancellationFullRefundHours === undefined ||
+    lateCancelRefundPct === undefined
+  ) {
+    return null;
+  }
+  return (
+    <p className="text-muted-foreground mt-3 flex gap-1.5 text-[11.5px] leading-snug">
+      <Info size={13} className="mt-px shrink-0" aria-hidden="true" />
+      <span>
+        Free cancellation until {cancellationFullRefundHours}h before; later
+        cancellations keep {lateCancelRefundPct}%.
+      </span>
+    </p>
+  );
+}
+
+// ── Main ───────────────────────────────────────────────────────────────────────
 
 export function BookingFlow({
   flow,
@@ -81,6 +206,7 @@ export function BookingFlow({
   detailsSection,
   extraSection,
   receipt,
+  rules,
 }: BookingFlowProps) {
   const {
     mode,
@@ -95,84 +221,96 @@ export function BookingFlow({
   } = flow;
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-8 pb-12">
+    <div className="mx-auto flex w-full max-w-xl min-w-0 flex-col gap-5 pb-12">
       {header}
 
-      {/* 1. Calendar */}
-      <section aria-labelledby="cal-heading">
-        <h2
-          id="cal-heading"
-          className="text-brand-strong mb-3 text-xs font-semibold tracking-wide uppercase"
-        >
-          1. {mode === "month-range" ? "Pick your dates" : "Pick a day"}
-        </h2>
-        {windowsError && (
-          <ErrorState
-            title="Couldn't load availability"
-            message={windowsError}
-          />
-        )}
-        {windowsLoading && (
-          <p className="text-muted-foreground text-sm">Loading availability…</p>
-        )}
-        {!windowsLoading && !windowsError && mode === "week-slots" && (
-          <Scheduler
-            capabilities={capabilities}
-            data={schedulerData}
-            onSelectionChange={onSelectionChange}
-            initialSlot={initialSlot}
-          >
-            <Scheduler.MonthGrid />
-            {/* Legend sits directly under the month (B2), before the timeline. */}
-            <Scheduler.Legend className="mt-5" />
-            <div className="mt-6">
-              <Scheduler.DayTimeline />
-            </div>
-            <Scheduler.BookingDetailsPanel />
-          </Scheduler>
-        )}
-        {!windowsLoading && !windowsError && mode === "month-range" && (
-          <>
-            <p className="text-muted-foreground mb-3 text-sm">
-              {monthRangeIntro}
+      {/* Step 1 — calendar, fully owned by BookingFlow */}
+      <StepShell>
+        <CalendarStepHead mode={mode} />
+        <section aria-labelledby="cal-heading" className="max-w-full min-w-0">
+          {windowsError && (
+            <ErrorState
+              title="Couldn't load availability"
+              message={windowsError}
+            />
+          )}
+          {windowsLoading && (
+            <p className="text-muted-foreground text-sm">
+              Loading availability…
             </p>
+          )}
+          {!windowsLoading && !windowsError && mode === "week-slots" && (
             <Scheduler
               capabilities={capabilities}
               data={schedulerData}
               onSelectionChange={onSelectionChange}
+              initialSlot={initialSlot}
             >
               <Scheduler.MonthGrid />
-              {/* Fixed-height summary row: nights live inline (never a new line)
-                    and the Clear-dates slot is always reserved, so selecting a
-                    range changes only text/opacity — never layout height. */}
-              <div className="mt-5 flex h-8 items-center justify-between gap-3 overflow-hidden">
-                <div className="flex items-baseline gap-2 whitespace-nowrap">
-                  <Scheduler.SelectionSummary />
-                  {stay?.ok && (
-                    <span className="text-muted-foreground text-sm">
-                      · {stay.nights} night{stay.nights === 1 ? "" : "s"}
-                    </span>
-                  )}
-                </div>
-                <Scheduler.ClearDates />
-              </div>
+              {/* Legend sits directly under the month (B2), before the timeline. */}
               <Scheduler.Legend className="mt-5" />
+              <div className="mt-6">
+                <Scheduler.DayTimeline />
+              </div>
               <Scheduler.BookingDetailsPanel />
             </Scheduler>
-            {/* Reserved-height line for the invalid-range message only. */}
-            <p className="mt-2 min-h-5 text-sm" aria-live="polite">
-              {range?.from && range?.to && stay && !stay.ok && (
-                <span className="text-destructive">{stay.reason}</span>
-              )}
-            </p>
-          </>
-        )}
-      </section>
+          )}
+          {!windowsLoading && !windowsError && mode === "month-range" && (
+            <>
+              <p className="text-muted-foreground mb-3 text-sm">
+                {monthRangeIntro}
+              </p>
+              <Scheduler
+                capabilities={capabilities}
+                data={schedulerData}
+                onSelectionChange={onSelectionChange}
+              >
+                <Scheduler.MonthGrid />
+                {/* Fixed-height summary row: nights live inline (never a new line)
+                    and the Clear-dates slot is always reserved, so selecting a
+                    range changes only text/opacity — never layout height. */}
+                <div className="mt-5 flex h-8 items-center justify-between gap-3 overflow-hidden">
+                  <div className="flex items-baseline gap-2 whitespace-nowrap">
+                    <Scheduler.SelectionSummary />
+                    {stay?.ok && (
+                      <span className="text-muted-foreground text-sm">
+                        · {stay.nights} night{stay.nights === 1 ? "" : "s"}
+                      </span>
+                    )}
+                  </div>
+                  <Scheduler.ClearDates />
+                </div>
+                <Scheduler.Legend className="mt-5" />
+                <Scheduler.BookingDetailsPanel />
+              </Scheduler>
+              {/* Reserved-height line for the invalid-range message only. */}
+              <p className="mt-2 min-h-5 text-sm" aria-live="polite">
+                {range?.from && range?.to && stay && !stay.ok && (
+                  <span className="text-destructive">{stay.reason}</span>
+                )}
+              </p>
+            </>
+          )}
+        </section>
+      </StepShell>
 
-      {petSection}
-      {detailsSection}
-      {extraSection}
-      {receipt}
+      {/* Steps 2–4 — caller-owned sections wrapped in the shared card shell.
+          Each caller section is a <section aria-labelledby> with its own h2 +
+          clay-disc heading; wrapping in StepShell gives the card chrome. */}
+      {petSection && <StepShell>{petSection}</StepShell>}
+      {detailsSection && <StepShell>{detailsSection}</StepShell>}
+      {extraSection && <StepShell>{extraSection}</StepShell>}
+
+      {/* Summary + receipt card — inline after the steps (no side receipt).
+          Owns: existing receipt slot (quote panel / gate panels / CTA) and the
+          U6 policy line (rendered from settings when fields are present). */}
+      <StepShell aria-label="Booking summary">
+        <h2 className="font-heading text-foreground mb-2.5 text-[15px] font-semibold">
+          Your booking
+        </h2>
+        {receipt}
+        {rules && <PolicyLine rules={rules} />}
+      </StepShell>
     </div>
   );
 }

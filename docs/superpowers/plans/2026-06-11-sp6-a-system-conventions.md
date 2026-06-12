@@ -121,10 +121,10 @@ const widths = {
 
 **Visual contract:** `booking-flow-preview.html` — stacked single column (`PageContainer narrow` / max-w ~36rem), step **cards** (numbered clay disc + Fraunces heading), summary card inline after the steps with live quote, brand CTA. **No sticky side receipt. Calendar visuals unchanged** (maintainer-approved as-is) — do not restyle day cells.
 
-- [ ] **Step 1 (frontend-design first):** Restructure the flow markup into step cards + inline summary per the contract. The `NumberStepper` and any row content get `min-w-0`/`max-w-full` so the column never overflows at 390 (Task 1's fix should already cover the substrate; verify here).
-- [ ] **Step 2:** Summary card: service, date, duration/nights, pets, server-derived total (existing quote artifacts — no client math), CTA, and the U6 policy line **rendered from settings** (prepay availability + cancellation/refund pct via the existing settings read — exact copy pattern: "Free cancellation until {window}; later cancellations keep {pct}%". If a needed value has no settings field, escalate, don't hardcode).
-- [ ] **Step 3:** Verify all three consumers render correctly (public create, admin create-on-behalf, account edit) — desktop + 390 + 768. The characterization test (`service-booking-client.characterization.test.tsx`) still passes.
-- [ ] **Step 4:** Typecheck + lint + `npx vitest run src/features/booking`, commit: `feat: rebuild booking flow as stacked step cards with inline summary`
+- [x] **Step 1 (frontend-design first):** Restructure the flow markup into step cards + inline summary per the contract. The `NumberStepper` and any row content get `min-w-0`/`max-w-full` so the column never overflows at 390 (Task 1's fix should already cover the substrate; verify here).
+- [x] **Step 2:** Summary card: service, date, duration/nights, pets, server-derived total (existing quote artifacts — no client math), CTA, and the U6 policy line **rendered from settings** (prepay availability + cancellation/refund pct via the existing settings read — exact copy pattern: "Free cancellation until {window}; later cancellations keep {pct}%". If a needed value has no settings field, escalate, don't hardcode).
+- [x] **Step 3:** Verify all three consumers render correctly (public create, admin create-on-behalf, account edit) — desktop + 390 + 768. The characterization test (`service-booking-client.characterization.test.tsx`) still passes.
+- [x] **Step 4:** Typecheck + lint + `npx vitest run src/features/booking`, commit: `feat: rebuild booking flow as stacked step cards with inline summary`
 
 ## Task 10: BookingFlow behavior bucket — U1 success, U2 lead-time, U24 overnight zod
 
