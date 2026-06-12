@@ -38,6 +38,7 @@ const settings = {
   cancellation_full_refund_hours: 24,
   late_cancel_refund_pct: 50,
   no_show_charge_pct: 100,
+  holiday_dates: [],
 } satisfies SettingsRow;
 
 /** Near-origin lat so approval auto-confirms (< 8 mi). */

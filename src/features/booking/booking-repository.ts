@@ -67,6 +67,8 @@ export interface SettingsRow {
   cancellation_full_refund_hours: number;
   late_cancel_refund_pct: number;
   no_show_charge_pct: number;
+  /** ISO "YYYY-MM-DD" day keys for premium (holiday) days. Empty when none set. */
+  holiday_dates: string[];
 }
 
 export interface ProfileLatLng {
@@ -152,6 +154,7 @@ const settingsRowSchema = z.object({
   cancellation_full_refund_hours: z.number(),
   late_cancel_refund_pct: z.number(),
   no_show_charge_pct: z.number(),
+  holiday_dates: z.array(z.string()).default([]),
 });
 
 /** Parsed and validated service row. pricing_type is the closed enum. */
@@ -599,7 +602,8 @@ export function createSupabaseBookingRepository(
             "min_lead_time_hours, auto_confirm_horizon_days, hard_max_advance_days, " +
             "recurrence_generation_horizon_days, " +
             "recurring_discount_pct, recurring_min_occurrences, " +
-            "cancellation_full_refund_hours, late_cancel_refund_pct, no_show_charge_pct",
+            "cancellation_full_refund_hours, late_cancel_refund_pct, no_show_charge_pct, " +
+            "holiday_dates",
         )
         .limit(1)
         .single();

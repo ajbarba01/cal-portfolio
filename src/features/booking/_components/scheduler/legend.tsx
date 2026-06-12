@@ -53,7 +53,7 @@ const ENTRIES = [
 // ──────────────────────────────────────────────────────────────────────────────
 
 export function Legend({ className }: LegendProps) {
-  const { capabilities } = useScheduler();
+  const { capabilities, data } = useScheduler();
 
   return (
     <ul
@@ -69,7 +69,8 @@ export function Legend({ className }: LegendProps) {
           <span className="text-muted-foreground text-xs">{label}</span>
         </li>
       ))}
-      {capabilities.premiumMarkable && (
+      {(capabilities.premiumMarkable ||
+        (data.premiumDays && data.premiumDays.size > 0)) && (
         <li className="flex items-center gap-1.5">
           <Star
             aria-hidden="true"

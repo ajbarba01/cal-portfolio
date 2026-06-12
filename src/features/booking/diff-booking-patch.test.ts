@@ -25,7 +25,7 @@ const HS_INITIAL: EditPatchInitial = {
   petIds: ["pet-1"],
   quantities: {
     type: "house_sitting",
-    qty: { cantBeLeftAloneDays: 0, walkMinutesPerDay: 0, holidayDays: 0 },
+    qty: { cantBeLeftAloneDays: 0, walkMinutesPerDay: 0 },
   },
   comments: "",
 };
@@ -157,7 +157,7 @@ describe("diffBookingPatch", () => {
       selectedPetIds: ["pet-1"],
       quantities: {
         type: "house_sitting",
-        qty: { cantBeLeftAloneDays: 1, walkMinutesPerDay: 0, holidayDays: 0 },
+        qty: { cantBeLeftAloneDays: 1, walkMinutesPerDay: 0 },
       },
       nights: 3,
       comments: "",

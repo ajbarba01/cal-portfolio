@@ -1198,6 +1198,7 @@ function makeMockRepo(
       cancellation_full_refund_hours: 48,
       late_cancel_refund_pct: 50,
       no_show_charge_pct: 100,
+      holiday_dates: [],
     })),
     getProfileLatLng: vi.fn(
       async () => opts.profileLatLng ?? { lat: 40.087, lng: -105.27 },
@@ -1499,6 +1500,7 @@ const PREVIEW_SETTINGS = {
   cancellation_full_refund_hours: 48,
   late_cancel_refund_pct: 50,
   no_show_charge_pct: 100,
+  holiday_dates: [],
 };
 
 function previewBaseRow(over: Partial<BookingEditRow> = {}): BookingEditRow {

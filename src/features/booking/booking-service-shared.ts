@@ -15,6 +15,8 @@ import {
   seriesQualifiesForRecurringDiscount,
   passesGuards,
   fitsWindow,
+  denverDayKey,
+  denverMidnight,
 } from "./availability";
 import type {
   BookingRepository,
@@ -31,6 +33,66 @@ export const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 /** Slug of the meet-and-greet service — the only service a meet_greet_pending client may book. */
 export const MEET_GREET_SLUG = "meet-greet";
+
+// ──────────────────────────────────────────────────────────────────────────────
+// deriveHolidayDays — server-trusted premium-day count
+// ──────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Derives the number of premium (holiday) days covered by a booking from the
+ * admin-configured `holiday_dates` list. Overrides any client-supplied value.
+ *
+ * Derivation rule (per-type):
+ *
+ *   house_sitting — count calendar days in the HALF-OPEN stay range [checkIn,
+ *   checkOut) that appear in `holidayDates`. The checkout day itself is
+ *   EXCLUDED because the guest has departed; only nights-that-are-days matter.
+ *   Iterates DST-safely using `denverDayKey` + `denverMidnight` (same pattern
+ *   as `validateStayRange`). Result aligns with `walkDays = Math.ceil(nights)`
+ *   in `quote.ts` — both are "days in the stay window".
+ *
+ *   Hourly (walk, check_in, training) — the booking covers exactly one Denver
+ *   calendar day (service is sub-24h). Returns 1 if `startsAt`'s Denver day
+ *   key is in `holidayDates`, otherwise 0. NOTE: walk/check_in/training
+ *   `QuoteInput` types do not carry a `holidayDays` field; this function
+ *   returns the count for completeness / future use, but `buildQuoteInput`
+ *   only applies it to house_sitting.
+ *
+ *   meet_greet — always 0 (free service, no surcharge applies).
+ *
+ * Pure — no IO, no clock read, DST-correct. (#5 ENGINEERING)
+ */
+export function deriveHolidayDays(
+  pricingType: string,
+  startsAt: Date,
+  endsAt: Date,
+  holidayDates: string[],
+): number {
+  if (holidayDates.length === 0) return 0;
+  if (pricingType === "meet_greet") return 0;
+
+  const premiumSet = new Set(holidayDates);
+
+  if (pricingType === "house_sitting") {
+    // Count calendar days in [startsAt, endsAt) that are premium.
+    // Iterate DST-safely: same pattern as validateStayRange in calendar-model.ts.
+    let count = 0;
+    let cursor = startsAt;
+    while (cursor.getTime() < endsAt.getTime()) {
+      const dayKey = denverDayKey(cursor);
+      if (premiumSet.has(dayKey)) count++;
+      // Advance to next Denver midnight — DST-correct via denverMidnight.
+      const [y, m, d] = dayKey.split("-").map((n) => parseInt(n, 10));
+      cursor = denverMidnight(
+        `${String(y).padStart(4, "0")}-${String(m).padStart(2, "0")}-${String(d + 1).padStart(2, "0")}`,
+      );
+    }
+    return count;
+  }
+
+  // Hourly / training: service is sub-24h, covers exactly one Denver calendar day.
+  return premiumSet.has(denverDayKey(startsAt)) ? 1 : 0;
+}
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Input Zod schemas (validate at the boundary — ENGINEERING #11)
@@ -559,14 +621,36 @@ export async function computeBookingArtifacts(
     );
   }
 
-  // 6. Build quote for the first (representative) occurrence
+  // 6. Build quote for the first (representative) occurrence.
+  //    holidayDays is SERVER-DERIVED from dates + settings.holiday_dates —
+  //    any client-supplied value is overridden here (money invariant).
   const roundTripDriveMinutes =
     service.pricing_type === "house_sitting" ? 0 : 2 * oneWayMin;
+
+  const derivedHolidayDays = deriveHolidayDays(
+    service.pricing_type,
+    input.startsAt,
+    input.endsAt,
+    settings.holiday_dates,
+  );
+
+  // Inject the server-derived count into the quantities record before building
+  // the QuoteInput. For house_sitting this overrides any client-supplied
+  // holidayDays; for other types the field is absent from their QuoteInput so
+  // this is a no-op at the buildQuoteInput level.
+  const quantitiesWithHoliday: typeof quantities =
+    quantities.pricingType === "house_sitting"
+      ? {
+          success: true as const,
+          pricingType: "house_sitting" as const,
+          data: { ...quantities.data, holidayDays: derivedHolidayDays },
+        }
+      : quantities;
 
   const quoteInput = buildQuoteInput({
     pricingType: service.pricing_type,
     pricingConfig,
-    quantities,
+    quantities: quantitiesWithHoliday,
     roundTripDriveMinutes,
     recurringDiscountApplies,
     recurringDiscountPct: settings.recurring_discount_pct,
