@@ -32,18 +32,28 @@ export default async function AdminLayout({
 
   const identity = `${profile?.full_name ?? user.email ?? "Admin"} · admin`;
 
-  const attention = await getAttentionCounts();
-  const navBadges: NavBadges = {
-    "/admin/bookings": {
-      count: attention.pendingApprovals,
-      label: "awaiting approval",
-    },
-    "/admin/inquiries": { count: attention.newInquiries, label: "new" },
-  };
+  // Don't await attention counts here — this layout must not block on badge data
+  // so the admin loading.tsx fallback can paint immediately. Instead pass the
+  // un-resolved promise; HeaderAuth and AppShell's BadgesLoader each await it
+  // inside their own Suspense boundaries.
+  const attentionPromise = getAttentionCounts().then((attention) => {
+    const badges: NavBadges = {
+      "/admin/bookings": {
+        count: attention.pendingApprovals,
+        label: "awaiting approval",
+      },
+      "/admin/inquiries": { count: attention.newInquiries, label: "new" },
+    };
+    return badges;
+  });
 
   return (
-    <PageShell zoneNav={adminNav} navBadges={navBadges}>
-      <AppShell nav={adminNav} identity={identity} navBadges={navBadges}>
+    <PageShell zoneNav={adminNav} navBadgesPromise={attentionPromise}>
+      <AppShell
+        nav={adminNav}
+        identity={identity}
+        navBadgesPromise={attentionPromise}
+      >
         {children}
       </AppShell>
     </PageShell>
