@@ -5,7 +5,7 @@ import { MarketingCopy } from "@/components/marketing/marketing-copy";
 export function SiteFooter() {
   return (
     <footer className="bg-card border-border border-t">
-      <div className="mx-auto w-full px-5 py-8 sm:px-8">
+      <div className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-muted-foreground text-sm">
             ©&nbsp;{new Date().getFullYear()}&nbsp;Cal Barba —{" "}
