@@ -4,25 +4,11 @@
  */
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
-import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { createClient } from "@/lib/supabase/server";
 import { listPublishedReviews, type PublishedReview } from "@/features/reviews";
-import { ReviewForm } from "./_components/review-form";
+import { ReviewForm, StarRating } from "./_components/review-form";
 import { MarketingCopy } from "@/components/marketing/marketing-copy";
-
-function StarRating({ rating }: { rating: number }) {
-  return (
-    <span
-      aria-label={`${rating} out of 5 stars`}
-      role="img"
-      className="text-brand-strong"
-    >
-      {"★".repeat(rating)}
-      {"☆".repeat(5 - rating)}
-    </span>
-  );
-}
 
 function ReviewCard({ review }: { review: PublishedReview }) {
   const date = new Date(review.created_at).toLocaleDateString("en-US", {
@@ -31,7 +17,7 @@ function ReviewCard({ review }: { review: PublishedReview }) {
     day: "numeric",
   });
   return (
-    <Card>
+    <div className="bg-card border-border flex flex-col gap-4 rounded-xl border p-5">
       <header className="flex items-start justify-between gap-4">
         <div>
           <p className="font-heading text-foreground font-semibold">
@@ -39,14 +25,14 @@ function ReviewCard({ review }: { review: PublishedReview }) {
           </p>
           <p className="text-muted-foreground text-sm">{date}</p>
         </div>
-        <p className="shrink-0 text-base">
+        <div className="shrink-0">
           <StarRating rating={review.rating} />
-        </p>
+        </div>
       </header>
       <p className="text-muted-foreground text-sm leading-relaxed">
         {review.body}
       </p>
-    </Card>
+    </div>
   );
 }
 
@@ -69,7 +55,7 @@ export default async function ReviewsPage() {
         subtitle={<MarketingCopy id="reviews.purpose" />}
       />
 
-      <section aria-labelledby="reviews-list-heading" className="mb-14">
+      <section aria-labelledby="reviews-list-heading" className="mb-12">
         <h2 id="reviews-list-heading" className="sr-only">
           Published reviews
         </h2>

@@ -26,7 +26,7 @@ function ServiceCard({ service }: { service: PublicService }) {
       href={`/book/${service.slug}`}
       className="focus-visible:ring-ring/50 block h-full rounded-xl outline-none focus-visible:ring-3"
     >
-      <Card className="hover:border-foreground/40 h-full transition-colors">
+      <Card className="hover:border-foreground/40 h-full transition-colors sm:p-5.5">
         <CardHeader>
           <CardTitle className="font-heading">{service.name}</CardTitle>
           <p className="text-brand-strong text-sm font-medium">{rate}</p>

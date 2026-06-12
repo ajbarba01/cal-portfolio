@@ -4,6 +4,7 @@
  */
 import { MarketingHero } from "@/components/marketing/marketing-hero";
 import { MarketingCopy } from "@/components/marketing/marketing-copy";
+import { Eyebrow } from "@/components/marketing/eyebrow";
 import { PageContainer } from "@/components/layout/page-container";
 
 export default function AboutPage() {
@@ -19,10 +20,11 @@ export default function AboutPage() {
 
       {/* Bio — section-alt band */}
       <section aria-labelledby="bio-heading" className="bg-section-alt">
-        <PageContainer className="py-12 sm:py-16">
+        <PageContainer width="read" className="py-12 sm:py-16">
+          <Eyebrow>Background</Eyebrow>
           <h2
             id="bio-heading"
-            className="font-heading mb-3 text-xl font-semibold"
+            className="font-heading mt-2 mb-3 text-xl font-semibold"
           >
             About Me
           </h2>
@@ -45,10 +47,11 @@ export default function AboutPage() {
 
       {/* Approach — background band */}
       <section aria-labelledby="approach-heading" className="bg-background">
-        <PageContainer className="py-12 sm:py-16">
+        <PageContainer width="read" className="py-12 sm:py-16">
+          <Eyebrow>Philosophy</Eyebrow>
           <h2
             id="approach-heading"
-            className="font-heading mb-3 text-xl font-semibold"
+            className="font-heading mt-2 mb-3 text-xl font-semibold"
           >
             My Approach
           </h2>
@@ -68,10 +71,11 @@ export default function AboutPage() {
           permission to publish (2026-06-10). Copy stays in marketing.ts / cal-source.md;
           restore the intro + <ul> here once consent is granted. Placeholder for now. */}
       <section aria-labelledby="references-heading" className="bg-section-alt">
-        <PageContainer className="py-12 sm:py-16">
+        <PageContainer width="read" className="py-12 sm:py-16">
+          <Eyebrow>Testimonials</Eyebrow>
           <h2
             id="references-heading"
-            className="font-heading mb-3 text-xl font-semibold"
+            className="font-heading mt-2 mb-3 text-xl font-semibold"
           >
             References
           </h2>
