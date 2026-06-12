@@ -80,11 +80,15 @@ async function HeaderAuth({
 
   return (
     <>
-      {/* col 1: wordmark — tint depends on role, so lives in the async child */}
-      <Wordmark isAdmin={isAdmin} />
+      {/* col 1: wordmark — tint depends on role, so lives in the async child.
+          Wrapped so the grid cell is explicit (Wordmark's root is a Link that
+          doesn't take placement classes). */}
+      <div className="col-start-1 row-start-1 justify-self-start">
+        <Wordmark isAdmin={isAdmin} />
+      </div>
 
       {/* col 3: desktop auth cluster + mobile drawer */}
-      <div className="col-start-3 flex items-center justify-end">
+      <div className="col-start-3 row-start-1 flex items-center justify-end">
         <div className="hidden lg:block">{authCluster}</div>
         <div className="lg:hidden">
           <SiteNavMobile
@@ -109,7 +113,10 @@ function HeaderAuthSkeleton() {
   return (
     <>
       {/* col 1 — wordmark placeholder: ~same width/height as "Cal Barba" + ears mark */}
-      <div className="flex items-center gap-5" aria-hidden="true">
+      <div
+        className="col-start-1 row-start-1 flex items-center gap-5"
+        aria-hidden="true"
+      >
         {/* ears mark placeholder */}
         <Skeleton className="h-12 w-10 shrink-0" />
         {/* wordmark text placeholder */}
@@ -117,7 +124,7 @@ function HeaderAuthSkeleton() {
       </div>
       {/* col 3 — auth cluster / burger placeholder */}
       <div
-        className="col-start-3 flex items-center justify-end"
+        className="col-start-3 row-start-1 flex items-center justify-end"
         aria-hidden="true"
       >
         {/* desktop: "Sign in" / "Account" width */}
@@ -144,9 +151,11 @@ export function SiteHeader({
     <header className="bg-card border-border border-b">
       <div className="mx-auto w-full max-w-6xl px-5 sm:px-8">
         {/* Three explicit columns: wordmark (col 1) · tabs (col 2) · auth (col 3).
-            Suspense is not a DOM node; its fragment children auto-place into col 1
-            and col 3 respectively. The tab row is pinned to col 2 with col-start-2
-            so ordering in the DOM doesn't affect placement. */}
+            Suspense is not a DOM node; its fragment children are direct grid items.
+            Every cell is pinned with explicit col-start-* + row-start-1 — relying on
+            auto-placement breaks here because the grid cursor is forward-only: once
+            the auth cluster claims col 3, a later DOM sibling targeting col 2 wraps
+            to row 2. */}
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 py-6">
           <Suspense fallback={<HeaderAuthSkeleton />}>
             <HeaderAuth zoneNav={zoneNav} navBadgesPromise={navBadgesPromise} />
@@ -155,7 +164,7 @@ export function SiteHeader({
           {/* Tab row + auth cluster need ~762px; at md (768) only ~689px is
               available inside the container padding, so the desktop layout
               starts at lg — the burger covers 768–1023. */}
-          <div className="col-start-2 hidden justify-self-center lg:block">
+          <div className="col-start-2 row-start-1 hidden justify-self-center lg:block">
             <SiteNavTabs links={navLinks} />
           </div>
         </div>
