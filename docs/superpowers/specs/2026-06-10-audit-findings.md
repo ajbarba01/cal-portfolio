@@ -45,13 +45,16 @@ Surfaced by the SP3a fresh-session `/code-review`. All were **pre-existing dupli
 - **SP4 payment-action polish** landed in client-detail: payment-status pills, retained-half line, dispute marker (`disputed_at`/`dispute_status`) + Stripe deep-link.
 - **No-show removed from all admin UI** + the No-Show Charge % settings control + `markNoShow` unwired (backend rip-out deferred to the debt spec).
 
-Remaining open SP5 findings (AD1 re-routed, AD4 deferred, AD5 → SP5b):
+**SP5b (awareness layer) DONE 2026-06-11 — AD5 resolved.**
 
-| ID  | Sev | Finding                                                                                                                                                                                                                                                                                                                                                                      |
-| --- | --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| AD1 | M   | Series-roll conflicts are flagged in cron output only — no admin surface lists "occurrences left pending due to conflict" (DEV_NOTES owed item). Cal can't see or resolve them.                                                                                                                                                                                              |
-| AD4 | M   | Cancel-with-reason: no reason field on admin/client cancel; reason should flow into the cancellation email (with booking-mutation P3).                                                                                                                                                                                                                                       |
-| AD5 | m   | No admin notification badges (wordmark/tabs) for pending approvals / new inquiries / flagged conflicts — "what needs Cal's attention now" surface missing (ties SP3 nav). **Primitive-ready (SP3b):** shipped the `NavBadge` primitive + the typed `AttentionCounts` seam (`{pendingApprovals,newInquiries,flaggedConflicts}`); SP5 wires the real counts + final placement. |
+- **AD5 resolved** — real `AttentionCounts` wired via `getAttentionCounts()` (pure `computeAttentionCounts` reducer + thin server fetch); the `NavBadge` primitive mounted on Bookings (`pendingApprovals`) + Inquiries (`newInquiries`) in both the desktop sidebar and the mobile drawer (gold `--attention`, renders nothing at 0, numeric badge `aria-hidden` + `sr-only` count/meaning). `flaggedConflicts` stays 0 (AD1 re-routed). The dashboard's 5 stat cards were replaced by an attention task-list (rows link to filtered hub views) + a read-only "Today" booking timeline.
+
+Remaining open SP5 findings (AD1 re-routed, AD4 deferred):
+
+| ID  | Sev | Finding                                                                                                                                                                         |
+| --- | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| AD1 | M   | Series-roll conflicts are flagged in cron output only — no admin surface lists "occurrences left pending due to conflict" (DEV_NOTES owed item). Cal can't see or resolve them. |
+| AD4 | M   | Cancel-with-reason: no reason field on admin/client cancel; reason should flow into the cancellation email (with booking-mutation P3).                                          |
 
 Admin-powers inventory: all 17 expected powers exist in code with UI (approve/decline, cancel, no-show, refund grant, debt view/settle, create-on-behalf, edit-any, reschedule, windows, overnight nights, services CRUD, full settings, onboarding status, Kiche toggle, reviews moderation, inquiries, ban-via-declined). Gaps = AD1 (conflict UI), AD4 (reason), AD3 (friendliness, not capability). Ban-from-meet-greets needs no dedicated surface — `declined` covers it (maintainer decision 2026-06-10).
 
@@ -113,7 +116,8 @@ Spec + plans committed ([spec](2026-06-11-sp5-admin-design.md), [SP5a plan](../p
 - S1 resolved by SP2 (db seeding framework), 2026-06-10.
 - A1, A3, A4, A5, A6, A7, A8, A9, A10, A11 resolved by SP3a (codebase structure), 2026-06-10.
 - A2, A12, A13, A14, A16 resolved by SP3b (system IA + UI primitives), 2026-06-10. U3 resolved; U7/AD5 primitives built (sitewide application + count wiring remain SP6/SP5). A15 → SP7.
-- AD2, AD3 resolved + AD7 confirmed by SP5a (admin operational surfaces), 2026-06-11; SP4 payment-polish surfaced + no-show stripped from UI. AD1 re-routed (recurring rework), AD4 deferred (debt spec), AD5 → SP5b.
+- AD2, AD3 resolved + AD7 confirmed by SP5a (admin operational surfaces), 2026-06-11; SP4 payment-polish surfaced + no-show stripped from UI. AD1 re-routed (recurring rework), AD4 deferred (debt spec).
+- AD5 resolved by SP5b (admin awareness layer), 2026-06-11 — real `AttentionCounts` nav badges (Bookings + Inquiries, both nav paths) + attention-list/today-timeline dashboard. `flaggedConflicts` stays 0 (AD1 re-routed).
 
 ---
 
