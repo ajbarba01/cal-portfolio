@@ -88,7 +88,12 @@ export default function LoginPage() {
               </p>
             )}
 
-            <Button type="submit" disabled={isLoading} className="mt-2 w-full">
+            <Button
+              type="submit"
+              variant="brand"
+              disabled={isLoading}
+              className="mt-2 w-full"
+            >
               {isLoading ? "Signing in…" : "Sign in"}
             </Button>
           </form>

@@ -106,7 +106,12 @@ export function ProfileForm({ initialValues }: ProfileFormProps) {
       )}
 
       <div className="flex items-center gap-3">
-        <Button type="submit" disabled={isPending} className="self-start">
+        <Button
+          type="submit"
+          variant="brand"
+          disabled={isPending}
+          className="self-start"
+        >
           {isPending ? "Saving…" : "Save changes"}
         </Button>
         {status === "success" && (

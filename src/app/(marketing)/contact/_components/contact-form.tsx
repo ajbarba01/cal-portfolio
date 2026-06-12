@@ -6,6 +6,7 @@ import { useToast } from "@/components/feedback/toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { submitInquiry } from "@/features/inquiries";
 
 export function ContactForm({
@@ -94,13 +95,7 @@ export function ContactForm({
       </div>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="message">Message</Label>
-        <textarea
-          id="message"
-          name="message"
-          required
-          rows={5}
-          className="border-input bg-background focus-visible:ring-ring rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:outline-none"
-        />
+        <Textarea id="message" name="message" required rows={5} />
       </div>
       <div
         aria-hidden
@@ -115,7 +110,12 @@ export function ContactForm({
           autoComplete="off"
         />
       </div>
-      <Button type="submit" disabled={isPending} className="self-start">
+      <Button
+        type="submit"
+        variant="brand"
+        disabled={isPending}
+        className="self-start"
+      >
         {isPending ? "Sending..." : "Send message"}
       </Button>
     </form>

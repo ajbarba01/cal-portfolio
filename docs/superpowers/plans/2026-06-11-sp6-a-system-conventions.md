@@ -83,10 +83,10 @@ const widths = {
 
 **Files:** Create `src/components/ui/textarea.tsx`; modify `docs/FRONTEND.md`; modify the submit buttons in `src/app/(auth)/login/page.tsx` + `src/app/(auth)/signup/page.tsx` (+ their form components) and `src/app/(marketing)/contact/_components/contact-form.tsx`.
 
-- [ ] **Step 1:** Create `Textarea` mirroring `src/components/ui/input.tsx` styling exactly (same border/bg/focus classes, `data-slot="textarea"`, `min-h` + `resize-y`). Replace the hand-rolled `<textarea>` in `contact-form.tsx` with it.
-- [ ] **Step 2:** Button hierarchy (system-preview contract): switch the login/signup/contact submit buttons from the near-black default to `variant="brand"`. Grep for other form submits using the default variant in `(auth)`/`(marketing)`/`(account)` and switch any found — the rule: **brand = THE action of a surface (one per view); outline = secondary; ghost = tertiary; destructive behind `useConfirm`; near-black `primary` only for neutral chrome.**
-- [ ] **Step 3:** Document the button rule + form-on-card recipe (`bg-card` + border + `rounded-2xl` card; inputs `bg-background` + `border-input` + clay focus ring) in `docs/FRONTEND.md` — same commit.
-- [ ] **Step 4:** Visual check login/signup/contact; typecheck + lint, commit: `feat: unify form action buttons and add textarea primitive`
+- [x] **Step 1:** Create `Textarea` mirroring `src/components/ui/input.tsx` styling exactly (same border/bg/focus classes, `data-slot="textarea"`, `min-h` + `resize-y`). Replace the hand-rolled `<textarea>` in `contact-form.tsx` with it.
+- [x] **Step 2:** Button hierarchy (system-preview contract): switch the login/signup/contact submit buttons from the near-black default to `variant="brand"`. Grep for other form submits using the default variant in `(auth)`/`(marketing)`/`(account)` and switch any found — the rule: **brand = THE action of a surface (one per view); outline = secondary; ghost = tertiary; destructive behind `useConfirm`; near-black `primary` only for neutral chrome.**
+- [x] **Step 3:** Document the button rule + form-on-card recipe (`bg-card` + border + `rounded-2xl` card; inputs `bg-background` + `border-input` + clay focus ring) in `docs/FRONTEND.md` — same commit.
+- [x] **Step 4:** Visual check login/signup/contact; typecheck + lint, commit: `feat: unify form action buttons and add textarea primitive`
 
 ## Task 6: Visible loading — zone skeletons + header Suspense (P3-lite)
 
@@ -178,3 +178,7 @@ const widths = {
 **Verification:** 5 pages × 390/768/800/834/1024 — scrollWidth = clientWidth, overflow = false on all 25. `npm run typecheck` + `npm run lint` — 0 errors (3 pre-existing scheduler warnings unchanged).
 **Maintainer-reported follow-up (same day):** below `lg` the burger floated near header center. Root cause: with the tabs wrapper `display:none` it stops being a grid item, so the right cluster auto-placed into the centered `auto` column of `grid-cols-[1fr_auto_1fr]`; fix = `col-start-3` on the right cluster. Flaw predated Task 1 (existed below 768 with the old `md:` classes); the `md:`→`lg:` move only widened the visible band to 768–1023.
 **Re-verify:** `/` at 390/600/768/1000/1024/1440 — cluster right edge == container content edge exactly at all six; scrollWidth == clientWidth everywhere.
+
+### Task 5 — shared account-component submits deferred to Plan B (2026-06-12)
+
+Sweep found two primary submits still on the default Button variant: `src/features/accounts/_components/form-card.tsx` and `src/features/accounts/_components/pet-form.tsx`. Both are account-zone primaries but are shared with the admin client-detail surface (SP5a), so per the task scope note they were left untouched. Plan B's surface sweep should switch them to `brand` per the hierarchy rule. Also noted: `src/app/(onboarding)/onboarding/_components/info-step.tsx` has a default-variant primary submit — `(onboarding)` is outside this task's zone list; include it in the Plan B sweep.
