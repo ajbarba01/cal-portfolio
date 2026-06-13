@@ -283,6 +283,51 @@ describe("createBookingMutation", () => {
     expect(result.kind).toBe("slot_taken");
   });
 
+  it("passes comments to insertBookings when provided", async () => {
+    const repo = makeRepo({ insertReturns: ["bk-comments"] });
+    const result = await createBookingMutation(
+      {
+        repo,
+        notifier: makeNotifier(),
+        loadConfirmationRow: stubLoadRow,
+        now: NOW,
+      },
+      {
+        ...BASE_INPUT,
+        userId: USER_ID,
+        userEmail: USER_EMAIL,
+        comments: "Please use the side door.",
+      },
+    );
+
+    expect(result.kind).toBe("success");
+    const insertedRows = (repo.insertBookings as ReturnType<typeof vi.fn>).mock
+      .calls[0][0] as Array<{ comments: string | null }>;
+    expect(insertedRows[0].comments).toBe("Please use the side door.");
+  });
+
+  it("passes null comments to insertBookings when comments not provided", async () => {
+    const repo = makeRepo({ insertReturns: ["bk-no-comments"] });
+    const result = await createBookingMutation(
+      {
+        repo,
+        notifier: makeNotifier(),
+        loadConfirmationRow: stubLoadRow,
+        now: NOW,
+      },
+      {
+        ...BASE_INPUT,
+        userId: USER_ID,
+        userEmail: USER_EMAIL,
+      },
+    );
+
+    expect(result.kind).toBe("success");
+    const insertedRows = (repo.insertBookings as ReturnType<typeof vi.fn>).mock
+      .calls[0][0] as Array<{ comments: string | null }>;
+    expect(insertedRows[0].comments).toBeNull();
+  });
+
   it("returns refuse when the core refuses (e.g. too far)", async () => {
     // Repo returns a profile beyond the hard cutoff (refuse > 50 mi)
     const refuseRepo = makeRepo();

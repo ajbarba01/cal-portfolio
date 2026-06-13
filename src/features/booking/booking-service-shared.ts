@@ -132,6 +132,8 @@ export const createBookingInputSchema = z
     petIds: z.array(z.string().uuid()).optional(),
     /** Weekly recurrence rule. MVP UI exposes weekly only; daily/monthly accepted for future use. */
     recurringRule: recurrenceRuleSchema.nullable(),
+    /** Optional freeform note from the client, surfaced to Cal. Max 2000 chars. */
+    comments: z.string().trim().max(2000).optional(),
   })
   .refine((d) => d.endsAt > d.startsAt, {
     message: "endsAt must be after startsAt",

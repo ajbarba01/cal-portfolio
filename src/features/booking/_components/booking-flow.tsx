@@ -119,8 +119,10 @@ export interface BookingFlowProps {
   petSection?: ReactNode;
   /** Step 3 — quantities/details block. */
   detailsSection?: ReactNode;
-  /** Step 4 — recurring controls (public/admin) or notes (edit). */
+  /** Step 4 — recurring controls (public/admin) or the single notes card (edit). */
   extraSection?: ReactNode;
+  /** Step 5 — notes for Cal on create paths (public + admin); separate card from extraSection. Edit uses extraSection for notes instead. */
+  notesSection?: ReactNode;
   /** The gated price receipt + primary CTA block. */
   receipt: ReactNode;
   /**
@@ -182,16 +184,26 @@ function CalendarStepHead({ mode }: { mode: BookingMode }) {
 
 function LeadTimeNote({
   minLeadTimeHours,
+  bookingOpenMinute,
   now,
 }: {
   minLeadTimeHours: number;
+  /** Minutes-since-midnight (Denver) when the booking day opens. Used to align
+   * the note's "first bookable day" with the calendar's day-state anchor: a day
+   * is open when dayStart + bookingOpenMinute >= now + leadTime, so the first
+   * open day starts at now + leadTime - bookingOpenMinute. */
+  bookingOpenMinute: number;
   now: Date;
 }) {
   if (minLeadTimeHours <= 0) return null;
 
-  // First bookable calendar day = ceil(now + leadTimeHours) to next full day.
-  const firstBookableMs = now.getTime() + minLeadTimeHours * 60 * 60 * 1000;
-  const firstBookable = new Date(firstBookableMs);
+  // Align with hourlyAvailableDayKeys / deriveBookableDays: a day is open when
+  // dayStart + bookingOpenMinute*60000 >= now + leadTimeMs.
+  // The first open day therefore starts at now + leadTimeMs - bookingOpenMinute*60000.
+  const leadTimeMs = minLeadTimeHours * 60 * 60 * 1000;
+  const firstBookable = new Date(
+    now.getTime() + leadTimeMs - bookingOpenMinute * 60 * 1000,
+  );
   // Format as "Mon, Jan 1" — short human-readable date.
   const formatted = firstBookable.toLocaleDateString("en-US", {
     timeZone: "America/Denver",
@@ -321,6 +333,7 @@ export function BookingFlow({
   petSection,
   detailsSection,
   extraSection,
+  notesSection,
   receipt,
   rules,
 }: BookingFlowProps) {
@@ -369,6 +382,7 @@ export function BookingFlow({
               {rules && (
                 <LeadTimeNote
                   minLeadTimeHours={rules.minLeadTimeHours ?? 0}
+                  bookingOpenMinute={rules.bookingOpenMinute ?? 0}
                   now={schedulerData.now}
                 />
               )}
@@ -408,6 +422,7 @@ export function BookingFlow({
                 {rules && (
                   <LeadTimeNote
                     minLeadTimeHours={rules.minLeadTimeHours ?? 0}
+                    bookingOpenMinute={rules.bookingOpenMinute ?? 0}
                     now={schedulerData.now}
                   />
                 )}
@@ -430,6 +445,7 @@ export function BookingFlow({
       {petSection && <StepShell>{petSection}</StepShell>}
       {detailsSection && <StepShell>{detailsSection}</StepShell>}
       {extraSection && <StepShell>{extraSection}</StepShell>}
+      {notesSection && <StepShell>{notesSection}</StepShell>}
 
       {/* Summary + receipt card — inline after the steps (no side receipt).
           Owns: existing receipt slot (quote panel / gate panels / CTA) and the

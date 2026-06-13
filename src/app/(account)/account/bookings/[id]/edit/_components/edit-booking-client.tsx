@@ -16,6 +16,7 @@
  * thin wiring layer. See use-edit-booking.ts for full logic documentation.
  */
 
+import { Lock } from "lucide-react";
 import {
   BookingFlow,
   BookingFlowStepHead,
@@ -23,6 +24,7 @@ import {
   QuantityForm,
   QuotePanel,
 } from "@/features/booking/index.client";
+import { Textarea } from "@/components/ui/textarea";
 import type {
   BookingRuleSettings,
   PublicBusyRange,
@@ -164,9 +166,9 @@ export function EditBookingClient({
             />
             {admin?.paidLock ? (
               <p className="text-muted-foreground border-border bg-muted/30 rounded-lg border p-3 text-sm">
-                <span aria-hidden="true">🔒</span> This booking is paid — pets
-                and price can&apos;t change here. Manage price in Payments
-                (coming soon).
+                <Lock className="inline size-3.5" aria-hidden /> This booking is
+                paid — pets and price can&apos;t change here. Manage price in
+                Payments (coming soon).
               </p>
             ) : (
               <PetAssignment
@@ -192,7 +194,7 @@ export function EditBookingClient({
           </section>
         )
       }
-      extraSection={
+      notesSection={
         <section aria-labelledby="comments-heading">
           <BookingFlowStepHead
             num={step4Label}
@@ -203,13 +205,12 @@ export function EditBookingClient({
           <label htmlFor="edit-comments" className="sr-only">
             Notes for Cal
           </label>
-          <textarea
+          <Textarea
             id="edit-comments"
             value={comments}
             onChange={(e) => onCommentsChange(e.target.value)}
             rows={3}
             placeholder="Anything Cal should know about this visit?"
-            className="border-border bg-card text-foreground placeholder:text-muted-foreground focus-visible:ring-ring w-full resize-y rounded-lg border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:outline-none"
           />
         </section>
       }

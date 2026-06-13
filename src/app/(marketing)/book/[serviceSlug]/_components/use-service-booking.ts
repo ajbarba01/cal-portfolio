@@ -126,16 +126,18 @@ export interface UseServiceBookingReturn {
   /** Resets all booking state so the user can book again ("Book another"). */
   resetFlow: () => void;
 
-  // Quantities / pets / recurring (for controlled inputs)
+  // Quantities / pets / recurring / comments (for controlled inputs)
   quantities: QuantityState;
   selectedPetIds: string[];
   recurringOn: boolean;
   occurrenceCount: number;
+  comments: string;
 
   // Step labels
   step2Label: string;
   step3Label: string;
   step4Label: string;
+  step5Label: string;
 
   // Event handlers
   onSelectionChange: (state: ScheduleSelectionState) => void;
@@ -145,6 +147,7 @@ export interface UseServiceBookingReturn {
   onPetIdsChange: (ids: string[]) => void;
   onRecurringOnChange: (on: boolean) => void;
   onOccurrenceCountChange: (n: number) => void;
+  onCommentsChange: (v: string) => void;
 }
 
 // ── Hook ─────────────────────────────────────────────────────────────────────
@@ -198,6 +201,7 @@ export function useServiceBooking({
 
   // ── Wrapper-owned quote-state ──────────────────────────────────────────────
   const [quote, setQuote] = useState<BookingQuotePreview | null>(null);
+  const [comments, setComments] = useState("");
   const [previewMsg, setPreviewMsg] = useState<UserMessage | null>(null);
   const [formsIncomplete, setFormsIncomplete] = useState(false);
   // U1: success snapshot — non-null is the flow's terminal state.
@@ -316,7 +320,11 @@ export function useServiceBooking({
 
     // Submit — mid-session onboarding_incomplete routes to /onboarding.
     startSubmitting(async () => {
-      const result = await createBooking(buildSelectionInput());
+      const selInput = buildSelectionInput();
+      const result = await createBooking({
+        ...selInput,
+        comments: comments.trim() || undefined,
+      });
       if (result.kind === "onboarding_incomplete") {
         router.push("/onboarding");
         return;
@@ -356,6 +364,7 @@ export function useServiceBooking({
     setPreviewMsg(null);
     setFormsIncomplete(false);
     setSuccess(null);
+    setComments("");
   }
 
   function handlePetAdded(pet: Pet) {
@@ -391,6 +400,11 @@ export function useServiceBooking({
   const step2Label = "2";
   const step3Label = petAware ? "3" : "2";
   const step4Label = petAware ? "4" : "3";
+  const step5Label = petAware ? "5" : "4";
+
+  function onCommentsChange(v: string) {
+    setComments(v);
+  }
 
   return {
     mode,
@@ -421,9 +435,11 @@ export function useServiceBooking({
     selectedPetIds,
     recurringOn,
     occurrenceCount,
+    comments,
     step2Label,
     step3Label,
     step4Label,
+    step5Label,
     onSelectionChange,
     handleBook,
     handlePetAdded,
@@ -431,5 +447,6 @@ export function useServiceBooking({
     onPetIdsChange,
     onRecurringOnChange,
     onOccurrenceCountChange,
+    onCommentsChange,
   };
 }
