@@ -15,7 +15,12 @@ import type { PricingType } from "@/features/pricing";
 export interface HouseSittingExtras {
   cantBeLeftAloneDays: number;
   walkMinutesPerDay: number;
-  holidayDays: number;
+  /**
+   * @deprecated Server-derived from booking dates + settings.holiday_dates.
+   * Kept in the type for back-compat with stored quote_inputs. The UI no longer
+   * collects this — the server overrides any client-supplied value.
+   */
+  holidayDays?: number;
 }
 
 export interface HoursQty {
@@ -34,7 +39,7 @@ export function defaultQuantities(pricingType: PricingType): QuantityState {
     case "house_sitting":
       return {
         type: "house_sitting",
-        qty: { cantBeLeftAloneDays: 0, walkMinutesPerDay: 0, holidayDays: 0 },
+        qty: { cantBeLeftAloneDays: 0, walkMinutesPerDay: 0 },
       };
     case "check_in":
       return { type: "check_in", qty: { hours: 1 } };
@@ -63,7 +68,7 @@ export function quantitiesToRecord(
         rec.cantBeLeftAloneDays = qs.qty.cantBeLeftAloneDays;
       if (qs.qty.walkMinutesPerDay > 0)
         rec.walkMinutesPerDay = qs.qty.walkMinutesPerDay;
-      if (qs.qty.holidayDays > 0) rec.holidayDays = qs.qty.holidayDays;
+      // holidayDays intentionally omitted — server derives from dates.
       return rec;
     }
     case "check_in":
@@ -136,7 +141,7 @@ export function QuantityForm({
     const set = (patch: Partial<HouseSittingExtras>) =>
       onChange({ type: "house_sitting", qty: { ...qty, ...patch } });
     return (
-      <fieldset className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <fieldset className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <legend className="col-span-full mb-2 text-sm font-medium">
           Stay add-ons
         </legend>
@@ -158,14 +163,8 @@ export function QuantityForm({
           unit="min"
           onChange={(v) => set({ walkMinutesPerDay: v })}
         />
-        <StepperField
-          id="hs-holiday"
-          label="Premium days"
-          value={qty.holidayDays}
-          min={0}
-          unit="days"
-          onChange={(v) => set({ holidayDays: Math.round(v) })}
-        />
+        {/* Premium days (holiday surcharge) are server-derived from booking
+            dates + admin-configured premium day settings — no manual input. */}
       </fieldset>
     );
   }

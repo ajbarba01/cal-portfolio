@@ -23,7 +23,7 @@ export function quantityStateFromQuoteInputs(
         qty: {
           cantBeLeftAloneDays: num(q.cantBeLeftAloneDays, 0),
           walkMinutesPerDay: num(q.walkMinutesPerDay, 0),
-          holidayDays: num(q.holidayDays, 0),
+          // holidayDays omitted — server-derived; not seeded into the edit form.
         },
       };
     case "check_in":

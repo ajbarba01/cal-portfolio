@@ -89,6 +89,7 @@ const SETTINGS = {
   cancellation_full_refund_hours: 48,
   late_cancel_refund_pct: 50,
   no_show_charge_pct: 100,
+  holiday_dates: [],
 };
 
 describe("editBookingCore", () => {
