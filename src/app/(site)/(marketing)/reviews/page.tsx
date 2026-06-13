@@ -6,7 +6,7 @@ import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
 import { Reveal, RevealGroup } from "@/components/effects/reveal";
 import { EmptyState } from "@/components/feedback/empty-state";
-import { createClient } from "@/lib/supabase/server";
+import { createStaticClient } from "@/lib/supabase/static";
 import { listPublishedReviews, type PublishedReview } from "@/features/reviews";
 import { ReviewForm, StarRating } from "./_components/review-form";
 import { MarketingCopy } from "@/components/marketing/marketing-copy";
@@ -37,17 +37,14 @@ function ReviewCard({ review }: { review: PublishedReview }) {
   );
 }
 
+// Static with daily ISR; new/moderated reviews reflect immediately via
+// revalidatePath("/reviews") in submitReview / moderateReview. The "leave a
+// review" control resolves auth browser-side inside ReviewForm, so this page
+// reads no cookies.
+export const revalidate = 86400;
+
 export default async function ReviewsPage() {
-  const supabase = await createClient();
-  const [
-    reviews,
-    {
-      data: { user },
-    },
-  ] = await Promise.all([
-    listPublishedReviews(supabase),
-    supabase.auth.getUser(),
-  ]);
+  const reviews = await listPublishedReviews(createStaticClient());
 
   return (
     <PageContainer width="read" className="py-12 sm:py-16">
@@ -93,7 +90,7 @@ export default async function ReviewsPage() {
           Leave a review
         </Reveal>
         <Reveal>
-          <ReviewForm isSignedIn={user !== null} />
+          <ReviewForm />
         </Reveal>
       </RevealGroup>
     </PageContainer>

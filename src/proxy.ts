@@ -6,11 +6,19 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
+  // Only routes that read/refresh the auth session. Public static/ISR pages are
+  // intentionally excluded so they can prerender without invoking middleware.
+  // `/book/*` and `/contact` MUST stay: they read auth via the cookie-bound
+  // server client whose `setAll` is a no-op in RSC — without middleware,
+  // expired-token visits lose rotated refresh tokens → spurious logout.
   matcher: [
-    /*
-     * Run on all paths except Next.js internals and static assets. Extend the asset list
-     * as needed so the session refresh doesn't run on files that don't need it.
-     */
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/account/:path*",
+    "/admin/:path*",
+    "/onboarding",
+    "/login",
+    "/signup",
+    "/auth/:path*",
+    "/book/:path*",
+    "/contact",
   ],
 };

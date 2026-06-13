@@ -5,24 +5,51 @@
  * Submission requires auth — submitReview returns { ok: false } for anon.
  */
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { createClient } from "@/lib/supabase/client";
 import { submitReview } from "@/features/reviews";
 
-interface ReviewFormProps {
-  /** Pass false when the server knows the user is signed out — shows a sign-in prompt instead of the form. */
-  isSignedIn: boolean;
-}
-
-export function ReviewForm({ isSignedIn }: ReviewFormProps) {
+export function ReviewForm() {
+  // Auth resolves browser-side so this page (and /reviews) can render statically.
+  // null = unresolved; render nothing until known to avoid a wrong-state flash.
+  const [isSignedIn, setIsSignedIn] = useState<boolean | null>(null);
   const [rating, setRating] = useState<number>(5);
   const [body, setBody] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    const supabase = createClient();
+    let active = true;
+    // getSession() is the local cookie read (no network on HS256).
+    supabase.auth.getSession().then(({ data }) => {
+      if (active) setIsSignedIn(data.session !== null);
+    });
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (active) setIsSignedIn(session !== null);
+    });
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  if (isSignedIn === null) {
+    // Unresolved — reserve the card height so the layout doesn't jump.
+    return (
+      <div
+        aria-hidden="true"
+        className="bg-card border-border rounded-2xl border p-6 shadow-sm sm:p-8"
+      />
+    );
+  }
 
   if (!isSignedIn) {
     return (

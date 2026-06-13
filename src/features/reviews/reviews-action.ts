@@ -8,6 +8,7 @@
  * moderate reactively. Identity comes from getUser(), never from payload.
  */
 
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { submitReviewSchema, type SubmitReviewInput } from "./reviews-schema";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -80,5 +81,9 @@ export async function submitReview(
   input: SubmitReviewInput,
 ): Promise<ReviewSubmitResult> {
   const supabase = await createClient();
-  return runSubmitReview(supabase, input);
+  const result = await runSubmitReview(supabase, input);
+  // Reviews auto-publish and the form says "your review is live" — refresh the
+  // static public reviews page so the new review appears.
+  if (result.ok) revalidatePath("/reviews");
+  return result;
 }

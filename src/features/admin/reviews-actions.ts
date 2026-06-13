@@ -164,6 +164,10 @@ export async function moderateReview(input: {
     { serviceClient, actorUserId },
     input,
   );
-  if (result.kind === "success") revalidatePath("/admin/reviews");
+  if (result.kind === "success") {
+    revalidatePath("/admin/reviews");
+    // The public reviews page is static — refresh it after moderation.
+    revalidatePath("/reviews");
+  }
   return result;
 }
