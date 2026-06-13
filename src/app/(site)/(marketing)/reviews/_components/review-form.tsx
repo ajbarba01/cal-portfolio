@@ -7,7 +7,6 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,7 +18,7 @@ interface ReviewFormProps {
 }
 
 export function ReviewForm({ isSignedIn }: ReviewFormProps) {
-  const [rating, setRating] = useState<string>("5");
+  const [rating, setRating] = useState<number>(5);
   const [body, setBody] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
@@ -55,10 +54,8 @@ export function ReviewForm({ isSignedIn }: ReviewFormProps) {
     e.preventDefault();
     setError(null);
 
-    const ratingNum = parseInt(rating, 10);
-
     startTransition(async () => {
-      const result = await submitReview({ rating: ratingNum, body });
+      const result = await submitReview({ rating, body });
       if (result.ok) {
         setSubmitted(true);
       } else {
@@ -71,20 +68,14 @@ export function ReviewForm({ isSignedIn }: ReviewFormProps) {
     <div className="bg-card border-border rounded-2xl border p-6 shadow-sm sm:p-8">
       <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="review-rating">Rating</Label>
-          <select
-            id="review-rating"
-            name="rating"
+          <span id="review-rating-label" className="text-sm font-medium">
+            Rating
+          </span>
+          <StarRatingInput
             value={rating}
-            onChange={(e) => setRating(e.target.value)}
-            className="bg-background text-foreground border-border w-36 rounded-md border px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-2"
-          >
-            <option value="5">5 stars</option>
-            <option value="4">4 stars</option>
-            <option value="3">3 stars</option>
-            <option value="2">2 stars</option>
-            <option value="1">1 star</option>
-          </select>
+            onChange={setRating}
+            labelledBy="review-rating-label"
+          />
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -126,6 +117,105 @@ export function ReviewForm({ isSignedIn }: ReviewFormProps) {
 }
 
 /**
+ * Sharp-pointed star icon (miter joins, no rounded vertices).
+ * `filled` paints the body in the current text color; otherwise outline only.
+ */
+function SharpStar({
+  filled,
+  className,
+}: {
+  filled: boolean;
+  className?: string;
+}) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="miter"
+      fill={filled ? "currentColor" : "none"}
+      className={className}
+    >
+      <path d="M12 2.5 14.9 9.1 22 9.6 16.6 14.3 18.3 21.2 12 17.5 5.7 21.2 7.4 14.3 2 9.6 9.1 9.1 Z" />
+    </svg>
+  );
+}
+
+/**
+ * Accessible interactive star rating input.
+ * Radio-group semantics: arrow keys move selection, each star is a radio.
+ * Committed rating shows as solid fill; hovering previews the run as outlines,
+ * so the selected value stays distinct from what's merely under the cursor.
+ */
+function StarRatingInput({
+  value,
+  onChange,
+  labelledBy,
+}: {
+  value: number;
+  onChange: (rating: number) => void;
+  labelledBy: string;
+}) {
+  const [hover, setHover] = useState<number | null>(null);
+  const previewing = hover !== null;
+  const active = hover ?? value;
+
+  return (
+    <div
+      role="radiogroup"
+      aria-labelledby={labelledBy}
+      className="inline-flex items-center gap-1.5"
+      onMouseLeave={() => setHover(null)}
+    >
+      {Array.from({ length: 5 }, (_, i) => {
+        const starValue = i + 1;
+        const within = starValue <= active;
+        // Direction A: solid = committed, outline = hover preview.
+        const filled = within && !previewing;
+        return (
+          <button
+            key={starValue}
+            type="button"
+            role="radio"
+            aria-checked={value === starValue}
+            aria-label={`${starValue} ${starValue === 1 ? "star" : "stars"}`}
+            tabIndex={value === starValue ? 0 : -1}
+            onClick={() => {
+              onChange(starValue);
+              setHover(null);
+            }}
+            onMouseEnter={() => setHover(starValue)}
+            onFocus={() => setHover(starValue)}
+            onBlur={() => setHover(null)}
+            onKeyDown={(e) => {
+              if (e.key === "ArrowRight" || e.key === "ArrowUp") {
+                e.preventDefault();
+                onChange(Math.min(5, value + 1));
+              } else if (e.key === "ArrowLeft" || e.key === "ArrowDown") {
+                e.preventDefault();
+                onChange(Math.max(1, value - 1));
+              }
+            }}
+            className="rounded-sm p-0.5 transition-transform hover:scale-110 focus-visible:outline-2 focus-visible:outline-offset-2"
+          >
+            <SharpStar
+              filled={filled}
+              className={
+                within
+                  ? "text-brand-strong size-7"
+                  : "text-muted-foreground size-7"
+              }
+            />
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
  * Accessible star rating display.
  * Icons are aria-hidden; the group carries the accessible label.
  */
@@ -137,15 +227,14 @@ export function StarRating({ rating }: { rating: number }) {
       className="inline-flex items-center gap-0.5"
     >
       {Array.from({ length: 5 }, (_, i) => (
-        <Star
+        <SharpStar
           key={i}
-          aria-hidden="true"
+          filled={i < rating}
           className={
             i < rating
-              ? "text-brand-strong size-4 fill-current"
+              ? "text-brand-strong size-4"
               : "text-muted-foreground size-4"
           }
-          strokeWidth={1.5}
         />
       ))}
     </span>
