@@ -42,8 +42,30 @@ export default async function EditBookingPage({
   const booking = await repo.getBookingForEdit(id);
   if (!booking || booking.client_id !== user.id) redirect("/account/bookings");
 
-  // Editability guard.
-  const settings = await repo.getSettings();
+  // All render inputs are independent given the booking — fetch in parallel.
+  const [
+    settings,
+    { data: serviceRow },
+    { data: feeRow },
+    loaded,
+    { data: petRows },
+  ] = await Promise.all([
+    repo.getSettings(),
+    svc
+      .from("services")
+      .select("id, slug, name, description, pricing_type, default_duration_min")
+      .eq("slug", booking.service_slug)
+      .single(),
+    svc.from("bookings").select("final_cents").eq("id", id).single(),
+    loadBookingFormData(booking.service_slug),
+    svc
+      .from("pets")
+      .select("id, name, species, breed, notes, photo_url")
+      .eq("client_id", user.id)
+      .order("created_at", { ascending: true }),
+  ]);
+
+  // Editability guard (needs settings).
   const editability = clientCanEditBooking(
     {
       status: booking.status,
@@ -55,13 +77,6 @@ export default async function EditBookingPage({
     settings.cancellation_full_refund_hours,
   );
   if (!editability.editable) redirect("/account/bookings");
-
-  // Service detail.
-  const { data: serviceRow } = await svc
-    .from("services")
-    .select("id, slug, name, description, pricing_type, default_duration_min")
-    .eq("slug", booking.service_slug)
-    .single();
 
   if (!serviceRow) redirect("/account/bookings");
 
@@ -80,15 +95,9 @@ export default async function EditBookingPage({
   };
 
   // Prior final_cents (getBookingForEdit does not return it).
-  const { data: feeRow } = await svc
-    .from("bookings")
-    .select("final_cents")
-    .eq("id", id)
-    .single();
   const priorFinalCents: number = (feeRow?.final_cents as number | null) ?? 0;
 
   // Booking-rule settings + initial public busy ranges.
-  const loaded = await loadBookingFormData(booking.service_slug);
   if (!loaded.ok) {
     return (
       <main className="mx-auto max-w-2xl px-4 py-12">
@@ -100,13 +109,7 @@ export default async function EditBookingPage({
   }
   const { rules, initialBusy } = loaded.data;
 
-  // Client's pets with signed photo URLs.
-  const { data: petRows } = await svc
-    .from("pets")
-    .select("id, name, species, breed, notes, photo_url")
-    .eq("client_id", user.id)
-    .order("created_at", { ascending: true });
-
+  // Sign the (already-fetched) client pet photos.
   const pets: AssignablePet[] = await Promise.all(
     (petRows ?? []).map(async (p) => {
       let photoUrl: string | null = null;

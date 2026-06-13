@@ -10,7 +10,7 @@
 
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedUser } from "@/lib/supabase/server-cache";
 import { createServiceClient } from "@/lib/supabase/service";
 import { Reveal, RevealGroup } from "@/components/effects/reveal";
 import {
@@ -52,13 +52,17 @@ export default async function ServiceBookingPage({
 
   const svc = createServiceClient();
 
-  // Service.
-  const { data: serviceRow } = await svc
-    .from("services")
-    .select("id, slug, name, description, pricing_type, default_duration_min")
-    .eq("slug", serviceSlug)
-    .eq("active", true)
-    .single();
+  // Service, booking-form data, and viewer auth are independent — fetch in parallel.
+  const [{ data: serviceRow }, loaded, { user }] = await Promise.all([
+    svc
+      .from("services")
+      .select("id, slug, name, description, pricing_type, default_duration_min")
+      .eq("slug", serviceSlug)
+      .eq("active", true)
+      .single(),
+    loadBookingFormData(serviceSlug),
+    getCachedUser(),
+  ]);
 
   if (!serviceRow) notFound();
 
@@ -77,7 +81,6 @@ export default async function ServiceBookingPage({
   };
 
   // Booking-rule settings + initial public busy ranges (shared loader).
-  const loaded = await loadBookingFormData(serviceSlug);
   if (!loaded.ok) {
     return (
       <main className="mx-auto max-w-2xl px-4 py-12">
@@ -88,12 +91,6 @@ export default async function ServiceBookingPage({
     );
   }
   const { rules, initialBusy } = loaded.data;
-
-  // Auth state + pets.
-  const authClient = await createClient();
-  const {
-    data: { user },
-  } = await authClient.auth.getUser();
 
   let authState: AuthState = "guest";
   let pets: AssignablePet[] = [];
@@ -122,14 +119,17 @@ export default async function ServiceBookingPage({
       authState = "needs-info";
     }
 
-    if (authState === "ready") {
+    // Pets (only when ready) and this client's active bookings for this service
+    // are independent — fetch in parallel.
+    const loadReadyPets = async (): Promise<AssignablePet[]> => {
+      if (authState !== "ready") return [];
       const { data: petRows } = await svc
         .from("pets")
         .select("id, name, species, breed, notes, photo_url")
         .eq("client_id", user.id)
         .order("created_at", { ascending: true });
 
-      pets = await Promise.all(
+      return Promise.all(
         (petRows ?? []).map(async (p) => {
           let photoUrl: string | null = null;
           if (p.photo_url) {
@@ -148,16 +148,20 @@ export default async function ServiceBookingPage({
           };
         }),
       );
-    }
+    };
 
-    const { data: myBookingRows } = await svc
-      .from("bookings")
-      .select("starts_at")
-      .eq("client_id", user.id)
-      .eq("service_id", serviceRow.id as string)
-      .in("status", ["pending_approval", "confirmed"])
-      .gte("ends_at", new Date().toISOString());
+    const [resolvedPets, { data: myBookingRows }] = await Promise.all([
+      loadReadyPets(),
+      svc
+        .from("bookings")
+        .select("starts_at")
+        .eq("client_id", user.id)
+        .eq("service_id", serviceRow.id as string)
+        .in("status", ["pending_approval", "confirmed"])
+        .gte("ends_at", new Date().toISOString()),
+    ]);
 
+    pets = resolvedPets;
     myBookingDayKeys = (myBookingRows ?? []).map((r) =>
       denverDayKey(new Date(r.starts_at as string)),
     );

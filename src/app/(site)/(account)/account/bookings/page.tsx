@@ -76,15 +76,18 @@ export default async function BookingsPage() {
   ).toISOString();
 
   const repo = createSupabaseBookingRepository(createServiceClient());
-  const settings = await repo.getSettings();
 
-  const { data: bookings } = await supabase
-    .from("bookings")
-    .select(
-      "id, starts_at, ends_at, status, final_cents, quote_inputs, payments(amount_cents, status), services(name, slug), booking_pets(pets(name, species))",
-    )
-    .eq("client_id", user.id)
-    .order("starts_at", { ascending: false });
+  // Settings and the bookings list are independent — fetch in parallel.
+  const [settings, { data: bookings }] = await Promise.all([
+    repo.getSettings(),
+    supabase
+      .from("bookings")
+      .select(
+        "id, starts_at, ends_at, status, final_cents, quote_inputs, payments(amount_cents, status), services(name, slug), booking_pets(pets(name, species))",
+      )
+      .eq("client_id", user.id)
+      .order("starts_at", { ascending: false }),
+  ]);
 
   const raw = (bookings as RawBookingRow[]) ?? [];
   const rows: AccountBookingRow[] = raw.map((b) => ({
