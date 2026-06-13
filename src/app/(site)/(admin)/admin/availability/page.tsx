@@ -4,7 +4,7 @@
  */
 
 import { createServiceClient } from "@/lib/supabase/service";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedUser } from "@/lib/supabase/server-cache";
 import {
   listWindowsCore,
   getAdminBusyRanges,
@@ -17,10 +17,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import type { BookingRuleSettings } from "@/features/booking";
 
 export default async function AdminAvailabilityPage() {
-  const authClient = await createClient();
-  const {
-    data: { user },
-  } = await authClient.auth.getUser();
+  const { user } = await getCachedUser();
 
   // Layout guards the route, so user is always present here.
   const serviceClient = createServiceClient();

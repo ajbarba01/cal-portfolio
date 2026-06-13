@@ -8,7 +8,7 @@
 
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedUser } from "@/lib/supabase/server-cache";
 import { createServiceClient } from "@/lib/supabase/service";
 import {
   createSupabaseBookingRepository,
@@ -32,10 +32,7 @@ export default async function EditBookingPage({
   const { id } = await params;
 
   // Auth guard.
-  const authClient = await createClient();
-  const {
-    data: { user },
-  } = await authClient.auth.getUser();
+  const { user } = await getCachedUser();
   if (!user) redirect("/login");
 
   const svc = createServiceClient();

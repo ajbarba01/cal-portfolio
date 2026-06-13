@@ -11,14 +11,11 @@
  */
 
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedUser } from "@/lib/supabase/server-cache";
 
 /** Returns the authenticated user's id, or redirects to /login if unauthenticated. */
 export async function getActorOrRedirect(): Promise<string> {
-  const authClient = await createClient();
-  const {
-    data: { user },
-  } = await authClient.auth.getUser();
+  const { user } = await getCachedUser();
   if (!user) redirect("/login");
   return user.id;
 }

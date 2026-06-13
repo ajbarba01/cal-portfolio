@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
+import { getCachedUser } from "@/lib/supabase/server-cache";
 import { createServiceClient } from "@/lib/supabase/service";
 import {
   createSupabaseBookingRepository,
@@ -64,13 +65,11 @@ function parsePets(bookingPets: BookingPetRow[] | null): AccountBookingPet[] {
 }
 
 export default async function BookingsPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { user } = await getCachedUser();
 
   if (!user) redirect("/login");
 
+  const supabase = await createClient();
   const now = new Date();
   const monthStartIso = new Date(
     Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),

@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { getCachedUser } from "@/lib/supabase/server-cache";
 import { redirect } from "next/navigation";
 import { formRegistry, type FormKey } from "@/features/accounts";
 import { FormsClient } from "./_components/forms-client";
@@ -13,13 +14,11 @@ export interface FormResponseRow {
 }
 
 export default async function FormsPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { user } = await getCachedUser();
 
   if (!user) redirect("/login");
 
+  const supabase = await createClient();
   const { data: responses } = await supabase
     .from("form_responses")
     .select("id, form_key, data, submitted_at")

@@ -5,7 +5,7 @@
  */
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedUser } from "@/lib/supabase/server-cache";
 import { createServiceClient } from "@/lib/supabase/service";
 import { loadBookingFormData } from "@/features/booking";
 import { AdminCreateBookingFlow } from "./_components/admin-create-booking-flow";
@@ -21,10 +21,7 @@ export default async function AdminCreateBookingPage({
 }) {
   const { clientId } = await params;
 
-  const authClient = await createClient();
-  const {
-    data: { user },
-  } = await authClient.auth.getUser();
+  const { user } = await getCachedUser();
   if (!user) redirect("/login");
 
   const svc = createServiceClient();

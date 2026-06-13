@@ -3,7 +3,7 @@
  */
 
 import { createServiceClient } from "@/lib/supabase/service";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedUser } from "@/lib/supabase/server-cache";
 import { listReviewsCore } from "@/features/admin";
 import { ReviewsClient } from "./_components/reviews-client";
 import { ErrorState } from "@/components/feedback/error-state";
@@ -11,10 +11,7 @@ import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
 
 export default async function AdminReviewsPage() {
-  const authClient = await createClient();
-  const {
-    data: { user },
-  } = await authClient.auth.getUser();
+  const { user } = await getCachedUser();
 
   const serviceClient = createServiceClient();
   const result = await listReviewsCore({
