@@ -32,7 +32,8 @@ export const CURSOR_HIGHLIGHT: "ombre" | "ring" = "ring";
  * active tabs and a real `:hover` pin it full in CSS.
  *
  * Honors prefers-reduced-motion (no listeners; CSS hides it) and is inert on
- * touch. On window exit the glow holds, snapping to the new spot on return.
+ * touch. On window exit the glow fades out and the underlines relax; the first
+ * move on re-entry snaps the glow to the new spot and fades it back in.
  */
 export function CursorRing({
   ringSize = 124,
@@ -60,6 +61,10 @@ export function CursorRing({
     // freshly-mounted ring (e.g. entering the account/admin zone) snaps to the
     // cursor instead of swooping in from its off-screen default.
     let instant = true;
+    // True between a window exit and the next real move. Guards the move rAF: a
+    // pointermove fired just before exit may have a frame still queued, and
+    // without this it would run after the hide and re-reveal the frozen ring.
+    let leftWindow = false;
     // Cached on scroll/resize so the per-move path never re-measures the DOM.
     let linkCenters: { el: HTMLElement; cx: number; cy: number }[] = [];
 
@@ -132,8 +137,12 @@ export function CursorRing({
 
     const movePointer = () => {
       moveFrame = 0;
+      // Stale frame queued just before the pointer left the window — ignore it,
+      // or it would undo the hide. A real re-entry move clears leftWindow first.
+      if (leftWindow) return;
       if (instant) {
         overlay.setAttribute("data-ring-instant", "");
+        overlay.removeAttribute("data-ring-hidden");
         requestAnimationFrame(() =>
           overlay.removeAttribute("data-ring-instant"),
         );
@@ -152,10 +161,41 @@ export function CursorRing({
 
     const onMove = (e: PointerEvent) => {
       if (e.pointerType === "touch") return;
+      leftWindow = false;
       lastX = e.clientX;
       lastY = e.clientY;
       if (moveFrame) return;
       moveFrame = requestAnimationFrame(movePointer);
+    };
+
+    // Primary (left) button: shrink the ring while held. The scale rides the
+    // ring's existing transform transition, so it eases between the two radii.
+    // A quick click would release before the shrink finishes, so hold the
+    // pressed state for at least the transition duration — the ring always
+    // reaches full shrink, then eases back. Keep this in sync with the
+    // `transition: transform` duration on `.cursor-ring` in globals.css.
+    const PRESS_MIN_MS = 100;
+    let pressStart = 0;
+    let releaseTimer = 0;
+    const releasePress = () => {
+      releaseTimer = 0;
+      overlay.removeAttribute("data-ring-pressed");
+    };
+    const onPointerDown = (e: PointerEvent) => {
+      if (e.pointerType === "touch" || e.button !== 0) return;
+      if (releaseTimer) {
+        clearTimeout(releaseTimer);
+        releaseTimer = 0;
+      }
+      pressStart = performance.now();
+      overlay.setAttribute("data-ring-pressed", "");
+    };
+    const onPointerUp = () => {
+      if (!overlay.hasAttribute("data-ring-pressed") || releaseTimer) return;
+      const remaining = PRESS_MIN_MS - (performance.now() - pressStart);
+      if (remaining > 0)
+        releaseTimer = window.setTimeout(releasePress, remaining);
+      else releasePress();
     };
 
     const scheduleRebuild = () => {
@@ -164,7 +204,30 @@ export function CursorRing({
     };
 
     const onWindowLeave = () => {
+      // Don't leave the ring + proximity underlines frozen mid-page: fade the
+      // glow out and relax every underline. The next move on re-entry snaps the
+      // glow to the new spot (instant) and fades it back in.
       instant = true;
+      leftWindow = true;
+      // Drop any move frame queued before the exit so it can't re-reveal the ring.
+      if (moveFrame) {
+        cancelAnimationFrame(moveFrame);
+        moveFrame = 0;
+      }
+      overlay.setAttribute("data-ring-hidden", "");
+      if (releaseTimer) {
+        clearTimeout(releaseTimer);
+        releaseTimer = 0;
+      }
+      overlay.removeAttribute("data-ring-pressed");
+      for (const { el } of linkCenters) el.style.setProperty("--u", "0");
+    };
+
+    // mouseleave on the root can be skipped on fast exits or when the pointer
+    // leaves over a child; mouseout with a null relatedTarget fires reliably
+    // whenever the pointer leaves the window entirely.
+    const onMouseOut = (e: MouseEvent) => {
+      if (!e.relatedTarget) onWindowLeave();
     };
 
     // A dropdown opening/closing doesn't change the sheet's box, so the resize /
@@ -181,9 +244,13 @@ export function CursorRing({
     };
 
     window.addEventListener("pointermove", onMove, { passive: true });
+    window.addEventListener("pointerdown", onPointerDown, { passive: true });
+    window.addEventListener("pointerup", onPointerUp, { passive: true });
+    window.addEventListener("pointercancel", onPointerUp, { passive: true });
     window.addEventListener("scroll", scheduleRebuild, { passive: true });
     window.addEventListener("resize", scheduleRebuild, { passive: true });
-    document.addEventListener("mouseleave", onWindowLeave);
+    document.addEventListener("mouseout", onMouseOut);
+    window.addEventListener("blur", onWindowLeave);
     host.addEventListener("transitionrun", onPanelToggle);
     host.addEventListener("transitionend", onPanelToggle);
     host.addEventListener("transitioncancel", onPanelToggle);
@@ -197,13 +264,18 @@ export function CursorRing({
 
     return () => {
       window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("pointerup", onPointerUp);
+      window.removeEventListener("pointercancel", onPointerUp);
       window.removeEventListener("scroll", scheduleRebuild);
       window.removeEventListener("resize", scheduleRebuild);
-      document.removeEventListener("mouseleave", onWindowLeave);
+      document.removeEventListener("mouseout", onMouseOut);
+      window.removeEventListener("blur", onWindowLeave);
       host.removeEventListener("transitionrun", onPanelToggle);
       host.removeEventListener("transitionend", onPanelToggle);
       host.removeEventListener("transitioncancel", onPanelToggle);
       observer.disconnect();
+      if (releaseTimer) clearTimeout(releaseTimer);
       if (moveFrame) cancelAnimationFrame(moveFrame);
       if (maskFrame) cancelAnimationFrame(maskFrame);
     };

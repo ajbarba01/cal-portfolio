@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import Image from "next/image";
-import { BackToTop } from "@/components/ui/back-to-top";
 import { Lightbox, type LightboxImage } from "@/components/ui/lightbox";
 
 export function GalleryGrid({ images }: { images: LightboxImage[] }) {
@@ -45,7 +44,6 @@ export function GalleryGrid({ images }: { images: LightboxImage[] }) {
         onIndexChange={setOpenIndex}
         onClose={() => setOpenIndex(null)}
       />
-      <BackToTop />
     </>
   );
 }
