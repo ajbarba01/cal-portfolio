@@ -5,6 +5,7 @@ import { Accordion } from "@base-ui/react/accordion";
 
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
+import { Reveal, RevealGroup } from "@/components/effects/reveal";
 import { Eyebrow } from "@/components/marketing/eyebrow";
 import { MarketingCopy } from "@/components/marketing/marketing-copy";
 import { BackToTop } from "@/components/ui/back-to-top";
@@ -118,22 +119,32 @@ function TopicChips({ topics }: { topics: readonly CopyId[] }) {
 export default function ResourcesPage() {
   return (
     <PageContainer width="read" className="py-12 sm:py-16">
-      <PageHeader
-        title="Resources"
-        subtitle={<MarketingCopy id="resources.intro" />}
-      />
+      <Reveal>
+        <PageHeader
+          title="Resources"
+          subtitle={<MarketingCopy id="resources.intro" />}
+        />
+      </Reveal>
 
-      <section aria-labelledby="health-heading" className="mb-12">
-        <Eyebrow>First aid &amp; prevention</Eyebrow>
-        <h2
+      <RevealGroup
+        as="section"
+        aria-labelledby="health-heading"
+        className="mb-12"
+      >
+        <Reveal>
+          <Eyebrow>First aid &amp; prevention</Eyebrow>
+        </Reveal>
+        <Reveal
+          as="h2"
           id="health-heading"
           className="font-heading mt-2 mb-4 text-xl font-semibold"
         >
           Health &amp; Safety
-        </h2>
+        </Reveal>
         <ul className="flex flex-col gap-4" role="list">
           {healthResources.map(({ nameId, descId, href, detail }) => (
-            <li
+            <Reveal
+              as="li"
               key={nameId}
               className="border-border border-b pb-4 last:border-0"
             >
@@ -153,67 +164,90 @@ export default function ResourcesPage() {
               <p className="text-muted-foreground mt-0.5 text-sm leading-relaxed">
                 <MarketingCopy id={descId} />
               </p>
-            </li>
+            </Reveal>
           ))}
         </ul>
-      </section>
+      </RevealGroup>
 
-      <section aria-labelledby="tools-heading" className="mb-12">
-        <Eyebrow>Gear &amp; methods</Eyebrow>
-        <h2
+      <RevealGroup
+        as="section"
+        aria-labelledby="tools-heading"
+        className="mb-12"
+      >
+        <Reveal>
+          <Eyebrow>Gear &amp; methods</Eyebrow>
+        </Reveal>
+        <Reveal
+          as="h2"
           id="tools-heading"
           className="font-heading mt-2 mb-4 text-xl font-semibold"
         >
           Tools &amp; Training
-        </h2>
-        <TopicChips topics={toolsTopics} />
-      </section>
+        </Reveal>
+        <Reveal>
+          <TopicChips topics={toolsTopics} />
+        </Reveal>
+      </RevealGroup>
 
-      <section aria-labelledby="enrichment-heading" className="mb-12">
-        <Eyebrow>Beyond the walk</Eyebrow>
-        <h2
+      <RevealGroup
+        as="section"
+        aria-labelledby="enrichment-heading"
+        className="mb-12"
+      >
+        <Reveal>
+          <Eyebrow>Beyond the walk</Eyebrow>
+        </Reveal>
+        <Reveal
+          as="h2"
           id="enrichment-heading"
           className="font-heading mt-2 mb-4 text-xl font-semibold"
         >
           Enrichment &amp; Well-Being
-        </h2>
-        <TopicChips topics={enrichmentTopics} />
-      </section>
+        </Reveal>
+        <Reveal>
+          <TopicChips topics={enrichmentTopics} />
+        </Reveal>
+      </RevealGroup>
 
-      <p className="text-muted-foreground mb-12 leading-relaxed">
+      <Reveal as="p" className="text-muted-foreground mb-12 leading-relaxed">
         <MarketingCopy id="resources.closing" />
-      </p>
+      </Reveal>
 
-      <section aria-labelledby="faq-heading">
-        <Eyebrow>Common questions</Eyebrow>
-        <h2
+      <RevealGroup as="section" aria-labelledby="faq-heading">
+        <Reveal>
+          <Eyebrow>Common questions</Eyebrow>
+        </Reveal>
+        <Reveal
+          as="h2"
           id="faq-heading"
           className="font-heading mt-2 mb-4 text-xl font-semibold"
         >
           Frequently asked questions
-        </h2>
-        <Accordion.Root className="flex flex-col">
-          {faqItems.map((item) => (
-            <Accordion.Item
-              key={item.id}
-              value={item.id}
-              className="border-border border-b"
-            >
-              <Accordion.Header>
-                <Accordion.Trigger className="group focus-visible:outline-ring/50 flex w-full items-center justify-between gap-4 py-4 text-left outline-none focus-visible:outline-2 focus-visible:outline-offset-2">
-                  <span className="text-foreground font-medium">
-                    {item.question}
-                  </span>
-                  <ChevronDown className="text-muted-foreground size-4 shrink-0 transition-transform group-data-panel-open:rotate-180" />
-                </Accordion.Trigger>
-              </Accordion.Header>
-              <Accordion.Panel className="text-muted-foreground pb-4 text-sm leading-relaxed">
-                <MarketingCopy id={item.answerId} />
-              </Accordion.Panel>
-            </Accordion.Item>
-          ))}
-        </Accordion.Root>
-      </section>
+        </Reveal>
+        <Reveal>
+          <Accordion.Root className="flex flex-col">
+            {faqItems.map((item) => (
+              <Accordion.Item
+                key={item.id}
+                value={item.id}
+                className="border-border border-b"
+              >
+                <Accordion.Header>
+                  <Accordion.Trigger className="group focus-visible:outline-ring/50 flex w-full items-center justify-between gap-4 py-4 text-left outline-none focus-visible:outline-2 focus-visible:outline-offset-2">
+                    <span className="text-foreground font-medium">
+                      {item.question}
+                    </span>
+                    <ChevronDown className="text-muted-foreground size-4 shrink-0 transition-transform group-data-panel-open:rotate-180" />
+                  </Accordion.Trigger>
+                </Accordion.Header>
+                <Accordion.Panel className="text-muted-foreground pb-4 text-sm leading-relaxed">
+                  <MarketingCopy id={item.answerId} />
+                </Accordion.Panel>
+              </Accordion.Item>
+            ))}
+          </Accordion.Root>
+        </Reveal>
+      </RevealGroup>
       <BackToTop />
     </PageContainer>
   );

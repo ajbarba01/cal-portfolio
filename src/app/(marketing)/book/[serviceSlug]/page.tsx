@@ -12,6 +12,7 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { Reveal, RevealGroup } from "@/components/effects/reveal";
 import {
   loadBookingFormData,
   denverDayKey,
@@ -171,20 +172,24 @@ export default async function ServiceBookingPage({
 
   return (
     <main className="px-4 py-12">
-      <div className="mx-auto w-full max-w-xl">
-        <Link
-          href="/services"
-          className="text-muted-foreground hover:text-foreground mb-6 inline-block text-sm"
-        >
-          ← All services
-        </Link>
-        <h1 className="mb-1 text-2xl font-semibold">{service.name}</h1>
+      <RevealGroup className="mx-auto w-full max-w-xl">
+        <Reveal>
+          <Link
+            href="/services"
+            className="text-muted-foreground hover:text-foreground mb-6 inline-block text-sm"
+          >
+            ← All services
+          </Link>
+        </Reveal>
+        <Reveal as="h1" className="mb-1 text-2xl font-semibold">
+          {service.name}
+        </Reveal>
         {service.description && (
-          <p className="text-muted-foreground mb-8 text-sm">
+          <Reveal as="p" className="text-muted-foreground mb-8 text-sm">
             {service.description}
-          </p>
+          </Reveal>
         )}
-      </div>
+      </RevealGroup>
       <ServiceBookingClient
         service={service}
         rules={rules}

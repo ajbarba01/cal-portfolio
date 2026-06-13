@@ -4,6 +4,7 @@
  */
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
+import { Reveal, RevealGroup } from "@/components/effects/reveal";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { createClient } from "@/lib/supabase/server";
 import { listPublishedReviews, type PublishedReview } from "@/features/reviews";
@@ -50,40 +51,51 @@ export default async function ReviewsPage() {
 
   return (
     <PageContainer width="read" className="py-12 sm:py-16">
-      <PageHeader
-        title="Reviews"
-        subtitle={<MarketingCopy id="reviews.purpose" />}
-      />
+      <Reveal>
+        <PageHeader
+          title="Reviews"
+          subtitle={<MarketingCopy id="reviews.purpose" />}
+        />
+      </Reveal>
 
-      <section aria-labelledby="reviews-list-heading" className="mb-12">
+      <RevealGroup
+        as="section"
+        aria-labelledby="reviews-list-heading"
+        className="mb-12"
+      >
         <h2 id="reviews-list-heading" className="sr-only">
           Published reviews
         </h2>
         {reviews.length === 0 ? (
-          <EmptyState
-            title="No reviews yet"
-            message="Be the first to share your experience."
-          />
+          <Reveal>
+            <EmptyState
+              title="No reviews yet"
+              message="Be the first to share your experience."
+            />
+          </Reveal>
         ) : (
           <ul className="flex flex-col gap-4" role="list">
             {reviews.map((review) => (
-              <li key={review.id}>
+              <Reveal as="li" key={review.id}>
                 <ReviewCard review={review} />
-              </li>
+              </Reveal>
             ))}
           </ul>
         )}
-      </section>
+      </RevealGroup>
 
-      <section aria-labelledby="submit-review-heading">
-        <h2
+      <RevealGroup as="section" aria-labelledby="submit-review-heading">
+        <Reveal
+          as="h2"
           id="submit-review-heading"
           className="font-heading mb-4 text-xl font-semibold"
         >
           Leave a review
-        </h2>
-        <ReviewForm isSignedIn={user !== null} />
-      </section>
+        </Reveal>
+        <Reveal>
+          <ReviewForm isSignedIn={user !== null} />
+        </Reveal>
+      </RevealGroup>
     </PageContainer>
   );
 }

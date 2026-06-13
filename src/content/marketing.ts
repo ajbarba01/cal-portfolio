@@ -31,7 +31,6 @@ export const copy = {
   "home.cta.body": "[[BODY: short prompt to book]]",
 
   // About — src/app/(marketing)/about/page.tsx
-  "about.eyebrow": "[[HEADER: about eyebrow]]",
   "about.summary": "Hi! I'm Cal.",
   "about.bio.p1":
     "I recently graduated from Colorado College with a degree in Anthropology and currently live in Lakewood—though I also spend time in Boulder and throughout the Front Range.",
@@ -45,6 +44,31 @@ export const copy = {
     "Every pet has different needs, and every household has different routines, preferences, and expectations. My goal is to provide thoughtful, individualized care that helps both pets and their people feel comfortable and supported. I welcome clients from all backgrounds and strive to create an experience that is respectful, inclusive, and free of judgment.",
   "about.approach.p2":
     "Whether I'm taking your dog on a walk, stopping by for a visit, or caring for your pets and your home while you're away, I aim to provide the same level of attention, reliability, and compassion that I would want for my own animals.",
+  // Stat ribbon (about page) — short, factual credentials Cal can tune. The CC
+  // entry renders as the Colorado College logo; age is derived from Cal's DOB
+  // in the page, so only its label lives here.
+  "about.stat.cc.label": "B.A. Anthropology",
+  "about.stat.age.label": "Years old",
+  "about.stat.rover.value": "Star Sitter",
+  "about.stat.rover.label": "Top-rated on Rover",
+  "about.stat.clients.value": "100+",
+  "about.stat.clients.label": "Happy clients",
+  "about.stat.experience.value": "6 years",
+  "about.stat.experience.label": "Of pet-care experience",
+  "about.stat.training.value": "EMT · WFR",
+  "about.stat.training.label": "Medical & safety trained",
+  "about.stat.fourteeners.value": "8 fourteeners",
+  "about.stat.fourteeners.label": "Climbed with Kiche",
+  // Favorite-quote epigraph (a line Cal likes — NOT a client testimonial),
+  // shown just before References.
+  "about.quote.text":
+    "[[BODY: a quote Cal likes — about animals, care, or the outdoors]]",
+  "about.quote.author": "[[Quote author]]",
+  // Caption for the offset bio photo.
+  "about.bio.photo.caption": "[[Caption: what this photo shows]]",
+  // Shown while the real reference names below stay withheld pending consent.
+  "about.references.pending":
+    "References from past clients are coming soon. In the meantime, reach out and I'll gladly put you in touch.",
   // References intro + named clients. Contact info is intentionally NOT published
   // (privacy) — it's "available on request" via the reach-out line in the intro.
   "about.references":
@@ -140,7 +164,7 @@ export const copy = {
   "contact.replyNote": "I usually reply within a day.",
 
   // Footer — src/components/layout/site-footer.tsx
-  "footer.tagline": "[[Pet care tagline]]",
+  "footer.tagline": "Dog Walking · House Sitting · Colorado",
 
   // Service cards — src/features/booking/service-card-display.ts
   "service.house_sitting.card.body":

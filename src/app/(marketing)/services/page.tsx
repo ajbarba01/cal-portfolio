@@ -5,6 +5,7 @@
 import Link from "next/link";
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
+import { Reveal, RevealGroup } from "@/components/effects/reveal";
 import { Eyebrow } from "@/components/marketing/eyebrow";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
@@ -71,26 +72,33 @@ export default async function ServicesPage() {
 
   return (
     <PageContainer width="app" className="py-12 sm:py-16">
-      <PageHeader
-        title="Services & Booking"
-        subtitle={<MarketingCopy id="services.overview" />}
-      />
+      <Reveal>
+        <PageHeader
+          title="Services & Booking"
+          subtitle={<MarketingCopy id="services.overview" />}
+        />
+      </Reveal>
 
       {services.length === 0 ? (
-        <p className="text-muted-foreground">
+        <Reveal as="p" className="text-muted-foreground">
           Services coming soon — check back shortly.
-        </p>
+        </Reveal>
       ) : (
-        <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-2" role="list">
+        <RevealGroup
+          as="ul"
+          className="grid gap-6 sm:grid-cols-2 lg:grid-cols-2"
+          role="list"
+        >
           {services.map((service) => (
-            <li key={service.slug}>
+            <Reveal as="li" key={service.slug}>
               <ServiceCard service={service} />
-            </li>
+            </Reveal>
           ))}
-        </ul>
+        </RevealGroup>
       )}
 
-      <section
+      <Reveal
+        as="section"
         aria-labelledby="sliding-scale-heading"
         className="border-border bg-card mt-12 rounded-lg border p-6 sm:p-8"
       >
@@ -104,7 +112,7 @@ export default async function ServicesPage() {
         <p className="text-muted-foreground max-w-[60ch] text-sm leading-relaxed">
           <MarketingCopy id="services.pricing.body" />
         </p>
-      </section>
+      </Reveal>
     </PageContainer>
   );
 }

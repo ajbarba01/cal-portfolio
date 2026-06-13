@@ -20,6 +20,8 @@ export function GalleryGrid({ images }: { images: LightboxImage[] }) {
               type="button"
               onClick={() => setOpenIndex(i)}
               aria-label={`Open photo ${i + 1} of ${images.length}`}
+              // Cut out of the site-wide cursor glow (mask), like hero photos.
+              data-ring-exclude
               className="group focus-visible:ring-ring/50 block w-full overflow-hidden rounded-lg shadow-sm outline-none focus-visible:ring-3"
             >
               <Image
