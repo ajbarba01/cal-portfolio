@@ -109,19 +109,19 @@ async function HeaderAuth({
  * Fallback fragment occupying the same two grid positions (col 1 + col 3) as
  * HeaderAuth, so the grid doesn't shift when the async child resolves.
  * The tab row in col 2 is already rendered by the static shell.
+ *
+ * col 1 renders the real wordmark rather than a skeleton: the text is identical
+ * for every visitor, so it's already the final render. `isAdmin` is omitted (not
+ * yet known here) so the wordmark falls back to its optimistic admin hint —
+ * admins keep their clay tint across a zone switch instead of flashing to black
+ * until the role query resolves. Same element either way: no layout shift.
  */
 function HeaderAuthSkeleton() {
   return (
     <>
-      {/* col 1 — wordmark placeholder: ~same width/height as "Cal Barba" + ears mark */}
-      <div
-        className="col-start-1 row-start-1 flex min-w-0 items-center gap-5"
-        aria-hidden="true"
-      >
-        {/* ears mark placeholder */}
-        <Skeleton className="h-12 w-10 shrink-0" />
-        {/* wordmark text placeholder */}
-        <Skeleton className="h-5 w-24" />
+      {/* col 1 — real wordmark; admin state comes from the optimistic hint */}
+      <div className="col-start-1 row-start-1 min-w-0 justify-self-start">
+        <Wordmark />
       </div>
       {/* col 3 — auth cluster / burger placeholder */}
       <div

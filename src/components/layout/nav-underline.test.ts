@@ -37,26 +37,32 @@ describe("navUnderline", () => {
 });
 
 describe("navTab", () => {
-  it("includes pill geometry: horizontal padding, rounded-lg, transition", () => {
+  it("includes label geometry: horizontal padding, rounded-lg, transition", () => {
     const cls = navTab(false);
     expect(cls).toContain("px-[11px]");
     expect(cls).toContain("rounded-lg");
     expect(cls).toContain("transition-colors");
   });
 
-  it("active tab: brand-strong text, semibold, underline visible", () => {
+  it("active tab: brand-strong text, semibold, underline pinned full", () => {
     const cls = navTab(true);
     expect(cls).toContain("text-brand-strong");
     expect(cls).toContain("font-semibold");
-    expect(cls).toContain("after:opacity-100");
+    expect(cls).toContain("after:[transform:scaleX(1)]");
   });
 
-  it("inactive tab: subdued text, hover bg, underline hidden", () => {
+  it("inactive tab: subdued text, clay hover, proximity-driven underline pinned full on hover", () => {
     const cls = navTab(false);
     expect(cls).toContain("text-foreground/70");
-    expect(cls).toContain("hover:bg-muted");
-    expect(cls).toContain("after:opacity-0");
+    expect(cls).toContain("hover:text-brand-strong");
+    expect(cls).toContain("after:[transform:scaleX(var(--u))]");
+    expect(cls).toContain("hover:after:[transform:scaleX(1)]");
     expect(cls).not.toContain("font-semibold");
+    expect(cls).not.toContain("hover:bg-muted");
+  });
+
+  it("defaults the proximity var so a no-JS render shows no stray underline", () => {
+    expect(navTab(false)).toContain("[--u:0]");
   });
 
   it("underline is tucked to label width via left/right inset matching horizontal padding", () => {

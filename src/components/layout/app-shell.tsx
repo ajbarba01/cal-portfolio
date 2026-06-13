@@ -76,14 +76,22 @@ export function AppShell({
     <div className="flex flex-1">
       <aside className="border-border bg-sidebar hidden w-60 shrink-0 border-r md:block">
         <div className="sticky top-0 h-dvh overflow-y-auto py-3">
-          <Suspense fallback={<SidebarSkeleton nav={nav} />}>
-            <SidebarWithBadges
-              nav={nav}
-              identity={identity}
-              locked={locked}
-              navBadgesPromise={navBadgesPromise}
-            />
-          </Suspense>
+          {/* Only the admin zone defers data (attention badges) — wrap that in
+              Suspense so badge counts stream in without blocking. The account
+              zone has no async data: render the sidebar directly so it doesn't
+              flash a skeleton on every mount (e.g. switching back from marketing). */}
+          {navBadgesPromise ? (
+            <Suspense fallback={<SidebarSkeleton nav={nav} />}>
+              <SidebarWithBadges
+                nav={nav}
+                identity={identity}
+                locked={locked}
+                navBadgesPromise={navBadgesPromise}
+              />
+            </Suspense>
+          ) : (
+            <AppSidebar nav={nav} identity={identity} locked={locked} />
+          )}
         </div>
       </aside>
       <main className="min-w-0 flex-1 px-5 py-8 sm:px-8">{children}</main>

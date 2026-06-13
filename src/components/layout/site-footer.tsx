@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Mail } from "lucide-react";
+import { Mail, Calendar } from "lucide-react";
 import { MarketingCopy } from "@/components/marketing/marketing-copy";
 import { socials } from "@/content/socials";
 
@@ -40,14 +40,6 @@ function TikTokIcon({ className }: { className?: string }) {
   );
 }
 
-/** Footer nav links — chrome, not Cal's copy; mirrors header tabs minus Home. */
-const footerNavLinks = [
-  { href: "/about", label: "About" },
-  { href: "/services", label: "Services" },
-  { href: "/resources", label: "Resources" },
-  { href: "/contact", label: "Contact" },
-] as const;
-
 const socialIconClass =
   "text-muted-foreground hover:bg-muted hover:text-brand-strong flex size-9 items-center justify-center rounded-[10px] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2";
 
@@ -67,7 +59,6 @@ function SocialLinks() {
           <InstagramIcon className="size-4.25" />
         </a>
       ) : null}
-
       {socials.tiktok ? (
         <a
           href={socials.tiktok}
@@ -80,7 +71,14 @@ function SocialLinks() {
           <TikTokIcon className="size-4.25" />
         </a>
       ) : null}
-
+      <Link
+        href="/services"
+        role="listitem"
+        aria-label="Booking page"
+        className={socialIconClass}
+      >
+        <Calendar size={17} strokeWidth={1.8} aria-hidden="true" />
+      </Link>{" "}
       {/* Mail always renders — links to /contact, NEVER mailto: */}
       <Link
         href="/contact"
@@ -91,25 +89,6 @@ function SocialLinks() {
         <Mail size={17} strokeWidth={1.8} aria-hidden="true" />
       </Link>
     </div>
-  );
-}
-
-function FooterNav({ gapClass }: { gapClass: string }) {
-  return (
-    <nav aria-label="Footer navigation">
-      <ul className={`flex text-sm ${gapClass}`}>
-        {footerNavLinks.map(({ href, label }) => (
-          <li key={href}>
-            <Link
-              href={href}
-              className="text-muted-foreground hover:text-foreground transition-colors"
-            >
-              {label}
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </nav>
   );
 }
 
@@ -124,11 +103,8 @@ export function SiteFooter() {
           {/* Left: copyright */}
           <p className="text-muted-foreground text-sm">
             ©&nbsp;{new Date().getFullYear()}&nbsp;Cal Barba —{" "}
-            <MarketingCopy id="footer.tagline" /> · Colorado
+            <MarketingCopy id="footer.tagline" />
           </p>
-
-          {/* Center/Right: nav links */}
-          <FooterNav gapClass="gap-4.5" />
 
           {/* Right: social icons */}
           <SocialLinks />
@@ -138,9 +114,6 @@ export function SiteFooter() {
         <div className="flex flex-col items-center gap-3.5 py-5.5 text-center sm:hidden">
           {/* Socials row first on mobile (matches mockup order) */}
           <SocialLinks />
-
-          {/* Nav row */}
-          <FooterNav gapClass="gap-3.5" />
 
           {/* Copyright last on mobile */}
           <p className="text-muted-foreground text-sm">

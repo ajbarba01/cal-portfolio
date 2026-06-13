@@ -3,8 +3,9 @@ import * as React from "react";
 import { ArrowUp } from "lucide-react";
 
 /**
- * Return-to-top affordance for long pages. Hidden until scrolled past
- * `threshold`; bottom-right; respects reduced motion. Applied per-page in SP6.
+ * Return-to-top affordance for long pages. Stays mounted and eases in/out as
+ * the user crosses `threshold`, so the transition can actually run; hidden from
+ * pointer + a11y tree while below it. Bottom-right; respects reduced motion.
  */
 export function BackToTop({ threshold = 600 }: { threshold?: number }) {
   const [shown, setShown] = React.useState(false);
@@ -15,12 +16,14 @@ export function BackToTop({ threshold = 600 }: { threshold?: number }) {
     return () => window.removeEventListener("scroll", onScroll);
   }, [threshold]);
 
-  if (!shown) return null;
   return (
     <button
       type="button"
       data-slot="back-to-top"
+      data-visible={shown}
       aria-label="Back to top"
+      aria-hidden={!shown}
+      tabIndex={shown ? 0 : -1}
       onClick={() =>
         window.scrollTo({
           top: 0,
@@ -30,7 +33,7 @@ export function BackToTop({ threshold = 600 }: { threshold?: number }) {
             : "smooth",
         })
       }
-      className="bg-card text-foreground border-border hover:bg-muted fixed right-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-40 inline-flex size-11 items-center justify-center rounded-full border shadow-lg"
+      className="bg-card text-foreground border-border hover:bg-muted fixed right-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-40 inline-flex size-11 items-center justify-center rounded-full border shadow-lg transition-opacity duration-1000 ease-out data-[visible=false]:pointer-events-none data-[visible=false]:opacity-0 data-[visible=true]:opacity-100 motion-reduce:transition-none"
     >
       <ArrowUp className="size-5" aria-hidden="true" />
     </button>

@@ -36,6 +36,7 @@ export function SiteNavTabs({ links }: { links: NavItem[] }) {
               <Link
                 href={item.href}
                 aria-current={current ? "page" : undefined}
+                data-spotlight-link
                 className={navTab(active)}
               >
                 {item.label}

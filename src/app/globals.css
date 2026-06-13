@@ -120,6 +120,13 @@
 
   --radius: 0.375rem;
 
+  /* Scroll reveal (effects/reveal.tsx). Fade-in-on-scroll knobs; mirrors
+     motion.reveal in design-tokens.ts. distance = 0 ⇒ pure fade — raise to
+     ~20px to enable a synchronized rise site-wide. Theme-independent. */
+  --reveal-distance: 0px;
+  --reveal-duration: 1000ms;
+  --reveal-ease: cubic-bezier(0.4, 0, 0.2, 1);
+
   /* ── 2. Semantic roles (components reference only these) ─────────── */
   --background: var(--sand-50);
   --foreground: var(--sand-900);
@@ -177,6 +184,12 @@
   --sidebar-border: var(--sand-200);
   --sidebar-ring: var(--clay-strong);
 
+  /* Scrollbar (themed; see base-layer html rules). Subtle warm taupe thumb on a
+     transparent track so the bg texture shows through the reserved gutter; the
+     thumb warms to clay (brand) on hover. */
+  --scrollbar-thumb: color-mix(in oklab, var(--sand-500) 72%, transparent);
+  --scrollbar-thumb-hover: color-mix(in oklab, var(--brand) 85%, transparent);
+
   /* ── Background texture library ─────────────────────────────────────
      Single static site-wide pattern painted on <html> (bg-canvas + this,
      background-attachment: fixed) — shows through the transparent desk in the
@@ -187,6 +200,34 @@
   --tex-wood: url("data:image/svg+xml,%3Csvg xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22 width%3D%22600%22 height%3D%22600%22%3E%3Cfilter id%3D%22w%22 x%3D%220%22 y%3D%220%22 width%3D%22100%25%22 height%3D%22100%25%22%3E%3CfeTurbulence type%3D%22fractalNoise%22 baseFrequency%3D%220.0170 0.0019%22 numOctaves%3D%223%22 seed%3D%227%22 stitchTiles%3D%22stitch%22 result%3D%22n%22%2F%3E%3CfeColorMatrix in%3D%22n%22 type%3D%22matrix%22 values%3D%220 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0.33 0.33 0.34 0 0%22 result%3D%22a%22%2F%3E%3CfeComponentTransfer in%3D%22a%22 result%3D%22b%22%3E%3CfeFuncA type%3D%22table%22 tableValues%3D%220.0000 0.0237 0.0106 0.0017 0.0300 0.0017 0.0106 0.0237 0.0000 0.0237 0.0106 0.0017 0.0300 0.0017 0.0106 0.0237 0.0000 0.0237 0.0106 0.0017 0.0300 0.0017 0.0106 0.0237 0.0000 0.0237 0.0106 0.0017 0.0300 0.0017 0.0106 0.0237 0.0000%22%2F%3E%3C%2FfeComponentTransfer%3E%3CfeFlood flood-color%3D%22%233a2a20%22 result%3D%22c%22%2F%3E%3CfeComposite in%3D%22c%22 in2%3D%22b%22 operator%3D%22in%22%2F%3E%3C%2Ffilter%3E%3Crect width%3D%22100%25%22 height%3D%22100%25%22 filter%3D%22url(%23w)%22%2F%3E%3C%2Fsvg%3E");
   --tex-topo: url("/bg/topography-light.svg");
   --bg-texture: var(--tex-topo);
+
+  /* Static ombre wash painted under --bg-texture on <html> (fixed, viewport-
+     anchored). Top-anchored warm clay bloom fading to transparent over the
+     bg-canvas base — a subtle vertical ombre echoing the marketing hero glow.
+     Theme-aware; tune intensity via the alpha. Set `none` to disable. */
+  --bg-ombre: radial-gradient(
+    135% 85% at 50% -15%,
+    rgba(174, 90, 53, 0.1),
+    transparent 58%
+  );
+
+  /* Per-panel ombre wash (.panel-ombre utility). Transparent warm bloom anchored
+     to the top of each content band, fading down over the band's own base color —
+     re-glows section by section as you scroll. Theme-aware; tune via the alpha. */
+  --panel-ombre: linear-gradient(
+    180deg,
+    rgba(174, 90, 53, 0.035),
+    transparent 62%
+  );
+
+  /* Pointer position published by <CursorParallax>, clamped to [-1, 1] vs the
+     viewport center. Default 0 (no JS / reduced-motion → no drift). Read by the
+     html background texture + .hero-parallax-img; never set in CSS. */
+  --cursor-x: 0;
+  --cursor-y: 0;
+  /* Max travel for each cursor-driven layer. */
+  --cursor-bg-shift: 42px;
+  --cursor-hero-shift: 10px;
 }
 
 .dark {
@@ -239,7 +280,31 @@
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: var(--clay-light);
 
+  /* Scrollbar — lifted alpha so the thumb reads on the near-black canvas; clay
+     (brand-strong/light) on hover. See :root for role notes. */
+  --scrollbar-thumb: color-mix(in oklab, var(--sand-200) 42%, transparent);
+  --scrollbar-thumb-hover: color-mix(
+    in oklab,
+    var(--brand-strong) 85%,
+    transparent
+  );
+
   --tex-topo: url("/bg/topography-dark.svg");
+
+  /* Dark-tint ombre — same warm bloom, lifted alpha so it reads over near-black
+     canvas without washing out. See :root --bg-ombre. */
+  --bg-ombre: radial-gradient(
+    135% 85% at 50% -15%,
+    rgba(174, 90, 53, 0.14),
+    transparent 58%
+  );
+
+  /* Dark-tint per-panel ombre — lifted alpha over warm-dark bands. See :root. */
+  --panel-ombre: linear-gradient(
+    180deg,
+    rgba(174, 90, 53, 0.055),
+    transparent 62%
+  );
 
   /* Background texture — dark-tint variant (warm tan reads on near-black canvas).
      Same grain geometry as the light --tex-wood; see :root texture library. */
@@ -256,15 +321,54 @@
   }
   html {
     @apply bg-canvas font-sans;
+    /* Reserve the scrollbar gutter on every page so content centering never
+       shifts when a page is short enough to lose the scrollbar (Firefox + modern
+       Chromium/Safari). */
+    scrollbar-gutter: stable;
+    /* Themed scrollbar — Firefox standard props; webkit pseudo-elements below.
+       Tokens: --scrollbar-thumb / --scrollbar-thumb-hover (theme-aware). */
+    scrollbar-width: auto;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
     /* swappable site pattern; paints content area + overscroll gutter.
        fixed = viewport-anchored (static, doesn't scroll); may let the texture
        render into the browser overscroll stretch instead of the base color. */
-    background-image: var(--bg-texture);
-    background-repeat: repeat;
-    background-attachment: fixed;
-    /* tile scale — smaller = denser/finer, evens out the pattern's open areas */
-    background-size: 1000px 1000px;
+    /* Two fixed layers: texture on top, ombre wash beneath, over bg-canvas. */
+    background-image: var(--bg-texture), var(--bg-ombre);
+    background-repeat: repeat, no-repeat;
+    background-attachment: fixed, fixed;
+    /* tile scale — smaller = denser/finer, evens out the pattern's open areas;
+       ombre covers the viewport. */
+    background-size:
+      1000px 1000px,
+      cover;
+    /* texture drifts with the cursor; vars hold at their last value (no
+       snap-back), eased so each step glides. See --cursor-* above. Ombre stays
+       static (center). */
+    background-position:
+      calc(var(--cursor-x) * var(--cursor-bg-shift))
+        calc(var(--cursor-y) * var(--cursor-bg-shift)),
+      center;
+    transition: background-position 300ms ease-out;
     font-optical-sizing: auto;
+  }
+  /* Webkit/Blink scrollbar — mirrors the Firefox scrollbar-* props on html.
+     Transparent track lets the gutter background show; the transparent border +
+     padding-box clip narrows the thumb into a rounded pill with breathing room. */
+  ::-webkit-scrollbar {
+    width: 16px;
+    height: 16px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--scrollbar-thumb);
+    border-radius: 9999px;
+    border: 3px solid transparent;
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--scrollbar-thumb-hover);
   }
   h1,
   h2,
@@ -281,6 +385,127 @@
   /* Reading measure for marketing/long-form content (applied by shells in Phase 1) */
   .measure {
     max-width: 65ch;
+  }
+
+  /* Ombre wash for a content band — pair with a bg-* color utility (the gradient
+     is transparent and paints over it). Anchored top-center, fades down within
+     the band. See --panel-ombre. */
+  .panel-ombre {
+    background-image: var(--panel-ombre);
+    background-repeat: no-repeat;
+    background-position: top center;
+    background-size: 100% 100%;
+  }
+
+  /* Marketing hero photo: overscaled so it can lean toward the cursor without
+     ever revealing an edge. Drift is driven by the shared --cursor-* vars (set
+     by <CursorParallax>); it leans *opposite* the cursor for a parallax read.
+     scale is static, so reduced-motion / no-JS just sits at the zoomed rest. */
+  .hero-parallax-img {
+    transform: translate3d(
+        calc(var(--cursor-x) * var(--cursor-hero-shift) * -1),
+        calc(var(--cursor-y) * var(--cursor-hero-shift) * -1),
+        0
+      )
+      scale(1.08);
+    transition: transform 300ms ease-out;
+    /* No will-change: it promotes the image to its own compositor layer, which
+       in Chromium escapes the hero container's overflow:hidden clip (image
+       bleeds over the navbar + gutters). The 300ms ease doesn't need it. */
+  }
+
+  /* Re-entry snap: when the pointer leaves the window and returns elsewhere,
+     <CursorParallax> flags this so the jump to the new position is instant
+     rather than easing across the whole range (which reads as a phantom swoop). */
+  html[data-cursor-instant],
+  html[data-cursor-instant] .hero-parallax-img {
+    transition: none;
+  }
+
+  /* Belt-and-suspenders: even if a var were set, kill drift for reduced motion
+     (the listener already no-ops, but static export / hydration races can't). */
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      background-position:
+        0 0,
+        center;
+    }
+    .hero-parallax-img {
+      transform: scale(1.08);
+    }
+  }
+
+  /* Cursor ring (header / footer): a single soft clay halo following the
+     pointer. <CursorRing> publishes viewport px coords --mx/--my + the reveal
+     flag --ring-on, and clip-paths this viewport-fixed overlay to the active
+     region (the strip, or the open account dropdown) so the ONE ring slides
+     continuously between them. Translucent + pointer-events:none, so it never
+     blocks clicks or hover. --brand is the clay fill token. */
+  .cursor-ring-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    pointer-events: none;
+  }
+  .cursor-ring {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: var(--ring-size, 124px);
+    width: var(--ring-size, 124px);
+    border-radius: 9999px;
+    transform: translate(
+      calc(var(--mx, -300px) - 50%),
+      calc(var(--my, 0px) - 50%)
+    );
+    /* Always on — it never fades; the overlay mask reveals it only over the
+       content sheet (minus excluded photos), so it appears/disappears purely by
+       sliding under those edges. Only the position eases (a gentle trail). */
+    transition: transform 130ms ease-out;
+    border: 1.5px solid color-mix(in oklab, var(--brand) 42%, transparent);
+    box-shadow:
+      0 0 22px 3px color-mix(in oklab, var(--brand) 10%, transparent),
+      inset 0 0 14px color-mix(in oklab, var(--brand) 6%, transparent);
+  }
+  /* Re-entry snap (mirrors the parallax pattern): kill the position ease for one
+     frame so a big jump after a window exit doesn't swoop across the strip. */
+  .cursor-ring-overlay[data-ring-instant] .cursor-ring,
+  .cursor-ring-overlay[data-ring-instant] .cursor-ombre {
+    transition: none;
+  }
+  /* Alternate highlight (CURSOR_HIGHLIGHT="ombre"): an additive clay glow that
+     fades radially out from the cursor (viewport --mx/--my). Fills the overlay;
+     the overlay mask confines it to the navbar surfaces, same as the ring.
+     Tunables: --ombre-r (falloff) / --ombre-strength (peak clay alpha). */
+  .cursor-ombre {
+    position: absolute;
+    top: 0;
+    left: 0;
+    /* A gradient disc (diameter = 2·radius) translated to the cursor, so it eases
+       toward it with the same trailing lag as the ring rather than repainting
+       instantly. The clay peaks at center and fades to nothing by the edge. */
+    height: calc(var(--ombre-r, 250px) * 2);
+    width: calc(var(--ombre-r, 250px) * 2);
+    border-radius: 9999px;
+    transform: translate(
+      calc(var(--mx, -800px) - 50%),
+      calc(var(--my, 0px) - 50%)
+    );
+    transition: transform 130ms ease-out;
+    background: radial-gradient(
+      circle closest-side,
+      color-mix(
+        in oklab,
+        var(--brand) calc(var(--ombre-strength, 0.1) * 100%),
+        transparent
+      ),
+      transparent 100%
+    );
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .cursor-ring-overlay {
+      display: none;
+    }
   }
 
   /*
@@ -300,5 +525,60 @@
       var(--border) 6px
     );
     color: var(--muted-foreground);
+  }
+
+  /*
+   * About-page stat ribbon: a continuous, sports-panel-style marquee. The track
+   * holds two identical item groups (rendered by <StatTicker>); translating it
+   * one full group-width keeps the loop seamless. Motion is CSS-only and honors
+   * the reduced-motion preference (accessibility floor) by freezing in place.
+   */
+  .stat-ticker-track {
+    display: flex;
+    width: max-content;
+    animation: stat-ticker 38s linear infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .stat-ticker-track {
+      animation: none;
+    }
+  }
+}
+
+@keyframes stat-ticker {
+  from {
+    transform: translateX(-50%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@layer utilities {
+  /* Scroll reveal — fade (and optional rise) as content enters the viewport.
+     <Reveal> (effects/reveal.tsx) toggles data-revealed once the element
+     intersects; once set it stays. distance/duration/ease are the --reveal-*
+     tokens above (distance 0 ⇒ pure fade today); per-instance stagger rides on
+     --reveal-delay. Reduced-motion + the <noscript> fallback in the root layout
+     force the shown state, so content is never trapped hidden. */
+  [data-reveal] {
+    opacity: 0;
+    transform: translateY(var(--reveal-distance));
+    transition:
+      opacity var(--reveal-duration) var(--reveal-ease),
+      transform var(--reveal-duration) var(--reveal-ease);
+    transition-delay: var(--reveal-delay, 0ms);
+    will-change: opacity, transform;
+  }
+  [data-reveal][data-revealed="true"] {
+    opacity: 1;
+    transform: none;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    [data-reveal] {
+      opacity: 1;
+      transform: none;
+      transition: none;
+    }
   }
 }
