@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCachedUser } from "@/lib/supabase/server-cache";
 import { AppShell } from "@/components/layout/app-shell";
-import { AccountContentSkeleton } from "@/components/layout/zone-skeletons";
 import { accountNav } from "@/components/layout/nav-config";
 
 /**
@@ -31,12 +30,7 @@ export default async function AccountLayout({
   const locked = profile?.onboarding_status !== "approved";
 
   return (
-    <AppShell
-      nav={accountNav}
-      identity={identity}
-      locked={locked}
-      contentSkeleton={<AccountContentSkeleton />}
-    >
+    <AppShell nav={accountNav} identity={identity} locked={locked}>
       {children}
     </AppShell>
   );
