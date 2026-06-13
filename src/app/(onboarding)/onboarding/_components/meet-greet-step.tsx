@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { MeetGreetScheduler } from "@/features/accounts";
-import { RefreshOnInterval } from "@/components/util/refresh-on-interval";
+import { ApprovalWatcher } from "./approval-watcher";
 import { Button } from "@/components/ui/button";
 import type {
   BookingRuleSettings,
@@ -26,15 +26,19 @@ function formatDenver(iso: string): string {
  * Onboarding step 2 — embedded meet-and-greet scheduling with two states:
  *  • no booking yet → scheduler shown directly under the intro;
  *  • booked → scheduler collapses to a status card; "View / reschedule"
- *    re-opens it inline. While booked, RefreshOnInterval polls so that once Cal
- *    approves, the onboarding page's server redirect moves the client to /account.
+ *    re-opens it inline. While booked, ApprovalWatcher subscribes to the user's
+ *    profile (realtime, 60s poll fallback) so that once Cal approves, the
+ *    onboarding page's server redirect moves the client to /account.
  */
 export function MeetGreetStep({
+  userId,
   rules,
   initialBusy,
   bookingId,
   bookingStartsAt,
 }: {
+  /** Signed-in user id — drives the profile-approval realtime subscription. */
+  userId: string;
   rules: BookingRuleSettings;
   initialBusy: PublicBusyRange[];
   /** Id of the active meet-greet booking, or null if none yet (drives reschedule). */
@@ -63,7 +67,7 @@ export function MeetGreetStep({
 
       {bookingStartsAt !== null && !rescheduling ? (
         <>
-          <RefreshOnInterval />
+          <ApprovalWatcher userId={userId} />
           <div className="flex items-center gap-3">
             <div
               aria-hidden="true"

@@ -53,6 +53,8 @@ interface EditBookingClientProps {
   service: ServiceDetail;
   rules: BookingRuleSettings;
   initialBusy: PublicBusyRange[];
+  /** Server-seeded premium (holiday) day-keys. */
+  initialPremiumDays?: string[];
   pets: AssignablePet[];
   /** Current booking total (cents) — for the price delta. */
   priorFinalCents: number;
@@ -73,6 +75,7 @@ export function EditBookingClient({
   service,
   rules,
   initialBusy,
+  initialPremiumDays,
   pets,
   priorFinalCents,
   initial,
@@ -115,6 +118,7 @@ export function EditBookingClient({
     service,
     rules,
     initialBusy,
+    initialPremiumDays,
     initial,
     admin,
   });

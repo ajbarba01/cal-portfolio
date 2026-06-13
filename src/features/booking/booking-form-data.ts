@@ -7,6 +7,9 @@ import type { PublicBusyRange } from "./busy-ranges";
 export interface BookingFormData {
   rules: BookingRuleSettings;
   initialBusy: PublicBusyRange[];
+  /** Denver day-keys carrying a holiday surcharge — server-seeded so the client
+   *  needs no settings round trip (holidays don't change mid-session). */
+  initialPremiumDays: string[];
 }
 
 export type LoadBookingFormDataResult =
@@ -26,7 +29,7 @@ export async function loadBookingFormData(
   const { data: settingsData, error } = await svc
     .from("settings")
     .select(
-      "booking_open_minute, booking_close_minute, min_lead_time_hours, hard_max_advance_days, cancellation_full_refund_hours, late_cancel_refund_pct",
+      "booking_open_minute, booking_close_minute, min_lead_time_hours, hard_max_advance_days, cancellation_full_refund_hours, late_cancel_refund_pct, holiday_dates",
     )
     .limit(1)
     .single();
@@ -43,6 +46,11 @@ export async function loadBookingFormData(
     lateCancelRefundPct: settingsData.late_cancel_refund_pct as number,
   };
 
+  const rawHolidays: unknown = settingsData.holiday_dates;
+  const initialPremiumDays = Array.isArray(rawHolidays)
+    ? rawHolidays.filter((v): v is string => typeof v === "string")
+    : [];
+
   const initialBusy = await getPublicBusyRanges(serviceSlug);
-  return { ok: true, data: { rules, initialBusy } };
+  return { ok: true, data: { rules, initialBusy, initialPremiumDays } };
 }

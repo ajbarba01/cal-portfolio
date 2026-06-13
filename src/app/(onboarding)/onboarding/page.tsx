@@ -11,8 +11,9 @@
  *   approved             → defensive redirect to /account (middleware handles this normally)
  *   declined             → polite "reach out" panel
  *
- * The booked card polls (RefreshOnInterval) so that once Cal approves, the next
- * server render hits the approved → /account redirect and moves the client on.
+ * The booked card subscribes to the user's profile via realtime (ApprovalWatcher,
+ * 60s poll fallback) so that once Cal approves, the next server render hits the
+ * approved → /account redirect and moves the client on.
  */
 
 import { redirect } from "next/navigation";
@@ -152,6 +153,7 @@ export default async function OnboardingPage({
           subtitle="Before your first booking, Cal comes by to meet you and your pets in person."
         />
         <MeetGreetStep
+          userId={user.id}
           rules={meetGreetFormData.data.rules}
           initialBusy={meetGreetFormData.data.initialBusy}
           bookingId={activeBookingId}

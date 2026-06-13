@@ -90,7 +90,7 @@ export default async function ServiceBookingPage({
       </main>
     );
   }
-  const { rules, initialBusy } = loaded.data;
+  const { rules, initialBusy, initialPremiumDays } = loaded.data;
 
   let authState: AuthState = "guest";
   let pets: AssignablePet[] = [];
@@ -198,6 +198,7 @@ export default async function ServiceBookingPage({
         service={service}
         rules={rules}
         initialBusy={initialBusy}
+        initialPremiumDays={initialPremiumDays}
         authState={authState}
         pets={pets}
         initialSelection={initialSelection}

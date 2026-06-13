@@ -92,7 +92,7 @@ export default async function AdminEditBookingPage({
       </main>
     );
   }
-  const { rules, initialBusy } = loaded.data;
+  const { rules, initialBusy, initialPremiumDays } = loaded.data;
 
   const { data: petRows } = await svc
     .from("pets")
@@ -148,6 +148,7 @@ export default async function AdminEditBookingPage({
         service={service}
         rules={rules}
         initialBusy={initialBusy}
+        initialPremiumDays={initialPremiumDays}
         pets={pets}
         priorFinalCents={priorFinalCents}
         initial={initial}

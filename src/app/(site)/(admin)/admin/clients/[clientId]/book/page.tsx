@@ -97,6 +97,7 @@ export default async function AdminCreateBookingPage({
     );
   }
   const rules = loaded.data.rules;
+  const initialPremiumDays = loaded.data.initialPremiumDays;
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-12">
@@ -114,6 +115,7 @@ export default async function AdminCreateBookingPage({
         services={services}
         pets={pets}
         rules={rules}
+        initialPremiumDays={initialPremiumDays}
       />
     </main>
   );

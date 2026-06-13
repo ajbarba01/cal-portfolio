@@ -21,12 +21,15 @@ export function AdminCreateBookingFlow({
   services,
   pets,
   rules,
+  initialPremiumDays,
 }: {
   clientId: string;
   clientName: string;
   services: FlowService[];
   pets: AssignablePet[];
   rules: BookingRuleSettings;
+  /** Server-seeded premium (holiday) day-keys. */
+  initialPremiumDays?: string[];
 }) {
   const [picked, setPicked] = useState<FlowService | null>(null);
 
@@ -56,6 +59,7 @@ export function AdminCreateBookingFlow({
       service={service}
       rules={rules}
       initialBusy={[]}
+      initialPremiumDays={initialPremiumDays}
       pets={pets}
     />
   );

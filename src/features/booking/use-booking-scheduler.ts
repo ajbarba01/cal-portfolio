@@ -135,6 +135,8 @@ export interface UseBookingSchedulerInput {
   service: ServiceDetail;
   rules: BookingRuleSettings;
   initialBusy: PublicBusyRange[];
+  /** Server-seeded premium (holiday) day-keys; defaults to none. */
+  initialPremiumDays?: string[];
 
   /** Availability/busy/overnight IO hooks (injected from the barrel). */
   io: BookingSchedulerIo;
@@ -237,6 +239,7 @@ export function useBookingScheduler({
   service,
   rules,
   initialBusy,
+  initialPremiumDays = [],
   io,
   myBookings,
   initialQuantities,
@@ -315,7 +318,7 @@ export function useBookingScheduler({
     error: windowsError,
   } = useAvailability({ durationMs, rules });
   const { overnightNights } = useOvernightNights();
-  const { premiumDays } = usePremiumDays();
+  const { premiumDays } = usePremiumDays(initialPremiumDays);
   const { busy, refresh: refreshBusy } = useBusyRanges(
     service.slug,
     initialBusy,

@@ -163,6 +163,9 @@ export function useAvailability({
 
     // Subscribe to realtime changes on availability_windows. Busy bookings are
     // tracked separately by useBusyRanges (service-role source).
+    // NOTE: realtime delivery needs the table to be in the `supabase_realtime`
+    // publication (it currently isn't), so this channel does not fire today;
+    // windows refresh on (re)mount. Kept for when the publication is extended.
     const channel = supabase
       .channel("availability-realtime")
       .on(
