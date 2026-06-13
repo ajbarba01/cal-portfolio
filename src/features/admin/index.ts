@@ -137,6 +137,9 @@ export { emptyAttentionCounts } from "./attention-counts";
 // attention-counts-query (server-only: fetches live counts for admin layout)
 export { getAttentionCounts } from "./attention-counts-query";
 
+// nav-badges-action (server action: counts for the client-resolved header)
+export { fetchAttentionCounts } from "./nav-badges-action";
+
 // bookings-view (pure predicates)
 export { filterBookings, daysWithMatch, isolate } from "./bookings-view";
 export type { BookingStatusFilter } from "./bookings-view";

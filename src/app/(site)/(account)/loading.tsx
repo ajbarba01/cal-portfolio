@@ -1,10 +1,12 @@
 /**
  * Account zone loading state — renders inside AppShell's `<main>` (the children
- * slot) while an account page fetches. The real sidebar and header stay mounted
- * during navigation, so only the page content shows a centered loading circle.
+ * slot) on first entry / hard load while an account page fetches. The real
+ * sidebar and header stay mounted. Same content-shaped skeleton the in-zone
+ * `<ContentArea>` overlay uses for soft navigations, so the placeholder is
+ * identical however the navigation started.
  */
-import { PageLoader } from "@/components/ui/spinner";
+import { AccountContentSkeleton } from "@/components/layout/zone-skeletons";
 
 export default function AccountLoading() {
-  return <PageLoader label="Loading account" />;
+  return <AccountContentSkeleton />;
 }

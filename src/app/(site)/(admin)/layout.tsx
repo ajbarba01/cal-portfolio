@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCachedUser } from "@/lib/supabase/server-cache";
 import { AppShell } from "@/components/layout/app-shell";
+import { AdminContentSkeleton } from "@/components/layout/zone-skeletons";
 import { adminNav, type NavBadges } from "@/components/layout/nav-config";
 import { getAttentionCounts } from "@/features/admin";
 
@@ -48,6 +49,7 @@ export default async function AdminLayout({
       nav={adminNav}
       identity={identity}
       navBadgesPromise={attentionPromise}
+      contentSkeleton={<AdminContentSkeleton />}
     >
       {children}
     </AppShell>
