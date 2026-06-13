@@ -86,17 +86,29 @@ export interface HouseSittingQuantities {
 /** Quantities specific to check_in bookings. */
 export interface CheckInQuantities {
   hours: number;
+  /** Number of premium (holiday) days the service falls on (0 or 1 for sub-24h). Server-derived. */
+  holidayDays?: number;
+  /** Surcharge per premium day in cents. From settings.holiday_surcharge_cents. Server-derived. */
+  holidaySurchargeCents?: number;
 }
 
 /** Quantities specific to walk bookings. */
 export interface WalkQuantities {
   hours: number;
   dogs: number;
+  /** Number of premium (holiday) days the service falls on (0 or 1 for sub-24h). Server-derived. */
+  holidayDays?: number;
+  /** Surcharge per premium day in cents. From settings.holiday_surcharge_cents. Server-derived. */
+  holidaySurchargeCents?: number;
 }
 
 /** Quantities specific to training bookings. */
 export interface TrainingQuantities {
   hours: number;
+  /** Number of premium (holiday) days the service falls on (0 or 1 for sub-24h). Server-derived. */
+  holidayDays?: number;
+  /** Surcharge per premium day in cents. From settings.holiday_surcharge_cents. Server-derived. */
+  holidaySurchargeCents?: number;
 }
 
 /** Shared modifier fields present on every QuoteInput variant. */

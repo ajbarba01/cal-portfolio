@@ -188,15 +188,24 @@ const houseSittingQuantitiesSchema = z.object({
 
 const checkInQuantitiesSchema = z.object({
   hours: z.number().positive(),
+  // Server-injected after Zod parse — accepted here so buildQuoteInput can propagate them.
+  holidayDays: z.number().int().min(0).optional(),
+  holidaySurchargeCents: z.number().int().nonnegative().optional(),
 });
 
 const walkQuantitiesSchema = z.object({
   hours: z.number().positive(),
   dogs: z.number().int().min(1),
+  // Server-injected after Zod parse — accepted here so buildQuoteInput can propagate them.
+  holidayDays: z.number().int().min(0).optional(),
+  holidaySurchargeCents: z.number().int().nonnegative().optional(),
 });
 
 const trainingQuantitiesSchema = z.object({
   hours: z.number().positive(),
+  // Server-injected after Zod parse — accepted here so buildQuoteInput can propagate them.
+  holidayDays: z.number().int().min(0).optional(),
+  holidaySurchargeCents: z.number().int().nonnegative().optional(),
 });
 
 const meetGreetQuantitiesSchema = z.object({}).strict();
@@ -219,6 +228,19 @@ type ParseQuantitiesResult =
   | { success: false; message: string };
 
 /**
+ * Human-readable summary of a quantities Zod failure. This message reaches the
+ * booking UI (feedback rule: never surface raw zod issue JSON to users).
+ */
+function quantitiesErrorMessage(error: z.ZodError): string {
+  const fields = [
+    ...new Set(
+      error.issues.map((i) => (i.path.length ? i.path.join(".") : "value")),
+    ),
+  ];
+  return `Some booking details are missing or invalid (${fields.join(", ")}). Adjust your selection and try again.`;
+}
+
+/**
  * Validates and parses the `quantities` record against the per-type Zod schema.
  * Called after the service's pricing_type is known, before any quoting.
  * Returns a typed discriminated result so `buildQuoteInput` receives validated values.
@@ -230,27 +252,32 @@ export function parseQuantities(
   switch (pricingType) {
     case "house_sitting": {
       const r = houseSittingQuantitiesSchema.safeParse(raw);
-      if (!r.success) return { success: false, message: r.error.message };
+      if (!r.success)
+        return { success: false, message: quantitiesErrorMessage(r.error) };
       return { success: true, pricingType: "house_sitting", data: r.data };
     }
     case "check_in": {
       const r = checkInQuantitiesSchema.safeParse(raw);
-      if (!r.success) return { success: false, message: r.error.message };
+      if (!r.success)
+        return { success: false, message: quantitiesErrorMessage(r.error) };
       return { success: true, pricingType: "check_in", data: r.data };
     }
     case "walk": {
       const r = walkQuantitiesSchema.safeParse(raw);
-      if (!r.success) return { success: false, message: r.error.message };
+      if (!r.success)
+        return { success: false, message: quantitiesErrorMessage(r.error) };
       return { success: true, pricingType: "walk", data: r.data };
     }
     case "training": {
       const r = trainingQuantitiesSchema.safeParse(raw);
-      if (!r.success) return { success: false, message: r.error.message };
+      if (!r.success)
+        return { success: false, message: quantitiesErrorMessage(r.error) };
       return { success: true, pricingType: "training", data: r.data };
     }
     case "meet_greet": {
       const r = meetGreetQuantitiesSchema.safeParse(raw);
-      if (!r.success) return { success: false, message: r.error.message };
+      if (!r.success)
+        return { success: false, message: quantitiesErrorMessage(r.error) };
       return { success: true, pricingType: "meet_greet", data: r.data };
     }
     default:
@@ -301,6 +328,8 @@ export function buildQuoteInput(opts: {
         pricingType: "check_in",
         pricingConfig: opts.pricingConfig as QuoteInput["pricingConfig"],
         hours: q.data.hours,
+        holidayDays: q.data.holidayDays,
+        holidaySurchargeCents: q.data.holidaySurchargeCents,
         ...shared,
       } as QuoteInput;
 
@@ -310,6 +339,8 @@ export function buildQuoteInput(opts: {
         pricingConfig: opts.pricingConfig as QuoteInput["pricingConfig"],
         hours: q.data.hours,
         dogs: q.data.dogs,
+        holidayDays: q.data.holidayDays,
+        holidaySurchargeCents: q.data.holidaySurchargeCents,
         ...shared,
       } as QuoteInput;
 
@@ -318,6 +349,8 @@ export function buildQuoteInput(opts: {
         pricingType: "training",
         pricingConfig: opts.pricingConfig as QuoteInput["pricingConfig"],
         hours: q.data.hours,
+        holidayDays: q.data.holidayDays,
+        holidaySurchargeCents: q.data.holidaySurchargeCents,
         ...shared,
       } as QuoteInput;
 
@@ -636,16 +669,33 @@ export async function computeBookingArtifacts(
 
   // Inject the server-derived count into the quantities record before building
   // the QuoteInput. For house_sitting this overrides any client-supplied
-  // holidayDays; for other types the field is absent from their QuoteInput so
-  // this is a no-op at the buildQuoteInput level.
-  const quantitiesWithHoliday: typeof quantities =
-    quantities.pricingType === "house_sitting"
-      ? {
-          success: true as const,
-          pricingType: "house_sitting" as const,
-          data: { ...quantities.data, holidayDays: derivedHolidayDays },
-        }
-      : quantities;
+  // holidayDays. For hourly types (walk, check_in, training), we inject both
+  // holidayDays and holidaySurchargeCents (from settings) so the quote core
+  // can add the premium-day line — the client cannot supply these values.
+  let quantitiesWithHoliday: typeof quantities;
+  if (quantities.pricingType === "house_sitting") {
+    quantitiesWithHoliday = {
+      success: true as const,
+      pricingType: "house_sitting" as const,
+      data: { ...quantities.data, holidayDays: derivedHolidayDays },
+    };
+  } else if (
+    quantities.pricingType === "walk" ||
+    quantities.pricingType === "check_in" ||
+    quantities.pricingType === "training"
+  ) {
+    quantitiesWithHoliday = {
+      success: true as const,
+      pricingType: quantities.pricingType,
+      data: {
+        ...quantities.data,
+        holidayDays: derivedHolidayDays,
+        holidaySurchargeCents: settings.holiday_surcharge_cents,
+      },
+    } as typeof quantities;
+  } else {
+    quantitiesWithHoliday = quantities;
+  }
 
   const quoteInput = buildQuoteInput({
     pricingType: service.pricing_type,

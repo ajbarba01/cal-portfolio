@@ -453,6 +453,125 @@ describe("quote meet_greet", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Premium day surcharge — hourly services
+// ---------------------------------------------------------------------------
+
+describe("quote hourly — premium day surcharge", () => {
+  it("walk with holidayDays:1 adds a 'Premium day' line at holiday_cents_per_day", () => {
+    // 1h walk + 1 dog = 2500 + 1000 = 3500 base
+    // + 1 premium day × 1000 = 1000
+    // total = 4500
+    const result = quote({
+      pricingType: "walk",
+      pricingConfig: WALK_CFG,
+      hours: 1,
+      dogs: 1,
+      holidayDays: 1,
+      holidaySurchargeCents: 1000,
+      ...NO_MODIFIERS,
+    });
+    expect(result.finalCents).toBe(4500);
+    const premiumLine = result.lines.find((l) =>
+      l.label.toLowerCase().includes("premium"),
+    );
+    expect(premiumLine).toBeDefined();
+    expect(premiumLine!.amountCents).toBe(1000);
+  });
+
+  it("walk with holidayDays:0 — no premium line", () => {
+    const result = quote({
+      pricingType: "walk",
+      pricingConfig: WALK_CFG,
+      hours: 1,
+      dogs: 1,
+      holidayDays: 0,
+      holidaySurchargeCents: 1000,
+      ...NO_MODIFIERS,
+    });
+    expect(result.finalCents).toBe(3500);
+    expect(
+      result.lines.find((l) => l.label.toLowerCase().includes("premium")),
+    ).toBeUndefined();
+  });
+
+  it("walk with holidayDays absent — no premium line", () => {
+    const result = quote({
+      pricingType: "walk",
+      pricingConfig: WALK_CFG,
+      hours: 1,
+      dogs: 1,
+      ...NO_MODIFIERS,
+    });
+    expect(result.finalCents).toBe(3500);
+    expect(
+      result.lines.find((l) => l.label.toLowerCase().includes("premium")),
+    ).toBeUndefined();
+  });
+
+  it("check_in with holidayDays:1 adds premium line", () => {
+    // 1h × 3000 = 3000 base + 1000 premium = 4000
+    const result = quote({
+      pricingType: "check_in",
+      pricingConfig: CI_CFG,
+      hours: 1,
+      holidayDays: 1,
+      holidaySurchargeCents: 1000,
+      ...NO_MODIFIERS,
+    });
+    expect(result.finalCents).toBe(4000);
+    const premiumLine = result.lines.find((l) =>
+      l.label.toLowerCase().includes("premium"),
+    );
+    expect(premiumLine).toBeDefined();
+    expect(premiumLine!.amountCents).toBe(1000);
+  });
+
+  it("check_in with holidayDays:0 — no premium line", () => {
+    const result = quote({
+      pricingType: "check_in",
+      pricingConfig: CI_CFG,
+      hours: 1,
+      holidayDays: 0,
+      holidaySurchargeCents: 1000,
+      ...NO_MODIFIERS,
+    });
+    expect(result.finalCents).toBe(3000);
+    expect(
+      result.lines.find((l) => l.label.toLowerCase().includes("premium")),
+    ).toBeUndefined();
+  });
+
+  it("training with holidayDays:1 adds premium line", () => {
+    // 1h × 3500 = 3500 base + 1000 premium = 4500
+    const result = quote({
+      pricingType: "training",
+      pricingConfig: TRAIN_CFG,
+      hours: 1,
+      holidayDays: 1,
+      holidaySurchargeCents: 1000,
+      ...NO_MODIFIERS,
+    });
+    expect(result.finalCents).toBe(4500);
+    const premiumLine = result.lines.find((l) =>
+      l.label.toLowerCase().includes("premium"),
+    );
+    expect(premiumLine).toBeDefined();
+    expect(premiumLine!.amountCents).toBe(1000);
+  });
+
+  it("meet_greet with holidayDays:1 remains free — no surcharge ever", () => {
+    const result = quote({
+      pricingType: "meet_greet",
+      pricingConfig: {} as MeetGreetConfig,
+      recurringDiscountApplies: false,
+      recurringDiscountPct: 10,
+      applyKiche: false,
+    });
+    expect(result).toEqual({ lines: [], finalCents: 0 });
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Modifier: Travel (hourly services only)
 // ---------------------------------------------------------------------------
 

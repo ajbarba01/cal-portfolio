@@ -69,6 +69,8 @@ export interface SettingsRow {
   no_show_charge_pct: number;
   /** ISO "YYYY-MM-DD" day keys for premium (holiday) days. Empty when none set. */
   holiday_dates: string[];
+  /** Per-day surcharge (cents) for bookings on premium days. Applied to all service types. */
+  holiday_surcharge_cents: number;
 }
 
 export interface ProfileLatLng {
@@ -155,6 +157,7 @@ const settingsRowSchema = z.object({
   late_cancel_refund_pct: z.number(),
   no_show_charge_pct: z.number(),
   holiday_dates: z.array(z.string()).default([]),
+  holiday_surcharge_cents: z.number().int().nonnegative().default(0),
 });
 
 /** Parsed and validated service row. pricing_type is the closed enum. */
@@ -603,7 +606,7 @@ export function createSupabaseBookingRepository(
             "recurrence_generation_horizon_days, " +
             "recurring_discount_pct, recurring_min_occurrences, " +
             "cancellation_full_refund_hours, late_cancel_refund_pct, no_show_charge_pct, " +
-            "holiday_dates",
+            "holiday_dates, holiday_surcharge_cents",
         )
         .limit(1)
         .single();

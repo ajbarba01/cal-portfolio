@@ -126,6 +126,16 @@ export function buildEditQuoteInput(
     (endsAt.getTime() - startsAt.getTime()) / MS_PER_DAY,
   );
   if (nights >= 1) quantities.nights = nights;
+  // `hours` is the same kind of derived state for hourly services: the booked
+  // span is authoritative (the edit UI recomputes endsAt from the duration
+  // stepper, so timestamps always reflect the chosen duration). Stored/seeded
+  // rows may carry empty quote_inputs, and a no-op or date-only patch omits
+  // quantities — recompute so the hourly quantity schema never sees
+  // `hours: undefined`.
+  if (nights < 1) {
+    const hours = (endsAt.getTime() - startsAt.getTime()) / (60 * 60 * 1000);
+    if (hours > 0) quantities.hours = hours;
+  }
   const merged: CreateBookingInput = {
     userId: booking.client_id,
     serviceSlug: booking.service_slug,
