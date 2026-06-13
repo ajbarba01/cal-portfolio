@@ -79,10 +79,12 @@ export async function listReviewsCore(
   );
   if (!isAdmin) return { kind: "forbidden" };
 
+  // window = newest 1000; client search/pager operate on the window.
   const { data, error } = await deps.serviceClient
     .from("reviews")
     .select("id, client_id, author_name, rating, body, status, created_at")
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(1000);
 
   if (error) return { kind: "error", message: error.message };
 

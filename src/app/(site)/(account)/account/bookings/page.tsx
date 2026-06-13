@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
+import { getCachedUser } from "@/lib/supabase/server-cache";
 import { createServiceClient } from "@/lib/supabase/service";
 import {
   createSupabaseBookingRepository,
@@ -64,28 +65,31 @@ function parsePets(bookingPets: BookingPetRow[] | null): AccountBookingPet[] {
 }
 
 export default async function BookingsPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { user } = await getCachedUser();
 
   if (!user) redirect("/login");
 
+  const supabase = await createClient();
   const now = new Date();
   const monthStartIso = new Date(
     Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
   ).toISOString();
 
   const repo = createSupabaseBookingRepository(createServiceClient());
-  const settings = await repo.getSettings();
 
-  const { data: bookings } = await supabase
-    .from("bookings")
-    .select(
-      "id, starts_at, ends_at, status, final_cents, quote_inputs, payments(amount_cents, status), services(name, slug), booking_pets(pets(name, species))",
-    )
-    .eq("client_id", user.id)
-    .order("starts_at", { ascending: false });
+  // Settings and the bookings list are independent — fetch in parallel.
+  // window = newest 500; client search/pager operate on the window.
+  const [settings, { data: bookings }] = await Promise.all([
+    repo.getSettings(),
+    supabase
+      .from("bookings")
+      .select(
+        "id, starts_at, ends_at, status, final_cents, quote_inputs, payments(amount_cents, status), services(name, slug), booking_pets(pets(name, species))",
+      )
+      .eq("client_id", user.id)
+      .order("starts_at", { ascending: false })
+      .limit(500),
+  ]);
 
   const raw = (bookings as RawBookingRow[]) ?? [];
   const rows: AccountBookingRow[] = raw.map((b) => ({

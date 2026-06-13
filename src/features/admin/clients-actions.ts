@@ -57,27 +57,16 @@ export async function listClientsCore(
   }
   const serviceClient = deps.serviceClient;
 
+  // Pet/booking counts and debits come back as Postgres-side embedded
+  // aggregates — no whole-table scans counted in JS.
   const { data: profiles, error: profileError } = await serviceClient
     .from("profiles")
-    .select("id, full_name, email, phone, onboarding_status")
+    .select(
+      "id, full_name, email, phone, onboarding_status, created_at, pets(count), bookings(count), client_debits(amount_cents, settled_at)",
+    )
     .eq("role", "client")
     .order("created_at", { ascending: false });
   if (profileError) return { kind: "error", message: profileError.message };
-
-  const { data: pets, error: petError } = await serviceClient
-    .from("pets")
-    .select("client_id");
-  if (petError) return { kind: "error", message: petError.message };
-
-  const { data: bookings, error: bookingError } = await serviceClient
-    .from("bookings")
-    .select("client_id");
-  if (bookingError) return { kind: "error", message: bookingError.message };
-
-  const { data: debits, error: debitError } = await serviceClient
-    .from("client_debits")
-    .select("client_id, amount_cents, settled_at");
-  if (debitError) return { kind: "error", message: debitError.message };
 
   const { data: mgBookings, error: mgError } = await serviceClient
     .from("bookings")
@@ -95,48 +84,29 @@ export async function listClientsCore(
     new Date(),
   );
 
-  const countByClient = (rows: { client_id: string }[]) => {
-    const counts = new Map<string, number>();
-    for (const row of rows) {
-      counts.set(row.client_id, (counts.get(row.client_id) ?? 0) + 1);
-    }
-    return counts;
-  };
-  const petCounts = countByClient((pets ?? []) as { client_id: string }[]);
-  const bookingCounts = countByClient(
-    (bookings ?? []) as { client_id: string }[],
-  );
-
-  const debitsByClient = new Map<
-    string,
-    { amount_cents: number; settled_at: string | null }[]
-  >();
-  for (const debit of (debits ?? []) as {
-    client_id: string;
-    amount_cents: number;
-    settled_at: string | null;
-  }[]) {
-    const clientDebits = debitsByClient.get(debit.client_id) ?? [];
-    clientDebits.push({
-      amount_cents: debit.amount_cents,
-      settled_at: debit.settled_at,
-    });
-    debitsByClient.set(debit.client_id, clientDebits);
+  interface ProfileWithAggregates {
+    id: string;
+    full_name: string | null;
+    email: string | null;
+    phone: string | null;
+    onboarding_status: OnboardingStatus | null;
+    pets: { count: number }[] | null;
+    bookings: { count: number }[] | null;
+    client_debits: { amount_cents: number; settled_at: string | null }[] | null;
   }
 
-  const clients: ClientListRow[] = (profiles ?? []).map((profile) => ({
-    id: profile.id as string,
-    full_name: (profile.full_name as string | null) ?? null,
-    email: (profile.email as string | null) ?? null,
-    phone: (profile.phone as string | null) ?? null,
-    petCount: petCounts.get(profile.id as string) ?? 0,
-    bookingCount: bookingCounts.get(profile.id as string) ?? 0,
-    outstandingCents: outstandingBalanceCents(
-      debitsByClient.get(profile.id as string) ?? [],
-    ),
-    onboardingStatus:
-      (profile.onboarding_status as OnboardingStatus) ?? "info_pending",
-    meetGreetUpcoming: meetGreetUpcoming.has(profile.id as string),
+  const clients: ClientListRow[] = (
+    (profiles ?? []) as unknown as ProfileWithAggregates[]
+  ).map((profile) => ({
+    id: profile.id,
+    full_name: profile.full_name ?? null,
+    email: profile.email ?? null,
+    phone: profile.phone ?? null,
+    petCount: profile.pets?.[0]?.count ?? 0,
+    bookingCount: profile.bookings?.[0]?.count ?? 0,
+    outstandingCents: outstandingBalanceCents(profile.client_debits ?? []),
+    onboardingStatus: profile.onboarding_status ?? "info_pending",
+    meetGreetUpcoming: meetGreetUpcoming.has(profile.id),
   }));
 
   return { kind: "success", clients };

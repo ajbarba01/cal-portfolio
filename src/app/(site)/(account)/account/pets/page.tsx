@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { getCachedUser } from "@/lib/supabase/server-cache";
 import { createServiceClient } from "@/lib/supabase/service";
 import { redirect } from "next/navigation";
 import { PetsClient } from "./_components/pets-client";
@@ -14,13 +15,11 @@ export interface PetView extends Pet {
 const SIGNED_URL_TTL_SECONDS = 60 * 60;
 
 export default async function PetsPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { user } = await getCachedUser();
 
   if (!user) redirect("/login");
 
+  const supabase = await createClient();
   const { data: rows } = await supabase
     .from("pets")
     .select("id, name, species, breed, notes, photo_url")

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Fraunces, Public_Sans, Geist_Mono } from "next/font/google";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { ToastProvider } from "@/components/feedback/toast";
 import { CursorParallax } from "@/components/effects/cursor-parallax";
 import "./globals.css";
@@ -43,6 +44,7 @@ export default function RootLayout({
         </noscript>
         <CursorParallax />
         <ToastProvider>{children}</ToastProvider>
+        <SpeedInsights />
       </body>
     </html>
   );
