@@ -34,6 +34,9 @@ export const MS_PER_DAY = 24 * 60 * 60 * 1000;
 /** Slug of the meet-and-greet service — the only service a meet_greet_pending client may book. */
 export const MEET_GREET_SLUG = "meet-greet";
 
+/** Max length of a client's freeform "Notes for Cal". Enforced server-side (schema) and surfaced to the UI counter. */
+export const BOOKING_COMMENTS_MAX = 2000;
+
 // ──────────────────────────────────────────────────────────────────────────────
 // deriveHolidayDays — server-trusted premium-day count
 // ──────────────────────────────────────────────────────────────────────────────
@@ -132,8 +135,8 @@ export const createBookingInputSchema = z
     petIds: z.array(z.string().uuid()).optional(),
     /** Weekly recurrence rule. MVP UI exposes weekly only; daily/monthly accepted for future use. */
     recurringRule: recurrenceRuleSchema.nullable(),
-    /** Optional freeform note from the client, surfaced to Cal. Max 2000 chars. */
-    comments: z.string().trim().max(2000).optional(),
+    /** Optional freeform note from the client, surfaced to Cal. */
+    comments: z.string().trim().max(BOOKING_COMMENTS_MAX).optional(),
   })
   .refine((d) => d.endsAt > d.startsAt, {
     message: "endsAt must be after startsAt",
