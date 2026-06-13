@@ -13,13 +13,15 @@ export default async function AccountInquiriesPage() {
   if (!user) redirect("/login");
 
   const supabase = await createClient();
+  // window = newest 500; client search/pager operate on the window.
   const { data } = await supabase
     .from("inquiries")
     .select(
       "id, client_id, name, email, phone, subject, message, status, replied_at, resolved_at, created_at",
     )
     .eq("client_id", user.id)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(500);
 
   const inquiries = (data ?? []) as InquiryRow[];
 

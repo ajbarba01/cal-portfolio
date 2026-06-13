@@ -143,12 +143,14 @@ export async function listInquiriesCore(
     return { kind: "forbidden" };
   }
 
+  // window = newest 1000; client search/pager operate on the window.
   const { data, error } = await deps.serviceClient
     .from("inquiries")
     .select(
       "id, client_id, name, email, phone, subject, message, status, replied_at, resolved_at, created_at",
     )
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(1000);
   if (error) return { kind: "error", message: error.message };
 
   const inquiries: InquiryRow[] = [];

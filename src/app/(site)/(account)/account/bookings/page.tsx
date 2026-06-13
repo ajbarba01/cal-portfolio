@@ -78,6 +78,7 @@ export default async function BookingsPage() {
   const repo = createSupabaseBookingRepository(createServiceClient());
 
   // Settings and the bookings list are independent — fetch in parallel.
+  // window = newest 500; client search/pager operate on the window.
   const [settings, { data: bookings }] = await Promise.all([
     repo.getSettings(),
     supabase
@@ -86,7 +87,8 @@ export default async function BookingsPage() {
         "id, starts_at, ends_at, status, final_cents, quote_inputs, payments(amount_cents, status), services(name, slug), booking_pets(pets(name, species))",
       )
       .eq("client_id", user.id)
-      .order("starts_at", { ascending: false }),
+      .order("starts_at", { ascending: false })
+      .limit(500),
   ]);
 
   const raw = (bookings as RawBookingRow[]) ?? [];
