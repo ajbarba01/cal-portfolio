@@ -51,7 +51,10 @@ export function AccountMenu() {
           pt-2 for the visual gap — that padding is part of the hovered subtree,
           so moving the cursor from trigger to panel never crosses a dead zone
           that would close the menu. */}
-      <div className="invisible absolute top-full right-0 z-10 pt-2 opacity-0 transition-opacity group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100">
+      <div
+        data-ring-include
+        className="invisible absolute top-full right-0 z-10 pt-2 opacity-0 transition-opacity group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100"
+      >
         <div
           role="menu"
           className="border-border bg-background flex min-w-32 flex-col rounded-md border py-1 shadow-lg"

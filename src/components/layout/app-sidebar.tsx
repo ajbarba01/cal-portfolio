@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState, type MouseEvent } from "react";
 import { Lock, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { activeNavHref } from "./is-active-nav";
@@ -25,12 +26,45 @@ export function AppSidebar({
   navBadges?: NavBadges;
 }) {
   const pathname = usePathname();
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
+  // Clear the optimistic highlight whenever the route actually changes — covers
+  // the click landing on its page AND external navigation (browser back, header
+  // links). Adjusting state during render (React's "storing info from previous
+  // renders" pattern), not an effect.
+  const [lastPathname, setLastPathname] = useState(pathname);
+  if (pathname !== lastPathname) {
+    setLastPathname(pathname);
+    setPendingHref(null);
+  }
 
   const hrefs = nav.items.map((i) => i.href);
-  const activeHref = activeNavHref(
+  const committedHref = activeNavHref(
     pathname,
     locked ? [ONBOARDING_HREF, ...hrefs] : hrefs,
   );
+  // Optimistically highlight the clicked tab before usePathname commits, so the
+  // active tab switches the instant you click while the destination's loading.tsx
+  // renders. Cleared above once the route lands. The <Link> navigates natively
+  // (no transition), so the loading fallback shows during the wait.
+  const activeHref = pendingHref ?? committedHref;
+
+  // Mark the clicked tab active immediately. No preventDefault — the <Link>
+  // navigates natively so loading.tsx shows. Skip modified / non-primary clicks
+  // (open-in-new-tab): those don't change this tab's route, so optimism would
+  // leave a stale highlight.
+  const markPending =
+    (href: string) => (event: MouseEvent<HTMLAnchorElement>) => {
+      if (
+        event.button !== 0 ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey
+      ) {
+        return;
+      }
+      setPendingHref(href);
+    };
 
   const itemBase =
     "flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm transition-colors duration-200 ease-out focus-visible:outline-2 focus-visible:-outline-offset-2 md:min-h-9";
@@ -49,6 +83,7 @@ export function AppSidebar({
         {locked ? (
           <Link
             href={ONBOARDING_HREF}
+            onClick={markPending(ONBOARDING_HREF)}
             aria-current={activeHref === ONBOARDING_HREF ? "page" : undefined}
             className={cn(
               itemBase,
@@ -79,6 +114,7 @@ export function AppSidebar({
             <Link
               key={href}
               href={href}
+              onClick={markPending(href)}
               aria-current={activeHref === href ? "page" : undefined}
               className={cn(
                 itemBase,

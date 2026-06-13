@@ -52,6 +52,25 @@ export const motion = {
     standard: "cubic-bezier(0.2, 0, 0, 1)",
     emphasized: "cubic-bezier(0.3, 0, 0, 1)",
   },
+  /**
+   * Scroll reveal (effects/reveal.tsx). Mirrors the `--reveal-*` CSS vars in
+   * globals.css (the runtime source of truth); duplicated here for the JS
+   * stagger math + discoverability. `distancePx: 0` ⇒ fade-only today; raise it
+   * (and the matching CSS var) to enable a synchronized rise.
+   */
+  reveal: {
+    durationMs: 1000,
+    distancePx: 0,
+    ease: "cubic-bezier(0.4, 0, 0.2, 1)",
+    /**
+     * Within a RevealGroup, a child's delay = its reading-order index ×
+     * staggerStepMs, capped at staggerMaxMs (so long lists don't drag on). Keep
+     * the step a meaningful fraction of durationMs or the cascade reads as
+     * simultaneous (the fades overlap).
+     */
+    staggerStepMs: 140,
+    staggerMaxMs: 700,
+  },
 } as const;
 
 /** Breakpoints (px). Mirror Tailwind's defaults; mobile-first. */

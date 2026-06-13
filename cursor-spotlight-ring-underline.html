@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Crisp ring + underline-on-hover</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,500&family=Public+Sans:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --card: #ffffff;
+        --canvas: #e7decf;
+        --foreground: #2b2520;
+        --muted-foreground: #6e6354;
+        --brand-strong: #8a4226;
+        --brand-fill: #ae5a35;
+        --border: #e7decf;
+        --ring-size: 124px;
+        --lag: 130ms;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+      }
+      body {
+        background: var(--canvas);
+        color: var(--foreground);
+        font-family: "Public Sans", system-ui, sans-serif;
+        line-height: 1.5;
+        padding: clamp(16px, 3vw, 40px);
+      }
+      .page-title {
+        max-width: 1180px;
+        margin: 0 auto 6px;
+      }
+      .page-title h1 {
+        font-family: "Fraunces", serif;
+        font-size: clamp(1.6rem, 4vw, 2.3rem);
+        font-weight: 600;
+        margin: 0 0 6px;
+      }
+      .page-title p {
+        color: var(--muted-foreground);
+        margin: 0;
+        max-width: 72ch;
+      }
+
+      .controls {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        max-width: 1180px;
+        margin: 18px auto;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 18px;
+        padding: 12px 16px;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        font-size: 0.82rem;
+        color: var(--muted-foreground);
+      }
+      .controls label {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .controls input[type="range"] {
+        accent-color: var(--brand-fill);
+      }
+      .controls strong {
+        color: var(--foreground);
+        font-family: "Fraunces", serif;
+      }
+
+      .stack {
+        max-width: 1180px;
+        margin: 0 auto;
+        display: grid;
+        gap: 30px;
+      }
+      .demo__label {
+        display: flex;
+        align-items: baseline;
+        gap: 12px;
+        margin: 0 2px 10px;
+      }
+      .demo__label strong {
+        font-family: "Fraunces", serif;
+        font-weight: 600;
+        font-size: 1.12rem;
+      }
+      .demo__label span {
+        color: var(--brand-strong);
+        font-size: 0.7rem;
+        font-weight: 600;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+      .demo__note {
+        color: var(--muted-foreground);
+        font-size: 0.84rem;
+        margin: 9px 2px 0;
+        max-width: 92ch;
+      }
+      .demo__note code {
+        font-family: ui-monospace, monospace;
+        background: rgba(28, 24, 19, 0.06);
+        padding: 1px 5px;
+        border-radius: 4px;
+        font-size: 0.8rem;
+      }
+
+      .strip {
+        position: relative;
+        overflow: hidden;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        box-shadow: 0 4px 36px -10px rgba(28, 24, 19, 0.18);
+      }
+      .strip__inner {
+        position: relative;
+        z-index: 1;
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        align-items: center;
+        gap: 16px;
+        padding: 24px clamp(18px, 3vw, 32px);
+      }
+      .wordmark {
+        font-family: "Fraunces", serif;
+        font-size: 1.5rem;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        color: var(--foreground);
+        justify-self: start;
+      }
+      .tabs {
+        display: flex;
+        gap: 30px;
+        justify-self: center;
+      }
+      .account {
+        justify-self: end;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+      }
+      .account .chev {
+        color: var(--muted-foreground);
+      }
+
+      /* Real nav-underline: center-grow 2px clay line under the label.
+         Mirrors NAV_UNDERLINE_BASE (after:scale-x-0 → scale-x-100, 200ms). */
+      .navlink {
+        position: relative;
+        padding: 4px 0 6px;
+        font-size: 0.95rem;
+        font-weight: 500;
+        text-decoration: none;
+        color: color-mix(in oklab, var(--foreground) 80%, transparent);
+        transition: color 180ms ease;
+      }
+      .navlink.active {
+        color: var(--brand-strong);
+        font-weight: 600;
+      }
+      .navlink::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 2px;
+        border-radius: 2px;
+        background: var(--brand-strong);
+        transform: scaleX(var(--u, 0));
+        transform-origin: center;
+        transition: transform 200ms ease-out;
+      }
+      .navlink.active::after {
+        transform: scaleX(1);
+      }
+      /* V2 uses real :hover; V1 drives --u from JS proximity */
+      [data-mode="hover"] .navlink:hover {
+        color: var(--foreground);
+      }
+      [data-mode="hover"] .navlink:not(.active):hover::after {
+        transform: scaleX(1);
+      }
+
+      .ring {
+        position: absolute;
+        top: 0;
+        left: 0;
+        z-index: 2;
+        width: var(--ring-size);
+        height: var(--ring-size);
+        border-radius: 50%;
+        pointer-events: none;
+        transform: translate(
+          calc(var(--mx, -300px) - 50%),
+          calc(var(--my, 0px) - 50%)
+        );
+        opacity: var(--on, 0);
+        transition:
+          transform var(--lag) ease-out,
+          opacity 360ms ease;
+        border: 1.5px solid rgba(174, 90, 53, 0.6);
+        box-shadow:
+          0 0 22px 3px rgba(174, 90, 53, 0.14),
+          inset 0 0 14px rgba(174, 90, 53, 0.08);
+      }
+
+      .hint {
+        max-width: 1180px;
+        margin: 28px auto 0;
+        color: var(--muted-foreground);
+        font-size: 0.82rem;
+        text-align: center;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .ring {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page-title">
+      <h1>Crisp ring + underline</h1>
+      <p>
+        Both use the real center-grow clay underline. The difference is what
+        <em>triggers</em> it: the ring's proximity (V1) or a true mouse hover
+        (V2). Move slowly across the tabs to feel each one.
+      </p>
+    </div>
+
+    <div class="controls">
+      <strong>Ring tuning:</strong>
+      <label
+        >size
+        <input id="sz" type="range" min="70" max="200" value="124" />
+        <span id="szv">124px</span></label
+      >
+      <label
+        >lag
+        <input id="lg" type="range" min="0" max="300" value="130" />
+        <span id="lgv">130ms</span></label
+      >
+    </div>
+
+    <div class="stack">
+      <!-- V1 proximity underline -->
+      <section>
+        <div class="demo__label">
+          <strong>V1 · Proximity underline</strong>
+          <span>ring grows the underline as it nears a link</span>
+        </div>
+        <div class="strip" data-mode="proximity">
+          <div class="ring"></div>
+          <div class="strip__inner">
+            <span class="wordmark">Cal Barba</span>
+            <nav class="tabs">
+              <a href="#" class="navlink">Home</a
+              ><a href="#" class="navlink">About</a
+              ><a href="#" class="navlink active">Services</a
+              ><a href="#" class="navlink">Gallery</a
+              ><a href="#" class="navlink">Reviews</a
+              ><a href="#" class="navlink">Resources</a
+              ><a href="#" class="navlink">Contact</a>
+            </nav>
+            <span class="account">Account <span class="chev">▾</span></span>
+          </div>
+        </div>
+        <p class="demo__note">
+          The underline scales with how close the ring is — links near the ring
+          partially reveal, the closest fully reveals. The ring and the nav feel
+          connected. (Underline still snaps to full on real hover/focus too.)
+        </p>
+      </section>
+
+      <!-- V2 hover underline -->
+      <section>
+        <div class="demo__label">
+          <strong>V2 · True-hover underline</strong>
+          <span>ring decorative · underline on actual hover</span>
+        </div>
+        <div class="strip" data-mode="hover">
+          <div class="ring"></div>
+          <div class="strip__inner">
+            <span class="wordmark">Cal Barba</span>
+            <nav class="tabs">
+              <a href="#" class="navlink">Home</a
+              ><a href="#" class="navlink">About</a
+              ><a href="#" class="navlink active">Services</a
+              ><a href="#" class="navlink">Gallery</a
+              ><a href="#" class="navlink">Reviews</a
+              ><a href="#" class="navlink">Resources</a
+              ><a href="#" class="navlink">Contact</a>
+            </nav>
+            <span class="account">Account <span class="chev">▾</span></span>
+          </div>
+        </div>
+        <p class="demo__note">
+          Exactly today's underline behavior (reveals only when you hover the
+          link), with the ring floating on top. Simplest; the two effects are
+          independent.
+        </p>
+      </section>
+    </div>
+
+    <p class="hint">
+      Respects <code>prefers-reduced-motion</code>; pointer-only (inert on touch).
+    </p>
+
+    <script>
+      const reduce = window.matchMedia(
+        "(prefers-reduced-motion: reduce)",
+      ).matches;
+      let raf = null;
+
+      function bind(el) {
+        const proximity = el.dataset.mode === "proximity";
+        const links = proximity ? [...el.querySelectorAll(".navlink")] : [];
+        let pending = null;
+        el.addEventListener("pointermove", (e) => {
+          if (reduce || e.pointerType === "touch") return;
+          pending = e;
+          if (raf) return;
+          raf = requestAnimationFrame(() => {
+            raf = null;
+            const r = el.getBoundingClientRect();
+            const x = pending.clientX - r.left;
+            const y = pending.clientY - r.top;
+            el.style.setProperty("--mx", x + "px");
+            el.style.setProperty("--my", y + "px");
+            el.style.setProperty("--on", "1");
+            if (proximity) {
+              const RANGE =
+                parseFloat(
+                  getComputedStyle(document.documentElement).getPropertyValue(
+                    "--ring-size",
+                  ),
+                ) * 0.6;
+              for (const a of links) {
+                if (a.classList.contains("active")) continue;
+                const ar = a.getBoundingClientRect();
+                const cx = ar.left + ar.width / 2 - r.left;
+                const cy = ar.top + ar.height / 2 - r.top;
+                const u = Math.max(
+                  0,
+                  1 - Math.hypot(x - cx, y - cy) / RANGE,
+                );
+                a.style.setProperty("--u", u.toFixed(3));
+              }
+            }
+          });
+        });
+        el.addEventListener("pointerleave", () => {
+          el.style.setProperty("--on", "0");
+          if (proximity)
+            for (const a of links)
+              if (!a.classList.contains("active")) a.style.setProperty("--u", "0");
+        });
+      }
+      document.querySelectorAll("[data-mode]").forEach(bind);
+
+      const root = document.documentElement;
+      const sz = document.getElementById("sz"),
+        lg = document.getElementById("lg"),
+        szv = document.getElementById("szv"),
+        lgv = document.getElementById("lgv");
+      sz.addEventListener("input", () => {
+        root.style.setProperty("--ring-size", sz.value + "px");
+        szv.textContent = sz.value + "px";
+      });
+      lg.addEventListener("input", () => {
+        root.style.setProperty("--lag", lg.value + "ms");
+        lgv.textContent = lg.value + "ms";
+      });
+    </script>
+  </body>
+</html>
