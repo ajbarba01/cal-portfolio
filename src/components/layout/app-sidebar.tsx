@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useState, useTransition, type MouseEvent } from "react";
 import { Lock, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { activeNavHref } from "./is-active-nav";
+import { activeNavHref, optimisticActiveHref } from "./is-active-nav";
 import { NAV_ICONS } from "./nav-config";
 import type { ZoneNav, NavBadges } from "./nav-config";
 import { SignOutButton } from "@/components/sign-out-button";
@@ -25,12 +26,42 @@ export function AppSidebar({
   navBadges?: NavBadges;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const [isNavigating, startNavigation] = useTransition();
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
 
   const hrefs = nav.items.map((i) => i.href);
-  const activeHref = activeNavHref(
+  const committedHref = activeNavHref(
     pathname,
     locked ? [ONBOARDING_HREF, ...hrefs] : hrefs,
   );
+  // Highlight the clicked tab instantly rather than waiting for the destination
+  // page to load — usePathname only updates on navigation commit. See
+  // optimisticActiveHref.
+  const activeHref = optimisticActiveHref(
+    committedHref,
+    pendingHref,
+    isNavigating,
+  );
+
+  // Plain left-clicks navigate via the router inside a transition so isNavigating
+  // tracks the in-flight nav (driving the optimistic highlight above). Modified /
+  // non-primary clicks fall through to the <Link> default (open in new tab, etc.).
+  const handleNavigate =
+    (href: string) => (event: MouseEvent<HTMLAnchorElement>) => {
+      if (
+        event.button !== 0 ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey
+      ) {
+        return;
+      }
+      event.preventDefault();
+      setPendingHref(href);
+      startNavigation(() => router.push(href));
+    };
 
   const itemBase =
     "flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm transition-colors duration-200 ease-out focus-visible:outline-2 focus-visible:-outline-offset-2 md:min-h-9";
@@ -49,6 +80,7 @@ export function AppSidebar({
         {locked ? (
           <Link
             href={ONBOARDING_HREF}
+            onClick={handleNavigate(ONBOARDING_HREF)}
             aria-current={activeHref === ONBOARDING_HREF ? "page" : undefined}
             className={cn(
               itemBase,
@@ -79,6 +111,7 @@ export function AppSidebar({
             <Link
               key={href}
               href={href}
+              onClick={handleNavigate(href)}
               aria-current={activeHref === href ? "page" : undefined}
               className={cn(
                 itemBase,

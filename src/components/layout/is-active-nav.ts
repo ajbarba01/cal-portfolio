@@ -31,6 +31,23 @@ export function activeNavHref(
   );
 }
 
+/**
+ * Optimistic active-href resolution. `usePathname()` only updates once a
+ * navigation commits (the destination page is ready), so a sidebar highlight
+ * driven solely by it lags until the page loads. While a sidebar-initiated
+ * navigation is in flight, highlight its target immediately; otherwise defer to
+ * the committed href. `navigating` (a `useTransition` pending flag) scopes the
+ * override to that click, so unrelated navigation (browser back, header links)
+ * never leaves a stale highlight.
+ */
+export function optimisticActiveHref(
+  committedHref: string | null,
+  pendingHref: string | null,
+  navigating: boolean,
+): string | null {
+  return navigating && pendingHref ? pendingHref : committedHref;
+}
+
 /** Marketing-nav matcher: primary section plus any explicitly owned route sections. */
 export function isActiveNavItem(pathname: string, item: NavItem): boolean {
   return [item.href, ...(item.activeSections ?? [])].some((section) =>

@@ -5,6 +5,7 @@ import {
   isActiveNavItem,
   isActiveSection,
   isCurrentNavItem,
+  optimisticActiveHref,
 } from "./is-active-nav";
 
 describe("isActiveNav", () => {
@@ -94,5 +95,28 @@ describe("isCurrentNavItem", () => {
 
   it("does not mark an aliased section as the current linked section", () => {
     expect(isCurrentNavItem("/book/training", servicesItem)).toBe(false);
+  });
+});
+
+describe("optimisticActiveHref", () => {
+  it("highlights the pending target while a sidebar navigation is in flight", () => {
+    // Clicked /account/pets from /account: pathname hasn't committed yet, but the
+    // tab should already read as active.
+    expect(optimisticActiveHref("/account", "/account/pets", true)).toBe(
+      "/account/pets",
+    );
+  });
+  it("defers to the committed href once navigation settles", () => {
+    expect(optimisticActiveHref("/account/pets", "/account/pets", false)).toBe(
+      "/account/pets",
+    );
+  });
+  it("ignores a stale pending target when not navigating (e.g. browser back)", () => {
+    expect(optimisticActiveHref("/account", "/account/pets", false)).toBe(
+      "/account",
+    );
+  });
+  it("falls back to committed when there is no pending target", () => {
+    expect(optimisticActiveHref("/account", null, true)).toBe("/account");
   });
 });
