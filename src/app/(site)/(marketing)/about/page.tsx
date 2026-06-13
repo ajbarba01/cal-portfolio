@@ -125,10 +125,14 @@ export default function AboutPage() {
                 className="relative aspect-[3/4] overflow-hidden shadow-xl"
               >
                 <Image
-                  src="/gallery/IMG_5455.JPG"
+                  src="/bg/IMG_5455.JPG"
                   alt=""
                   fill
                   sizes="(max-width: 1024px) 20rem, 280px"
+                  placeholder="blur"
+                  blurDataURL={
+                    (placeholders as Record<string, string>)["IMG_5455.JPG"]
+                  }
                   className="object-cover"
                 />
               </div>
