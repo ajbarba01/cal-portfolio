@@ -1,5 +1,6 @@
 /**
- * SiteHeader — the single global header, rendered inside PageShell on every zone.
+ * SiteHeader — the single global header, rendered once by the persistent (site)
+ * shell above all zones.
  *
  * Left: wordmark (admin → clay-tinted, underline-hover, links to /admin; everyone
  * else → near-black, links home). Center: marketing tab row (desktop). Right:
@@ -8,28 +9,27 @@
  *
  * Split for streaming: the outer `SiteHeader` is a SYNC server component that
  * renders the static chrome (tab row, grid scaffold). `HeaderAuth` is the async
- * child that does the auth + role queries; it owns the wordmark (whose admin tint
+ * child that self-sources auth + role; it owns the wordmark (whose admin tint
  * depends on role), the desktop auth cluster, and the mobile drawer. It's wrapped
  * in a `<Suspense>` so the header chrome paints immediately and `loading.tsx`
  * fallbacks are never blocked by runtime auth data.
  *
- * `zoneNav` (account/admin) is forwarded to the mobile drawer so it can list the
- * zone's sections. `navBadges` (admin only) is forwarded for attention counts.
- * `navBadgesPromise` is the deferred variant used by the admin layout — HeaderAuth
- * awaits whichever is provided.
+ * Because the header is persistent (rendered once at the shell level, not per
+ * navigation), admin attention badges are fetched here via `getNavBadges()`.
+ * `getAttentionCounts` is React-cache'd, so this dedupes with the admin sidebar's
+ * identical fetch on the initial render. Freshness after mutations rides on the
+ * existing `router.refresh()` calls in booking/inquiry mutations. The mobile
+ * drawer derives its zone sections from the current pathname (Task 3).
  */
 import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
+import { getAttentionCounts } from "@/features/admin";
 import { AccountMenu } from "./account-menu";
 import { SiteNavTabs, SiteNavMobile } from "./site-nav";
 import { SignInLink } from "@/components/layout/sign-in-link";
 import { Wordmark } from "@/components/layout/wordmark";
 import { Skeleton } from "@/components/ui/skeleton";
-import type {
-  NavItem,
-  ZoneNav,
-  NavBadges,
-} from "@/components/layout/nav-config";
+import type { NavItem, NavBadges } from "@/components/layout/nav-config";
 
 const navLinks: NavItem[] = [
   { href: "/", label: "Home" },
@@ -42,15 +42,27 @@ const navLinks: NavItem[] = [
 ];
 
 /**
- * Async server component: auth + role queries + rendering of all auth-dependent
- * header elements (wordmark tint, desktop auth cluster, mobile drawer). Wrapped in
- * Suspense by its parent so it never blocks the static chrome above.
+ * Shape the cached attention counts into the NavBadges map consumed by the
+ * mobile drawer. Keys and fields mirror the admin layout's badge construction
+ * exactly so the two UI-layer files stay in sync.
  */
-async function HeaderAuth({
-  navBadgesPromise,
-}: {
-  navBadgesPromise?: Promise<NavBadges>;
-}) {
+async function getNavBadges(): Promise<NavBadges> {
+  const attention = await getAttentionCounts();
+  return {
+    "/admin/bookings": {
+      count: attention.pendingApprovals,
+      label: "awaiting approval",
+    },
+    "/admin/inquiries": { count: attention.newInquiries, label: "new" },
+  };
+}
+
+/**
+ * Async server component: self-sources auth + role + admin badges, then renders
+ * all auth-dependent header elements (wordmark tint, desktop auth cluster, mobile
+ * drawer). Wrapped in Suspense by its parent so it never blocks the static chrome.
+ */
+async function HeaderAuth() {
   const supabase = await createClient();
   const {
     data: { user },
@@ -66,9 +78,11 @@ async function HeaderAuth({
     isAdmin = profile?.role === "admin";
   }
 
-  // Resolve deferred badges (admin layout passes a promise to avoid blocking the
-  // layout's own render; other zones pass nothing).
-  const navBadges = navBadgesPromise ? await navBadgesPromise : undefined;
+  // Admin attention badges for the mobile drawer. The header is persistent, so
+  // this resolves once on load (not per navigation). getAttentionCounts is
+  // React-cache'd, so it dedupes with the admin sidebar's identical fetch on the
+  // initial render. Freshness after mutations rides on existing router.refresh().
+  const navBadges = isAdmin ? await getNavBadges() : undefined;
 
   const authCluster = (
     <div className="flex items-center gap-5 text-sm">
@@ -138,12 +152,7 @@ function HeaderAuthSkeleton() {
  * Sync outer shell: renders the static chrome (tab row) immediately; wraps the
  * auth-dependent fragment in Suspense so it never blocks `loading.tsx` fallbacks.
  */
-export function SiteHeader({
-  navBadgesPromise,
-}: {
-  zoneNav?: ZoneNav;
-  navBadgesPromise?: Promise<NavBadges>;
-}) {
+export function SiteHeader() {
   return (
     <header className="bg-card border-border border-b">
       {/* No overflow-hidden here: the AccountMenu hover dropdown hangs below the
@@ -158,7 +167,7 @@ export function SiteHeader({
             to row 2. */}
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 py-6">
           <Suspense fallback={<HeaderAuthSkeleton />}>
-            <HeaderAuth navBadgesPromise={navBadgesPromise} />
+            <HeaderAuth />
           </Suspense>
 
           {/* Tab row + auth cluster need ~762px; at md (768) only ~689px is
