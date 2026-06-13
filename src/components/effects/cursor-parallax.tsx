@@ -22,7 +22,9 @@ export function CursorParallax() {
     let frame = 0;
     // Set after the pointer leaves the window so the first move on re-entry snaps
     // to the new spot instead of easing across the whole range (phantom swoop).
-    let jump = false;
+    // Initialized true so the first move after mount snaps rather than gliding
+    // from the rest position.
+    let jump = true;
 
     const clamp = (n: number) => Math.max(-1, Math.min(1, n));
 

@@ -56,8 +56,10 @@ export function CursorRing({
     let moveFrame = 0;
     let maskFrame = 0;
     // Snap (don't ease) the glow on the next frame — set after a window exit so
-    // a big re-entry jump doesn't swoop it across the page.
-    let instant = false;
+    // a big re-entry jump doesn't swoop it across the page. Initialized true so a
+    // freshly-mounted ring (e.g. entering the account/admin zone) snaps to the
+    // cursor instead of swooping in from its off-screen default.
+    let instant = true;
     // Cached on scroll/resize so the per-move path never re-measures the DOM.
     let linkCenters: { el: HTMLElement; cx: number; cy: number }[] = [];
 
