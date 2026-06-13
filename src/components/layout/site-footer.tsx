@@ -92,7 +92,7 @@ function SocialLinks() {
   );
 }
 
-/** Shared sheet footer. Rendered by PageShell on every zone. */
+/** Shared sheet footer. Rendered once by PageShell in the persistent (site) shell. */
 export function SiteFooter() {
   return (
     <footer className="bg-card border-border border-t">
