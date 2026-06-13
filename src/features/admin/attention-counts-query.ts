@@ -1,3 +1,4 @@
+import { cache } from "react";
 import type { AttentionCounts } from "./attention-counts";
 import { listBookingsInRange } from "@/features/admin";
 import { listInquiries } from "@/features/inquiries";
@@ -38,7 +39,7 @@ export function computeAttentionCounts({
   return { pendingApprovals, newInquiries, flaggedConflicts: 0, recentReviews };
 }
 
-export async function getAttentionCounts(): Promise<AttentionCounts> {
+const _getAttentionCounts = async (): Promise<AttentionCounts> => {
   // Scoped to the current UTC month, mirroring the dashboard's window so the nav
   // badges and the dashboard agree. Pending-approval bookings are near-term, so
   // this window captures what needs Cal now without an extra unbounded read.
@@ -63,4 +64,6 @@ export async function getAttentionCounts(): Promise<AttentionCounts> {
   const reviews = reviewsResult.kind === "success" ? reviewsResult.reviews : [];
 
   return computeAttentionCounts({ bookings, inquiries, reviews, now });
-}
+};
+
+export const getAttentionCounts = cache(_getAttentionCounts);
