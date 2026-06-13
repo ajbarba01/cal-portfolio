@@ -14,6 +14,9 @@ import type { NextRequest } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { ResendMailer, runReminderCron } from "@/features/notifications";
 
+// Allow up to 60s: a backlog of reminder sends can exceed the default 15s.
+export const maxDuration = 60;
+
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const cronSecret = process.env.CRON_SECRET;
   const authHeader = request.headers.get("authorization");

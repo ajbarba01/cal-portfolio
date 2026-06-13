@@ -1,9 +1,9 @@
 /**
- * Onboarding zone loading state — renders inside the (onboarding) layout (below
- * the persistent header) while the onboarding route resolves.
+ * Onboarding zone loading state — buffered page loading circle (below the
+ * persistent header) while the onboarding route resolves.
  */
-import { PageLoader } from "@/components/ui/spinner";
+import { DelayedPageLoader } from "@/components/ui/delayed-page-loader";
 
 export default function OnboardingLoading() {
-  return <PageLoader label="Loading" />;
+  return <DelayedPageLoader />;
 }

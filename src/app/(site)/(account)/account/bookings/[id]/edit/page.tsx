@@ -107,7 +107,7 @@ export default async function EditBookingPage({
       </main>
     );
   }
-  const { rules, initialBusy } = loaded.data;
+  const { rules, initialBusy, initialPremiumDays } = loaded.data;
 
   // Sign the (already-fetched) client pet photos.
   const pets: AssignablePet[] = await Promise.all(
@@ -159,6 +159,7 @@ export default async function EditBookingPage({
         service={service}
         rules={rules}
         initialBusy={initialBusy}
+        initialPremiumDays={initialPremiumDays}
         pets={pets}
         priorFinalCents={priorFinalCents}
         initial={initial}

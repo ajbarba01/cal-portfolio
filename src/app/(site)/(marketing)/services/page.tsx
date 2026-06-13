@@ -8,7 +8,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Reveal, RevealGroup } from "@/components/effects/reveal";
 import { Eyebrow } from "@/components/marketing/eyebrow";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { createClient } from "@/lib/supabase/server";
+import { createStaticClient } from "@/lib/supabase/static";
 import {
   listActiveServices,
   serviceCardDescription,
@@ -66,9 +66,12 @@ function ServiceCard({ service }: { service: PublicService }) {
   );
 }
 
+// Static with daily ISR; admin service edits reflect immediately via
+// revalidatePath("/services") in updateService.
+export const revalidate = 86400;
+
 export default async function ServicesPage() {
-  const supabase = await createClient();
-  const services = await listActiveServices(supabase);
+  const services = await listActiveServices(createStaticClient());
 
   return (
     <PageContainer width="app" className="py-12 sm:py-16">

@@ -43,61 +43,78 @@ export function HeaderAuthClient({ navLinks }: { navLinks: NavItem[] }) {
     const supabase = createClient();
     let active = true;
 
-    const resolve = async (session: Session | null) => {
-      if (!session?.user) {
-        if (active) {
-          setAuth({
-            isSignedIn: false,
-            isAdmin: false,
-            email: null,
-            fullName: null,
-          });
-          setNavBadges(undefined);
-        }
-        return;
-      }
-
-      const { data: profile } = await supabase
+    // Fetch role + admin badges. Kept OUT of the auth-state callback below:
+    // awaiting a Supabase call inside an onAuthStateChange handler deadlocks the
+    // auth client's lock (the `.from()` query needs the same lock to attach the
+    // token), which left the control stuck on its placeholder.
+    const loadRole = (userId: string, email: string | null) => {
+      void supabase
         .from("profiles")
         .select("role, full_name")
-        .eq("id", session.user.id)
-        .single();
-      if (!active) return;
+        .eq("id", userId)
+        .single()
+        .then(({ data: profile }) => {
+          if (!active) return;
+          const isAdmin = profile?.role === "admin";
+          setAuth({
+            isSignedIn: true,
+            isAdmin,
+            email,
+            fullName: (profile?.full_name as string | null) ?? null,
+          });
+          if (isAdmin) {
+            fetchAttentionCounts()
+              .then((counts) => {
+                if (!active) return;
+                setNavBadges({
+                  "/admin/bookings": {
+                    count: counts.pendingApprovals,
+                    label: "awaiting approval",
+                  },
+                  "/admin/inquiries": {
+                    count: counts.newInquiries,
+                    label: "new",
+                  },
+                });
+              })
+              .catch(() => {
+                /* badges are best-effort; ignore failures */
+              });
+          }
+        });
+    };
 
-      const isAdmin = profile?.role === "admin";
+    // Synchronous: set the signed-in/out state immediately so the control
+    // renders without waiting on (or blocking) the role query.
+    const apply = (session: Session | null) => {
+      if (!active) return;
+      if (!session?.user) {
+        setAuth({
+          isSignedIn: false,
+          isAdmin: false,
+          email: null,
+          fullName: null,
+        });
+        setNavBadges(undefined);
+        return;
+      }
+      // Show the account control right away; admin tint / name / badges refine
+      // once loadRole resolves.
       setAuth({
         isSignedIn: true,
-        isAdmin,
+        isAdmin: false,
         email: session.user.email ?? null,
-        fullName: (profile?.full_name as string | null) ?? null,
+        fullName: null,
       });
-
-      if (isAdmin) {
-        fetchAttentionCounts()
-          .then((counts) => {
-            if (!active) return;
-            setNavBadges({
-              "/admin/bookings": {
-                count: counts.pendingApprovals,
-                label: "awaiting approval",
-              },
-              "/admin/inquiries": { count: counts.newInquiries, label: "new" },
-            });
-          })
-          .catch(() => {
-            /* badges are best-effort; ignore failures */
-          });
-      } else {
-        setNavBadges(undefined);
-      }
+      loadRole(session.user.id, session.user.email ?? null);
     };
 
     // getSession() reads the local cookie (no network on HS256). onAuthStateChange
     // keeps the header in sync with sign-in/out within the session.
-    supabase.auth.getSession().then(({ data }) => resolve(data.session));
+    supabase.auth.getSession().then(({ data }) => apply(data.session));
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => resolve(session));
+    } = supabase.auth.onAuthStateChange((_event, session) => apply(session));
 
     return () => {
       active = false;

@@ -210,6 +210,10 @@ export async function updateService(
   const actorUserId = await getActorOrRedirect();
   const serviceClient = createServiceClient();
   const result = await updateServiceCore({ serviceClient, actorUserId }, input);
-  if (result.kind === "success") revalidatePath("/admin/services");
+  if (result.kind === "success") {
+    revalidatePath("/admin/services");
+    // The public services page is static — refresh it after an edit.
+    revalidatePath("/services");
+  }
   return result;
 }

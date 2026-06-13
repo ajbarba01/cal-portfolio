@@ -111,7 +111,10 @@ export async function runReminderCron(
     .eq("status", "confirmed")
     .is("reminder_sent_at", null)
     .gt("starts_at", now.toISOString())
-    .lte("starts_at", windowEnd.toISOString());
+    .lte("starts_at", windowEnd.toISOString())
+    // Bound the per-run batch. Idempotent via reminder_sent_at, so a backlog
+    // drains across the daily runs without re-sending.
+    .limit(100);
 
   if (queryErr) {
     return {

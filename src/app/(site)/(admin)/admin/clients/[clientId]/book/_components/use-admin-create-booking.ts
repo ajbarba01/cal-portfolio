@@ -50,6 +50,8 @@ export interface UseAdminCreateBookingInput {
   service: ServiceDetail;
   rules: BookingRuleSettings;
   initialBusy: PublicBusyRange[];
+  /** Server-seeded premium (holiday) day-keys. */
+  initialPremiumDays?: string[];
   pets: AssignablePet[];
 }
 
@@ -116,6 +118,7 @@ export function useAdminCreateBooking({
   service,
   rules,
   initialBusy,
+  initialPremiumDays = [],
 }: UseAdminCreateBookingInput): UseAdminCreateBookingReturn {
   const router = useRouter();
   const toast = useToast();
@@ -151,6 +154,7 @@ export function useAdminCreateBooking({
     service,
     rules,
     initialBusy,
+    initialPremiumDays,
     io: { useAvailability, useBusyRanges, useOvernightNights, usePremiumDays },
     myBookings,
     initialQuantities,

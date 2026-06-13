@@ -1,9 +1,9 @@
 /**
- * Auth zone loading state — renders inside the (auth) layout's centered `<main>`
- * while a login/signup route resolves. The header stays mounted above it.
+ * Auth zone loading state — buffered page loading circle inside the (auth)
+ * layout's centered `<main>` while a login/signup route resolves.
  */
-import { PageLoader } from "@/components/ui/spinner";
+import { DelayedPageLoader } from "@/components/ui/delayed-page-loader";
 
 export default function AuthLoading() {
-  return <PageLoader label="Loading" />;
+  return <DelayedPageLoader />;
 }

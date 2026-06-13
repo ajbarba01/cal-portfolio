@@ -58,6 +58,12 @@ export function useBusyRanges(
   useEffect(() => {
     void refresh();
 
+    // NOTE: realtime delivery needs BOTH publication membership (the `bookings`
+    // table is not in `supabase_realtime`) AND RLS-visible rows (a public viewer
+    // can't see others' bookings). Neither holds for cross-client booking events,
+    // so the 60s interval below is the working refresh mechanism; the channel is
+    // kept for same-session / future-RLS cases. Do NOT add a status filter to the
+    // UPDATE subscription — it would match the NEW row and miss cancellations.
     const supabase = createClient();
     const channel = supabase
       .channel("busy-ranges-realtime")

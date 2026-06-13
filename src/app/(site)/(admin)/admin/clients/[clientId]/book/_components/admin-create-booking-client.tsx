@@ -40,6 +40,8 @@ interface AdminCreateBookingClientProps {
   service: ServiceDetail;
   rules: BookingRuleSettings;
   initialBusy: PublicBusyRange[];
+  /** Server-seeded premium (holiday) day-keys. */
+  initialPremiumDays?: string[];
   pets: AssignablePet[];
 }
 
@@ -51,6 +53,7 @@ export function AdminCreateBookingClient({
   service,
   rules,
   initialBusy,
+  initialPremiumDays,
   pets,
 }: AdminCreateBookingClientProps) {
   // ADMIN_POLICY parity (U2): admin create skips the lead-time guard
@@ -103,6 +106,7 @@ export function AdminCreateBookingClient({
     service,
     rules: adminRules,
     initialBusy,
+    initialPremiumDays,
     pets,
   });
 

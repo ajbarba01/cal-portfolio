@@ -58,6 +58,8 @@ interface ServiceBookingClientProps {
   service: ServiceDetail;
   rules: BookingRuleSettings;
   initialBusy: PublicBusyRange[];
+  /** Server-seeded premium (holiday) day-keys. */
+  initialPremiumDays?: string[];
   authState: AuthState;
   pets: AssignablePet[];
   initialSelection: InitialSelection;
@@ -71,6 +73,7 @@ export function ServiceBookingClient({
   service,
   rules,
   initialBusy,
+  initialPremiumDays,
   authState,
   pets,
   initialSelection,
@@ -117,6 +120,7 @@ export function ServiceBookingClient({
     service,
     rules,
     initialBusy,
+    initialPremiumDays,
     authState,
     pets,
     initialSelection,

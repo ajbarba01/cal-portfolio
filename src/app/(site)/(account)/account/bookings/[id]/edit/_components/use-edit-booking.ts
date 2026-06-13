@@ -54,6 +54,8 @@ export interface UseEditBookingInput {
   service: ServiceDetail;
   rules: BookingRuleSettings;
   initialBusy: PublicBusyRange[];
+  /** Server-seeded premium (holiday) day-keys. */
+  initialPremiumDays?: string[];
   initial: EditBookingInitial;
   admin?: {
     clientName: string;
@@ -121,6 +123,7 @@ export function useEditBooking({
   service,
   rules,
   initialBusy,
+  initialPremiumDays = [],
   initial,
   admin,
 }: UseEditBookingInput): UseEditBookingReturn {
@@ -203,6 +206,7 @@ export function useEditBooking({
     service,
     rules,
     initialBusy,
+    initialPremiumDays,
     io: { useAvailability, useBusyRanges, useOvernightNights, usePremiumDays },
     myBookings,
     initialQuantities: initial.quantities,

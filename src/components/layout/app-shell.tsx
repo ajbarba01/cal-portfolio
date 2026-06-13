@@ -65,15 +65,12 @@ export function AppShell({
   identity,
   locked = false,
   navBadgesPromise,
-  contentSkeleton,
   children,
 }: {
   nav: ZoneNav;
   identity: string;
   locked?: boolean;
   navBadgesPromise?: Promise<NavBadges>;
-  /** Zone-shaped skeleton shown in the content area during a soft navigation. */
-  contentSkeleton: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
@@ -99,7 +96,7 @@ export function AppShell({
         </div>
       </aside>
       <main className="min-w-0 flex-1 px-5 py-8 sm:px-8">
-        <ContentArea skeleton={contentSkeleton}>{children}</ContentArea>
+        <ContentArea>{children}</ContentArea>
       </main>
     </div>
   );
