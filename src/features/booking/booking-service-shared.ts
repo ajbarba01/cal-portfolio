@@ -228,6 +228,19 @@ type ParseQuantitiesResult =
   | { success: false; message: string };
 
 /**
+ * Human-readable summary of a quantities Zod failure. This message reaches the
+ * booking UI (feedback rule: never surface raw zod issue JSON to users).
+ */
+function quantitiesErrorMessage(error: z.ZodError): string {
+  const fields = [
+    ...new Set(
+      error.issues.map((i) => (i.path.length ? i.path.join(".") : "value")),
+    ),
+  ];
+  return `Some booking details are missing or invalid (${fields.join(", ")}). Adjust your selection and try again.`;
+}
+
+/**
  * Validates and parses the `quantities` record against the per-type Zod schema.
  * Called after the service's pricing_type is known, before any quoting.
  * Returns a typed discriminated result so `buildQuoteInput` receives validated values.
@@ -239,27 +252,32 @@ export function parseQuantities(
   switch (pricingType) {
     case "house_sitting": {
       const r = houseSittingQuantitiesSchema.safeParse(raw);
-      if (!r.success) return { success: false, message: r.error.message };
+      if (!r.success)
+        return { success: false, message: quantitiesErrorMessage(r.error) };
       return { success: true, pricingType: "house_sitting", data: r.data };
     }
     case "check_in": {
       const r = checkInQuantitiesSchema.safeParse(raw);
-      if (!r.success) return { success: false, message: r.error.message };
+      if (!r.success)
+        return { success: false, message: quantitiesErrorMessage(r.error) };
       return { success: true, pricingType: "check_in", data: r.data };
     }
     case "walk": {
       const r = walkQuantitiesSchema.safeParse(raw);
-      if (!r.success) return { success: false, message: r.error.message };
+      if (!r.success)
+        return { success: false, message: quantitiesErrorMessage(r.error) };
       return { success: true, pricingType: "walk", data: r.data };
     }
     case "training": {
       const r = trainingQuantitiesSchema.safeParse(raw);
-      if (!r.success) return { success: false, message: r.error.message };
+      if (!r.success)
+        return { success: false, message: quantitiesErrorMessage(r.error) };
       return { success: true, pricingType: "training", data: r.data };
     }
     case "meet_greet": {
       const r = meetGreetQuantitiesSchema.safeParse(raw);
-      if (!r.success) return { success: false, message: r.error.message };
+      if (!r.success)
+        return { success: false, message: quantitiesErrorMessage(r.error) };
       return { success: true, pricingType: "meet_greet", data: r.data };
     }
     default:
