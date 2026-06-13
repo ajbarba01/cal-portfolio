@@ -9,6 +9,7 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { assertActorIsAdmin } from "@/lib/admin-guard";
 import { getActorOrRedirect } from "@/lib/admin-session";
@@ -199,43 +200,47 @@ export async function approveBooking(
     revalidatePath("/admin/bookings");
 
     // Best-effort confirmation email — a failed send NEVER alters the result.
-    // Error handling (log + swallow) lives inside ResendNotifier.notify().
-    try {
-      const { data: bookingRow } = await serviceClient
-        .from("bookings")
-        .select(
-          "starts_at, ends_at, final_cents, profiles(email), services(name)",
-        )
-        .eq("id", bookingId)
-        .single();
+    // Deferred with after() so it runs AFTER the response flushes: the admin's
+    // approve click returns immediately and doesn't wait on Resend. Error
+    // handling (log + swallow) keeps it from affecting anything.
+    after(async () => {
+      try {
+        const { data: bookingRow } = await serviceClient
+          .from("bookings")
+          .select(
+            "starts_at, ends_at, final_cents, profiles(email), services(name)",
+          )
+          .eq("id", bookingId)
+          .single();
 
-      const parsed = approvalConfirmationRowSchema.safeParse(bookingRow);
-      if (parsed.success) {
-        const row = parsed.data;
-        const clientEmail = row.profiles?.email;
-        const serviceName = row.services?.name ?? "Booking";
-        if (clientEmail) {
-          const repo = createSupabaseBookingRepository(serviceClient);
-          const settings = await repo.getSettings();
-          const notifier = new ResendNotifier();
-          await notifier.notify({
-            type: "booking_confirmed",
-            payload: {
-              to: clientEmail,
-              serviceName,
-              startsAt: new Date(row.starts_at),
-              endsAt: new Date(row.ends_at),
-              finalCents: row.final_cents,
-              cancellationFullRefundHours:
-                settings.cancellation_full_refund_hours,
-              lateCancelRefundPct: settings.late_cancel_refund_pct,
-            },
-          });
+        const parsed = approvalConfirmationRowSchema.safeParse(bookingRow);
+        if (parsed.success) {
+          const row = parsed.data;
+          const clientEmail = row.profiles?.email;
+          const serviceName = row.services?.name ?? "Booking";
+          if (clientEmail) {
+            const repo = createSupabaseBookingRepository(serviceClient);
+            const settings = await repo.getSettings();
+            const notifier = new ResendNotifier();
+            await notifier.notify({
+              type: "booking_confirmed",
+              payload: {
+                to: clientEmail,
+                serviceName,
+                startsAt: new Date(row.starts_at),
+                endsAt: new Date(row.ends_at),
+                finalCents: row.final_cents,
+                cancellationFullRefundHours:
+                  settings.cancellation_full_refund_hours,
+                lateCancelRefundPct: settings.late_cancel_refund_pct,
+              },
+            });
+          }
         }
+      } catch (e: unknown) {
+        console.error("approveBooking: error sending confirmation email:", e);
       }
-    } catch (e: unknown) {
-      console.error("approveBooking: error sending confirmation email:", e);
-    }
+    });
   }
 
   return result;
