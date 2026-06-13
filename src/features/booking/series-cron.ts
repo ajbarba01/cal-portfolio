@@ -321,6 +321,7 @@ export async function runSeriesRollCron(
             final_cents: breakdown.finalCents,
             requires_approval: requiresApproval,
             discount_cents: 0,
+            comments: null,
           },
         ]);
         materialized++;

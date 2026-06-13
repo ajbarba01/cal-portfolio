@@ -24,6 +24,7 @@ import {
   QuantityForm,
   QuotePanel,
 } from "@/features/booking/index.client";
+import { Textarea } from "@/components/ui/textarea";
 import type {
   BookingRuleSettings,
   PublicBusyRange,
@@ -98,10 +99,12 @@ export function ServiceBookingClient({
     selectedPetIds,
     recurringOn,
     occurrenceCount,
+    comments,
     formsIncomplete,
     step2Label,
     step3Label,
     step4Label,
+    step5Label,
     onSelectionChange,
     handleBook,
     handlePetAdded,
@@ -109,6 +112,7 @@ export function ServiceBookingClient({
     onPetIdsChange,
     onRecurringOnChange,
     onOccurrenceCountChange,
+    onCommentsChange,
   } = useServiceBooking({
     service,
     rules,
@@ -209,6 +213,26 @@ export function ServiceBookingClient({
             />
           </section>
         )
+      }
+      notesSection={
+        <section aria-labelledby="comments-heading">
+          <BookingFlowStepHead
+            num={supportsRecurring ? step5Label : step4Label}
+            label="Notes for Cal"
+            labelId="comments-heading"
+            hint="optional"
+          />
+          <label htmlFor="create-comments" className="sr-only">
+            Notes for Cal
+          </label>
+          <Textarea
+            id="create-comments"
+            value={comments}
+            onChange={(e) => onCommentsChange(e.target.value)}
+            rows={3}
+            placeholder="Anything Cal should know about this visit?"
+          />
+        </section>
       }
       receipt={
         <>

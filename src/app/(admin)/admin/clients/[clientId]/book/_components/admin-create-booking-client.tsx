@@ -22,6 +22,7 @@ import {
   QuantityForm,
   QuotePanel,
 } from "@/features/booking/index.client";
+import { Textarea } from "@/components/ui/textarea";
 import type {
   BookingRuleSettings,
   PublicBusyRange,
@@ -85,6 +86,7 @@ export function AdminCreateBookingClient({
     occurrenceCount,
     step3Label,
     step4Label,
+    step5Label,
     onSelectionChange,
     handleBook,
     handlePetAdded,
@@ -92,6 +94,8 @@ export function AdminCreateBookingClient({
     onPetIdsChange,
     onRecurringOnChange,
     onOccurrenceCountChange,
+    comments,
+    onCommentsChange,
     setForceConfirm,
   } = useAdminCreateBooking({
     clientId,
@@ -179,6 +183,26 @@ export function AdminCreateBookingClient({
             />
           </section>
         )
+      }
+      notesSection={
+        <section aria-labelledby="admin-comments-heading">
+          <BookingFlowStepHead
+            num={supportsRecurring ? step5Label : step4Label}
+            label="Notes for Cal"
+            labelId="admin-comments-heading"
+            hint="optional"
+          />
+          <label htmlFor="admin-create-comments" className="sr-only">
+            Notes for Cal
+          </label>
+          <Textarea
+            id="admin-create-comments"
+            value={comments}
+            onChange={(e) => onCommentsChange(e.target.value)}
+            rows={3}
+            placeholder="Anything Cal should know about this booking?"
+          />
+        </section>
       }
       receipt={
         <section aria-labelledby="receipt-heading" aria-live="polite">

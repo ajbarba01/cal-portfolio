@@ -90,10 +90,12 @@ export interface UseAdminCreateBookingReturn {
   selectedPetIds: string[];
   recurringOn: boolean;
   occurrenceCount: number;
+  comments: string;
 
   // Step labels
   step3Label: string;
   step4Label: string;
+  step5Label: string;
 
   // Event handlers
   onSelectionChange: (state: ScheduleSelectionState) => void;
@@ -103,6 +105,7 @@ export interface UseAdminCreateBookingReturn {
   onPetIdsChange: (ids: string[]) => void;
   onRecurringOnChange: (on: boolean) => void;
   onOccurrenceCountChange: (n: number) => void;
+  onCommentsChange: (v: string) => void;
   setForceConfirm: (v: boolean) => void;
 }
 
@@ -133,6 +136,7 @@ export function useAdminCreateBooking({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [forceConfirm, setForceConfirm] = useState(false);
   const [submitDone, setSubmitDone] = useState(false);
+  const [comments, setComments] = useState("");
 
   const [isSubmitting, startSubmitting] = useTransition();
 
@@ -264,6 +268,7 @@ export function useAdminCreateBooking({
         quantities: input.quantities,
         petIds: input.petIds,
         recurringRule: input.recurringRule,
+        comments: comments.trim() || undefined,
         forceConfirm,
       });
       if (result.kind === "success") {
@@ -305,6 +310,11 @@ export function useAdminCreateBooking({
   // Step counter helpers
   const step3Label = petAware ? "3" : "2";
   const step4Label = petAware ? "4" : "3";
+  const step5Label = petAware ? "5" : "4";
+
+  function onCommentsChange(v: string) {
+    setComments(v);
+  }
 
   return {
     mode,
@@ -330,8 +340,10 @@ export function useAdminCreateBooking({
     selectedPetIds,
     recurringOn,
     occurrenceCount,
+    comments,
     step3Label,
     step4Label,
+    step5Label,
     onSelectionChange,
     handleBook,
     handlePetAdded,
@@ -339,6 +351,7 @@ export function useAdminCreateBooking({
     onPetIdsChange,
     onRecurringOnChange,
     onOccurrenceCountChange,
+    onCommentsChange,
     setForceConfirm,
   };
 }

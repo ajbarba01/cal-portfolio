@@ -94,6 +94,8 @@ export interface BookingInsert {
   final_cents: number;
   requires_approval: boolean;
   discount_cents: number;
+  /** Freeform client note for Cal. Null when not provided. */
+  comments: string | null;
 }
 
 /**

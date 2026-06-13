@@ -311,6 +311,7 @@ export async function createBookingForClient(input: {
     count?: number;
     until?: Date;
   } | null;
+  comments?: string;
   forceConfirm?: boolean;
 }): Promise<CreateBookingResult> {
   const admin = await requireAdminDeps();
@@ -341,6 +342,7 @@ export async function createBookingForClient(input: {
       quantities: input.quantities,
       petIds: input.petIds,
       recurringRule: input.recurringRule,
+      comments: input.comments,
     },
     policy,
   );
