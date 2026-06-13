@@ -16,13 +16,15 @@ export const CURSOR_HIGHLIGHT: "ombre" | "ring" = "ring";
  * essentially everything on the page EXCEPT:
  *   - the textured site background — the mask is the sheet rect, so the canvas
  *     gutters / overscroll outside it are never tinted;
- *   - anything tagged `[data-ring-exclude]` (hero photos) — those rects are
- *     cut out of the mask (XOR), so the glow never washes over imagery.
+ *   - anything tagged `[data-ring-exclude]` (hero / gallery photos) — those rects
+ *     are punched out of the mask (rounded to their corner radius), so the glow
+ *     never washes over imagery.
  *
- * Open dropdown panels tagged `[data-ring-include]` are then composited back
- * ON TOP of those holes (`add`), so a panel hanging over a hero — which renders
- * in front of it — keeps the glow; the ring only clips once it slides off the
- * panel onto bare imagery.
+ * Open dropdown panels tagged `[data-ring-include]` are then painted back ON TOP
+ * of those holes, so a panel hanging over a hero — which renders in front of it —
+ * keeps the glow; the ring only clips once it slides off the panel onto bare
+ * imagery. The whole mask is a single SVG image-mask (see `rebuildGeometry`),
+ * so it scales to any photo count without a per-photo composite chain.
  *
  * Perf: the mask + tab rects are geometry that only changes on scroll / resize,
  * so they are rebuilt ONLY then (rAF-throttled) and cached — pointermove does
@@ -74,53 +76,63 @@ export function CursorRing({
     };
 
     // Measure every visible, non-empty element matching `selector` into viewport
-    // rects (skipping `visibility:hidden` so closed dropdowns drop out).
+    // rects + corner radius (skipping `visibility:hidden` so closed dropdowns
+    // drop out). The radius lets the mask holes track each photo's rounded edge.
     const collectRects = (selector: string) => {
-      const out: DOMRect[] = [];
+      const out: { r: DOMRect; radius: number }[] = [];
       for (const el of host.querySelectorAll(selector)) {
-        if (getComputedStyle(el).visibility === "hidden") continue;
+        const cs = getComputedStyle(el);
+        if (cs.visibility === "hidden") continue;
         const r = el.getBoundingClientRect();
-        if (r.width > 0 && r.height > 0) out.push(r);
+        if (r.width > 0 && r.height > 0) {
+          out.push({ r, radius: parseFloat(cs.borderTopLeftRadius) || 0 });
+        }
       }
       return out;
     };
+
+    // Serialize one rect as an SVG <rect>, rounded to `radius` so the mask hole
+    // matches the photo's corner. Coords are viewport-space (the overlay is
+    // fixed/inset:0), one decimal to keep the data URI short.
+    const svgRect = (
+      { r, radius }: { r: DOMRect; radius: number },
+      fill: string,
+    ) =>
+      `<rect x='${r.left.toFixed(1)}' y='${r.top.toFixed(1)}' width='${r.width.toFixed(1)}' height='${r.height.toFixed(1)}'${radius ? ` rx='${radius.toFixed(1)}'` : ""} fill='${fill}'/>`;
 
     // Rebuild the mask and re-cache the nav-tab centers. Geometry only — runs on
     // scroll / resize / mount / dropdown toggle, never on pointermove.
     const rebuildGeometry = () => {
       maskFrame = 0;
+      const docEl = document.documentElement;
+      const vw = docEl.clientWidth;
+      const vh = docEl.clientHeight;
       const sheet = host.getBoundingClientRect();
       const excludes = collectRects("[data-ring-exclude]");
       const includes = collectRects("[data-ring-include]");
 
-      // Mask layer stack, top→bottom: open dropdown panels, the sheet, then the
-      // excluded hero photos. Processed bottom-up, the excludes XOR-cut holes in
-      // the sheet, then the includes composite back with `add` on top — so a panel
-      // over a hero re-reveals the glow, while bare hero stays cut.
-      const layers = [...includes, sheet, ...excludes];
-      const ops = [
-        ...includes.map(() => "add"),
-        excludes.length ? "exclude" : "add",
-        ...excludes.map(() => "exclude"),
-      ];
-      setMaskProp(
-        "mask-image",
-        layers.map(() => "linear-gradient(#000,#000)").join(","),
-      );
-      setMaskProp("mask-repeat", layers.map(() => "no-repeat").join(","));
-      setMaskProp(
-        "mask-size",
-        layers.map((r) => `${r.width}px ${r.height}px`).join(","),
-      );
-      setMaskProp(
-        "mask-position",
-        layers.map((r) => `${r.left}px ${r.top}px`).join(","),
-      );
-      overlay.style.setProperty("mask-composite", ops.join(","));
-      overlay.style.setProperty(
-        "-webkit-mask-composite",
-        ops.map((o) => (o === "add" ? "source-over" : "xor")).join(","),
-      );
+      // ONE mask layer, not one-per-photo. An inner SVG <mask> (luminance) paints
+      // the sheet white (glow shows), the excluded photos black (glow cut), then
+      // the open dropdown panels white again on top — so a panel hanging over a
+      // hero re-reveals the glow while bare imagery stays cut. The outer SVG is a
+      // single image-mask whose alpha is that composite, so it scales to any photo
+      // count with no `mask-composite` chain (which Blink mis-composites past a
+      // couple of layers and re-rasterizes per scroll frame).
+      const svg =
+        `<svg xmlns='http://www.w3.org/2000/svg' width='${vw}' height='${vh}'>` +
+        `<mask id='m'>` +
+        svgRect({ r: sheet, radius: 0 }, "#fff") +
+        excludes.map((e) => svgRect(e, "#000")).join("") +
+        includes.map((e) => svgRect(e, "#fff")).join("") +
+        `</mask>` +
+        `<rect width='100%' height='100%' fill='#fff' mask='url(#m)'/>` +
+        `</svg>`;
+
+      const url = `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+      setMaskProp("mask-image", url);
+      setMaskProp("mask-repeat", "no-repeat");
+      setMaskProp("mask-position", "0 0");
+      setMaskProp("mask-size", `${vw}px ${vh}px`);
 
       linkCenters = [];
       for (const el of host.querySelectorAll<HTMLElement>(
