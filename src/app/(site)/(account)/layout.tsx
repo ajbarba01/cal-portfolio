@@ -1,13 +1,12 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { PageShell } from "@/components/layout/page-shell";
 import { AppShell } from "@/components/layout/app-shell";
 import { accountNav } from "@/components/layout/nav-config";
 
 /**
  * Account zone shell. The real auth + onboarding gate lives in middleware
- * (`src/lib/supabase/proxy.ts`); this layout keeps a thin unauthenticated
- * backstop and renders the persistent account sidebar via AppShell.
+ * (`src/lib/supabase/proxy.ts`); this keeps a thin unauthenticated backstop and
+ * renders the persistent account sidebar. Header/footer come from the (site) shell.
  */
 export default async function AccountLayout({
   children,
@@ -32,10 +31,8 @@ export default async function AccountLayout({
   const locked = profile?.onboarding_status !== "approved";
 
   return (
-    <PageShell zoneNav={accountNav}>
-      <AppShell nav={accountNav} identity={identity} locked={locked}>
-        {children}
-      </AppShell>
-    </PageShell>
+    <AppShell nav={accountNav} identity={identity} locked={locked}>
+      {children}
+    </AppShell>
   );
 }

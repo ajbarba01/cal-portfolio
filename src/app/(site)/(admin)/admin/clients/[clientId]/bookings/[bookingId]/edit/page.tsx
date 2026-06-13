@@ -15,7 +15,7 @@ import {
   type AssignablePet,
   type PetSpecies,
 } from "@/features/booking";
-import { EditBookingClient } from "@/app/(account)/account/bookings/[id]/edit/_components/edit-booking-client";
+import { EditBookingClient } from "@/app/(site)/(account)/account/bookings/[id]/edit/_components/edit-booking-client";
 import type { PricingType } from "@/features/pricing";
 
 const SIGNED_URL_TTL_SECONDS = 60 * 60;

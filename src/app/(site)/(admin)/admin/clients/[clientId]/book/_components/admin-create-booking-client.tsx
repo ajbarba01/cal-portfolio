@@ -29,7 +29,7 @@ import type {
   AssignablePet,
   ServiceDetail,
 } from "@/features/booking/index.client";
-import { RecurringControls } from "@/app/(marketing)/book/[serviceSlug]/_components/recurring-controls";
+import { RecurringControls } from "@/app/(site)/(marketing)/book/[serviceSlug]/_components/recurring-controls";
 import { useAdminCreateBooking } from "./use-admin-create-booking";
 
 // ── Props ─────────────────────────────────────────────────────────────────────

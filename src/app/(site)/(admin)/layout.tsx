@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { PageShell } from "@/components/layout/page-shell";
 import { AppShell } from "@/components/layout/app-shell";
 import { adminNav, type NavBadges } from "@/components/layout/nav-config";
 import { getAttentionCounts } from "@/features/admin";
@@ -32,10 +31,8 @@ export default async function AdminLayout({
 
   const identity = `${profile?.full_name ?? user.email ?? "Admin"} · admin`;
 
-  // Don't await attention counts here — this layout must not block on badge data
-  // so the admin loading.tsx fallback can paint immediately. Instead pass the
-  // un-resolved promise; HeaderAuth and AppShell's BadgesLoader each await it
-  // inside their own Suspense boundaries.
+  // Don't await — pass the promise so AppShell's badge loader resolves it inside
+  // its own Suspense boundary and the admin loading.tsx can paint immediately.
   const attentionPromise = getAttentionCounts().then((attention) => {
     const badges: NavBadges = {
       "/admin/bookings": {
@@ -48,14 +45,12 @@ export default async function AdminLayout({
   });
 
   return (
-    <PageShell zoneNav={adminNav} navBadgesPromise={attentionPromise}>
-      <AppShell
-        nav={adminNav}
-        identity={identity}
-        navBadgesPromise={attentionPromise}
-      >
-        {children}
-      </AppShell>
-    </PageShell>
+    <AppShell
+      nav={adminNav}
+      identity={identity}
+      navBadgesPromise={attentionPromise}
+    >
+      {children}
+    </AppShell>
   );
 }
