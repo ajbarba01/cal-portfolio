@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useState, useTransition, type MouseEvent } from "react";
+import { usePathname } from "next/navigation";
+import { useState, type MouseEvent } from "react";
 import { Lock, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { activeNavHref, optimisticActiveHref } from "./is-active-nav";
+import { activeNavHref } from "./is-active-nav";
 import { NAV_ICONS } from "./nav-config";
 import type { ZoneNav, NavBadges } from "./nav-config";
 import { SignOutButton } from "@/components/sign-out-button";
@@ -26,28 +26,33 @@ export function AppSidebar({
   navBadges?: NavBadges;
 }) {
   const pathname = usePathname();
-  const router = useRouter();
-  const [isNavigating, startNavigation] = useTransition();
   const [pendingHref, setPendingHref] = useState<string | null>(null);
+  // Clear the optimistic highlight whenever the route actually changes — covers
+  // the click landing on its page AND external navigation (browser back, header
+  // links). Adjusting state during render (React's "storing info from previous
+  // renders" pattern), not an effect.
+  const [lastPathname, setLastPathname] = useState(pathname);
+  if (pathname !== lastPathname) {
+    setLastPathname(pathname);
+    setPendingHref(null);
+  }
 
   const hrefs = nav.items.map((i) => i.href);
   const committedHref = activeNavHref(
     pathname,
     locked ? [ONBOARDING_HREF, ...hrefs] : hrefs,
   );
-  // Highlight the clicked tab instantly rather than waiting for the destination
-  // page to load — usePathname only updates on navigation commit. See
-  // optimisticActiveHref.
-  const activeHref = optimisticActiveHref(
-    committedHref,
-    pendingHref,
-    isNavigating,
-  );
+  // Optimistically highlight the clicked tab before usePathname commits, so the
+  // active tab switches the instant you click while the destination's loading.tsx
+  // renders. Cleared above once the route lands. The <Link> navigates natively
+  // (no transition), so the loading fallback shows during the wait.
+  const activeHref = pendingHref ?? committedHref;
 
-  // Plain left-clicks navigate via the router inside a transition so isNavigating
-  // tracks the in-flight nav (driving the optimistic highlight above). Modified /
-  // non-primary clicks fall through to the <Link> default (open in new tab, etc.).
-  const handleNavigate =
+  // Mark the clicked tab active immediately. No preventDefault — the <Link>
+  // navigates natively so loading.tsx shows. Skip modified / non-primary clicks
+  // (open-in-new-tab): those don't change this tab's route, so optimism would
+  // leave a stale highlight.
+  const markPending =
     (href: string) => (event: MouseEvent<HTMLAnchorElement>) => {
       if (
         event.button !== 0 ||
@@ -58,9 +63,7 @@ export function AppSidebar({
       ) {
         return;
       }
-      event.preventDefault();
       setPendingHref(href);
-      startNavigation(() => router.push(href));
     };
 
   const itemBase =
@@ -80,7 +83,7 @@ export function AppSidebar({
         {locked ? (
           <Link
             href={ONBOARDING_HREF}
-            onClick={handleNavigate(ONBOARDING_HREF)}
+            onClick={markPending(ONBOARDING_HREF)}
             aria-current={activeHref === ONBOARDING_HREF ? "page" : undefined}
             className={cn(
               itemBase,
@@ -111,7 +114,7 @@ export function AppSidebar({
             <Link
               key={href}
               href={href}
-              onClick={handleNavigate(href)}
+              onClick={markPending(href)}
               aria-current={activeHref === href ? "page" : undefined}
               className={cn(
                 itemBase,
