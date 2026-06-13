@@ -6,6 +6,7 @@
 import Image from "next/image";
 import { MarketingHero } from "@/components/marketing/marketing-hero";
 import { MarketingCopy } from "@/components/marketing/marketing-copy";
+import placeholders from "@/content/image-placeholders.json";
 import {
   StatTicker,
   type StatTickerItem,
@@ -82,6 +83,7 @@ export default function AboutPage() {
     <>
       <MarketingHero
         src="/bg/IMG_0048.JPG"
+        blurDataURL={(placeholders as Record<string, string>)["IMG_0048.JPG"]}
         title="Meet Cal"
         body={<MarketingCopy id="about.summary" />}
         aspect="aspect-[2/1] lg:aspect-[5/2]"

@@ -12,6 +12,7 @@ import { Eyebrow } from "./eyebrow";
  */
 export function MarketingHero({
   src,
+  blurDataURL,
   eyebrow,
   title,
   titleId = "hero-heading",
@@ -20,6 +21,8 @@ export function MarketingHero({
   aspect = "aspect-[3/2]",
 }: {
   src: string;
+  /** Optional base64 blur (from image-placeholders.json) for placeholder="blur". */
+  blurDataURL?: string;
   eyebrow?: React.ReactNode;
   title: React.ReactNode;
   titleId?: string;
@@ -41,6 +44,9 @@ export function MarketingHero({
           fill
           priority
           sizes="100vw"
+          {...(blurDataURL
+            ? { placeholder: "blur" as const, blurDataURL }
+            : {})}
           className="object-cover"
         />
         <div className="from-foreground/70 via-foreground/30 absolute inset-0 hidden bg-gradient-to-r to-transparent sm:block" />

@@ -31,6 +31,12 @@ export function GalleryGrid({ images }: { images: LightboxImage[] }) {
                 sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                 loading="lazy"
                 quality={70}
+                {...(img.blurDataURL
+                  ? {
+                      placeholder: "blur" as const,
+                      blurDataURL: img.blurDataURL,
+                    }
+                  : {})}
                 className="h-auto w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
               />
             </button>

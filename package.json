@@ -14,6 +14,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "db:seed": "tsx --env-file=.env.local scripts/db-seed/index.ts",
+    "gallery:sync": "tsx scripts/gallery-sync/index.ts",
     "prepare": "husky"
   },
   "lint-staged": {
@@ -64,6 +65,7 @@
     "lint-staged": "^17.0.5",
     "prettier": "^3.8.3",
     "prettier-plugin-tailwindcss": "^0.8.0",
+    "sharp": "^0.35.1",
     "supabase": "^2.102.0",
     "tailwindcss": "^4",
     "tsx": "^4.22.4",
