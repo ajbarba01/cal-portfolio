@@ -47,10 +47,8 @@ const navLinks: NavItem[] = [
  * Suspense by its parent so it never blocks the static chrome above.
  */
 async function HeaderAuth({
-  zoneNav,
   navBadgesPromise,
 }: {
-  zoneNav?: ZoneNav;
   navBadgesPromise?: Promise<NavBadges>;
 }) {
   const supabase = await createClient();
@@ -94,7 +92,6 @@ async function HeaderAuth({
         <div className="lg:hidden">
           <SiteNavMobile
             links={navLinks}
-            zoneNav={zoneNav}
             navBadges={navBadges}
             isSignedIn={!!user}
             isAdmin={isAdmin}
@@ -142,7 +139,6 @@ function HeaderAuthSkeleton() {
  * auth-dependent fragment in Suspense so it never blocks `loading.tsx` fallbacks.
  */
 export function SiteHeader({
-  zoneNav,
   navBadgesPromise,
 }: {
   zoneNav?: ZoneNav;
@@ -162,7 +158,7 @@ export function SiteHeader({
             to row 2. */}
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 py-6">
           <Suspense fallback={<HeaderAuthSkeleton />}>
-            <HeaderAuth zoneNav={zoneNav} navBadgesPromise={navBadgesPromise} />
+            <HeaderAuth navBadgesPromise={navBadgesPromise} />
           </Suspense>
 
           {/* Tab row + auth cluster need ~762px; at md (768) only ~689px is

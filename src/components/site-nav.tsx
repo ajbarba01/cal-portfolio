@@ -16,9 +16,10 @@ import { SignOutButton } from "@/components/sign-out-button";
 import { NAV_ICONS } from "@/components/layout/nav-config";
 import type {
   NavItem,
-  ZoneNav,
   NavBadges,
+  ZoneNav,
 } from "@/components/layout/nav-config";
+import { zoneNavForPath } from "@/components/layout/zone-for-path";
 import { NavBadge } from "@/components/ui/nav-badge";
 
 /** Desktop-only centered tab row. */
@@ -52,18 +53,17 @@ export function SiteNavTabs({ links }: { links: NavItem[] }) {
 /** Mobile-only hamburger + slide-in drawer (merged: zone sections + marketing + account). */
 export function SiteNavMobile({
   links,
-  zoneNav,
   navBadges,
   isSignedIn,
   isAdmin,
 }: {
   links: NavItem[];
-  zoneNav?: ZoneNav;
   navBadges?: NavBadges;
   isSignedIn: boolean;
   isAdmin: boolean;
 }) {
   const pathname = usePathname();
+  const zoneNav = zoneNavForPath(pathname);
   // Remount on navigation so the drawer always starts closed (repo eslint bans
   // set-state-in-effect; key={pathname} is the sanctioned auto-close pattern).
   return (
