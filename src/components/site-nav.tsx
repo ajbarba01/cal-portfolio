@@ -11,6 +11,7 @@ import {
   isActiveNavItem,
   isCurrentNavItem,
 } from "@/components/layout/is-active-nav";
+import { useNavPending } from "@/components/layout/nav-pending";
 import { navTab } from "@/components/layout/nav-underline";
 import { SignOutButton } from "@/components/sign-out-button";
 import { NAV_ICONS } from "@/components/layout/nav-config";
@@ -25,17 +26,48 @@ import { NavBadge } from "@/components/ui/nav-badge";
 /** Desktop-only centered tab row. */
 export function SiteNavTabs({ links }: { links: NavItem[] }) {
   const pathname = usePathname();
+  const { start } = useNavPending();
+  // Optimistically highlight the clicked tab before usePathname commits, and
+  // signal the content area to show its skeleton — mirrors app-sidebar.tsx.
+  const [pendingHref, setPendingHref] = React.useState<string | null>(null);
+  const [lastPathname, setLastPathname] = React.useState(pathname);
+  if (pathname !== lastPathname) {
+    setLastPathname(pathname);
+    setPendingHref(null);
+  }
+
+  const markPending =
+    (href: string) => (event: React.MouseEvent<HTMLAnchorElement>) => {
+      // Skip modified / non-primary clicks (open-in-new-tab): they don't change
+      // this tab's route, so optimism would leave a stale highlight.
+      if (
+        event.button !== 0 ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey
+      ) {
+        return;
+      }
+      setPendingHref(href);
+      start(href);
+    };
 
   return (
     <nav aria-label="Main navigation">
       <ul className="flex items-center justify-center gap-1">
         {links.map((item) => {
-          const active = isActiveNavItem(pathname, item);
-          const current = isCurrentNavItem(pathname, item);
+          const active = pendingHref
+            ? pendingHref === item.href
+            : isActiveNavItem(pathname, item);
+          const current = pendingHref
+            ? pendingHref === item.href
+            : isCurrentNavItem(pathname, item);
           return (
             <li key={item.href}>
               <Link
                 href={item.href}
+                onClick={markPending(item.href)}
                 aria-current={current ? "page" : undefined}
                 data-spotlight-link
                 className={navTab(active)}
@@ -95,6 +127,7 @@ function SiteNavMobileDrawer({
   isAdmin: boolean;
 }) {
   const [open, setOpen] = React.useState(false);
+  const { start } = useNavPending();
 
   return (
     <Drawer.Root
@@ -137,6 +170,7 @@ function SiteNavMobileDrawer({
                       <li key={href}>
                         <Link
                           href={href}
+                          onClick={() => start(href)}
                           aria-current={active ? "page" : undefined}
                           className={cn(
                             "flex min-h-11 items-center gap-2 rounded-lg px-3 text-base",
@@ -178,6 +212,7 @@ function SiteNavMobileDrawer({
                     <li key={item.href}>
                       <Link
                         href={item.href}
+                        onClick={() => start(item.href)}
                         aria-current={current ? "page" : undefined}
                         className={cn(
                           "border-border flex min-h-11 items-center border-b px-4 text-base",

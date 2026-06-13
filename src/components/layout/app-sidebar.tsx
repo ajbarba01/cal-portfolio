@@ -6,6 +6,7 @@ import { useState, type MouseEvent } from "react";
 import { Lock, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { activeNavHref } from "./is-active-nav";
+import { useNavPending } from "./nav-pending";
 import { NAV_ICONS } from "./nav-config";
 import type { ZoneNav, NavBadges } from "./nav-config";
 import { SignOutButton } from "@/components/sign-out-button";
@@ -26,6 +27,7 @@ export function AppSidebar({
   navBadges?: NavBadges;
 }) {
   const pathname = usePathname();
+  const { start } = useNavPending();
   const [pendingHref, setPendingHref] = useState<string | null>(null);
   // Clear the optimistic highlight whenever the route actually changes — covers
   // the click landing on its page AND external navigation (browser back, header
@@ -64,6 +66,7 @@ export function AppSidebar({
         return;
       }
       setPendingHref(href);
+      start(href);
     };
 
   const itemBase =

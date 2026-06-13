@@ -1,10 +1,11 @@
 /**
  * Admin zone loading state — renders inside AppShell's `<main>` (the children
- * slot) while an admin page fetches. The real sidebar and header stay mounted
- * during navigation, so only the page content shows a centered loading circle.
+ * slot) on first entry / hard load while an admin page fetches. The real sidebar
+ * and header stay mounted. Same content-shaped skeleton the in-zone
+ * `<ContentArea>` overlay uses for soft navigations.
  */
-import { PageLoader } from "@/components/ui/spinner";
+import { AdminContentSkeleton } from "@/components/layout/zone-skeletons";
 
 export default function AdminLoading() {
-  return <PageLoader label="Loading" />;
+  return <AdminContentSkeleton />;
 }

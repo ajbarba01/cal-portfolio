@@ -7,11 +7,16 @@
  * live outside this group and stay chrome-free.
  */
 import { PageShell } from "@/components/layout/page-shell";
+import { NavPendingProvider } from "@/components/layout/nav-pending";
 
 export default function SiteLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <PageShell>{children}</PageShell>;
+  return (
+    <NavPendingProvider>
+      <PageShell>{children}</PageShell>
+    </NavPendingProvider>
+  );
 }

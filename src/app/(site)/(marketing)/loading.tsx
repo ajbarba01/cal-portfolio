@@ -1,10 +1,11 @@
 /**
  * Marketing zone loading state — renders inside the zone layout (below the
- * persistent header) while a dynamic marketing page fetches its data. A single
- * centered on-theme loading circle; the header stays mounted above it.
+ * persistent header) on first entry / hard load while a dynamic marketing page
+ * fetches. Same content-shaped skeleton the in-zone `<ContentArea>` overlay uses
+ * for soft navigations.
  */
-import { PageLoader } from "@/components/ui/spinner";
+import { MarketingContentSkeleton } from "@/components/layout/zone-skeletons";
 
 export default function MarketingLoading() {
-  return <PageLoader label="Loading page" />;
+  return <MarketingContentSkeleton />;
 }
