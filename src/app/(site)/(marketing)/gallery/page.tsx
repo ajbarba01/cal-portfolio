@@ -9,6 +9,7 @@ import { getGalleryImages } from "@/features/gallery";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { GalleryGrid } from "./_components/gallery-grid";
 import { MarketingCopy } from "@/components/marketing/marketing-copy";
+import { BackToTop } from "@/components/ui/back-to-top";
 
 export default async function GalleryPage() {
   const images = await getGalleryImages();
@@ -47,6 +48,7 @@ export default async function GalleryPage() {
           <GalleryGrid images={images} />
         </Reveal>
       )}
+      <BackToTop />
     </PageContainer>
   );
 }

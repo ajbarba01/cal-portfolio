@@ -414,14 +414,6 @@
        bleeds over the navbar + gutters). The 300ms ease doesn't need it. */
   }
 
-  /* Re-entry snap: when the pointer leaves the window and returns elsewhere,
-     <CursorParallax> flags this so the jump to the new position is instant
-     rather than easing across the whole range (which reads as a phantom swoop). */
-  html[data-cursor-instant],
-  html[data-cursor-instant] .hero-parallax-img {
-    transition: none;
-  }
-
   /* Belt-and-suspenders: even if a var were set, kill drift for reduced motion
      (the listener already no-ops, but static export / hydration races can't). */
   @media (prefers-reduced-motion: reduce) {
@@ -446,6 +438,12 @@
     inset: 0;
     z-index: 40;
     pointer-events: none;
+    /* Fades out when the pointer leaves the window (data-ring-hidden) so the glow
+       doesn't sit frozen mid-page; fades back in on re-entry. */
+    transition: opacity 220ms ease-out;
+  }
+  .cursor-ring-overlay[data-ring-hidden] {
+    opacity: 0;
   }
   .cursor-ring {
     position: absolute;
@@ -454,14 +452,18 @@
     height: var(--ring-size, 124px);
     width: var(--ring-size, 124px);
     border-radius: 9999px;
+    /* --ring-press scales the radius: 1 at rest, shrunk while the primary button
+       is held (data-ring-pressed). Scale is folded into the same transform as the
+       position so both ease together. */
     transform: translate(
-      calc(var(--mx, -300px) - 50%),
-      calc(var(--my, 0px) - 50%)
-    );
+        calc(var(--mx, -300px) - 50%),
+        calc(var(--my, 0px) - 50%)
+      )
+      scale(var(--ring-press, 1));
     /* Always on — it never fades; the overlay mask reveals it only over the
        content sheet (minus excluded photos), so it appears/disappears purely by
-       sliding under those edges. Only the position eases (a gentle trail). */
-    transition: transform 130ms ease-out;
+       sliding under those edges. Position trails and the press-scale eases. */
+    transition: transform 100ms ease-out;
     border: 1.5px solid color-mix(in oklab, var(--brand) 42%, transparent);
     box-shadow:
       0 0 22px 3px color-mix(in oklab, var(--brand) 10%, transparent),
@@ -472,6 +474,10 @@
   .cursor-ring-overlay[data-ring-instant] .cursor-ring,
   .cursor-ring-overlay[data-ring-instant] .cursor-ombre {
     transition: none;
+  }
+  /* Primary button held: shrink the ring toward its center. */
+  .cursor-ring-overlay[data-ring-pressed] .cursor-ring {
+    --ring-press: 0.62;
   }
   /* Alternate highlight (CURSOR_HIGHLIGHT="ombre"): an additive clay glow that
      fades radially out from the cursor (viewport --mx/--my). Fills the overlay;

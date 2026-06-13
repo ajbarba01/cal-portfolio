@@ -6,6 +6,7 @@
 - card shadowing should be consistent
 - oh account should be a profile icon not an account text. also touch up dropdown
 - allow some sections to ease in by scroll height not altogether? or remove sections for like gallery and resources and other long sections
+- underline proximity vs hover effect have different widths on chrome but not firefox.
 
 # Dev notes — capture inbox
 

@@ -69,13 +69,15 @@ async function HeaderAuth() {
   } = await supabase.auth.getUser();
 
   let isAdmin = false;
+  let fullName: string | null = null;
   if (user) {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("role")
+      .select("role, full_name")
       .eq("id", user.id)
       .single();
     isAdmin = profile?.role === "admin";
+    fullName = profile?.full_name ?? null;
   }
 
   // Admin attention badges for the mobile drawer. The header is persistent, so
@@ -86,7 +88,11 @@ async function HeaderAuth() {
 
   const authCluster = (
     <div className="flex items-center gap-5 text-sm">
-      {user ? <AccountMenu /> : <SignInLink />}
+      {user ? (
+        <AccountMenu fullName={fullName} email={user.email ?? null} />
+      ) : (
+        <SignInLink />
+      )}
     </div>
   );
 
@@ -158,7 +164,11 @@ export function SiteHeader() {
       {/* No overflow-hidden here: the AccountMenu hover dropdown hangs below the
           header and must stay visible; single-row layout is guaranteed by the
           min-w-0 grid cells, not by clipping. */}
-      <div className="mx-auto w-full max-w-6xl px-5 sm:px-8">
+      {/* relative: positioning anchor for the AccountMenu dropdown, which hangs
+          from the navbar's bottom edge. This container's box spans the full
+          header height (the grid's py-6 lives inside it), so the panel's
+          top-full tracks the navbar bottom regardless of header height. */}
+      <div className="relative mx-auto w-full max-w-6xl px-5 sm:px-8">
         {/* Three explicit columns: wordmark (col 1) · tabs (col 2) · auth (col 3).
             Suspense is not a DOM node; its fragment children are direct grid items.
             Every cell is pinned with explicit col-start-* + row-start-1 — relying on

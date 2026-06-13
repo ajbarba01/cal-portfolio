@@ -13,6 +13,10 @@ import * as React from "react";
  *
  * Honors prefers-reduced-motion (no listener attached → vars stay at their 0
  * default). Inert on touch — pointermove with a coarse pointer never fires.
+ *
+ * On window exit the drift eases back to rest (center); on re-entry it eases
+ * from there to the cursor. Both transitions are the CSS easing on the consuming
+ * elements — there's no snap, since starting from center keeps the glide short.
  */
 export function CursorParallax() {
   React.useEffect(() => {
@@ -20,20 +24,12 @@ export function CursorParallax() {
 
     const root = document.documentElement;
     let frame = 0;
-    // Set after the pointer leaves the window so the first move on re-entry snaps
-    // to the new spot instead of easing across the whole range (phantom swoop).
-    // Initialized true so the first move after mount snaps rather than gliding
-    // from the rest position.
-    let jump = true;
 
     const clamp = (n: number) => Math.max(-1, Math.min(1, n));
 
     const onMove = (e: PointerEvent) => {
-      const instant = jump;
-      jump = false;
       if (frame) cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
-        if (instant) root.setAttribute("data-cursor-instant", "");
         root.style.setProperty(
           "--cursor-x",
           clamp(e.clientX / (window.innerWidth / 2) - 1).toFixed(4),
@@ -42,27 +38,32 @@ export function CursorParallax() {
           "--cursor-y",
           clamp(e.clientY / (window.innerHeight / 2) - 1).toFixed(4),
         );
-        // Restore easing once the instant value has painted.
-        if (instant) {
-          requestAnimationFrame(() =>
-            root.removeAttribute("data-cursor-instant"),
-          );
-        }
       });
     };
 
-    // `mouseleave` on the document fires when the pointer exits the viewport.
+    // Ease the drift back to rest (center) when the pointer leaves the window so
+    // the background + hero don't sit frozen off-center.
     const onLeave = () => {
-      jump = true;
+      if (frame) cancelAnimationFrame(frame);
+      root.style.setProperty("--cursor-x", "0");
+      root.style.setProperty("--cursor-y", "0");
+    };
+
+    // mouseout with a null relatedTarget fires reliably whenever the pointer
+    // leaves the window (mouseleave can be skipped on fast exits); blur covers
+    // alt-tab / focus loss.
+    const onMouseOut = (e: MouseEvent) => {
+      if (!e.relatedTarget) onLeave();
     };
 
     window.addEventListener("pointermove", onMove, { passive: true });
-    document.addEventListener("mouseleave", onLeave);
+    document.addEventListener("mouseout", onMouseOut);
+    window.addEventListener("blur", onLeave);
     return () => {
       window.removeEventListener("pointermove", onMove);
-      document.removeEventListener("mouseleave", onLeave);
+      document.removeEventListener("mouseout", onMouseOut);
+      window.removeEventListener("blur", onLeave);
       if (frame) cancelAnimationFrame(frame);
-      root.removeAttribute("data-cursor-instant");
     };
   }, []);
 
