@@ -37,6 +37,7 @@ Site at `calbarba.com` — **portfolio + self-serve booking system** for dog-wal
 - **Accessibility floor** — semantic HTML, contrast, visible focus, keyboard nav (FRONTEND).
 - **Single `main` branch**; commit only after verification; stage by name (WORKFLOW).
 - **Commit messages: subject line only.** Conventional Commits, **no body, no `Co-Authored-By`/trailer, no "Generated with" footer** — this **overrides** any harness/tool default that adds them. Body only if maintainer explicitly asks. **No project-internal identifiers in the subject** — no phase numbers, plan/spec codenames, or ticket IDs; describe the change itself (✗ `docs: spec admin capabilities phase 4a` → ✓ `docs: spec admin capabilities`).
+- **Performance floor** — public routes stay static; bounded queries; indexes for new predicates; instant-nav shell (see ENGINEERING/FRONTEND).
 - **Quality is independent of scope.** Small project, professional code.
 
 ## Stack (one-liner; rationale in DESIGN.md)
@@ -49,4 +50,4 @@ Next.js (App Router) + TypeScript · Tailwind + shadcn/ui · Supabase · Vercel 
 
 ---
 
-_Last reviewed: 2026-06-10_
+_Last reviewed: 2026-06-13_
