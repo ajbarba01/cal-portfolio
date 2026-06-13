@@ -7,6 +7,7 @@ import { ShieldCheck, Heart, MapPin } from "lucide-react";
 import { MarketingHero } from "@/components/marketing/marketing-hero";
 import { Eyebrow } from "@/components/marketing/eyebrow";
 import { MarketingCopy } from "@/components/marketing/marketing-copy";
+import placeholders from "@/content/image-placeholders.json";
 import { PageContainer } from "@/components/layout/page-container";
 import { Reveal, RevealGroup } from "@/components/effects/reveal";
 import { buttonVariants } from "@/components/ui/button";
@@ -38,6 +39,7 @@ export default function HomePage() {
     <>
       <MarketingHero
         src="/bg/IMG_7869.JPG"
+        blurDataURL={(placeholders as Record<string, string>)["IMG_7869.JPG"]}
         eyebrow="Dog walking · house sitting · Colorado"
         title={<MarketingCopy id="home.hero.hook" />}
         body={<MarketingCopy id="home.hero.body" />}

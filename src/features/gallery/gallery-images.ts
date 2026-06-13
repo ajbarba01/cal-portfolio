@@ -1,12 +1,17 @@
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { imageSize } from "image-size";
+import placeholders from "@/content/image-placeholders.json";
+
+const blurMap = placeholders as Record<string, string>;
 
 export type GalleryImage = {
   src: string;
   width: number;
   height: number;
   alt: string;
+  /** Base64 blur from the gallery-sync pipeline (image-placeholders.json). */
+  blurDataURL?: string;
 };
 
 const IMAGE_EXT = /\.(jpe?g|png|webp|avif)$/i;
@@ -44,6 +49,7 @@ export async function getGalleryImages(): Promise<GalleryImage[]> {
         width,
         height,
         alt: "A dog in Cal's care",
+        blurDataURL: blurMap[file],
       });
     } catch (err) {
       console.warn(`Skipping unreadable gallery image: ${file}`, err);

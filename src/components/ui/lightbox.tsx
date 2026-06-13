@@ -11,6 +11,8 @@ export type LightboxImage = {
   width: number;
   height: number;
   alt: string;
+  /** Tiny base64 blur for next/image placeholder (from image-placeholders.json). */
+  blurDataURL?: string;
 };
 
 /**

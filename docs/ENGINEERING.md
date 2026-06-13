@@ -91,6 +91,15 @@ Prefer reactive data flow (server actions, realtime subscriptions, context) over
 
 No dead or commented-out code, no leftover `console.log`, no naked `TODO` without a tracked follow-up. If temporary, say why and where it's tracked.
 
+### 13. Performance discipline
+
+- **Public routes render static unless they provably need request data.** Verify via the `next build` route table — public pages must show `○`, not `ƒ`. A route goes dynamic the moment it reads cookies/headers; keep auth out of the shared shell so it stays static.
+- **Mutations that change public-page data call `revalidatePath`** for the affected route (the static page won't update otherwise).
+- **New query predicates get index coverage in the same migration.** A new `where`/`order` column without an index is a regression.
+- **List queries are bounded** (`.limit(...)`); never fetch an unbounded table to count or filter in JS — push counts/aggregates to Postgres.
+- **Best-effort side effects use `after()`** so they don't block the response (e.g. notification emails).
+- **Shared layout/page reads use React `cache()`** to dedupe within a request (e.g. the per-request auth read).
+
 ---
 
 ## Agent behavior
@@ -108,4 +117,4 @@ These govern how an AI agent works in this repo.
 
 ---
 
-_Last reviewed: 2026-06-10_
+_Last reviewed: 2026-06-13_ (performance discipline)

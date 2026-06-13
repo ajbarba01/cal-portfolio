@@ -127,6 +127,35 @@ Every user action produces visible feedback — nothing silent (enforced sitewid
 - **Dead-end page** (no zone nav) → a back affordance (`BackToSite`) so there is always a way back.
 - **Long page** → return-to-top affordance (`BackToTop`).
 
+## Instant navigation
+
+Navigation should feel like toggling a UI element, not fetching a page:
+
+- **Persistent static shell.** Header/footer/sidebar live in the persistent `(site)` shell and read no cookies (auth resolves client-side in `header-auth-client.tsx`), so the chrome paints instantly and survives soft navigation.
+- **Optimistic active state.** Nav links mark the clicked target active immediately via a `pendingHref` set in the click handler and cleared at render time on the pathname change (see `app-sidebar.tsx` / `site-nav.tsx`). Do NOT set this in an effect — the repo's eslint bans set-state-in-effect; the click-handler + render-time-clear pattern is the sanctioned approach.
+- **Instant content feedback.** A shared `NavPendingProvider` flips on from the same click; `ContentArea` swaps the stale page for a buffered page loading circle (`DelayedPageLoader`: blank first, spinner only if the load drags) so soft sibling navigations get feedback even though the App Router won't re-show `loading.tsx` there. `loading.tsx` still covers first entry / hard loads.
+- **Default `<Link>` prefetch** everywhere; never `prefetch={false}` on internal nav, never raw `<a>` for in-app routes.
+- **Compositor-only animations** (transform/opacity), rAF-batched listeners, and `prefers-reduced-motion` honored for every effect.
+
+## Image pipeline
+
+Raw camera files are never committed to `public/`. Instead:
+
+- **Originals** live in gitignored source folders at the repo root:
+  `gallery-originals/` (grid photos) and `bg-originals/` (hero/background images).
+- **`npm run gallery:sync`** (script: `scripts/gallery-sync/`, dep: `sharp`) re-encodes
+  them into `public/`: resize ≤1600px long edge (no upscaling), JPEG q≈80 (mozjpeg),
+  EXIF stripped. Gallery outputs are **content-hashed** (`IMG_0592.<hash>.jpg`) so a
+  swapped photo busts caches; bg outputs keep **stable basenames** (referenced by path
+  in code). Sync is idempotent (skip unchanged / delete orphaned / process changed).
+- **Blur placeholders** are emitted to `src/content/image-placeholders.json`
+  (tracked). `getGalleryImages()` attaches them to grid images; `MarketingHero`
+  takes an optional `blurDataURL`. Always use `next/image` with `placeholder="blur"`
+  where a placeholder exists.
+- **`next.config.ts`** serves `avif`/`webp` with a long `minimumCacheTTL`; non-default
+  `quality` values must be allow-listed in `images.qualities`.
+- The `gallery-sync` skill documents the add/replace/remove workflow.
+
 ---
 
-_Last reviewed: 2026-06-12_ (button hierarchy + form-on-card recipe)
+_Last reviewed: 2026-06-13_ (instant navigation + image pipeline)

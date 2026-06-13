@@ -10,10 +10,24 @@ import { ArrowUp } from "lucide-react";
 export function BackToTop({ threshold = 600 }: { threshold?: number }) {
   const [shown, setShown] = React.useState(false);
   React.useEffect(() => {
-    const onScroll = () => setShown(window.scrollY > threshold);
-    onScroll();
+    // rAF-throttle: one state update per frame at most, instead of a setState per
+    // scroll event. The setState lives in the rAF callback (not the effect body),
+    // so it doesn't trip react-hooks/set-state-in-effect.
+    let frame = 0;
+    const apply = () => {
+      frame = 0;
+      setShown(window.scrollY > threshold);
+    };
+    const onScroll = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(apply);
+    };
+    onScroll(); // initial check (schedules a frame; no synchronous setState)
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (frame) cancelAnimationFrame(frame);
+    };
   }, [threshold]);
 
   return (

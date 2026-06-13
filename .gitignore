@@ -46,3 +46,8 @@ next-env.d.ts
 
 # local design scratch (texture tuning playground)
 /texture-lab.html
+
+# gallery pipeline: raw camera originals (re-encoded into public/ by npm run gallery:sync)
+/gallery-originals/
+/bg-originals/
+scripts/gallery-sync/.sync-manifest.json
