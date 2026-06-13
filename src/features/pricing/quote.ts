@@ -240,6 +240,8 @@ function quoteCheckIn(
 ): QuoteBreakdown {
   const cfg = input.pricingConfig;
   const { hours } = input;
+  const holidayDays = input.holidayDays ?? 0;
+  const holidaySurchargeCents = input.holidaySurchargeCents ?? 0;
 
   const rawCents = roundCents(hours * cfg.rate_cents_per_hour);
   const baseCents = Math.max(cfg.minimum_cents, rawCents);
@@ -250,6 +252,13 @@ function quoteCheckIn(
       amountCents: baseCents,
     },
   ];
+
+  if (holidayDays > 0 && holidaySurchargeCents > 0) {
+    lines.push({
+      label: `Premium day${holidayDays !== 1 ? "s" : ""} (${holidayDays})`,
+      amountCents: roundCents(holidayDays * holidaySurchargeCents),
+    });
+  }
 
   const travelCents = computeTravelCents(
     input.roundTripDriveMinutes,
@@ -279,6 +288,8 @@ function quoteWalk(
 ): QuoteBreakdown {
   const cfg = input.pricingConfig;
   const { hours, dogs } = input;
+  const holidayDays = input.holidayDays ?? 0;
+  const holidaySurchargeCents = input.holidaySurchargeCents ?? 0;
 
   const hoursCents = roundCents(hours * cfg.rate_cents_per_hour);
   const dogsCents = dogs * cfg.per_dog_cents;
@@ -290,6 +301,13 @@ function quoteWalk(
       amountCents: dogsCents,
     },
   ];
+
+  if (holidayDays > 0 && holidaySurchargeCents > 0) {
+    lines.push({
+      label: `Premium day${holidayDays !== 1 ? "s" : ""} (${holidayDays})`,
+      amountCents: roundCents(holidayDays * holidaySurchargeCents),
+    });
+  }
 
   const travelCents = computeTravelCents(
     input.roundTripDriveMinutes,
@@ -319,12 +337,21 @@ function quoteTraining(
 ): QuoteBreakdown {
   const cfg = input.pricingConfig;
   const { hours } = input;
+  const holidayDays = input.holidayDays ?? 0;
+  const holidaySurchargeCents = input.holidaySurchargeCents ?? 0;
 
   const baseCents = roundCents(hours * cfg.rate_cents_per_hour);
 
   const lines: QuoteLine[] = [
     { label: `Training (${hours}h)`, amountCents: baseCents },
   ];
+
+  if (holidayDays > 0 && holidaySurchargeCents > 0) {
+    lines.push({
+      label: `Premium day${holidayDays !== 1 ? "s" : ""} (${holidayDays})`,
+      amountCents: roundCents(holidayDays * holidaySurchargeCents),
+    });
+  }
 
   const travelCents = computeTravelCents(
     input.roundTripDriveMinutes,

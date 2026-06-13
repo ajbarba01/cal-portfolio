@@ -188,15 +188,24 @@ const houseSittingQuantitiesSchema = z.object({
 
 const checkInQuantitiesSchema = z.object({
   hours: z.number().positive(),
+  // Server-injected after Zod parse — accepted here so buildQuoteInput can propagate them.
+  holidayDays: z.number().int().min(0).optional(),
+  holidaySurchargeCents: z.number().int().nonnegative().optional(),
 });
 
 const walkQuantitiesSchema = z.object({
   hours: z.number().positive(),
   dogs: z.number().int().min(1),
+  // Server-injected after Zod parse — accepted here so buildQuoteInput can propagate them.
+  holidayDays: z.number().int().min(0).optional(),
+  holidaySurchargeCents: z.number().int().nonnegative().optional(),
 });
 
 const trainingQuantitiesSchema = z.object({
   hours: z.number().positive(),
+  // Server-injected after Zod parse — accepted here so buildQuoteInput can propagate them.
+  holidayDays: z.number().int().min(0).optional(),
+  holidaySurchargeCents: z.number().int().nonnegative().optional(),
 });
 
 const meetGreetQuantitiesSchema = z.object({}).strict();
@@ -301,6 +310,8 @@ export function buildQuoteInput(opts: {
         pricingType: "check_in",
         pricingConfig: opts.pricingConfig as QuoteInput["pricingConfig"],
         hours: q.data.hours,
+        holidayDays: q.data.holidayDays,
+        holidaySurchargeCents: q.data.holidaySurchargeCents,
         ...shared,
       } as QuoteInput;
 
@@ -310,6 +321,8 @@ export function buildQuoteInput(opts: {
         pricingConfig: opts.pricingConfig as QuoteInput["pricingConfig"],
         hours: q.data.hours,
         dogs: q.data.dogs,
+        holidayDays: q.data.holidayDays,
+        holidaySurchargeCents: q.data.holidaySurchargeCents,
         ...shared,
       } as QuoteInput;
 
@@ -318,6 +331,8 @@ export function buildQuoteInput(opts: {
         pricingType: "training",
         pricingConfig: opts.pricingConfig as QuoteInput["pricingConfig"],
         hours: q.data.hours,
+        holidayDays: q.data.holidayDays,
+        holidaySurchargeCents: q.data.holidaySurchargeCents,
         ...shared,
       } as QuoteInput;
 
@@ -636,16 +651,33 @@ export async function computeBookingArtifacts(
 
   // Inject the server-derived count into the quantities record before building
   // the QuoteInput. For house_sitting this overrides any client-supplied
-  // holidayDays; for other types the field is absent from their QuoteInput so
-  // this is a no-op at the buildQuoteInput level.
-  const quantitiesWithHoliday: typeof quantities =
-    quantities.pricingType === "house_sitting"
-      ? {
-          success: true as const,
-          pricingType: "house_sitting" as const,
-          data: { ...quantities.data, holidayDays: derivedHolidayDays },
-        }
-      : quantities;
+  // holidayDays. For hourly types (walk, check_in, training), we inject both
+  // holidayDays and holidaySurchargeCents (from settings) so the quote core
+  // can add the premium-day line — the client cannot supply these values.
+  let quantitiesWithHoliday: typeof quantities;
+  if (quantities.pricingType === "house_sitting") {
+    quantitiesWithHoliday = {
+      success: true as const,
+      pricingType: "house_sitting" as const,
+      data: { ...quantities.data, holidayDays: derivedHolidayDays },
+    };
+  } else if (
+    quantities.pricingType === "walk" ||
+    quantities.pricingType === "check_in" ||
+    quantities.pricingType === "training"
+  ) {
+    quantitiesWithHoliday = {
+      success: true as const,
+      pricingType: quantities.pricingType,
+      data: {
+        ...quantities.data,
+        holidayDays: derivedHolidayDays,
+        holidaySurchargeCents: settings.holiday_surcharge_cents,
+      },
+    } as typeof quantities;
+  } else {
+    quantitiesWithHoliday = quantities;
+  }
 
   const quoteInput = buildQuoteInput({
     pricingType: service.pricing_type,
