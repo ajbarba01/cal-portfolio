@@ -5,6 +5,7 @@ import { Check, Pencil } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { CardShimmer } from "@/components/effects/card-shimmer";
 import type { InquiryRow } from "@/features/inquiries/inquiry-actions";
 import {
   canEditInquiry,
@@ -40,13 +41,14 @@ export function InquiryCard({
     // context; the z-order of the overlay (z-0), content (z-[1]) and footer
     // actions (z-10) is resolved *within* the row, so it survives ancestor
     // stacking changes.
-    <div className="bg-card border-border hover:border-brand/40 hover:bg-muted/40 relative rounded-xl border px-4 py-3 transition-colors">
+    <div className="group bg-card border-border hover:border-brand/40 hover:bg-muted/40 relative rounded-2xl border px-4 py-3 transition-colors">
+      <CardShimmer />
       {/* Stretched overlay button: opens the popup; sits below the content. */}
       <button
         type="button"
         onClick={() => onOpen(inquiry)}
         aria-label={`Open inquiry${inquiry.subject ? `: ${inquiry.subject}` : ""}`}
-        className="focus-visible:ring-ring/50 absolute inset-0 z-0 rounded-xl focus-visible:ring-3 focus-visible:outline-none"
+        className="focus-visible:ring-ring/50 absolute inset-0 z-0 rounded-2xl focus-visible:ring-3 focus-visible:outline-none"
       />
 
       {/* Content layer — pointer-events-none so clicks reach the overlay. */}

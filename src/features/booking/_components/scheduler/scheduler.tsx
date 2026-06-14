@@ -17,6 +17,7 @@
 
 import { useEffect, useMemo } from "react";
 import type { ReactNode } from "react";
+import { ShimmerCard } from "@/components/ui/shimmer-card";
 import { useScheduleSelection } from "@/features/booking/use-schedule-selection";
 import { SchedulerProvider } from "@/features/booking/scheduler-context";
 import { denverDayKey } from "@/features/booking/availability";
@@ -39,6 +40,13 @@ export interface SchedulerProps {
   onSelectionChange?: (state: ScheduleSelectionState) => void;
   /** Pre-select an existing time slot on mount (e.g. rescheduling). */
   initialSlot?: { dayKey: string; minute: number };
+  /**
+   * Render the outer container as the outlined ShimmerCard surface (clay ring,
+   * rounded-2xl). Use only when the Scheduler is the OUTERMOST panel — e.g. the
+   * account read-only calendar. Leave off when it already sits inside a ringed
+   * card (the booking step shell), so rings never nest.
+   */
+  outlined?: boolean;
   children: ReactNode;
 }
 
@@ -52,6 +60,7 @@ export function Scheduler({
   callbacks,
   onSelectionChange,
   initialSlot,
+  outlined = false,
   children,
 }: SchedulerProps) {
   const todayKey = denverDayKey(data.now);
@@ -78,9 +87,13 @@ export function Scheduler({
 
   return (
     <SchedulerProvider value={value}>
-      <div className="bg-card border-border rounded-xl border p-4">
-        {children}
-      </div>
+      {outlined ? (
+        <ShimmerCard className="p-4">{children}</ShimmerCard>
+      ) : (
+        <div className="bg-card border-border rounded-xl border p-4">
+          {children}
+        </div>
+      )}
     </SchedulerProvider>
   );
 }

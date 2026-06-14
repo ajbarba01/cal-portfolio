@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { ShimmerCard } from "@/components/ui/shimmer-card";
 import { submitInquiry } from "@/features/inquiries";
 
 export function ContactForm({
@@ -69,7 +70,7 @@ export function ContactForm({
 
   if (isDone) {
     return (
-      <div className="border-border bg-card rounded-2xl border p-6 shadow-sm sm:p-8">
+      <ShimmerCard className="p-6 sm:p-8">
         <div className="flex gap-4">
           <CheckCircle
             className="text-status-available-foreground mt-0.5 size-5 shrink-0"
@@ -103,12 +104,12 @@ export function ContactForm({
             </p>
           </div>
         </div>
-      </div>
+      </ShimmerCard>
     );
   }
 
   return (
-    <div className="border-border bg-card rounded-2xl border p-6 shadow-sm sm:p-8">
+    <ShimmerCard className="p-6 sm:p-8">
       {/* Heading */}
       <h1 className="font-heading text-foreground text-2xl font-semibold tracking-tight sm:text-[1.625rem]">
         {heading}
@@ -211,6 +212,6 @@ export function ContactForm({
           {isPending ? "Sending…" : "Send message"}
         </Button>
       </form>
-    </div>
+    </ShimmerCard>
   );
 }

@@ -314,7 +314,7 @@ export function ServiceBookingClient({
                   showBook
                 />
               ) : (
-                <div className="border-border bg-card text-muted-foreground rounded-xl border border-dashed p-6 text-center text-sm">
+                <div className="border-border bg-card text-muted-foreground rounded-2xl border border-dashed p-6 text-center text-sm">
                   {isPreviewing
                     ? "Calculating…"
                     : "Select a day and time to see your price."}
@@ -347,7 +347,7 @@ function GatePanel({
 }) {
   return (
     <section aria-labelledby={labelledById}>
-      <div className="bg-card border-border rounded-xl border p-6">
+      <div className="bg-card border-border rounded-2xl border p-6">
         <h2
           id={labelledById}
           className="font-heading text-foreground mb-1 text-base font-semibold"

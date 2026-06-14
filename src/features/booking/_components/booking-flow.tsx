@@ -39,6 +39,7 @@ import type { ReactNode, ComponentProps } from "react";
 import { Check, Info } from "lucide-react";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
+import { ShimmerCard } from "@/components/ui/shimmer-card";
 import { Scheduler } from "./scheduler";
 import type { SchedulerData } from "./scheduler";
 import type { SchedulerCapabilities } from "../schedule-capabilities";
@@ -139,15 +140,9 @@ export interface BookingFlowProps {
 
 function StepShell({ children, className, ...rest }: ComponentProps<"div">) {
   return (
-    <div
-      className={cn(
-        "bg-card border-border min-w-0 rounded-2xl border p-4.5",
-        className,
-      )}
-      {...rest}
-    >
+    <ShimmerCard className={cn("min-w-0 p-4.5", className)} {...rest}>
       {children}
-    </div>
+    </ShimmerCard>
   );
 }
 
@@ -255,7 +250,7 @@ export function BookingSuccessPanel({
       aria-labelledby="booking-success-heading"
       className="mx-auto w-full max-w-md pb-12"
     >
-      <div className="bg-card border-border rounded-2xl border p-7 text-center">
+      <ShimmerCard className="p-7 text-center">
         <div
           aria-hidden="true"
           className="bg-status-available mx-auto mb-3 flex size-11 items-center justify-center rounded-full"
@@ -295,7 +290,7 @@ export function BookingSuccessPanel({
             Book another
           </button>
         </div>
-      </div>
+      </ShimmerCard>
     </section>
   );
 }

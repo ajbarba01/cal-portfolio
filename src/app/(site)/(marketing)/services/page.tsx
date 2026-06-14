@@ -7,7 +7,9 @@ import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
 import { Reveal, RevealGroup } from "@/components/effects/reveal";
 import { Eyebrow } from "@/components/marketing/eyebrow";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { ShimmerCard } from "@/components/ui/shimmer-card";
+import { CardShimmer } from "@/components/effects/card-shimmer";
 import { createStaticClient } from "@/lib/supabase/static";
 import {
   listActiveServices,
@@ -25,9 +27,9 @@ function ServiceCard({ service }: { service: PublicService }) {
   return (
     <Link
       href={`/book/${service.slug}`}
-      className="focus-visible:ring-ring/50 block h-full rounded-xl outline-none focus-visible:ring-3"
+      className="focus-visible:ring-ring/50 block h-full rounded-2xl outline-none focus-visible:ring-3"
     >
-      <Card className="hover:border-foreground/40 h-full transition-colors sm:p-5.5">
+      <ShimmerCard className="flex h-full flex-col gap-4 p-5 transition-colors duration-300 ease-out hover:bg-[color-mix(in_oklab,var(--brand)_6%,var(--card))] sm:p-5.5">
         <CardHeader>
           <CardTitle className="font-heading">{service.name}</CardTitle>
           <p className="text-brand-strong text-sm font-medium">{rate}</p>
@@ -61,7 +63,7 @@ function ServiceCard({ service }: { service: PublicService }) {
             View availability →
           </span>
         </div>
-      </Card>
+      </ShimmerCard>
     </Link>
   );
 }
@@ -103,8 +105,9 @@ export default async function ServicesPage() {
       <Reveal
         as="section"
         aria-labelledby="sliding-scale-heading"
-        className="border-border bg-card mt-12 rounded-lg border p-6 sm:p-8"
+        className="group bg-card border-border relative mt-12 rounded-2xl border p-6 sm:p-8"
       >
+        <CardShimmer />
         <Eyebrow>Sliding cost scale</Eyebrow>
         <h2
           id="sliding-scale-heading"

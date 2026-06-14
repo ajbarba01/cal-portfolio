@@ -8,10 +8,72 @@ import { MarketingHero } from "@/components/marketing/marketing-hero";
 import { Eyebrow } from "@/components/marketing/eyebrow";
 import { MarketingCopy } from "@/components/marketing/marketing-copy";
 import placeholders from "@/content/image-placeholders.json";
+import {
+  StatTicker,
+  type StatTickerItem,
+} from "@/components/marketing/stat-ticker";
 import { PageContainer } from "@/components/layout/page-container";
 import { Reveal, RevealGroup } from "@/components/effects/reveal";
+import { CardShimmer } from "@/components/effects/card-shimmer";
 import { buttonVariants } from "@/components/ui/button";
+import { copy } from "@/content/marketing";
 import { cn } from "@/lib/utils";
+
+// Cal's date of birth — age is derived so the ribbon never goes stale.
+const CAL_DOB = "2002-12-10";
+
+function yearsSince(isoDate: string): number {
+  const dob = new Date(isoDate);
+  const now = new Date();
+  let years = now.getFullYear() - dob.getFullYear();
+  const beforeBirthday =
+    now.getMonth() < dob.getMonth() ||
+    (now.getMonth() === dob.getMonth() && now.getDate() < dob.getDate());
+  if (beforeBirthday) years -= 1;
+  return years;
+}
+
+// Stat ribbon order (Cal's call): college · age · Rover · clients · experience · training · peaks.
+const tickerItems: StatTickerItem[] = [
+  {
+    kind: "logo",
+    src: "/brand/colorado-college.svg",
+    alt: "Colorado College",
+    width: 150,
+    height: 32,
+    label: copy["about.stat.cc.label"],
+  },
+  {
+    kind: "stat",
+    value: String(yearsSince(CAL_DOB)),
+    label: copy["about.stat.age.label"],
+  },
+  {
+    kind: "badge",
+    value: copy["about.stat.rover.value"],
+    label: copy["about.stat.rover.label"],
+  },
+  {
+    kind: "stat",
+    value: copy["about.stat.clients.value"],
+    label: copy["about.stat.clients.label"],
+  },
+  {
+    kind: "stat",
+    value: copy["about.stat.experience.value"],
+    label: copy["about.stat.experience.label"],
+  },
+  {
+    kind: "stat",
+    value: copy["about.stat.training.value"],
+    label: copy["about.stat.training.label"],
+  },
+  {
+    kind: "stat",
+    value: copy["about.stat.fourteeners.value"],
+    label: copy["about.stat.fourteeners.label"],
+  },
+];
 
 const trustPoints = [
   {
@@ -58,6 +120,8 @@ export default function HomePage() {
         }
       />
 
+      <StatTicker items={tickerItems} label="Cal at a glance" />
+
       {/* Why Cal — section-alt band (alternates with the sand-50 CTA below) */}
       <section
         aria-labelledby="why-heading"
@@ -85,16 +149,17 @@ export default function HomePage() {
                 <Reveal
                   as="li"
                   key={p.id}
-                  className="bg-card border-border rounded-2xl border p-5 sm:p-5.5"
+                  className="group bg-card border-border relative rounded-2xl border p-5 sm:p-5.5"
                 >
+                  <CardShimmer />
                   {/* Icon disc + title row */}
                   <div className="mb-3 flex items-center gap-3">
                     <span
-                      className="bg-sidebar-active flex size-9.5 shrink-0 items-center justify-center rounded-full"
+                      className="bg-sidebar-active flex size-9.5 shrink-0 items-center justify-center rounded-full transition-[background-color,box-shadow] duration-300 ease-out group-hover:bg-[color-mix(in_oklab,var(--brand)_12%,var(--sidebar-active))] group-hover:shadow-[0_0_0_5px_color-mix(in_oklab,var(--brand)_9%,transparent)]"
                       aria-hidden="true"
                     >
                       <p.Icon
-                        className="text-brand-strong size-4.5"
+                        className="text-brand-strong group-hover:text-brand size-4.5 transition-colors duration-300 ease-out"
                         strokeWidth={1.9}
                       />
                     </span>

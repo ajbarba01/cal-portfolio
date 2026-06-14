@@ -3,7 +3,7 @@ import Image from "next/image";
 import { Star } from "lucide-react";
 
 /**
- * Continuous horizontal stat ribbon (LED sports-panel style) for the About page.
+ * Continuous horizontal stat ribbon (LED sports-panel style) for marketing pages.
  * The track renders the item set twice (each set doubled so one group always
  * exceeds the sheet width) so the rightward marquee loops seamlessly; the CSS in
  * `globals.css` (`.stat-ticker-track`) drives the motion and freezes it for

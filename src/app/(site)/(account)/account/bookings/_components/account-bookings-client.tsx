@@ -18,6 +18,7 @@ import { CalendarDays, List } from "lucide-react";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { BackToTop } from "@/components/ui/back-to-top";
 import { Badge } from "@/components/ui/badge";
+import { CardShimmer } from "@/components/effects/card-shimmer";
 import { Multiswitch } from "@/components/ui/multiswitch";
 import { Pagination } from "@/components/ui/pagination";
 import { ResultCount } from "@/components/ui/result-count";
@@ -253,7 +254,8 @@ function BookingCard({
       : null;
 
   return (
-    <li className="bg-card border-border rounded-xl border px-4 py-3 text-sm">
+    <li className="group bg-card border-border relative rounded-2xl border px-4 py-3 text-sm">
+      <CardShimmer />
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-foreground font-semibold">
           {booking.service_name}
@@ -477,7 +479,7 @@ export function AccountBookingsClient({
         )
       ) : (
         // ── CALENDAR VIEW (read-only, booked days only) ──────────────────────
-        <Scheduler capabilities={INSPECT_CAPABILITIES} data={data}>
+        <Scheduler capabilities={INSPECT_CAPABILITIES} data={data} outlined>
           <InspectBridge />
           <SelectedDayBridge onSelect={setSelectedDay} />
 

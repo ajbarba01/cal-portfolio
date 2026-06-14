@@ -10,6 +10,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { ShimmerCard } from "@/components/ui/shimmer-card";
 import { createClient } from "@/lib/supabase/client";
 import { submitReview } from "@/features/reviews";
 
@@ -43,17 +44,12 @@ export function ReviewForm() {
 
   if (isSignedIn === null) {
     // Unresolved — reserve the card height so the layout doesn't jump.
-    return (
-      <div
-        aria-hidden="true"
-        className="bg-card border-border rounded-2xl border p-6 shadow-sm sm:p-8"
-      />
-    );
+    return <ShimmerCard aria-hidden="true" className="p-6 sm:p-8" />;
   }
 
   if (!isSignedIn) {
     return (
-      <div className="bg-card border-border rounded-2xl border p-6 shadow-sm sm:p-8">
+      <ShimmerCard className="p-6 sm:p-8">
         <p className="text-muted-foreground text-sm">
           <Link
             href="/login"
@@ -63,17 +59,17 @@ export function ReviewForm() {
           </Link>{" "}
           to leave a review.
         </p>
-      </div>
+      </ShimmerCard>
     );
   }
 
   if (submitted) {
     return (
-      <div className="bg-card border-border rounded-2xl border p-6 shadow-sm sm:p-8">
+      <ShimmerCard className="p-6 sm:p-8">
         <p role="status" className="text-foreground text-sm leading-relaxed">
           Thanks — your review is live!
         </p>
-      </div>
+      </ShimmerCard>
     );
   }
 
@@ -92,7 +88,7 @@ export function ReviewForm() {
   }
 
   return (
-    <div className="bg-card border-border rounded-2xl border p-6 shadow-sm sm:p-8">
+    <ShimmerCard className="p-6 sm:p-8">
       <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
         <div className="flex flex-col gap-1.5">
           <span id="review-rating-label" className="text-sm font-medium">
@@ -139,33 +135,49 @@ export function ReviewForm() {
           </Button>
         </div>
       </form>
-    </div>
+    </ShimmerCard>
   );
 }
 
+const SHARP_STAR_PATH =
+  "M12 2.5 14.9 9.1 22 9.6 16.6 14.3 18.3 21.2 12 17.5 5.7 21.2 7.4 14.3 2 9.6 9.1 9.1 Z";
+
 /**
  * Sharp-pointed star icon (miter joins, no rounded vertices).
- * `filled` paints the body in the current text color; otherwise outline only.
+ * Fill + body stroke are driven via Tailwind `fill-*` / `stroke-*` on `className`.
+ *
+ * `outlineClassName` draws a TRUE outside outline: SVG strokes are centered on
+ * the path (no `stroke-alignment: outside` exists), so the outline is a second,
+ * slightly-enlarged star painted *behind* the body. The body fill then masks its
+ * inner area, leaving the outline tracing the star's outer edge.
  */
 function SharpStar({
-  filled,
   className,
+  outlineClassName,
 }: {
-  filled: boolean;
   className?: string;
+  outlineClassName?: string;
 }) {
   return (
     <svg
       viewBox="0 0 24 24"
       aria-hidden="true"
-      stroke="currentColor"
       strokeWidth={1.5}
       strokeLinecap="round"
       strokeLinejoin="miter"
-      fill={filled ? "currentColor" : "none"}
-      className={className}
+      // overflow-visible so the enlarged outline isn't clipped at the box edge.
+      className={`overflow-visible ${className ?? ""}`}
     >
-      <path d="M12 2.5 14.9 9.1 22 9.6 16.6 14.3 18.3 21.2 12 17.5 5.7 21.2 7.4 14.3 2 9.6 9.1 9.1 Z" />
+      {outlineClassName ? (
+        <path
+          d={SHARP_STAR_PATH}
+          fill="none"
+          // Scale ~18% about the star's center so every edge sits outside the body.
+          transform="translate(12 12) scale(1.18) translate(-12 -12)"
+          className={outlineClassName}
+        />
+      ) : null}
+      <path d={SHARP_STAR_PATH} />
     </svg>
   );
 }
@@ -173,8 +185,10 @@ function SharpStar({
 /**
  * Accessible interactive star rating input.
  * Radio-group semantics: arrow keys move selection, each star is a radio.
- * Committed rating shows as solid fill; hovering previews the run as outlines,
- * so the selected value stays distinct from what's merely under the cursor.
+ * Two independent dimensions: solid fill = committed rating (the clicked
+ * value); a brand-colored outline = hover/focus preview of the run under the
+ * cursor. Hovering never disturbs the fill, so the selection stays readable
+ * while previewing a different value.
  */
 function StarRatingInput({
   value,
@@ -186,8 +200,6 @@ function StarRatingInput({
   labelledBy: string;
 }) {
   const [hover, setHover] = useState<number | null>(null);
-  const previewing = hover !== null;
-  const active = hover ?? value;
 
   return (
     <div
@@ -198,9 +210,17 @@ function StarRatingInput({
     >
       {Array.from({ length: 5 }, (_, i) => {
         const starValue = i + 1;
-        const within = starValue <= active;
-        // Direction A: solid = committed, outline = hover preview.
-        const filled = within && !previewing;
+        // Fill tracks the committed value only — independent of hover.
+        const filled = starValue <= value;
+        // Outline tracks the hover/focus run only.
+        const previewed = hover !== null && starValue <= hover;
+        const fillClass = filled ? "fill-brand-strong" : "fill-none";
+        // Body stroke matches the fill state; the hover preview is layered on
+        // top as a separate OUTSIDE outline (see SharpStar's outlineClassName),
+        // so it never disturbs the committed fill.
+        const bodyStrokeClass = filled
+          ? "stroke-brand-strong"
+          : "stroke-muted-foreground";
         return (
           <button
             key={starValue}
@@ -209,10 +229,7 @@ function StarRatingInput({
             aria-checked={value === starValue}
             aria-label={`${starValue} ${starValue === 1 ? "star" : "stars"}`}
             tabIndex={value === starValue ? 0 : -1}
-            onClick={() => {
-              onChange(starValue);
-              setHover(null);
-            }}
+            onClick={() => onChange(starValue)}
             onMouseEnter={() => setHover(starValue)}
             onFocus={() => setHover(starValue)}
             onBlur={() => setHover(null)}
@@ -225,14 +242,12 @@ function StarRatingInput({
                 onChange(Math.max(1, value - 1));
               }
             }}
-            className="rounded-sm p-0.5 transition-transform hover:scale-110 focus-visible:outline-2 focus-visible:outline-offset-2"
+            className="rounded-sm p-0.5 focus-visible:outline-2 focus-visible:outline-offset-2"
           >
             <SharpStar
-              filled={filled}
-              className={
-                within
-                  ? "text-brand-strong size-7"
-                  : "text-muted-foreground size-7"
+              className={`size-7 ${fillClass} ${bodyStrokeClass}`}
+              outlineClassName={
+                previewed ? "stroke-rating-preview [stroke-width:1]" : undefined
               }
             />
           </button>
@@ -256,11 +271,10 @@ export function StarRating({ rating }: { rating: number }) {
       {Array.from({ length: 5 }, (_, i) => (
         <SharpStar
           key={i}
-          filled={i < rating}
           className={
             i < rating
-              ? "text-brand-strong size-4"
-              : "text-muted-foreground size-4"
+              ? "fill-brand-strong stroke-brand-strong size-4"
+              : "stroke-muted-foreground size-4 fill-none"
           }
         />
       ))}
