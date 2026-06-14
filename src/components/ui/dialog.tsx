@@ -3,6 +3,7 @@ import * as React from "react";
 import { Dialog as BaseDialog } from "@base-ui/react/dialog";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { CardShimmer } from "@/components/effects/card-shimmer";
 import {
   dialogBackdropClass,
   dialogPanelClass,
@@ -27,7 +28,11 @@ export function Dialog({
     <BaseDialog.Root open={open} onOpenChange={onOpenChange}>
       <BaseDialog.Portal>
         <BaseDialog.Backdrop className={dialogBackdropClass} />
-        <BaseDialog.Popup className={cn(dialogPanelClass, className)}>
+        <BaseDialog.Popup
+          data-ring-modal-surface
+          className={cn(dialogPanelClass, className)}
+        >
+          <CardShimmer alwaysOn />
           <div className="flex items-start justify-between gap-4">
             <BaseDialog.Title className="font-heading text-lg font-semibold">
               {title}

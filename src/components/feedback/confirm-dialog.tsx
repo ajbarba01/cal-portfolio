@@ -5,6 +5,7 @@ import { AlertDialog } from "@base-ui/react/alert-dialog";
 import { TriangleAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { CardShimmer } from "@/components/effects/card-shimmer";
 import {
   dialogBackdropClass,
   dialogPanelClass,
@@ -76,9 +77,11 @@ export function useConfirm() {
         <AlertDialog.Backdrop className={dialogBackdropClass} />
         <AlertDialog.Popup
           data-slot="confirm-dialog"
+          data-ring-modal-surface
           initialFocus={cancelRef}
           className={cn(dialogPanelClass, "max-w-sm")}
         >
+          <CardShimmer alwaysOn />
           {pending ? (
             <>
               {/* Icon badge */}

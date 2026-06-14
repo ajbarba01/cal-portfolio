@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Mail, Calendar } from "lucide-react";
 import { MarketingCopy } from "@/components/marketing/marketing-copy";
 import { socials } from "@/content/socials";
+import { FooterReveal } from "./footer-reveal";
 
 /**
  * Inline Instagram icon (Lucide v1 does not ship brand icons).
@@ -95,7 +96,7 @@ function SocialLinks() {
 /** Shared sheet footer. Rendered once by PageShell in the persistent (site) shell. */
 export function SiteFooter() {
   return (
-    <footer className="bg-card border-border border-t">
+    <FooterReveal className="bg-card border-border border-t">
       {/* Inner container aligned to header: same max-width + horizontal padding. */}
       <div className="mx-auto w-full max-w-6xl px-5 sm:px-8">
         {/* ── Desktop: single row ─────────────────────────────────────── */}
@@ -121,6 +122,6 @@ export function SiteFooter() {
           </p>
         </div>
       </div>
-    </footer>
+    </FooterReveal>
   );
 }

@@ -11,6 +11,10 @@ import { DelayedPageLoader } from "@/components/ui/delayed-page-loader";
  * `loading.tsx` on soft sibling navigations. The circle itself is buffered
  * (blank first; see DelayedPageLoader), so a quick load shows no spinner blip.
  * Once the route commits, the flag clears and the new page replaces the loader.
+ *
+ * The shell footer pairs with this: `<FooterReveal>` hides the footer while
+ * `pending` is set and eases it in on commit, so the footer lands in its final
+ * spot as part of the arriving page rather than snapping there.
  */
 export function ContentArea({ children }: { children: ReactNode }) {
   const { pending } = useNavPending();

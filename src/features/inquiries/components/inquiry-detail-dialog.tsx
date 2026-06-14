@@ -8,6 +8,7 @@ import { Check, Pencil, Save, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CardShimmer } from "@/components/effects/card-shimmer";
 import type { InquiryRow } from "@/features/inquiries/inquiry-actions";
 import {
   canEditInquiry,
@@ -123,75 +124,86 @@ export function InquiryDetailDialog({
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Backdrop className="fixed inset-0 z-50 bg-[#1c1813]/60 backdrop-blur-[2px]" />
-        <Dialog.Popup className="bg-popover text-popover-foreground border-border fixed inset-x-0 bottom-0 z-50 flex max-h-[88vh] flex-col rounded-t-2xl border shadow-2xl outline-none sm:inset-x-auto sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:max-h-[80vh] sm:w-[min(32rem,calc(100%-2rem))] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl">
-          {inquiry ? (
-            <>
-              <div className="flex items-start gap-3 px-6 pt-6 pb-3">
-                <div className="min-w-0 flex-1">
-                  {editing ? (
-                    <Dialog.Title className="text-muted-foreground text-sm font-semibold">
-                      Editing inquiry
-                    </Dialog.Title>
-                  ) : (
-                    <Dialog.Title className="font-heading truncate text-xl font-semibold">
-                      {inquiry.subject ?? "No subject"}
-                    </Dialog.Title>
-                  )}
-                  <p className="text-muted-foreground mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-                    <span>Sent {formatInquiryDate(inquiry.created_at)}</span>
-                    {inquiry.replied_at ? (
-                      <span className="text-status-available-foreground inline-flex items-center gap-1 font-medium">
-                        <Check className="size-3" aria-hidden="true" /> Cal
-                        replied
-                      </span>
-                    ) : null}
-                  </p>
-                </div>
-                <Dialog.Close
-                  aria-label="Close"
-                  className="bg-muted text-muted-foreground hover:bg-accent hover:text-foreground flex size-8 shrink-0 items-center justify-center rounded-full"
-                >
-                  <X className="size-4" />
-                </Dialog.Close>
-              </div>
-
-              {editing ? (
-                <InquiryEditFields
-                  key={inquiry.id}
-                  inquiry={inquiry}
-                  pending={pending}
-                  onCancelEdit={onCancelEdit}
-                  onSave={onSave}
-                />
-              ) : (
-                <>
-                  <div className="text-foreground/85 overflow-y-auto px-6 pb-5 text-sm leading-relaxed whitespace-pre-wrap">
-                    {inquiry.message}
+        <Dialog.Popup
+          data-ring-modal-surface
+          className="group bg-popover text-popover-foreground border-border fixed inset-x-0 bottom-0 z-50 flex max-h-[88vh] flex-col rounded-t-2xl border shadow-2xl outline-none sm:inset-x-auto sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:max-h-[80vh] sm:w-[min(32rem,calc(100%-2rem))] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl"
+        >
+          <CardShimmer alwaysOn />
+          {/* Inner clip layer: rounds the full-bleed footer's corners to the
+              panel edge. overflow-hidden can't live on the panel itself — it
+              would clip the bleeding ring. */}
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[inherit]">
+            {inquiry ? (
+              <>
+                <div className="flex items-start gap-3 px-6 pt-6 pb-3">
+                  <div className="min-w-0 flex-1">
+                    {editing ? (
+                      <Dialog.Title className="text-muted-foreground text-sm font-semibold">
+                        Editing inquiry
+                      </Dialog.Title>
+                    ) : (
+                      <Dialog.Title className="font-heading truncate text-xl font-semibold">
+                        {inquiry.subject ?? "No subject"}
+                      </Dialog.Title>
+                    )}
+                    <p className="text-muted-foreground mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                      <span>Sent {formatInquiryDate(inquiry.created_at)}</span>
+                      {inquiry.replied_at ? (
+                        <span className="text-status-available-foreground inline-flex items-center gap-1 font-medium">
+                          <Check className="size-3" aria-hidden="true" /> Cal
+                          replied
+                        </span>
+                      ) : null}
+                    </p>
                   </div>
+                  <Dialog.Close
+                    aria-label="Close"
+                    className="bg-muted text-muted-foreground hover:bg-accent hover:text-foreground flex size-8 shrink-0 items-center justify-center rounded-full"
+                  >
+                    <X className="size-4" />
+                  </Dialog.Close>
+                </div>
 
-                  {hasReadActions ? (
-                    <div className="border-border bg-background/60 flex flex-wrap items-center gap-2 border-t px-6 py-4">
-                      {renderExtraActions ? renderExtraActions(inquiry) : null}
-                      {showEdit ? (
-                        <Button variant="ghost" onClick={onStartEdit}>
-                          <Pencil className="size-3.5" /> Edit
-                        </Button>
-                      ) : null}
-                      {showResolve ? (
-                        <Button
-                          variant="brand"
-                          className="ml-auto"
-                          onClick={() => onResolveClick(inquiry)}
-                        >
-                          Mark resolved
-                        </Button>
-                      ) : null}
+                {editing ? (
+                  <InquiryEditFields
+                    key={inquiry.id}
+                    inquiry={inquiry}
+                    pending={pending}
+                    onCancelEdit={onCancelEdit}
+                    onSave={onSave}
+                  />
+                ) : (
+                  <>
+                    <div className="text-foreground/85 overflow-y-auto px-6 pb-5 text-sm leading-relaxed whitespace-pre-wrap">
+                      {inquiry.message}
                     </div>
-                  ) : null}
-                </>
-              )}
-            </>
-          ) : null}
+
+                    {hasReadActions ? (
+                      <div className="border-border bg-background/60 flex flex-wrap items-center gap-2 border-t px-6 py-4">
+                        {renderExtraActions
+                          ? renderExtraActions(inquiry)
+                          : null}
+                        {showEdit ? (
+                          <Button variant="ghost" onClick={onStartEdit}>
+                            <Pencil className="size-3.5" /> Edit
+                          </Button>
+                        ) : null}
+                        {showResolve ? (
+                          <Button
+                            variant="brand"
+                            className="ml-auto"
+                            onClick={() => onResolveClick(inquiry)}
+                          >
+                            Mark resolved
+                          </Button>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </>
+                )}
+              </>
+            ) : null}
+          </div>
         </Dialog.Popup>
       </Dialog.Portal>
     </Dialog.Root>
