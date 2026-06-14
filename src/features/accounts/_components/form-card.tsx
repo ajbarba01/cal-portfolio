@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ShimmerCard } from "@/components/ui/shimmer-card";
 import type { FormKey } from "@/features/accounts/form-registry";
 import type { ActionResult } from "@/features/accounts/account-actions";
 
@@ -207,48 +208,52 @@ export function FormCard({ formKey, existing, onSubmit }: FormCardProps) {
   const label = FORM_LABELS[formKey];
 
   return (
-    <div className="border-border bg-card overflow-hidden rounded-xl border">
-      <div className="flex items-center justify-between gap-3 px-4 py-3">
-        <div className="flex flex-col gap-1">
-          <p className="text-foreground text-sm font-semibold">{label}</p>
-          <FormStatus open={open} submitted={submitted} />
-        </div>
-        <Button
-          variant={open ? "ghost" : "outline"}
-          size="sm"
-          onClick={() => setOpen((o) => !o)}
-          aria-expanded={open}
-        >
-          {open ? "Close" : submitted ? "Edit" : "Start"}
-        </Button>
-      </div>
-
-      {open && (
-        <form
-          onSubmit={handleSubmit}
-          noValidate
-          className="border-border bg-muted/40 flex flex-col gap-6 border-t px-4 py-4"
-        >
-          {formKey === "emergency" && (
-            <EmergencyFields values={values} onChange={handleChange} />
-          )}
-
-          {error && (
-            <p role="alert" className="text-destructive text-sm">
-              {error}
-            </p>
-          )}
-
+    <ShimmerCard>
+      {/* Inner clip wrapper: rounds the expandable form's corners. overflow-hidden
+          can't live on ShimmerCard itself — it would clip the bleeding ring. */}
+      <div className="overflow-hidden rounded-2xl">
+        <div className="flex items-center justify-between gap-3 px-4 py-3">
+          <div className="flex flex-col gap-1">
+            <p className="text-foreground text-sm font-semibold">{label}</p>
+            <FormStatus open={open} submitted={submitted} />
+          </div>
           <Button
-            type="submit"
-            variant="brand"
-            disabled={isPending}
-            className="self-start"
+            variant={open ? "ghost" : "outline"}
+            size="sm"
+            onClick={() => setOpen((o) => !o)}
+            aria-expanded={open}
           >
-            {isPending ? "Saving…" : submitted ? "Update" : "Submit"}
+            {open ? "Close" : submitted ? "Edit" : "Start"}
           </Button>
-        </form>
-      )}
-    </div>
+        </div>
+
+        {open && (
+          <form
+            onSubmit={handleSubmit}
+            noValidate
+            className="border-border bg-muted/40 flex flex-col gap-6 border-t px-4 py-4"
+          >
+            {formKey === "emergency" && (
+              <EmergencyFields values={values} onChange={handleChange} />
+            )}
+
+            {error && (
+              <p role="alert" className="text-destructive text-sm">
+                {error}
+              </p>
+            )}
+
+            <Button
+              type="submit"
+              variant="brand"
+              disabled={isPending}
+              className="self-start"
+            >
+              {isPending ? "Saving…" : submitted ? "Update" : "Submit"}
+            </Button>
+          </form>
+        )}
+      </div>
+    </ShimmerCard>
   );
 }

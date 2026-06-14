@@ -44,8 +44,12 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# local design scratch (texture tuning playground)
+# local design scratch (mockups, plans, one-off experiments)
 /texture-lab.html
+/mockups/
+
+# archived page versions kept locally for easy restore (git history is the real backstop)
+/archive/
 
 # gallery pipeline: raw camera originals (re-encoded into public/ by npm run gallery:sync)
 /gallery-originals/

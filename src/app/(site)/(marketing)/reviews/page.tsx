@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/feedback/empty-state";
 import { createStaticClient } from "@/lib/supabase/static";
 import { listPublishedReviews, type PublishedReview } from "@/features/reviews";
 import { ReviewForm, StarRating } from "./_components/review-form";
+import { ShimmerCard } from "@/components/ui/shimmer-card";
 import { MarketingCopy } from "@/components/marketing/marketing-copy";
 
 function ReviewCard({ review }: { review: PublishedReview }) {
@@ -18,7 +19,7 @@ function ReviewCard({ review }: { review: PublishedReview }) {
     day: "numeric",
   });
   return (
-    <div className="bg-card border-border flex flex-col gap-4 rounded-xl border p-5">
+    <ShimmerCard className="flex flex-col gap-4 p-5">
       <header className="flex items-start justify-between gap-4">
         <div>
           <p className="font-heading text-foreground font-semibold">
@@ -33,7 +34,7 @@ function ReviewCard({ review }: { review: PublishedReview }) {
       <p className="text-muted-foreground text-sm leading-relaxed">
         {review.body}
       </p>
-    </div>
+    </ShimmerCard>
   );
 }
 

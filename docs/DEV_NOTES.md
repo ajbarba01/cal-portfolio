@@ -1,14 +1,10 @@
 ## now
 
 - dropdowns should be same height as search bar and should start below the current selected box
-- stars instead of "<n> stars"
-- too many eyebrows lol
-- card shadowing should be consistent
-- oh account should be a profile icon not an account text. also touch up dropdown
 - allow some sections to ease in by scroll height not altogether? or remove sections for like gallery and resources and other long sections
-- underline proximity vs hover effect have different widths on chrome but not firefox.
-- hero images should also ease in on load
-- just one loading cirlce instead of the per element placeholders. maybe don't even display the loading circle until its been like a second of loading. can just have a blank page up until then
+- hero images should also ease in on load (?)
+- services still need a longer description inside their page.
+- word count/character count for pretty much any user input.
 
 # Dev notes — capture inbox
 

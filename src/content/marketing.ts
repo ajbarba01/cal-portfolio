@@ -49,7 +49,7 @@ export const copy = {
   // in the page, so only its label lives here.
   "about.stat.cc.label": "B.A. Anthropology",
   "about.stat.age.label": "Years old",
-  "about.stat.rover.value": "Star Sitter",
+  "about.stat.rover.value": '"Star Sitter"',
   "about.stat.rover.label": "Top-rated on Rover",
   "about.stat.clients.value": "100+",
   "about.stat.clients.label": "Happy clients",

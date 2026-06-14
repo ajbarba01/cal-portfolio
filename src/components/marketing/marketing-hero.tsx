@@ -19,6 +19,7 @@ export function MarketingHero({
   body,
   actions,
   aspect = "aspect-[3/2]",
+  mobilePanelClassName,
 }: {
   src: string;
   /** Optional base64 blur (from image-placeholders.json) for placeholder="blur". */
@@ -29,6 +30,12 @@ export function MarketingHero({
   body?: React.ReactNode;
   actions?: React.ReactNode;
   aspect?: string;
+  /**
+   * Band color for the mobile stacked copy panel, so the hero joins the page's
+   * alternating-band rhythm at phone width. Auto-reset to transparent at `sm`,
+   * where the panel overlays the photo instead of forming its own band.
+   */
+  mobilePanelClassName?: string;
 }) {
   return (
     <section aria-labelledby={titleId} className="relative">
@@ -52,7 +59,12 @@ export function MarketingHero({
         <div className="from-foreground/70 via-foreground/30 absolute inset-0 hidden bg-gradient-to-r to-transparent sm:block" />
       </div>
 
-      <div className="px-5 py-8 sm:absolute sm:inset-0 sm:flex sm:flex-col sm:justify-center sm:px-8 sm:py-0 lg:px-16">
+      <div
+        className={cn(
+          "px-5 py-8 sm:absolute sm:inset-0 sm:flex sm:flex-col sm:justify-center sm:bg-transparent sm:px-8 sm:py-0 lg:px-16",
+          mobilePanelClassName,
+        )}
+      >
         {/* Copy reveals (fades in, top-to-bottom); the photo + scrim are
             background, left static. */}
         <RevealGroup className="flex max-w-[42ch] flex-col items-start gap-5 sm:max-w-[60%]">

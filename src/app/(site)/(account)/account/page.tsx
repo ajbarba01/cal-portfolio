@@ -5,7 +5,8 @@ import { ProfileForm } from "./_components/profile-form";
 import { PasswordForm } from "./_components/password-form";
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ShimmerCard } from "@/components/ui/shimmer-card";
 
 export default async function AccountPage() {
   const { user } = await getCachedUser();
@@ -27,7 +28,7 @@ export default async function AccountPage() {
       />
 
       <div className="flex flex-col gap-5">
-        <Card>
+        <ShimmerCard className="flex flex-col gap-4 p-5">
           <CardHeader>
             <CardTitle className="text-base">Contact info</CardTitle>
           </CardHeader>
@@ -51,16 +52,16 @@ export default async function AccountPage() {
               }}
             />
           </CardContent>
-        </Card>
+        </ShimmerCard>
 
-        <Card>
+        <ShimmerCard className="flex flex-col gap-4 p-5">
           <CardHeader>
             <CardTitle className="text-base">Change password</CardTitle>
           </CardHeader>
           <CardContent>
             <PasswordForm />
           </CardContent>
-        </Card>
+        </ShimmerCard>
       </div>
     </PageContainer>
   );

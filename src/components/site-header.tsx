@@ -19,11 +19,11 @@ import type { NavItem } from "@/components/layout/nav-config";
 const navLinks: NavItem[] = [
   { href: "/", label: "Home" },
   { href: "/about", label: "About" },
-  { href: "/services", label: "Services", activeSections: ["/book"] },
   { href: "/gallery", label: "Gallery" },
   { href: "/reviews", label: "Reviews" },
   { href: "/resources", label: "Resources" },
   { href: "/contact", label: "Contact" },
+  { href: "/services", label: "Services", activeSections: ["/book"] },
 ];
 
 /**

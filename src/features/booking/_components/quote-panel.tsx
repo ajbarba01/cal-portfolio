@@ -38,7 +38,7 @@ export function QuotePanel({
   return (
     <section
       aria-label="Price estimate"
-      className="bg-card text-card-foreground border-border relative rounded-xl border p-4 shadow-[0_1px_0_var(--sand-200),0_8px_20px_-14px_rgba(60,40,20,0.4)]"
+      className="bg-card text-card-foreground border-border relative rounded-2xl border p-4"
     >
       {/* live indicator — the receipt auto-updates as the selection changes */}
       <span className="bg-brand/15 text-brand-strong mb-3 inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[0.7rem] font-semibold tracking-wide">
