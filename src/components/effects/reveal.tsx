@@ -26,6 +26,7 @@ function useRevealTrigger(
   ref: React.RefObject<HTMLElement | null>,
   once: boolean,
   enabled: boolean,
+  immediate: boolean,
 ) {
   const [revealed, setRevealed] = React.useState(false);
 
@@ -40,6 +41,11 @@ function useRevealTrigger(
       const id = requestAnimationFrame(() => setRevealed(true));
       return () => cancelAnimationFrame(id);
     };
+
+    // `immediate` opts out of scroll-gating entirely: always fade on mount,
+    // on screen or not (used by the footer, which re-mounts per navigation and
+    // should always replay the fade rather than wait to be scrolled to).
+    if (immediate) return fadeInNow();
 
     if (typeof IntersectionObserver === "undefined") return fadeInNow();
 
@@ -63,7 +69,7 @@ function useRevealTrigger(
     );
     io.observe(el);
     return () => io.disconnect();
-  }, [ref, once, enabled]);
+  }, [ref, once, enabled, immediate]);
 
   return revealed;
 }
@@ -85,7 +91,7 @@ export function RevealGroup({
   once?: boolean;
 } & React.HTMLAttributes<HTMLElement>) {
   const ref = React.useRef<HTMLElement>(null);
-  const active = useRevealTrigger(ref, once, true);
+  const active = useRevealTrigger(ref, once, true, false);
 
   // Stable source-order index per child element. Idempotent so re-registers
   // (StrictMode, context changes) keep the same index.
@@ -139,6 +145,7 @@ export function Reveal({
   delay = 0,
   distance,
   once = true,
+  immediate = false,
   style,
   children,
   ...rest
@@ -150,12 +157,15 @@ export function Reveal({
   distance?: number;
   /** Reveal once and stop observing (default), or re-hide when scrolled away. */
   once?: boolean;
+  /** Skip scroll-gating: fade in on mount regardless of viewport position
+   *  (standalone only; ignored inside a group). */
+  immediate?: boolean;
 } & React.HTMLAttributes<HTMLElement>) {
   const group = React.useContext(RevealGroupContext);
   const ref = React.useRef<HTMLElement>(null);
 
   // Standalone runs its own trigger; grouped children are driven by the group.
-  const selfRevealed = useRevealTrigger(ref, once, group === null);
+  const selfRevealed = useRevealTrigger(ref, once, group === null, immediate);
 
   // Grouped: claim a source-order index at mount and derive the stagger delay
   // now (well before reveal), so it renders into the inline style as part of

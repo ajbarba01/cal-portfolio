@@ -24,7 +24,10 @@ export function DelayedPageLoader({
     return () => clearTimeout(id);
   }, [delayMs]);
 
-  // Reserve height either way so the swap to the spinner can't shift layout.
-  if (!show) return <div className="min-h-[75vh]" aria-hidden="true" />;
+  // Reserve a FULL viewport either way (`<main>` is flex-1, so the loader fills
+  // the sheet and pushes the shell footer below the fold for the whole load —
+  // it's never seen at a wrong position, then fades in at its final spot on
+  // commit). Same height whether blank or spinner, so the swap can't shift it.
+  if (!show) return <div className="min-h-dvh" aria-hidden="true" />;
   return <PageLoader label={label} />;
 }

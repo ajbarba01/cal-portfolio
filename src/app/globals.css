@@ -55,6 +55,7 @@
   --color-brand: var(--brand);
   --color-brand-foreground: var(--brand-foreground);
   --color-brand-strong: var(--brand-strong);
+  --color-rating-preview: var(--rating-preview);
   --color-muted-foreground: var(--muted-foreground);
   --color-muted: var(--muted);
   --color-secondary-foreground: var(--secondary-foreground);
@@ -94,6 +95,7 @@
   --clay-soft: #e7d8cc; /* subtle tints */
   --clay-onfill: #ffffff; /* text on --clay-fill */
   --clay-deep: #3a2a20; /* dark sidebar-active rect fill (warm, clay-tinted) */
+  --clay-hot: #d2541a; /* vivid orange — focal endpoint when clay text warms */
 
   --danger: oklch(0.577 0.245 27.325);
   /* Warm "clay-leaning" danger — sign-out etc. (still reads red, hue toward clay) */
@@ -113,6 +115,7 @@
   --sand-925: #241f19; /* warm dark surface: cards / popover / sidebar */
   --clay-bright: #c9764e; /* dark chart accent */
   --clay-light: #e5946b; /* clay text / links / focus ring on dark */
+  --clay-hot-dark: #f2a063; /* lightened hot — clay text focal endpoint on dark */
   --green-fill-dark: #2e3a22;
   --green-text-dark: #c7d3ac; /* available foreground + chart on dark */
   --blue-fill-dark: #25323b;
@@ -151,6 +154,18 @@
   --brand: var(--clay-fill);
   --brand-foreground: var(--clay-onfill);
   --brand-strong: var(--clay-strong);
+  /* Hotter clay for proximity warming of already-clay text (FocusText `to`). */
+  --brand-hot: var(--clay-hot);
+  /* Terracotta fill clay — star-rating hover preview outline (over the dark clay fill). */
+  --rating-preview: var(--clay-light);
+  /* Trust-card hover ring (effects/card-shimmer.tsx). ring = resting clay
+     outline; ring-hot = the brighter traveling highlight. */
+  --card-ring: var(--clay-fill);
+  --card-ring-hot: #c1693c;
+  /* Light ring for shimmer on a clay-filled button (reads as firelight on the
+     warm fill); identical in both themes since the brand fill is clay in both. */
+  --button-shimmer: #ffffff;
+  --button-shimmer-hot: #ffe6c2;
   --destructive: var(--danger);
   --destructive-warm: var(--danger-warm);
   /* Attention badge — slate (#3c5566, blue-deep family), white text ≈7.9:1 AA.
@@ -252,6 +267,10 @@
   --brand: var(--clay-fill);
   --brand-foreground: var(--clay-onfill);
   --brand-strong: var(--clay-light);
+  --brand-hot: var(--clay-hot-dark);
+  --rating-preview: var(--clay-fill);
+  --card-ring: var(--clay-light);
+  --card-ring-hot: #f2a063;
   --destructive: oklch(0.704 0.191 22.216);
   --destructive-warm: oklch(0.7 0.16 35);
   --border: oklch(1 0 0 / 10%);
@@ -427,12 +446,12 @@
     }
   }
 
-  /* Cursor ring (header / footer): a single soft clay halo following the
-     pointer. <CursorRing> publishes viewport px coords --mx/--my + the reveal
-     flag --ring-on, and clip-paths this viewport-fixed overlay to the active
-     region (the strip, or the open account dropdown) so the ONE ring slides
-     continuously between them. Translucent + pointer-events:none, so it never
-     blocks clicks or hover. --brand is the clay fill token. */
+  /* Cursor ring: a single crisp clay outline following the pointer. <CursorRing>
+     publishes viewport px coords --mx/--my on this viewport-fixed overlay, then
+     MASKS it (an SVG mask built in document space, shifted via mask-position on
+     scroll) to the content sheet minus excluded photos — so the ONE ring washes
+     over content and clips at photo/gutter edges. Translucent + pointer-events:
+     none, so it never blocks clicks or hover. --brand is the clay fill token. */
   .cursor-ring-overlay {
     position: fixed;
     inset: 0;
@@ -444,6 +463,13 @@
   }
   .cursor-ring-overlay[data-ring-hidden] {
     opacity: 0;
+  }
+  /* A modal popup is open: lift the ring above it. Popups portal to <body> at
+     z-50; the overlay normally sits at z-40 (under them). cursor-ring.tsx
+     simultaneously narrows the mask to the popup rect, so the ring shows on the
+     panel and nowhere else on the dimmed page. */
+  .cursor-ring-overlay[data-ring-modal] {
+    z-index: 60;
   }
   .cursor-ring {
     position: absolute;
@@ -464,10 +490,9 @@
        content sheet (minus excluded photos), so it appears/disappears purely by
        sliding under those edges. Position trails and the press-scale eases. */
     transition: transform 100ms ease-out;
-    border: 1.5px solid color-mix(in oklab, var(--brand) 42%, transparent);
-    box-shadow:
-      0 0 22px 3px color-mix(in oklab, var(--brand) 10%, transparent),
-      inset 0 0 14px color-mix(in oklab, var(--brand) 6%, transparent);
+    /* Inkline: a crisp clay outline, no glow — the ring reads as a drawn pen
+       circle rather than a soft halo. Width/opacity tuned in the mockup. */
+    border: 2px solid color-mix(in oklab, var(--brand) 30%, transparent);
   }
   /* Re-entry snap (mirrors the parallax pattern): kill the position ease for one
      frame so a big jump after a window exit doesn't swoop across the strip. */
@@ -511,6 +536,30 @@
   @media (prefers-reduced-motion: reduce) {
     .cursor-ring-overlay {
       display: none;
+    }
+  }
+
+  /*
+   * Cursor focus text — words inside a <FocusText> island warm toward a focal
+   * token (default --brand-strong, AA-safe on the warm canvas) as the pointer
+   * nears, like a finger tracking the line you're reading. The island sets --f
+   * in [0,1] per word from cursor distance; here that drives a pure color-mix
+   * from the word's own (inherited) color toward the focal one. Pure paint —
+   * nothing reflows. Reduced motion: the island attaches no listeners and this
+   * forces the plain inherited color, so text is always fully legible.
+   */
+  [data-focus-text] [data-focus-word] {
+    color: color-mix(
+      in oklab,
+      var(--focus-to, var(--brand-strong)) calc(var(--f, 0) * 100%),
+      currentColor
+    );
+    transition: color 80ms linear;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    [data-focus-text] [data-focus-word] {
+      color: inherit;
+      transition: none;
     }
   }
 

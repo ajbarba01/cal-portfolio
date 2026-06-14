@@ -37,7 +37,7 @@ export function Spinner({
 export function PageLoader({ label = "Loading" }: { label?: string }) {
   return (
     <div
-      className="flex min-h-[75vh] flex-1 items-center justify-center"
+      className="flex min-h-dvh flex-1 items-center justify-center"
       aria-busy="true"
     >
       <Spinner size={40} label={label} />
