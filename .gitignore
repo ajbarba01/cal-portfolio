@@ -48,6 +48,9 @@ next-env.d.ts
 /texture-lab.html
 /mockups/
 
+# archived page versions kept locally for easy restore (git history is the real backstop)
+/archive/
+
 # gallery pipeline: raw camera originals (re-encoded into public/ by npm run gallery:sync)
 /gallery-originals/
 /bg-originals/
