@@ -111,7 +111,7 @@ export function ContactForm({
   return (
     <ShimmerCard className="p-6 sm:p-8">
       {/* Heading */}
-      <h1 className="font-heading text-foreground text-2xl font-semibold tracking-tight sm:text-[1.625rem]">
+      <h1 className="font-heading text-foreground text-2xl font-bold tracking-tight sm:text-[1.625rem]">
         {heading}
       </h1>
       <p className="text-muted-foreground mt-1.5 text-sm">{intro}</p>

@@ -134,7 +134,7 @@ export default function HomePage() {
               <Eyebrow>Why Cal</Eyebrow>
               <h2
                 id="why-heading"
-                className="font-heading mt-2 text-2xl font-semibold sm:text-3xl"
+                className="font-heading mt-2 text-2xl font-bold sm:text-3xl"
               >
                 <MarketingCopy id="home.why.header" />
               </h2>
@@ -185,7 +185,7 @@ export default function HomePage() {
           <RevealGroup>
             <Reveal
               as="h2"
-              className="font-heading text-2xl font-semibold sm:text-3xl"
+              className="font-heading text-2xl font-bold sm:text-3xl"
             >
               <MarketingCopy id="home.cta.header" />
             </Reveal>

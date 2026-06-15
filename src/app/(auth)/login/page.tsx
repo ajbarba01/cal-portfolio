@@ -8,6 +8,7 @@ import { safeReturnTo } from "@/features/booking/index.client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ShimmerCard } from "@/components/ui/shimmer-card";
 import { PageContainer } from "@/components/layout/page-container";
 
 export default function LoginPage() {
@@ -46,7 +47,7 @@ export default function LoginPage() {
   return (
     <PageContainer width="narrow" className="w-full">
       <div className="mx-auto w-full max-w-sm">
-        <div className="border-border bg-card rounded-2xl border p-6 shadow-sm sm:p-8">
+        <ShimmerCard className="p-6 sm:p-8">
           <h1 className="font-heading text-foreground text-2xl font-semibold tracking-tight">
             Sign in
           </h1>
@@ -100,7 +101,7 @@ export default function LoginPage() {
               {isLoading ? "Signing in…" : "Sign in"}
             </Button>
           </form>
-        </div>
+        </ShimmerCard>
 
         <p className="text-muted-foreground mt-4 text-center text-sm">
           No account?{" "}

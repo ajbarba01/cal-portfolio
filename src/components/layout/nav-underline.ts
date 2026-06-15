@@ -45,7 +45,7 @@ export function navUnderline(active: boolean, hoverReveal = true): string {
  */
 export function navTab(active: boolean): string {
   return cn(
-    "relative px-[11px] py-2 text-[0.95rem] font-medium rounded-lg transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 [--u:0]",
+    "relative px-[11px] py-2 text-base font-medium rounded-lg transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 [--u:0]",
     "after:absolute after:left-[11px] after:right-[11px] after:bottom-[2px] after:h-[2px] after:rounded-sm after:bg-brand-strong after:origin-center after:transition-transform after:duration-200 after:ease-out",
     // translateZ(0) is baked into every transform on purpose: it forces each
     // underline onto its own compositor layer. Without it, the active tab's
