@@ -83,7 +83,7 @@ export default function AboutPage() {
               <Reveal
                 as="h2"
                 id="bio-heading"
-                className="font-heading text-3xl font-semibold tracking-tight sm:text-4xl"
+                className="font-heading text-3xl font-bold tracking-tight sm:text-4xl"
               >
                 A life with animals
               </Reveal>
@@ -103,7 +103,7 @@ export default function AboutPage() {
                   same as hero / gallery imagery. */}
               <div
                 data-ring-exclude
-                className="relative aspect-[3/4] overflow-hidden shadow-xl"
+                className="group relative aspect-3/4 overflow-hidden shadow-xl"
               >
                 <Image
                   src="/bg/IMG_5455.JPG"
@@ -114,7 +114,7 @@ export default function AboutPage() {
                   blurDataURL={
                     (placeholders as Record<string, string>)["IMG_5455.JPG"]
                   }
-                  className="object-cover"
+                  className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.04]"
                 />
               </div>
               <figcaption className="text-muted-foreground font-heading mt-3 text-center text-sm italic">
@@ -169,7 +169,7 @@ export default function AboutPage() {
             <Reveal
               as="h2"
               id="references-heading"
-              className="font-heading text-3xl font-semibold tracking-tight sm:text-4xl"
+              className="font-heading text-3xl font-bold tracking-tight sm:text-4xl"
             >
               References
             </Reveal>

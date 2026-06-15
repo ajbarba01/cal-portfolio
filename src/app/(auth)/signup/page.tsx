@@ -9,6 +9,7 @@ import { safeReturnTo } from "@/features/booking/index.client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ShimmerCard } from "@/components/ui/shimmer-card";
 import { PageContainer } from "@/components/layout/page-container";
 
 export default function SignupPage() {
@@ -72,7 +73,7 @@ export default function SignupPage() {
     return (
       <PageContainer width="narrow" className="w-full">
         <div className="mx-auto w-full max-w-sm">
-          <div className="border-border bg-card rounded-2xl border p-6 text-center shadow-sm sm:p-8">
+          <ShimmerCard className="p-6 text-center sm:p-8">
             <Mail
               aria-hidden="true"
               className="text-brand mx-auto size-8"
@@ -85,7 +86,7 @@ export default function SignupPage() {
               We sent a confirmation link to <strong>{email}</strong>. Click it
               to activate your account.
             </p>
-          </div>
+          </ShimmerCard>
         </div>
       </PageContainer>
     );
@@ -94,7 +95,7 @@ export default function SignupPage() {
   return (
     <PageContainer width="narrow" className="w-full">
       <div className="mx-auto w-full max-w-sm">
-        <div className="border-border bg-card rounded-2xl border p-6 shadow-sm sm:p-8">
+        <ShimmerCard className="p-6 sm:p-8">
           <h1 className="font-heading text-foreground text-2xl font-semibold tracking-tight">
             Create account
           </h1>
@@ -166,7 +167,7 @@ export default function SignupPage() {
               {isLoading ? "Creating account…" : "Create account"}
             </Button>
           </form>
-        </div>
+        </ShimmerCard>
 
         <p className="text-muted-foreground mt-4 text-center text-sm">
           Have an account?{" "}

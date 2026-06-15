@@ -24,7 +24,7 @@ export default async function GalleryPage() {
         </Reveal>
         <Reveal
           as="h1"
-          className="font-heading mt-2 text-4xl font-semibold tracking-tight"
+          className="font-heading mt-2 text-4xl font-bold tracking-tight"
         >
           Gallery
         </Reveal>
@@ -44,9 +44,16 @@ export default async function GalleryPage() {
           />
         </Reveal>
       ) : (
-        <Reveal>
+        <>
+          {/* Meta row — frames the wall and gives a sense of scale. */}
+          <Reveal className="border-border mb-5 flex items-baseline gap-2 border-b pb-3">
+            <span className="font-heading text-foreground text-lg font-medium tabular-nums">
+              {images.length}
+            </span>
+            <span className="text-muted-foreground text-sm">photos</span>
+          </Reveal>
           <GalleryGrid images={images} />
-        </Reveal>
+        </>
       )}
       <BackToTop />
     </PageContainer>

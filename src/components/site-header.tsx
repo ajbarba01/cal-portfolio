@@ -20,8 +20,8 @@ const navLinks: NavItem[] = [
   { href: "/", label: "Home" },
   { href: "/about", label: "About" },
   { href: "/gallery", label: "Gallery" },
-  { href: "/reviews", label: "Reviews" },
   { href: "/resources", label: "Resources" },
+  { href: "/reviews", label: "Reviews" },
   { href: "/contact", label: "Contact" },
   { href: "/services", label: "Services", activeSections: ["/book"] },
 ];
