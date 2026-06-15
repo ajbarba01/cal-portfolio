@@ -5,6 +5,7 @@
 - hero images should also ease in on load (?)
 - services still need a longer description inside their page.
 - word count/character count for pretty much any user input.
+- FAQ should probably live in services or contact
 
 # Dev notes — capture inbox
 
