@@ -113,6 +113,10 @@ export type { PublicService } from "./services-repo";
 export {
   serviceCardDescription,
   serviceCardDurationLabel,
+  serviceCategoryCopyId,
+  serviceDetailLedeCopyId,
+  serviceDetailBodyCopyId,
+  serviceIncludedCopyIds,
 } from "./service-card-display";
 
 // preview-edit

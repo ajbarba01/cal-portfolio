@@ -16,6 +16,7 @@ import { Reveal, RevealGroup } from "@/components/effects/reveal";
 import {
   loadBookingFormData,
   denverDayKey,
+  listActiveServices,
   type ServiceDetail,
   type AssignablePet,
   type OnboardingStatus,
@@ -52,17 +53,22 @@ export default async function ServiceBookingPage({
 
   const svc = createServiceClient();
 
-  // Service, booking-form data, and viewer auth are independent — fetch in parallel.
-  const [{ data: serviceRow }, loaded, { user }] = await Promise.all([
-    svc
-      .from("services")
-      .select("id, slug, name, description, pricing_type, default_duration_min")
-      .eq("slug", serviceSlug)
-      .eq("active", true)
-      .single(),
-    loadBookingFormData(serviceSlug),
-    getCachedUser(),
-  ]);
+  // Service, booking-form data, viewer auth, and the sibling-service list (for
+  // the cross-nav switcher) are independent — fetch in parallel.
+  const [{ data: serviceRow }, loaded, { user }, siblingServices] =
+    await Promise.all([
+      svc
+        .from("services")
+        .select(
+          "id, slug, name, description, pricing_type, default_duration_min",
+        )
+        .eq("slug", serviceSlug)
+        .eq("active", true)
+        .single(),
+      loadBookingFormData(serviceSlug),
+      getCachedUser(),
+      listActiveServices(svc),
+    ]);
 
   if (!serviceRow) notFound();
 
@@ -176,20 +182,50 @@ export default async function ServiceBookingPage({
 
   return (
     <main className="px-4 py-12">
-      <RevealGroup className="mx-auto w-full max-w-xl">
+      <RevealGroup className="mx-auto mb-8 w-full max-w-xl">
         <Reveal>
           <Link
             href="/services"
-            className="text-muted-foreground hover:text-foreground mb-6 inline-block text-sm"
+            className="text-muted-foreground hover:text-foreground inline-block text-sm"
           >
             ← All services
           </Link>
         </Reveal>
+        {/* Cross-nav: hop between services without going back to the index. */}
+        {siblingServices.length > 1 ? (
+          <Reveal
+            as="nav"
+            aria-label="Other services"
+            className="mt-3 mb-6 flex flex-wrap gap-2"
+          >
+            {siblingServices.map((s) =>
+              s.slug === service.slug ? (
+                <span
+                  key={s.slug}
+                  aria-current="page"
+                  className="bg-brand text-brand-foreground rounded-full px-3 py-1 text-xs font-medium"
+                >
+                  {s.name}
+                </span>
+              ) : (
+                <Link
+                  key={s.slug}
+                  href={`/book/${s.slug}`}
+                  className="bg-sidebar-active text-brand-strong rounded-full px-3 py-1 text-xs font-medium transition-colors duration-200 ease-out hover:bg-[color-mix(in_oklab,var(--brand)_14%,var(--sidebar-active))]"
+                >
+                  {s.name}
+                </Link>
+              ),
+            )}
+          </Reveal>
+        ) : (
+          <div className="mb-6" />
+        )}
         <Reveal as="h1" className="mb-1 text-2xl font-semibold">
           {service.name}
         </Reveal>
         {service.description && (
-          <Reveal as="p" className="text-muted-foreground mb-8 text-sm">
+          <Reveal as="p" className="text-muted-foreground text-sm">
             {service.description}
           </Reveal>
         )}
