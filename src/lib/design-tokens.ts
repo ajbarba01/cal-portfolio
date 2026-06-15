@@ -112,8 +112,8 @@ export const space = {
 export const measure = "65ch";
 
 /**
- * Type scale — one documented set of steps. Headings use Fraunces (var `--font-heading`),
- * body uses Public Sans (var `--font-sans`). Pages pick a step; never ad-hoc sizes.
+ * Type scale — one documented set of steps. Headings use Newsreader (var `--font-heading`),
+ * body uses IBM Plex Sans (var `--font-sans`). Pages pick a step; never ad-hoc sizes.
  */
 export const typeScale = {
   display: { size: "3rem", leading: "1.05", font: "heading", weight: 600 },

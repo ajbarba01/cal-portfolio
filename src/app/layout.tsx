@@ -1,18 +1,22 @@
 import type { Metadata } from "next";
-import { Fraunces, Public_Sans, Geist_Mono } from "next/font/google";
+import { Newsreader, IBM_Plex_Sans, Geist_Mono } from "next/font/google";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { ToastProvider } from "@/components/feedback/toast";
 import { CursorParallax } from "@/components/effects/cursor-parallax";
 import "./globals.css";
 
-const fraunces = Fraunces({
+// Newsreader is a variable font (opsz, wght). Italic kept for accents (eyebrows, emphasis).
+const newsreader = Newsreader({
   variable: "--font-heading",
   subsets: ["latin"],
+  style: ["normal", "italic"],
 });
 
-const publicSans = Public_Sans({
+// IBM Plex Sans is a static family — enumerate the weights the UI uses.
+const ibmPlexSans = IBM_Plex_Sans({
   variable: "--font-sans",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
 });
 
 const geistMono = Geist_Mono({
@@ -34,7 +38,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${fraunces.variable} ${publicSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${newsreader.variable} ${ibmPlexSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">
         {/* No-JS fallback: scroll-reveal targets stay visible if JS never runs

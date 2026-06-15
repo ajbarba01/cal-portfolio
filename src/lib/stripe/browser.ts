@@ -33,7 +33,7 @@ export function getStripe(): Promise<Stripe | null> {
 export const paymentAppearance: Appearance = {
   theme: "stripe",
   variables: {
-    fontFamily: '"Public Sans", system-ui, sans-serif',
+    fontFamily: '"IBM Plex Sans", system-ui, sans-serif',
     borderRadius: "6px",
     colorBackground: "#ffffff",
     colorText: "#2b2520",
