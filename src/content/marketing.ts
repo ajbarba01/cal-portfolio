@@ -14,7 +14,7 @@
  */
 export const copy = {
   // Home — src/app/(marketing)/page.tsx
-  "home.hero.hook": "Reliable dog walking and pet care on the Front Range",
+  "home.hero.hook": "Pet care on the Front Range",
   "home.hero.body":
     "Highly individualized drop-in visits, walks, house sitting, and training from a local animal-lover",
   "home.why.header": "[[HEADER: why-Cal section]]",
@@ -83,7 +83,10 @@ export const copy = {
   "about.references.8": "Bugaboo",
 
   // Services — src/app/(marketing)/services/page.tsx
+  "services.hero.eyebrow": "[[LABEL: services page eyebrow]]",
+  "services.hero.title": "[[HEADER: services page headline]]",
   "services.overview": "[[BODY: services overview]]",
+  "services.featured.badge": "[[LABEL: featured service badge]]",
   "services.pricing.header": "[[HEADER: pricing flexibility section]]",
   "services.pricing.body":
     "[[BODY: pricing accessibility statement and how to ask about it]]",
@@ -174,6 +177,42 @@ export const copy = {
   "service.training.card.body": "[[BODY: short training service description]]",
   "service.meet_greet.card.body":
     "[[BODY: short meet-and-greet service description]]",
+
+  // Service category labels (eyebrow on the /services index rows)
+  "service.house_sitting.category": "[[LABEL: house-sitting category]]",
+  "service.check_in.category": "[[LABEL: check-in category]]",
+  "service.walk.category": "[[LABEL: walk category]]",
+  "service.training.category": "[[LABEL: training category]]",
+
+  // Long-form service detail — src/app/(marketing)/book/[serviceSlug]/page.tsx
+  "service.house_sitting.detail.lede": "[[BODY: house-sitting detail lede]]",
+  "service.house_sitting.detail.body": "[[BODY: house-sitting detail body]]",
+  "service.house_sitting.included.1":
+    "[[LABEL: house-sitting included item 1]]",
+  "service.house_sitting.included.2":
+    "[[LABEL: house-sitting included item 2]]",
+  "service.house_sitting.included.3":
+    "[[LABEL: house-sitting included item 3]]",
+  "service.house_sitting.included.4":
+    "[[LABEL: house-sitting included item 4]]",
+  "service.check_in.detail.lede": "[[BODY: check-in detail lede]]",
+  "service.check_in.detail.body": "[[BODY: check-in detail body]]",
+  "service.check_in.included.1": "[[LABEL: check-in included item 1]]",
+  "service.check_in.included.2": "[[LABEL: check-in included item 2]]",
+  "service.check_in.included.3": "[[LABEL: check-in included item 3]]",
+  "service.check_in.included.4": "[[LABEL: check-in included item 4]]",
+  "service.walk.detail.lede": "[[BODY: walk detail lede]]",
+  "service.walk.detail.body": "[[BODY: walk detail body]]",
+  "service.walk.included.1": "[[LABEL: walk included item 1]]",
+  "service.walk.included.2": "[[LABEL: walk included item 2]]",
+  "service.walk.included.3": "[[LABEL: walk included item 3]]",
+  "service.walk.included.4": "[[LABEL: walk included item 4]]",
+  "service.training.detail.lede": "[[BODY: training detail lede]]",
+  "service.training.detail.body": "[[BODY: training detail body]]",
+  "service.training.included.1": "[[LABEL: training included item 1]]",
+  "service.training.included.2": "[[LABEL: training included item 2]]",
+  "service.training.included.3": "[[LABEL: training included item 3]]",
+  "service.training.included.4": "[[LABEL: training included item 4]]",
 } as const;
 
 /** Every stable copy ID known to the registry. */

@@ -13,7 +13,7 @@
 ### home.hero.hook
 
 ```
-Reliable dog walking and pet care on the Front Range
+Pet care on the Front Range
 ```
 
 ### home.hero.body
