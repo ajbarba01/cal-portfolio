@@ -18,9 +18,9 @@
 - provenance: cal-verbatim
 - consumed-by: src/app/(marketing)/page.tsx
 - applied-from: |
-  Reliable dog walking and pet care on the Front Range
+  Pet care on the Front Range
 - live-text: |
-  Reliable dog walking and pet care on the Front Range
+  Pet care on the Front Range
 - transforms: none
 - notes: ⚠ region term "Front Range" — flagged per DESIGN.md; user confirmed keep verbatim (2026-06-09).
 
