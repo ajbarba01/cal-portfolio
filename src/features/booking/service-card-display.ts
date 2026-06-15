@@ -1,5 +1,6 @@
 import type { PublicService } from "@/features/booking/services-repo";
-import { copy } from "@/content/marketing";
+import type { PricingType } from "@/features/pricing";
+import { copy, type CopyId } from "@/content/marketing";
 
 function descriptionFallback(
   pricingType: PublicService["pricingType"],
@@ -58,4 +59,96 @@ export function serviceCardDurationLabel(
       throw new Error(`Unknown pricingType: ${String(_exhaustive)}`);
     }
   }
+}
+
+/**
+ * The public (publicly bookable) pricing types — everything except meet-and-greet,
+ * which is onboarding-only and never appears on the services index or a public
+ * booking page (it redirects to /onboarding). The editorial copy slots below
+ * exist only for these.
+ */
+const PUBLIC_PRICING_TYPES = [
+  "house_sitting",
+  "check_in",
+  "walk",
+  "training",
+] as const;
+type PublicPricingType = (typeof PUBLIC_PRICING_TYPES)[number];
+
+function isPublicPricingType(t: PricingType): t is PublicPricingType {
+  return (PUBLIC_PRICING_TYPES as readonly string[]).includes(t);
+}
+
+/** Category eyebrow copy ID for a service's index row (null for meet-and-greet). */
+const CATEGORY_COPY: Record<PublicPricingType, CopyId> = {
+  house_sitting: "service.house_sitting.category",
+  check_in: "service.check_in.category",
+  walk: "service.walk.category",
+  training: "service.training.category",
+};
+export function serviceCategoryCopyId(pricingType: PricingType): CopyId | null {
+  return isPublicPricingType(pricingType) ? CATEGORY_COPY[pricingType] : null;
+}
+
+/** Long-form lede copy ID for a service's booking page (null for meet-and-greet). */
+const DETAIL_LEDE_COPY: Record<PublicPricingType, CopyId> = {
+  house_sitting: "service.house_sitting.detail.lede",
+  check_in: "service.check_in.detail.lede",
+  walk: "service.walk.detail.lede",
+  training: "service.training.detail.lede",
+};
+export function serviceDetailLedeCopyId(
+  pricingType: PricingType,
+): CopyId | null {
+  return isPublicPricingType(pricingType)
+    ? DETAIL_LEDE_COPY[pricingType]
+    : null;
+}
+
+/** Long-form body copy ID for a service's booking page (null for meet-and-greet). */
+const DETAIL_BODY_COPY: Record<PublicPricingType, CopyId> = {
+  house_sitting: "service.house_sitting.detail.body",
+  check_in: "service.check_in.detail.body",
+  walk: "service.walk.detail.body",
+  training: "service.training.detail.body",
+};
+export function serviceDetailBodyCopyId(
+  pricingType: PricingType,
+): CopyId | null {
+  return isPublicPricingType(pricingType)
+    ? DETAIL_BODY_COPY[pricingType]
+    : null;
+}
+
+/** "What's included" item copy IDs for a service's booking page (empty for meet-and-greet). */
+const INCLUDED_COPY: Record<PublicPricingType, readonly CopyId[]> = {
+  house_sitting: [
+    "service.house_sitting.included.1",
+    "service.house_sitting.included.2",
+    "service.house_sitting.included.3",
+    "service.house_sitting.included.4",
+  ],
+  check_in: [
+    "service.check_in.included.1",
+    "service.check_in.included.2",
+    "service.check_in.included.3",
+    "service.check_in.included.4",
+  ],
+  walk: [
+    "service.walk.included.1",
+    "service.walk.included.2",
+    "service.walk.included.3",
+    "service.walk.included.4",
+  ],
+  training: [
+    "service.training.included.1",
+    "service.training.included.2",
+    "service.training.included.3",
+    "service.training.included.4",
+  ],
+};
+export function serviceIncludedCopyIds(
+  pricingType: PricingType,
+): readonly CopyId[] {
+  return isPublicPricingType(pricingType) ? INCLUDED_COPY[pricingType] : [];
 }

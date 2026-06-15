@@ -2,7 +2,8 @@
 export { parsePricingConfig } from "./config-schemas";
 export { quote } from "./quote";
 export { deriveApproval, estimateDrivingMinutes } from "./distance";
-export { headlineRate, formatCents } from "./display";
+export { headlineRate, formatCents, pricingBreakdown } from "./display";
+export type { PricingBreakdownRow } from "./display";
 export { defaultGeocoder } from "./geocoding/zip-centroid-geocoder";
 export type { Geocoder } from "./geocoding/geocoder";
 export type {
