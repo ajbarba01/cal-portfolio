@@ -18,6 +18,8 @@
 import { useState, useTransition } from "react";
 import { useScheduler } from "@/features/booking/scheduler-context";
 import { Button } from "@/components/ui/button";
+import { Surface } from "@/components/ui/surface";
+import { cn } from "@/lib/utils";
 import type { ConflictBooking } from "@/features/admin";
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -217,14 +219,11 @@ export function DayPanel({ className }: DayPanelProps) {
   const disableActions = !hasSelection || isPending;
 
   return (
-    <aside
+    <Surface
+      as="aside"
+      variant="plain"
       aria-label="Bulk availability actions"
-      className={[
-        "bg-card border-border flex flex-col gap-5 rounded-xl border p-4",
-        className ?? "",
-      ]
-        .join(" ")
-        .trim()}
+      className={cn("flex flex-col gap-5 p-4", className)}
     >
       {/* Header */}
       <div>
@@ -385,6 +384,6 @@ export function DayPanel({ className }: DayPanelProps) {
           </div>
         </section>
       )}
-    </aside>
+    </Surface>
   );
 }

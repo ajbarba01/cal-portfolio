@@ -16,6 +16,7 @@ import {
 } from "@/features/booking/_components/pet-avatar";
 import { PetForm } from "@/features/accounts";
 import type { Pet } from "@/features/accounts";
+import { Surface } from "@/components/ui/surface";
 
 export interface AssignablePet {
   id: string;
@@ -121,7 +122,7 @@ export function PetAssignment({
       )}
 
       {showAdd ? (
-        <div className="border-border rounded-xl border p-4">
+        <Surface variant="plain" className="p-4">
           <h3 className="text-foreground mb-3 text-sm font-medium">
             Add a pet
           </h3>
@@ -132,7 +133,7 @@ export function PetAssignment({
             }}
             onCancel={() => setShowAdd(false)}
           />
-        </div>
+        </Surface>
       ) : (
         <button
           type="button"

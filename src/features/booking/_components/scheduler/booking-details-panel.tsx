@@ -17,6 +17,7 @@ import { X } from "lucide-react";
 import { useScheduler } from "@/features/booking/scheduler-context";
 import { denverMinutesSinceMidnight } from "@/features/booking/availability";
 import type { BusyBlock } from "@/features/booking/scheduler-context";
+import { Surface } from "@/components/ui/surface";
 import { cn } from "@/lib/utils";
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -98,9 +99,11 @@ export function BookingDetailsPanel({ className }: BookingDetailsPanelProps) {
   if (block === undefined) return null;
 
   return (
-    <section
+    <Surface
+      as="section"
+      variant="plain"
       aria-label="Booking details"
-      className={cn("bg-card border-border rounded-xl border p-3", className)}
+      className={cn("p-3", className)}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex flex-col gap-1">
@@ -119,6 +122,6 @@ export function BookingDetailsPanel({ className }: BookingDetailsPanelProps) {
           <X className="size-4" aria-hidden="true" />
         </button>
       </div>
-    </section>
+    </Surface>
   );
 }
