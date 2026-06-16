@@ -5,7 +5,7 @@ import { completeOnboarding } from "@/features/accounts";
 import type { OnboardingFormState } from "@/features/accounts";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
-import { Surface } from "@/components/ui/surface";
+import { FormSection } from "@/components/ui/form-section";
 
 const INITIAL: OnboardingFormState = { status: "idle" };
 
@@ -27,14 +27,7 @@ export function InfoStep({ returnTo }: { returnTo?: string }) {
         <input type="hidden" name="returnTo" value={returnTo} />
       ) : null}
 
-      <Surface
-        as="fieldset"
-        variant="plain"
-        className="flex flex-col gap-4 p-5"
-      >
-        <legend className="text-brand-strong mb-1 text-xs font-semibold tracking-wide uppercase">
-          Your profile
-        </legend>
+      <FormSection title="Your profile">
         <div className="grid gap-4 sm:grid-cols-2">
           <FormField
             label="Full name"
@@ -73,16 +66,9 @@ export function InfoStep({ returnTo }: { returnTo?: string }) {
             required
           />
         </div>
-      </Surface>
+      </FormSection>
 
-      <Surface
-        as="fieldset"
-        variant="plain"
-        className="flex flex-col gap-4 p-5"
-      >
-        <legend className="text-brand-strong mb-1 text-xs font-semibold tracking-wide uppercase">
-          Emergency contact
-        </legend>
+      <FormSection title="Emergency contact">
         <FormField
           label="Contact name"
           name="contact_name"
@@ -107,16 +93,9 @@ export function InfoStep({ returnTo }: { returnTo?: string }) {
             required
           />
         </div>
-      </Surface>
+      </FormSection>
 
-      <Surface
-        as="fieldset"
-        variant="plain"
-        className="flex flex-col gap-4 p-5"
-      >
-        <legend className="text-brand-strong mb-1 text-xs font-semibold tracking-wide uppercase">
-          Veterinarian
-        </legend>
+      <FormSection title="Veterinarian">
         <div className="grid gap-4 sm:grid-cols-2">
           <FormField
             label="Vet name or clinic"
@@ -133,7 +112,7 @@ export function InfoStep({ returnTo }: { returnTo?: string }) {
             required
           />
         </div>
-      </Surface>
+      </FormSection>
 
       <Button
         type="submit"
