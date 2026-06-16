@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { buildBreadcrumbJsonLd, JsonLd } from "@/features/seo";
 import {
   TriangleAlert,
   HeartPulse,
@@ -235,6 +236,12 @@ export default function ResourcesPage() {
 
   return (
     <>
+      <JsonLd
+        data={buildBreadcrumbJsonLd([
+          { name: "Home", path: "/" },
+          { name: "Resources", path: "/resources" },
+        ])}
+      />
       {/* Masthead — centered editorial header, no eyebrow (it would restate
           "Resources"); the intro carries the framing. */}
       <section

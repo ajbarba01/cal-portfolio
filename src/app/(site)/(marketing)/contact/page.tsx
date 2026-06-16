@@ -6,8 +6,18 @@ import {
   type FaqItem,
 } from "@/components/marketing/faq-accordion";
 import { ContactForm } from "./_components/contact-form";
+import {
+  buildPageMetadata,
+  buildBreadcrumbJsonLd,
+  JsonLd,
+} from "@/features/seo";
 
-export const metadata = { title: "Contact" };
+export const metadata = buildPageMetadata({
+  title: "Contact",
+  description:
+    "Get in touch with Cal Barba about dog walking or house sitting on Colorado's Front Range.",
+  path: "/contact",
+});
 
 // Reassurance question deflected here, beside the form, before clients ask.
 const FAQ_ITEMS: ReadonlyArray<FaqItem> = [
@@ -19,6 +29,12 @@ const FAQ_ITEMS: ReadonlyArray<FaqItem> = [
 export default function ContactPage() {
   return (
     <>
+      <JsonLd
+        data={buildBreadcrumbJsonLd([
+          { name: "Home", path: "/" },
+          { name: "Contact", path: "/contact" },
+        ])}
+      />
       {/* Form — base band */}
       <section className="bg-background panel-ombre">
         <PageContainer width="narrow" className="py-10 sm:py-14">

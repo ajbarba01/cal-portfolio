@@ -27,12 +27,37 @@ import {
   type AuthState,
 } from "./_components/service-booking-client";
 import type { PricingType } from "@/features/pricing";
+import { createStaticClient } from "@/lib/supabase/static";
+import {
+  buildPageMetadata,
+  buildBreadcrumbJsonLd,
+  buildServiceJsonLd,
+  JsonLd,
+} from "@/features/seo";
 
 const SIGNED_URL_TTL_SECONDS = 60 * 60;
 
 function firstParam(v: string | string[] | undefined): string | null {
   if (Array.isArray(v)) return v[0] ?? null;
   return v ?? null;
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ serviceSlug: string }>;
+}) {
+  const { serviceSlug } = await params;
+  const services = await listActiveServices(createStaticClient());
+  const service = services.find((s) => s.slug === serviceSlug);
+  const title = service?.name ?? "Book";
+  return buildPageMetadata({
+    title,
+    description:
+      service?.description ??
+      "Check availability and book with Cal Barba across Colorado's Front Range.",
+    path: `/book/${serviceSlug}`,
+  });
 }
 
 export default async function ServiceBookingPage({
@@ -181,65 +206,81 @@ export default async function ServiceBookingPage({
   };
 
   return (
-    <main className="px-4 py-12">
-      <RevealGroup className="mx-auto mb-8 w-full max-w-xl">
-        <Reveal>
-          <Link
-            href="/services"
-            className="text-muted-foreground hover:text-foreground inline-block text-sm"
-          >
-            ← All services
-          </Link>
-        </Reveal>
-        {/* Cross-nav: hop between services without going back to the index. */}
-        {siblingServices.length > 1 ? (
-          <Reveal
-            as="nav"
-            aria-label="Other services"
-            className="mt-3 mb-6 flex flex-wrap gap-2"
-          >
-            {siblingServices.map((s) =>
-              s.slug === service.slug ? (
-                <span
-                  key={s.slug}
-                  aria-current="page"
-                  className="bg-brand text-brand-foreground rounded-full px-3 py-1 text-xs font-medium"
-                >
-                  {s.name}
-                </span>
-              ) : (
-                <Link
-                  key={s.slug}
-                  href={`/book/${s.slug}`}
-                  className="bg-sidebar-active text-brand-strong rounded-full px-3 py-1 text-xs font-medium transition-colors duration-200 ease-out hover:bg-[color-mix(in_oklab,var(--brand)_14%,var(--sidebar-active))]"
-                >
-                  {s.name}
-                </Link>
-              ),
-            )}
-          </Reveal>
-        ) : (
-          <div className="mb-6" />
-        )}
-        <Reveal as="h1" className="mb-1 text-2xl font-semibold">
-          {service.name}
-        </Reveal>
-        {service.description && (
-          <Reveal as="p" className="text-muted-foreground text-sm">
-            {service.description}
-          </Reveal>
-        )}
-      </RevealGroup>
-      <ServiceBookingClient
-        service={service}
-        rules={rules}
-        initialBusy={initialBusy}
-        initialPremiumDays={initialPremiumDays}
-        authState={authState}
-        pets={pets}
-        initialSelection={initialSelection}
-        myBookingDayKeys={myBookingDayKeys}
+    <>
+      <JsonLd
+        data={buildBreadcrumbJsonLd([
+          { name: "Home", path: "/" },
+          { name: "Book", path: "/book" },
+          { name: service.name, path: `/book/${service.slug}` },
+        ])}
       />
-    </main>
+      <JsonLd
+        data={buildServiceJsonLd({
+          name: service.name,
+          slug: service.slug,
+          description: service.description,
+        })}
+      />
+      <main className="px-4 py-12">
+        <RevealGroup className="mx-auto mb-8 w-full max-w-xl">
+          <Reveal>
+            <Link
+              href="/services"
+              className="text-muted-foreground hover:text-foreground inline-block text-sm"
+            >
+              ← All services
+            </Link>
+          </Reveal>
+          {/* Cross-nav: hop between services without going back to the index. */}
+          {siblingServices.length > 1 ? (
+            <Reveal
+              as="nav"
+              aria-label="Other services"
+              className="mt-3 mb-6 flex flex-wrap gap-2"
+            >
+              {siblingServices.map((s) =>
+                s.slug === service.slug ? (
+                  <span
+                    key={s.slug}
+                    aria-current="page"
+                    className="bg-brand text-brand-foreground rounded-full px-3 py-1 text-xs font-medium"
+                  >
+                    {s.name}
+                  </span>
+                ) : (
+                  <Link
+                    key={s.slug}
+                    href={`/book/${s.slug}`}
+                    className="bg-sidebar-active text-brand-strong rounded-full px-3 py-1 text-xs font-medium transition-colors duration-200 ease-out hover:bg-[color-mix(in_oklab,var(--brand)_14%,var(--sidebar-active))]"
+                  >
+                    {s.name}
+                  </Link>
+                ),
+              )}
+            </Reveal>
+          ) : (
+            <div className="mb-6" />
+          )}
+          <Reveal as="h1" className="mb-1 text-2xl font-semibold">
+            {service.name}
+          </Reveal>
+          {service.description && (
+            <Reveal as="p" className="text-muted-foreground text-sm">
+              {service.description}
+            </Reveal>
+          )}
+        </RevealGroup>
+        <ServiceBookingClient
+          service={service}
+          rules={rules}
+          initialBusy={initialBusy}
+          initialPremiumDays={initialPremiumDays}
+          authState={authState}
+          pets={pets}
+          initialSelection={initialSelection}
+          myBookingDayKeys={myBookingDayKeys}
+        />
+      </main>
+    </>
   );
 }

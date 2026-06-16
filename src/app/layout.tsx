@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Newsreader, IBM_Plex_Sans, Geist_Mono } from "next/font/google";
+import { getSiteUrl } from "@/features/seo";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { ToastProvider } from "@/components/feedback/toast";
 import { CursorParallax } from "@/components/effects/cursor-parallax";
@@ -25,9 +26,21 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Cal Barba — Dog Walking & House Sitting",
+  metadataBase: new URL(getSiteUrl()),
+  title: {
+    default: "Cal Barba — Dog Walking & House Sitting on the Front Range",
+    template: "%s · Cal Barba",
+  },
   description:
-    "Professional dog walking and house sitting in Boulder, CO. Reliable, caring pet care tailored to your dog's needs.",
+    "Professional dog walking and house sitting across Colorado's Front Range. Reliable, caring pet care tailored to your dog's needs.",
+  applicationName: "Cal Barba",
+  openGraph: {
+    type: "website",
+    siteName: "Cal Barba",
+    locale: "en_US",
+  },
+  twitter: { card: "summary_large_image" },
+  robots: { index: true, follow: true },
 };
 
 export default function RootLayout({

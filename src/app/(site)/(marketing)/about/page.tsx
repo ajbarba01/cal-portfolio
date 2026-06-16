@@ -9,6 +9,19 @@ import { MarketingCopy } from "@/components/marketing/marketing-copy";
 import placeholders from "@/content/image-placeholders.json";
 import { PageContainer } from "@/components/layout/page-container";
 import { Reveal, RevealGroup } from "@/components/effects/reveal";
+import {
+  buildPageMetadata,
+  buildBreadcrumbJsonLd,
+  buildPersonJsonLd,
+  JsonLd,
+} from "@/features/seo";
+
+export const metadata = buildPageMetadata({
+  title: "About",
+  description:
+    "Meet Cal Barba — a Lakewood-based dog walker and house sitter serving Colorado's Front Range, with his husky mix Kiche.",
+  path: "/about",
+});
 
 const bioParagraphs = [
   "about.bio.p1",
@@ -20,6 +33,13 @@ const bioParagraphs = [
 export default function AboutPage() {
   return (
     <>
+      <JsonLd
+        data={buildBreadcrumbJsonLd([
+          { name: "Home", path: "/" },
+          { name: "About", path: "/about" },
+        ])}
+      />
+      <JsonLd data={buildPersonJsonLd()} />
       <MarketingHero
         src="/bg/IMG_0048.JPG"
         blurDataURL={(placeholders as Record<string, string>)["IMG_0048.JPG"]}
