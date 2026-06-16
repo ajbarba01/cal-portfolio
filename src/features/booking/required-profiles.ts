@@ -150,3 +150,12 @@ export function bookingRequirements(
 export function requirementsSatisfied(items: RequirementItem[]): boolean {
   return items.every((i) => i.status === "complete");
 }
+
+const PRICING_ORDER = Object.keys(REQUIRED_PROFILES) as PricingType[];
+
+/** Reverse map: which services require a given form key (for the account page). */
+export function servicesRequiring(formKey: RequiredFormKey): PricingType[] {
+  return PRICING_ORDER.filter((pt) =>
+    REQUIRED_PROFILES[pt].some((f) => f.key === formKey),
+  );
+}

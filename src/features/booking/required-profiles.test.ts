@@ -4,6 +4,7 @@ import {
   requirementsSatisfied,
   REQUIRED_PROFILES,
   FRESHNESS_WINDOW_DAYS,
+  servicesRequiring,
 } from "./required-profiles";
 
 const NOW = new Date("2026-06-16T12:00:00Z");
@@ -179,5 +180,23 @@ describe("requirementsSatisfied", () => {
         { formKey: "home_access", status: "stale" },
       ]),
     ).toBe(false);
+  });
+});
+
+describe("servicesRequiring", () => {
+  it("returns every pricing_type whose manifest includes the key", () => {
+    expect(servicesRequiring("owner")).toEqual([
+      "house_sitting",
+      "check_in",
+      "walk",
+      "training",
+      "meet_greet",
+    ]);
+    expect(servicesRequiring("home_sitting")).toEqual(["house_sitting"]);
+    expect(servicesRequiring("pet_walk")).toEqual([
+      "house_sitting",
+      "check_in",
+      "walk",
+    ]);
   });
 });
