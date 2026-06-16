@@ -9,6 +9,12 @@ const nextConfig: NextConfig = {
     // Cache optimized variants for 31 days (assets are content-hashed).
     minimumCacheTTL: 2678400,
   },
+  async redirects() {
+    return [
+      // The home page lives at "/"; alias "/home" to it.
+      { source: "/home", destination: "/", permanent: true },
+    ];
+  },
 };
 
 export default nextConfig;

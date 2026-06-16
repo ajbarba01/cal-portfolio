@@ -96,6 +96,10 @@ const trustPoints = [
   },
 ] as const;
 
+// Static with daily ISR so the derived age ribbon (yearsSince) refreshes without
+// a redeploy; the page reads no per-request data, so it stays cached static HTML.
+export const revalidate = 86400;
+
 export default function HomePage() {
   return (
     <>

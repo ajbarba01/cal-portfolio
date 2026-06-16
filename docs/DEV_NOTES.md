@@ -1,19 +1,17 @@
 ## now
 
 - component-system refactor: primitives (control track / card radius / elevation, `Surface`, family primitives, form controls, `/showcase`, `COMPONENT_SYSTEM.md`) shipped earlier. **Composed layer now done:** `FormSection` + `Surface variant="floating"` added; every form migrated to FormField/FormSection (marketing/auth/account/onboarding/booking/admin); all hand-rolled card surfaces routed through `Surface` (variant by the outer=emphasis/nested=plain rule; admin rows/lists kept `plain` for calm density); toast + header dropdowns on the floating Surface. `design-system/no-drift` is now **`error`** (zero violations). Family swaps partially done: inline CTA links → `TextLink`, booking override/paid-lock callouts → `Alert`; legacy `Card` (`card.tsx`) removed (settings/account callers → Surface; `archive/` excluded from tsconfig). `SideLabelSection` extraction **intentionally skipped** — resources/services/about share only a loose two-column pattern (resources already has its own `LedgerSection`); one primitive would be a forced abstraction. Still open (optional): `SectionHeader`/`StatDisplay`/`Badge` sweeps + `space.sectionY` spacing-token pass. (2026-06-16)
-- hero images should also ease in on load (?)
 - word count/character count for pretty much any user input.
-- kiche discount
-- booking details redesign
+- ensure owing system
+- site logo + wordmark typeface
+- booking details redesign (include kiche discount)
 - paw print effect
 - enter site page
 - onboarding styling: why is there page below the footer, the page width changes from step to 1 to 2
-- ssg
 - maybe: try making some sections or areas a window to the page bg
 - what pronouns are being used? most of the site its like Cal is speaking directly to the user but there some text when it says like "Cal will get back to you soon"
 - reviews filtering and pagination + mini redesign
-- scrolling bar should follow the mouse while hovering it + momentum
-- /home should redirect to actual home
+- seo stuff
 
 ## Notes for the future
 
