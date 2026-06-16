@@ -6,6 +6,7 @@ import { CalendarDays, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Surface } from "@/components/ui/surface";
 import { Card } from "@/components/ui/card";
 import { TimePicker } from "@/components/ui/time-picker";
 import { UnitInput } from "@/components/ui/unit-input";
@@ -343,7 +344,7 @@ export function SettingsClient({
       </Card>
 
       {/* ── Advanced (collapsed by default) ───────────────────────────── */}
-      <details className="group bg-card border-border rounded-xl border border-dashed">
+      <Surface as="details" variant="plain" className="group border-dashed">
         <summary className="flex cursor-pointer list-none items-center justify-between p-5">
           <span className="flex items-center gap-2">
             <GroupLegend>Advanced</GroupLegend>
@@ -432,7 +433,7 @@ export function SettingsClient({
             </div>
           </div>
         </div>
-      </details>
+      </Surface>
 
       {error && (
         <p role="alert" className="text-destructive text-sm">

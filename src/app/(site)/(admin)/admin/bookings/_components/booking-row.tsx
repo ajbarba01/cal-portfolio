@@ -5,6 +5,7 @@ import { Check, Circle, RotateCcw } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Surface } from "@/components/ui/surface";
 import { paymentPill } from "@/features/payments/index.client";
 import type { BookingCalendarRow } from "@/features/admin";
 
@@ -110,7 +111,7 @@ export function BookingRow({
   const canCancel = isPendingApproval || isConfirmed;
 
   return (
-    <li className="bg-card border-border rounded-xl border p-3 text-sm">
+    <Surface as="li" variant="plain" className="p-3 text-sm">
       {/* top row: name + pills + amount */}
       <div className="flex flex-wrap items-center gap-2">
         <Link
@@ -182,6 +183,6 @@ export function BookingRow({
           </Button>
         )}
       </div>
-    </li>
+    </Surface>
   );
 }

@@ -59,6 +59,8 @@ export function Surface({
     as?: React.ElementType;
     /** Fade a soft clay drop-shadow in on hover (independent of `variant`). */
     hoverLift?: boolean;
+    /** Button type, when rendered as `as="button"`. */
+    type?: "button" | "submit" | "reset";
   }) {
   return (
     <Comp

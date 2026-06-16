@@ -5,6 +5,7 @@ import { Star } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Surface } from "@/components/ui/surface";
 import { Multiswitch } from "@/components/ui/multiswitch";
 import { Pagination } from "@/components/ui/pagination";
 import { ResultCount } from "@/components/ui/result-count";
@@ -162,10 +163,7 @@ export function ReviewsClient({
       ) : (
         <ul className="space-y-2">
           {view.items.map((r) => (
-            <li
-              key={r.id}
-              className="bg-card border-border rounded-xl border px-4 py-3"
-            >
+            <Surface as="li" variant="plain" key={r.id} className="px-4 py-3">
               <div className="mb-3 text-sm">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="font-semibold">{r.author_name}</p>
@@ -196,7 +194,7 @@ export function ReviewsClient({
                   Reject
                 </Button>
               </div>
-            </li>
+            </Surface>
           ))}
         </ul>
       )}

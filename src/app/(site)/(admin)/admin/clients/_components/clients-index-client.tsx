@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/multiswitch";
 import { Pagination } from "@/components/ui/pagination";
 import { ResultCount } from "@/components/ui/result-count";
+import { Surface } from "@/components/ui/surface";
 import { SearchField } from "@/components/ui/search-field";
 import {
   applyClientFilter,
@@ -139,7 +140,7 @@ export function ClientsIndexClient({ clients }: { clients: ClientListRow[] }) {
         <>
           {/* Desktop table — wrapped in a card so cell padding insets the
               clickable row highlight from the surface edge. */}
-          <div className="border-border bg-card hidden overflow-hidden rounded-xl border sm:block">
+          <Surface variant="plain" className="hidden overflow-hidden sm:block">
             <table className="w-full text-sm">
               <thead className="text-muted-foreground border-border border-b text-left">
                 <tr>
@@ -233,14 +234,16 @@ export function ClientsIndexClient({ clients }: { clients: ClientListRow[] }) {
                 ))}
               </tbody>
             </table>
-          </div>
+          </Surface>
 
           {/* Mobile cards */}
           <ul className="flex flex-col gap-2 sm:hidden">
             {displayed.map((client) => (
-              <li
+              <Surface
+                as="li"
+                variant="plain"
                 key={client.id}
-                className="bg-card border-border hover:bg-muted cursor-pointer rounded-xl border p-3 transition-colors"
+                className="hover:bg-muted cursor-pointer p-3 transition-colors"
                 onClick={() => navigateToClient(client.id)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") navigateToClient(client.id);
@@ -284,7 +287,7 @@ export function ClientsIndexClient({ clients }: { clients: ClientListRow[] }) {
                     </Badge>
                   ) : null}
                 </div>
-              </li>
+              </Surface>
             ))}
           </ul>
 
