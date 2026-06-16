@@ -48,7 +48,7 @@ export function ServiceTabs({ items }: { items: ServiceTabItem[] }) {
   return (
     <div>
       {/* Centered, horizontally scrollable tab strip. */}
-      <div className="border-border [scrollbar-width:none] overflow-x-auto border-b text-center [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+      <div className="border-border [scrollbar-width:none] overflow-x-auto overflow-y-hidden border-b text-center [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
         <div
           role="tablist"
           aria-label="Services"

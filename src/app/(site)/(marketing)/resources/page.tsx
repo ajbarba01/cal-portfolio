@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import {
-  ChevronDown,
   TriangleAlert,
   HeartPulse,
   Stethoscope,
@@ -15,7 +14,6 @@ import {
   ArrowUpRight,
   type LucideIcon,
 } from "lucide-react";
-import { Accordion } from "@base-ui/react/accordion";
 
 import { PageContainer } from "@/components/layout/page-container";
 import { Reveal, RevealGroup } from "@/components/effects/reveal";
@@ -150,22 +148,6 @@ const enrichmentTopics: readonly CopyId[] = [
   "resources.enrichment.3.name",
   "resources.enrichment.4.name",
 ];
-
-// Answers render through MarketingCopy (may carry inline links); questions live
-// inside the accordion trigger button, so they stay raw strings — a link can't
-// nest in a button.
-const faqItems = [
-  {
-    id: "faq-1",
-    question: copy["resources.faq.1.q"],
-    answerId: "resources.faq.1.a",
-  },
-  {
-    id: "faq-2",
-    question: copy["resources.faq.2.q"],
-    answerId: "resources.faq.2.a",
-  },
-] as const;
 
 function ScenarioTag({ scenario }: { scenario: Scenario }) {
   return (
@@ -333,7 +315,7 @@ export default function ResourcesPage() {
                   as="li"
                   key={nameId}
                   className={cn(
-                    "border-border group flex gap-4 border-b py-4 last:border-0",
+                    "border-border group relative -mx-3 flex gap-4 rounded-xl border-b px-3 py-4 transition-colors duration-200 last:border-0 hover:bg-[color-mix(in_oklab,var(--brand)_5%,transparent)]",
                     !show && "hidden",
                   )}
                 >
@@ -349,7 +331,7 @@ export default function ResourcesPage() {
                         href={href}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-brand-strong inline-flex items-center gap-1 font-semibold hover:underline hover:underline-offset-4"
+                        className="text-brand-strong inline-flex items-center gap-1 font-semibold after:absolute after:inset-0 hover:underline hover:underline-offset-4"
                       >
                         {copy[nameId]}
                         <ArrowUpRight
@@ -402,47 +384,17 @@ export default function ResourcesPage() {
         </p>
       </LedgerSection>
 
-      {/* FAQ — alt band; centered title over a full-width (read column) accordion,
-          breaking from the side-label rhythm. Cal's closing note signs off below. */}
+      {/* Closing sign-off — alt band (Enrichment is base, so this keeps the
+          alternation). Cal's invitation to suggest more resources. */}
       <section
-        aria-labelledby="faq-heading"
+        aria-label="A note from Cal"
         className="bg-section-alt panel-ombre"
       >
         <PageContainer width="read" className="py-12 sm:py-16">
           <RevealGroup>
             <Reveal
-              as="h2"
-              id="faq-heading"
-              className="font-heading text-center text-2xl font-semibold tracking-tight sm:text-3xl"
-            >
-              FAQ
-            </Reveal>
-            <Reveal className="mt-6">
-              <Accordion.Root className="flex flex-col">
-                {faqItems.map((item) => (
-                  <Accordion.Item
-                    key={item.id}
-                    value={item.id}
-                    className="border-border border-b"
-                  >
-                    <Accordion.Header>
-                      <Accordion.Trigger className="group focus-visible:outline-ring/50 flex w-full items-center justify-between gap-4 py-4 text-left outline-none focus-visible:outline-2 focus-visible:outline-offset-2">
-                        <span className="text-foreground font-medium">
-                          {item.question}
-                        </span>
-                        <ChevronDown className="text-muted-foreground size-4 shrink-0 transition-transform group-data-panel-open:rotate-180" />
-                      </Accordion.Trigger>
-                    </Accordion.Header>
-                    <Accordion.Panel className="text-muted-foreground pb-4 text-sm leading-relaxed">
-                      <MarketingCopy id={item.answerId} />
-                    </Accordion.Panel>
-                  </Accordion.Item>
-                ))}
-              </Accordion.Root>
-            </Reveal>
-            <Reveal
               as="p"
-              className="text-muted-foreground mx-auto mt-8 max-w-[60ch] text-center text-sm leading-relaxed"
+              className="text-muted-foreground mx-auto max-w-[60ch] text-center leading-relaxed"
             >
               <MarketingCopy id="resources.closing" />
             </Reveal>
