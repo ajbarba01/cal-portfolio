@@ -174,6 +174,7 @@ export interface UseBookingSchedulerReturn {
   mode: BookingMode;
   petAware: boolean;
   allowedSpecies: PetSpecies[];
+  maxPets: number | null;
   supportsRecurring: boolean;
 
   // Loading/error from availability
@@ -256,9 +257,14 @@ export function useBookingScheduler({
   const mode: BookingMode =
     service.pricingType === "house_sitting" ? "month-range" : "week-slots";
   const petAware =
-    service.pricingType === "house_sitting" || service.pricingType === "walk";
+    service.pricingType === "house_sitting" ||
+    service.pricingType === "walk" ||
+    service.pricingType === "check_in" ||
+    service.pricingType === "training";
   const allowedSpecies: PetSpecies[] =
     service.pricingType === "house_sitting" ? ["dog", "cat"] : ["dog"];
+  // Training is a single-dog session; everything else allows multiple pets.
+  const maxPets: number | null = service.pricingType === "training" ? 1 : null;
   const supportsRecurring = mode === "week-slots";
 
   // Stable "now" for the component lifetime (page reload re-mounts).
@@ -550,6 +556,7 @@ export function useBookingScheduler({
     mode,
     petAware,
     allowedSpecies,
+    maxPets,
     supportsRecurring,
     windowsLoading,
     windowsError,

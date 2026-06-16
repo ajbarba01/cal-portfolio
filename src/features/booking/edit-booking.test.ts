@@ -54,7 +54,16 @@ function makeRepo(
     hasFormResponse: vi.fn(async () => true),
     getFormStatuses: vi.fn(async () => [
       { formKey: "owner", petId: null, submittedAt: "2026-06-10T00:00:00Z" },
-      { formKey: "home", petId: null, submittedAt: "2026-06-10T00:00:00Z" },
+      {
+        formKey: "home_access",
+        petId: null,
+        submittedAt: "2026-06-10T00:00:00Z",
+      },
+      {
+        formKey: "home_sitting",
+        petId: null,
+        submittedAt: "2026-06-10T00:00:00Z",
+      },
     ]),
     getPetsByIds: vi.fn(async () => []),
     getOpenWindows: vi.fn(async () => [

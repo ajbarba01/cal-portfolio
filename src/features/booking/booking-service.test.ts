@@ -1206,7 +1206,16 @@ function makeMockRepo(
     getPetsByIds: vi.fn(async () => []),
     getFormStatuses: vi.fn(async () => [
       { formKey: "owner", petId: null, submittedAt: "2026-06-10T00:00:00Z" },
-      { formKey: "home", petId: null, submittedAt: "2026-06-10T00:00:00Z" },
+      {
+        formKey: "home_access",
+        petId: null,
+        submittedAt: "2026-06-10T00:00:00Z",
+      },
+      {
+        formKey: "home_sitting",
+        petId: null,
+        submittedAt: "2026-06-10T00:00:00Z",
+      },
     ]),
     getOpenWindows: vi.fn(async () => opts.openWindows ?? []),
     insertBookings: vi.fn(async (rows: BookingInsert[]) => {
@@ -1552,7 +1561,16 @@ function makePreviewRepo(
     getPetsByIds: vi.fn(async () => []),
     getFormStatuses: vi.fn(async () => [
       { formKey: "owner", petId: null, submittedAt: "2026-06-10T00:00:00Z" },
-      { formKey: "home", petId: null, submittedAt: "2026-06-10T00:00:00Z" },
+      {
+        formKey: "home_access",
+        petId: null,
+        submittedAt: "2026-06-10T00:00:00Z",
+      },
+      {
+        formKey: "home_sitting",
+        petId: null,
+        submittedAt: "2026-06-10T00:00:00Z",
+      },
     ]),
     getOpenWindows: vi.fn(async () => [
       {

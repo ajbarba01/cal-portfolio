@@ -16,6 +16,7 @@ import {
   bookingRequirements,
   requirementsSatisfied,
   type RequirementItem,
+  type PetSpecies,
 } from "./required-profiles";
 import {
   seriesQualifiesForRecurringDiscount,
@@ -553,38 +554,55 @@ export async function computeBookingArtifacts(
     };
   }
 
-  // Await the form statuses (fired above, overlaps with parsePricingConfig) and
-  // evaluate the requirement manifest. Pet-scoped items are keyed by the booking's
-  // assigned pets; names are resolved client-side in the checklist UI.
+  // Pet-aware services let the client assign pets; only house_sitting/walk price
+  // by headcount. check_in/training are hours-only — they assign pets purely so
+  // the per-pet care requirement is satisfiable, and derive no counts.
+  const petIds = input.petIds ?? [];
+  const petAware =
+    service.pricing_type === "house_sitting" ||
+    service.pricing_type === "walk" ||
+    service.pricing_type === "check_in" ||
+    service.pricing_type === "training";
+
+  let ownedPets: { id: string; species: PetSpecies }[] = [];
+  if (petAware && petIds.length > 0) {
+    ownedPets = await repo.getPetsByIds(input.userId, petIds);
+    if (ownedPets.length !== petIds.length) {
+      return {
+        kind: "validation_error",
+        message: "One or more selected pets were not found.",
+      };
+    }
+  }
+
+  // Requirements gate: a booking requires the reusable profiles its pricing_type
+  // calls for (REQUIRED_PROFILES), each complete and fresh. services.form_key is
+  // legacy and no longer consulted.
   const formStatuses = await formStatusesPromise;
-  const assignedPetIds = input.petIds ?? [];
   const findStatus = (formKey: string, petId: string | null) =>
     formStatuses.find((r) => r.formKey === formKey && r.petId === petId)
       ?.submittedAt ?? null;
-  // Build per-pet form map keyed by the finer PetFormKey names. Legacy DB rows
-  // still use "pet" as a single key; map them to pet_care until the DB migration
-  // renames them. pet_walk is intentionally absent until its rows are written.
   const petForms: Record<
     string,
-    Partial<Record<"pet_care" | "pet_walk", string | null>>
+    { pet_care?: string | null; pet_walk?: string | null }
   > = {};
-  for (const id of assignedPetIds) {
-    petForms[id] = { pet_care: findStatus("pet", id) };
+  for (const p of ownedPets) {
+    petForms[p.id] = {
+      pet_care: findStatus("pet_care", p.id),
+      pet_walk: findStatus("pet_walk", p.id),
+    };
   }
   const requirements = bookingRequirements({
     pricingType: service.pricing_type,
-    // Species unknown at gate time (resolved later for quantity); treat all as
-    // "dog" so dog-only forms (pet_walk) are included. A later task will thread
-    // species through once getPetsByIds is hoisted before the gate.
-    assignedPets: assignedPetIds.map((id) => ({
-      id,
+    assignedPets: ownedPets.map((p) => ({
+      id: p.id,
       name: "",
-      species: "dog" as const,
+      species: p.species,
     })),
     accountForms: {
       owner: findStatus("owner", null),
-      // Legacy DB key "home" maps to home_access until migration renames it.
-      home_access: findStatus("home", null),
+      home_access: findStatus("home_access", null),
+      home_sitting: findStatus("home_sitting", null),
     },
     petForms,
     now: deps.now,
@@ -601,28 +619,17 @@ export async function computeBookingArtifacts(
     }
   }
 
-  // 3. Derive pet-aware counts from assigned pets (server-trusted, like money),
-  // then validate quantities. When petIds are supplied for a pet-aware service,
-  // the dog/cat counts come from the OWNED pets — never the client payload.
-  // Absent petIds → fall back to the client-supplied counts (legacy path).
+  // Derive pet-aware counts (server-trusted) only for the two headcount-priced
+  // services. check_in/training keep their client/default hours-only quantities.
   let quantitiesRaw = input.quantities;
-  const petIds = input.petIds ?? [];
-  const petAware =
-    service.pricing_type === "house_sitting" || service.pricing_type === "walk";
-  if (petAware && petIds.length > 0) {
-    const ownedPets = await repo.getPetsByIds(input.userId, petIds);
-    if (ownedPets.length !== petIds.length) {
-      return {
-        kind: "validation_error",
-        message: "One or more selected pets were not found.",
-      };
-    }
+  if (petAware && ownedPets.length > 0) {
     const dogs = ownedPets.filter((p) => p.species === "dog").length;
     const cats = ownedPets.filter((p) => p.species === "cat").length;
-    quantitiesRaw =
-      service.pricing_type === "house_sitting"
-        ? { ...quantitiesRaw, dogs, cats }
-        : { ...quantitiesRaw, dogs };
+    if (service.pricing_type === "house_sitting") {
+      quantitiesRaw = { ...quantitiesRaw, dogs, cats };
+    } else if (service.pricing_type === "walk") {
+      quantitiesRaw = { ...quantitiesRaw, dogs };
+    }
   }
 
   const quantitiesResult = parseQuantities(service.pricing_type, quantitiesRaw);

@@ -90,6 +90,7 @@ export interface UseServiceBookingReturn {
   mode: "week-slots" | "month-range";
   petAware: boolean;
   allowedSpecies: PetSpecies[];
+  maxPets: number | null;
   supportsRecurring: boolean;
 
   // Loading/error from availability
@@ -251,6 +252,7 @@ export function useServiceBooking({
   const {
     petAware,
     allowedSpecies,
+    maxPets,
     supportsRecurring,
     windowsLoading,
     windowsError,
@@ -432,6 +434,7 @@ export function useServiceBooking({
     mode,
     petAware,
     allowedSpecies,
+    maxPets,
     supportsRecurring,
     windowsLoading,
     windowsError,
