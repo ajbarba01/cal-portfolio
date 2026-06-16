@@ -14,6 +14,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { FIELD_LIMITS } from "@/lib/field-limits";
 import { profileSchema, type ProfileInput } from "./profile-schema";
 import { formRegistry, type FormKey } from "@/features/accounts/form-registry";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -28,10 +29,10 @@ export type ActionResult =
 // ─── Pet schema ──────────────────────────────────────────────────────────────
 
 const petSchema = z.object({
-  name: z.string().min(1, "Pet name is required"),
+  name: z.string().min(1, "Pet name is required").max(FIELD_LIMITS.name),
   species: z.enum(["dog", "cat"]).default("dog"),
-  breed: z.string().optional(),
-  notes: z.string().optional(),
+  breed: z.string().max(FIELD_LIMITS.shortText).optional(),
+  notes: z.string().max(FIELD_LIMITS.note).optional(),
 });
 
 export type PetInput = z.infer<typeof petSchema>;
@@ -55,7 +56,8 @@ export type CreatePetResult =
 
 const passwordSchema = z
   .string()
-  .min(8, "Password must be at least 8 characters");
+  .min(8, "Password must be at least 8 characters")
+  .max(FIELD_LIMITS.password, "Password is too long");
 
 // ─── Core helpers (DI-testable) ───────────────────────────────────────────────
 

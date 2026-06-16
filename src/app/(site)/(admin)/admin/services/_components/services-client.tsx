@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { FIELD_LIMITS } from "@/lib/field-limits";
 import { Switch } from "@/components/ui/switch";
 import {
   updateService,
@@ -279,6 +280,7 @@ export function ServicesClient({ services }: { services: ServiceAdminRow[] }) {
                   <Label htmlFor={`name-${svc.id}`}>Name</Label>
                   <Input
                     id={`name-${svc.id}`}
+                    maxLength={FIELD_LIMITS.name}
                     value={editState.name}
                     onChange={(e) =>
                       setEditState((s) =>
@@ -293,6 +295,7 @@ export function ServicesClient({ services }: { services: ServiceAdminRow[] }) {
                   <Label htmlFor={`desc-${svc.id}`}>Description</Label>
                   <Input
                     id={`desc-${svc.id}`}
+                    maxLength={FIELD_LIMITS.note}
                     value={editState.description}
                     onChange={(e) =>
                       setEditState((s) =>

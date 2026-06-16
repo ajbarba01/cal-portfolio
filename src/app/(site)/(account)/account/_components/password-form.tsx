@@ -5,6 +5,7 @@ import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
 import { changePassword } from "@/features/accounts";
+import { FIELD_LIMITS } from "@/lib/field-limits";
 
 export function PasswordForm() {
   const [newPassword, setNewPassword] = useState("");
@@ -49,6 +50,7 @@ export function PasswordForm() {
           value={newPassword}
           onChange={(e) => setNewPassword(e.target.value)}
           minLength={8}
+          maxLength={FIELD_LIMITS.password}
           required
         />
 
@@ -60,6 +62,7 @@ export function PasswordForm() {
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
           minLength={8}
+          maxLength={FIELD_LIMITS.password}
           required
         />
       </div>

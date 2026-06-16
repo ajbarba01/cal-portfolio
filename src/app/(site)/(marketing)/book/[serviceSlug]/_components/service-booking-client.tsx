@@ -20,12 +20,12 @@ import {
   BookingFlow,
   BookingFlowStepHead,
   BookingSuccessPanel,
+  NotesForCalSection,
   PetAssignment,
   QuantityForm,
   QuotePanel,
 } from "@/features/booking/index.client";
 import { Surface } from "@/components/ui/surface";
-import { Textarea } from "@/components/ui/textarea";
 import type {
   BookingRuleSettings,
   PublicBusyRange,
@@ -220,24 +220,13 @@ export function ServiceBookingClient({
         )
       }
       notesSection={
-        <section aria-labelledby="comments-heading">
-          <BookingFlowStepHead
-            num={supportsRecurring ? step5Label : step4Label}
-            label="Notes for Cal"
-            labelId="comments-heading"
-            hint="optional"
-          />
-          <label htmlFor="create-comments" className="sr-only">
-            Notes for Cal
-          </label>
-          <Textarea
-            id="create-comments"
-            value={comments}
-            onChange={(e) => onCommentsChange(e.target.value)}
-            rows={3}
-            placeholder="Anything Cal should know about this visit?"
-          />
-        </section>
+        <NotesForCalSection
+          id="create-comments"
+          num={supportsRecurring ? step5Label : step4Label}
+          value={comments}
+          onChange={onCommentsChange}
+          placeholder="Anything Cal should know about this visit?"
+        />
       }
       receipt={
         <>

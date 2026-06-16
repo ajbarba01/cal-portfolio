@@ -6,6 +6,7 @@ import type { OnboardingFormState } from "@/features/accounts";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
 import { FormSection } from "@/components/ui/form-section";
+import { FIELD_LIMITS } from "@/lib/field-limits";
 
 const INITIAL: OnboardingFormState = { status: "idle" };
 
@@ -34,6 +35,7 @@ export function InfoStep({ returnTo }: { returnTo?: string }) {
             name="full_name"
             type="text"
             autoComplete="name"
+            maxLength={FIELD_LIMITS.name}
             error={errors.full_name}
             required
           />
@@ -42,6 +44,7 @@ export function InfoStep({ returnTo }: { returnTo?: string }) {
             name="phone"
             type="tel"
             autoComplete="tel"
+            maxLength={FIELD_LIMITS.phone}
             error={errors.phone}
             required
           />
@@ -52,6 +55,7 @@ export function InfoStep({ returnTo }: { returnTo?: string }) {
             name="address"
             type="text"
             autoComplete="street-address"
+            maxLength={FIELD_LIMITS.addressLine}
             error={errors.address}
             required
           />
@@ -73,6 +77,7 @@ export function InfoStep({ returnTo }: { returnTo?: string }) {
           label="Contact name"
           name="contact_name"
           type="text"
+          maxLength={FIELD_LIMITS.name}
           error={errors.contact_name}
           required
         />
@@ -81,6 +86,7 @@ export function InfoStep({ returnTo }: { returnTo?: string }) {
             label="Contact phone"
             name="contact_phone"
             type="tel"
+            maxLength={FIELD_LIMITS.phone}
             error={errors.contact_phone}
             required
           />
@@ -89,6 +95,7 @@ export function InfoStep({ returnTo }: { returnTo?: string }) {
             name="contact_relationship"
             type="text"
             placeholder="e.g. Parent, Spouse, Friend"
+            maxLength={FIELD_LIMITS.relationship}
             error={errors.contact_relationship}
             required
           />
@@ -101,6 +108,7 @@ export function InfoStep({ returnTo }: { returnTo?: string }) {
             label="Vet name or clinic"
             name="vet_name"
             type="text"
+            maxLength={FIELD_LIMITS.name}
             error={errors.vet_name}
             required
           />
@@ -108,6 +116,7 @@ export function InfoStep({ returnTo }: { returnTo?: string }) {
             label="Vet phone"
             name="vet_phone"
             type="tel"
+            maxLength={FIELD_LIMITS.phone}
             error={errors.vet_phone}
             required
           />

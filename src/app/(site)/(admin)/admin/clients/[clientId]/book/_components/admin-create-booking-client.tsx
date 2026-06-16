@@ -18,11 +18,11 @@ import { useMemo } from "react";
 import {
   BookingFlow,
   BookingFlowStepHead,
+  NotesForCalSection,
   PetAssignment,
   QuantityForm,
   QuotePanel,
 } from "@/features/booking/index.client";
-import { Textarea } from "@/components/ui/textarea";
 import { Surface } from "@/components/ui/surface";
 import type {
   BookingRuleSettings,
@@ -190,24 +190,13 @@ export function AdminCreateBookingClient({
         )
       }
       notesSection={
-        <section aria-labelledby="admin-comments-heading">
-          <BookingFlowStepHead
-            num={supportsRecurring ? step5Label : step4Label}
-            label="Notes for Cal"
-            labelId="admin-comments-heading"
-            hint="optional"
-          />
-          <label htmlFor="admin-create-comments" className="sr-only">
-            Notes for Cal
-          </label>
-          <Textarea
-            id="admin-create-comments"
-            value={comments}
-            onChange={(e) => onCommentsChange(e.target.value)}
-            rows={3}
-            placeholder="Anything Cal should know about this booking?"
-          />
-        </section>
+        <NotesForCalSection
+          id="admin-create-comments"
+          num={supportsRecurring ? step5Label : step4Label}
+          value={comments}
+          onChange={onCommentsChange}
+          placeholder="Anything Cal should know about this booking?"
+        />
       }
       receipt={
         <section aria-labelledby="receipt-heading" aria-live="polite">

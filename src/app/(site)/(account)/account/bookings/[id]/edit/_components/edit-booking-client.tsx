@@ -22,11 +22,11 @@ import { Alert } from "@/components/ui/alert";
 import {
   BookingFlow,
   BookingFlowStepHead,
+  NotesForCalSection,
   PetAssignment,
   QuantityForm,
   QuotePanel,
 } from "@/features/booking/index.client";
-import { Textarea } from "@/components/ui/textarea";
 import type {
   BookingRuleSettings,
   PublicBusyRange,
@@ -200,24 +200,13 @@ export function EditBookingClient({
         )
       }
       notesSection={
-        <section aria-labelledby="comments-heading">
-          <BookingFlowStepHead
-            num={step4Label}
-            label="Notes for Cal"
-            labelId="comments-heading"
-            hint="optional"
-          />
-          <label htmlFor="edit-comments" className="sr-only">
-            Notes for Cal
-          </label>
-          <Textarea
-            id="edit-comments"
-            value={comments}
-            onChange={(e) => onCommentsChange(e.target.value)}
-            rows={3}
-            placeholder="Anything Cal should know about this visit?"
-          />
-        </section>
+        <NotesForCalSection
+          id="edit-comments"
+          num={step4Label}
+          value={comments}
+          onChange={onCommentsChange}
+          placeholder="Anything Cal should know about this visit?"
+        />
       }
       receipt={
         <section aria-labelledby="receipt-heading" aria-live="polite">

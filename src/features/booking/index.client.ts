@@ -100,6 +100,10 @@ export type {
   BookingSuccessPanelProps,
 } from "./_components/booking-flow";
 
+// NotesForCalSection — shared "Notes for Cal" step (bounded textarea + counter)
+// used by all three booking surfaces.
+export { NotesForCalSection } from "./_components/notes-for-cal-field";
+
 // Other components
 export { PetAssignment } from "./_components/pet-assignment";
 export type { AssignablePet } from "./_components/pet-assignment";

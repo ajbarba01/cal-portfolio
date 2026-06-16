@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
 import { Eyebrow } from "@/components/marketing/eyebrow";
 import { ShimmerCard } from "@/components/ui/shimmer-card";
+import { FIELD_LIMITS } from "@/lib/field-limits";
 import type { FormKey } from "@/features/accounts/form-registry";
 import type { ActionResult } from "@/features/accounts/account-actions";
 
@@ -54,6 +55,7 @@ function EmergencyFields({
           label="Contact name"
           name="contact_name"
           type="text"
+          maxLength={FIELD_LIMITS.name}
           value={values.contact_name}
           onChange={handle}
           required
@@ -64,6 +66,7 @@ function EmergencyFields({
             label="Contact phone"
             name="contact_phone"
             type="tel"
+            maxLength={FIELD_LIMITS.phone}
             value={values.contact_phone}
             onChange={handle}
             required
@@ -74,6 +77,7 @@ function EmergencyFields({
             name="contact_relationship"
             type="text"
             placeholder="e.g. Parent, Spouse, Friend"
+            maxLength={FIELD_LIMITS.relationship}
             value={values.contact_relationship}
             onChange={handle}
             required
@@ -89,6 +93,7 @@ function EmergencyFields({
             label="Vet name or clinic"
             name="vet_name"
             type="text"
+            maxLength={FIELD_LIMITS.name}
             value={values.vet_name}
             onChange={handle}
             required
@@ -98,6 +103,7 @@ function EmergencyFields({
             label="Vet phone"
             name="vet_phone"
             type="tel"
+            maxLength={FIELD_LIMITS.phone}
             value={values.vet_phone}
             onChange={handle}
             required
