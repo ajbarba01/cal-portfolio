@@ -18,7 +18,7 @@ import { CalendarDays, List } from "lucide-react";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { BackToTop } from "@/components/ui/back-to-top";
 import { Badge } from "@/components/ui/badge";
-import { CardShimmer } from "@/components/effects/card-shimmer";
+import { Surface } from "@/components/ui/surface";
 import { Multiswitch } from "@/components/ui/multiswitch";
 import { Pagination } from "@/components/ui/pagination";
 import { ResultCount } from "@/components/ui/result-count";
@@ -254,8 +254,7 @@ function BookingCard({
       : null;
 
   return (
-    <li className="group bg-card border-border relative rounded-2xl border px-4 py-3 text-sm">
-      <CardShimmer />
+    <Surface as="li" variant="emphasis" className="px-4 py-3 text-sm">
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-foreground font-semibold">
           {booking.service_name}
@@ -290,7 +289,7 @@ function BookingCard({
           cancellationFullRefundHours={cancellationFullRefundHours}
         />
       </div>
-    </li>
+    </Surface>
   );
 }
 
