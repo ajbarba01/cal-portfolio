@@ -14,7 +14,8 @@ import type { FormResponseRow, PetRef } from "../page";
 
 interface FormsClientProps {
   owner: FormResponseRow | undefined;
-  home: FormResponseRow | undefined;
+  homeAccess: FormResponseRow | undefined;
+  homeSitting: FormResponseRow | undefined;
   pets: PetRef[];
   petResponses: Record<string, FormResponseRow>;
   acceptedAuthVersion: string | null;
@@ -23,7 +24,8 @@ interface FormsClientProps {
 
 export function FormsClient({
   owner,
-  home,
+  homeAccess,
+  homeSitting,
   pets,
   petResponses,
   acceptedAuthVersion,
@@ -52,7 +54,16 @@ export function FormsClient({
           onSubmit={submitForm}
           auth={ownerAuth}
         />
-        <FormCard formKey="home" existing={home} onSubmit={submitForm} />
+        <FormCard
+          formKey="home_access"
+          existing={homeAccess}
+          onSubmit={submitForm}
+        />
+        <FormCard
+          formKey="home_sitting"
+          existing={homeSitting}
+          onSubmit={submitForm}
+        />
       </section>
 
       <section className="flex flex-col gap-4">
@@ -63,14 +74,24 @@ export function FormsClient({
           </p>
         ) : (
           pets.map((pet) => (
-            <FormCard
-              key={pet.id}
-              formKey="pet"
-              petId={pet.id}
-              title={`${pet.name} — care details`}
-              existing={petResponses[pet.id]}
-              onSubmit={submitForm}
-            />
+            <div key={pet.id} className="flex flex-col gap-2">
+              <FormCard
+                formKey="pet_care"
+                petId={pet.id}
+                title={`${pet.name} — care details`}
+                existing={petResponses[`pet_care:${pet.id}`]}
+                onSubmit={submitForm}
+              />
+              {pet.species === "dog" && (
+                <FormCard
+                  formKey="pet_walk"
+                  petId={pet.id}
+                  title={`${pet.name} — walks & outings`}
+                  existing={petResponses[`pet_walk:${pet.id}`]}
+                  onSubmit={submitForm}
+                />
+              )}
+            </div>
           ))
         )}
       </section>

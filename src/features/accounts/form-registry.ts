@@ -1,8 +1,10 @@
 import { type ZodSchema } from "zod";
 import { emergencySchema } from "./emergency-schema";
 import { ownerSchema } from "./owner-schema";
-import { homeSchema } from "./home-schema";
-import { petFormSchema } from "./pet-form-schema";
+import { homeAccessSchema } from "./home-access-schema";
+import { homeSittingSchema } from "./home-sitting-schema";
+import { petCareSchema } from "./pet-care-schema";
+import { petWalkSchema } from "./pet-walk-schema";
 
 /**
  * Entity-scoped intake forms. `scope` decides whether a response is keyed to the
@@ -13,6 +15,10 @@ import { petFormSchema } from "./pet-form-schema";
  * `emergency` is legacy (the original single-form gate). It is superseded by
  * `owner` but kept registered so existing rows still validate if edited; it is
  * no longer a required profile and is not surfaced on the profiles page.
+ *
+ * `home` and `pet` are legacy DB keys kept in the registry so existing rows
+ * can still be found and edited. They are no longer surfaced on the profiles
+ * page; new rows use `home_access`, `home_sitting`, `pet_care`, `pet_walk`.
  */
 export type FormScope = "account" | "pet";
 
@@ -34,15 +40,25 @@ export const formRegistry = {
     scope: "account",
     title: "Owner & emergency contacts",
   },
-  home: {
-    schema: homeSchema,
+  home_access: {
+    schema: homeAccessSchema,
     scope: "account",
-    title: "Home access & care",
+    title: "Home access",
   },
-  pet: {
-    schema: petFormSchema,
+  home_sitting: {
+    schema: homeSittingSchema,
+    scope: "account",
+    title: "Staying over",
+  },
+  pet_care: {
+    schema: petCareSchema,
     scope: "pet",
     title: "Pet care details",
+  },
+  pet_walk: {
+    schema: petWalkSchema,
+    scope: "pet",
+    title: "Walks & outings",
   },
 } satisfies Record<string, FormRegistryEntry>;
 

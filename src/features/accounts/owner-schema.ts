@@ -54,6 +54,9 @@ export const ownerSchema = z.object({
   emergency2_phone: optionalPhone,
   emergency2_relationship: z.string().max(FIELD_LIMITS.relationship).optional(),
   emergency2_address: z.string().max(FIELD_LIMITS.addressLine).optional(),
+
+  // ── Catch-all ────────────────────────────────────────────────────────────────
+  additional_notes: z.string().max(FIELD_LIMITS.note).optional(),
 });
 
 export type OwnerInput = z.infer<typeof ownerSchema>;
