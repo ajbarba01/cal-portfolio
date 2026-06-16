@@ -37,7 +37,7 @@ export type {
 export type {
   RequirementItem,
   RequirementStatus,
-  ProfileKey,
+  RequiredFormKey,
 } from "./required-profiles";
 
 // booking-repository (types only — repo factory is server-only surface)

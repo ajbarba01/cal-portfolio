@@ -15,19 +15,47 @@
 
 import type { PricingType } from "@/features/pricing";
 
-export type ProfileKey = "owner" | "home" | "pet";
+export type AccountFormKey = "owner" | "home_access" | "home_sitting";
+export type PetFormKey = "pet_care" | "pet_walk";
+export type RequiredFormKey = AccountFormKey | PetFormKey;
+export type PetSpecies = "dog" | "cat";
 
 /**
- * Required profiles per pricing_type. House-sitting needs the home; every paid
- * service needs the owner and per-pet care detail; the meet-and-greet (no pet in
- * the home yet) needs only the owner.
+ * One required form for a service. Account-scoped forms produce a single
+ * requirement; pet-scoped forms produce one requirement per assigned pet that
+ * matches the optional `species` predicate (omitted = any species). pet_walk is
+ * dog-only because its fields — route, leash, off-leash tag — are dog-shaped.
  */
-export const REQUIRED_PROFILES: Record<PricingType, ProfileKey[]> = {
-  house_sitting: ["owner", "home", "pet"],
-  walk: ["owner", "pet"],
-  check_in: ["owner", "pet"],
-  training: ["owner", "pet"],
-  meet_greet: ["owner"],
+export type RequiredForm =
+  | { key: AccountFormKey; scope: "account" }
+  | { key: PetFormKey; scope: "pet"; species?: PetSpecies };
+
+const acct = (key: AccountFormKey): RequiredForm => ({ key, scope: "account" });
+const pet = (key: PetFormKey, species?: PetSpecies): RequiredForm =>
+  species ? { key, scope: "pet", species } : { key, scope: "pet" };
+
+/**
+ * Required forms per pricing_type. A shared owner/home/pet "core" plus thin
+ * service-specific add-ons. Keyed by pricing_type (not schema) so a service can
+ * never mis-declare its required intake.
+ */
+export const REQUIRED_PROFILES: Record<PricingType, RequiredForm[]> = {
+  house_sitting: [
+    acct("owner"),
+    acct("home_access"),
+    acct("home_sitting"),
+    pet("pet_care"),
+    pet("pet_walk", "dog"),
+  ],
+  check_in: [
+    acct("owner"),
+    acct("home_access"),
+    pet("pet_care"),
+    pet("pet_walk", "dog"),
+  ],
+  walk: [acct("owner"), pet("pet_care"), pet("pet_walk", "dog")],
+  training: [acct("owner"), pet("pet_care")],
+  meet_greet: [acct("owner")],
 };
 
 /**
@@ -41,8 +69,8 @@ export const FRESHNESS_WINDOW_DAYS = 180;
 export type RequirementStatus = "complete" | "stale" | "missing";
 
 export interface RequirementItem {
-  profile: ProfileKey;
-  /** Set only for pet-scoped items (one item per assigned pet). */
+  formKey: RequiredFormKey;
+  /** Set only for pet-scoped items (one item per assigned matching pet). */
   petId?: string;
   petName?: string;
   status: RequirementStatus;
@@ -50,14 +78,13 @@ export interface RequirementItem {
 
 export interface RequirementInput {
   pricingType: PricingType;
-  /** Pets assigned to this booking (drives per-pet 'pet' items). */
-  assignedPets: { id: string; name: string }[];
-  /** submitted_at (ISO) by account-scoped key, or null if never submitted. */
-  accountForms: Partial<Record<"owner" | "home", string | null>>;
-  /** submitted_at (ISO) by pet id, or null if never submitted. */
-  petForms: Record<string, string | null>;
+  /** Pets assigned to this booking (drives per-pet items + species filtering). */
+  assignedPets: { id: string; name: string; species: PetSpecies }[];
+  /** submitted_at (ISO) by account form key, or null if never submitted. */
+  accountForms: Partial<Record<AccountFormKey, string | null>>;
+  /** submitted_at (ISO) by pet id, then by pet form key. */
+  petForms: Record<string, Partial<Record<PetFormKey, string | null>>>;
   now: Date;
-  /** Defaults to FRESHNESS_WINDOW_DAYS; injectable for tests/tuning. */
   freshnessWindowDays?: number;
 }
 
@@ -84,26 +111,34 @@ export function bookingRequirements(
   const manifest = REQUIRED_PROFILES[input.pricingType];
   const items: RequirementItem[] = [];
 
-  for (const profile of manifest) {
-    if (profile === "owner" || profile === "home") {
-      items.push({
-        profile,
-        status: statusFor(input.accountForms[profile], input.now, windowDays),
-      });
-      continue;
-    }
+  // Account-scoped forms first, in manifest order.
+  for (const form of manifest) {
+    if (form.scope !== "account") continue;
+    items.push({
+      formKey: form.key,
+      status: statusFor(input.accountForms[form.key], input.now, windowDays),
+    });
+  }
 
-    // pet-scoped: one item per assigned pet. With no pets assigned the gate is
-    // vacuously satisfied for 'pet' — we can't gate a care profile for a pet that
-    // isn't on the booking, and a permanent block would be impossible to clear
-    // for services that don't assign pets. Pet *selection* is enforced separately
-    // by quantity validation, not here.
-    for (const pet of input.assignedPets) {
+  // Pet-scoped: iterate pets outer, matching manifest entries inner, so output
+  // groups all form requirements for a pet together (pet-a's pet_care + pet_walk,
+  // then pet-b's). With no matching pets the gate is vacuously satisfied — pet
+  // selection is enforced separately by quantity validation, not here.
+  const petForms = manifest.filter(
+    (f): f is Extract<RequiredForm, { scope: "pet" }> => f.scope === "pet",
+  );
+  for (const p of input.assignedPets) {
+    for (const form of petForms) {
+      if (form.species && p.species !== form.species) continue;
       items.push({
-        profile: "pet",
-        petId: pet.id,
-        petName: pet.name,
-        status: statusFor(input.petForms[pet.id], input.now, windowDays),
+        formKey: form.key,
+        petId: p.id,
+        petName: p.name,
+        status: statusFor(
+          input.petForms[p.id]?.[form.key],
+          input.now,
+          windowDays,
+        ),
       });
     }
   }

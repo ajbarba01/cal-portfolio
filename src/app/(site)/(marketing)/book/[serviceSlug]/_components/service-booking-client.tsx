@@ -373,11 +373,14 @@ function requirementLabel(
   item: RequirementItem,
   pets: AssignablePet[],
 ): string {
-  if (item.profile === "owner") return "Owner & emergency contacts";
-  if (item.profile === "home") return "Home access & care";
+  if (item.formKey === "owner") return "Owner & emergency contacts";
+  if (item.formKey === "home_access") return "Home access & care";
+  if (item.formKey === "home_sitting") return "Home sitting preferences";
   const name = item.petId
     ? pets.find((p) => p.id === item.petId)?.name
     : undefined;
+  if (item.formKey === "pet_walk")
+    return name ? `${name} — walk preferences` : "Walk preferences";
   return name ? `${name} — care details` : "Pet care details";
 }
 
@@ -419,7 +422,7 @@ function RequirementsGate({
             const done = item.status === "complete";
             return (
               <li
-                key={`${item.profile}:${item.petId ?? "account"}`}
+                key={`${item.formKey}:${item.petId ?? "account"}`}
                 className="flex items-center justify-between gap-3 text-sm"
               >
                 <span className="text-foreground flex items-center gap-2.5">

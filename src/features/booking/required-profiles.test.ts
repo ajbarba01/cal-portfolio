@@ -1,11 +1,3 @@
-/**
- * Unit tests for the pure booking-requirements helper: given a service's
- * pricing_type, the pets assigned to the booking, and the submitted_at of each
- * relevant profile, decide which profiles are complete / stale / missing.
- *
- * Pure (no DB, no clock) — `now` and the freshness window are injected.
- */
-
 import { describe, it, expect } from "vitest";
 import {
   bookingRequirements,
@@ -21,16 +13,42 @@ const daysAgo = (n: number) =>
 const FRESH = daysAgo(10);
 const STALE = daysAgo(FRESHNESS_WINDOW_DAYS + 20);
 
-const PET_A = { id: "pet-a", name: "Rex" };
-const PET_B = { id: "pet-b", name: "Milo" };
+const DOG_A = { id: "pet-a", name: "Rex", species: "dog" as const };
+const DOG_B = { id: "pet-b", name: "Milo", species: "dog" as const };
+const CAT = { id: "pet-c", name: "Luna", species: "cat" as const };
 
 describe("REQUIRED_PROFILES manifest", () => {
-  it("maps every pricing_type", () => {
-    expect(REQUIRED_PROFILES.house_sitting).toEqual(["owner", "home", "pet"]);
-    expect(REQUIRED_PROFILES.walk).toEqual(["owner", "pet"]);
-    expect(REQUIRED_PROFILES.check_in).toEqual(["owner", "pet"]);
-    expect(REQUIRED_PROFILES.training).toEqual(["owner", "pet"]);
-    expect(REQUIRED_PROFILES.meet_greet).toEqual(["owner"]);
+  it("maps every pricing_type to finer form keys", () => {
+    expect(REQUIRED_PROFILES.house_sitting.map((f) => f.key)).toEqual([
+      "owner",
+      "home_access",
+      "home_sitting",
+      "pet_care",
+      "pet_walk",
+    ]);
+    expect(REQUIRED_PROFILES.check_in.map((f) => f.key)).toEqual([
+      "owner",
+      "home_access",
+      "pet_care",
+      "pet_walk",
+    ]);
+    expect(REQUIRED_PROFILES.walk.map((f) => f.key)).toEqual([
+      "owner",
+      "pet_care",
+      "pet_walk",
+    ]);
+    expect(REQUIRED_PROFILES.training.map((f) => f.key)).toEqual([
+      "owner",
+      "pet_care",
+    ]);
+    expect(REQUIRED_PROFILES.meet_greet.map((f) => f.key)).toEqual(["owner"]);
+  });
+
+  it("marks pet_walk as dog-only across every service that requires it", () => {
+    for (const pt of ["house_sitting", "check_in", "walk"] as const) {
+      const walk = REQUIRED_PROFILES[pt].find((f) => f.key === "pet_walk");
+      expect(walk).toMatchObject({ scope: "pet", species: "dog" });
+    }
   });
 });
 
@@ -43,64 +61,86 @@ describe("bookingRequirements", () => {
       petForms: {},
       now: NOW,
     });
-    expect(items).toEqual([{ profile: "owner", status: "complete" }]);
+    expect(items).toEqual([{ formKey: "owner", status: "complete" }]);
   });
 
-  it("marks an account profile missing when never submitted", () => {
-    const items = bookingRequirements({
+  it("marks an account profile missing/stale by submitted_at", () => {
+    const missing = bookingRequirements({
       pricingType: "meet_greet",
       assignedPets: [],
       accountForms: { owner: null },
       petForms: {},
       now: NOW,
     });
-    expect(items).toEqual([{ profile: "owner", status: "missing" }]);
-  });
+    expect(missing).toEqual([{ formKey: "owner", status: "missing" }]);
 
-  it("marks an account profile stale when older than the freshness window", () => {
-    const items = bookingRequirements({
+    const stale = bookingRequirements({
       pricingType: "meet_greet",
       assignedPets: [],
       accountForms: { owner: STALE },
       petForms: {},
       now: NOW,
     });
-    expect(items).toEqual([{ profile: "owner", status: "stale" }]);
+    expect(stale).toEqual([{ formKey: "owner", status: "stale" }]);
   });
 
-  it("house_sitting yields owner + home + one pet item per assigned pet", () => {
+  it("house_sitting yields account forms + per-pet pet_care/pet_walk", () => {
     const items = bookingRequirements({
       pricingType: "house_sitting",
-      assignedPets: [PET_A, PET_B],
-      accountForms: { owner: FRESH, home: FRESH },
-      petForms: { "pet-a": FRESH, "pet-b": null },
+      assignedPets: [DOG_A, DOG_B],
+      accountForms: { owner: FRESH, home_access: FRESH, home_sitting: FRESH },
+      petForms: {
+        "pet-a": { pet_care: FRESH, pet_walk: FRESH },
+        "pet-b": { pet_care: null, pet_walk: STALE },
+      },
       now: NOW,
     });
     expect(items).toEqual([
-      { profile: "owner", status: "complete" },
-      { profile: "home", status: "complete" },
-      { profile: "pet", petId: "pet-a", petName: "Rex", status: "complete" },
-      { profile: "pet", petId: "pet-b", petName: "Milo", status: "missing" },
+      { formKey: "owner", status: "complete" },
+      { formKey: "home_access", status: "complete" },
+      { formKey: "home_sitting", status: "complete" },
+      {
+        formKey: "pet_care",
+        petId: "pet-a",
+        petName: "Rex",
+        status: "complete",
+      },
+      {
+        formKey: "pet_walk",
+        petId: "pet-a",
+        petName: "Rex",
+        status: "complete",
+      },
+      {
+        formKey: "pet_care",
+        petId: "pet-b",
+        petName: "Milo",
+        status: "missing",
+      },
+      { formKey: "pet_walk", petId: "pet-b", petName: "Milo", status: "stale" },
     ]);
   });
 
-  it("flags a stale pet profile per pet", () => {
+  it("skips pet_walk for cats (dog-only predicate) but keeps pet_care", () => {
     const items = bookingRequirements({
-      pricingType: "walk",
-      assignedPets: [PET_A],
-      accountForms: { owner: FRESH },
-      petForms: { "pet-a": STALE },
+      pricingType: "house_sitting",
+      assignedPets: [CAT],
+      accountForms: { owner: FRESH, home_access: FRESH, home_sitting: FRESH },
+      petForms: { "pet-c": { pet_care: FRESH } },
       now: NOW,
     });
-    expect(items).toContainEqual({
-      profile: "pet",
-      petId: "pet-a",
-      petName: "Rex",
-      status: "stale",
-    });
+    const catItems = items.filter((i) => i.petId === "pet-c");
+    expect(catItems).toEqual([
+      {
+        formKey: "pet_care",
+        petId: "pet-c",
+        petName: "Luna",
+        status: "complete",
+      },
+    ]);
   });
 
-  it("treats a pet requirement as vacuous when no pets are assigned (gate not permanently blockable; pet selection enforced elsewhere)", () => {
+  it("treats pet requirements as vacuous when no pets are assigned", () => {
     const items = bookingRequirements({
       pricingType: "walk",
       assignedPets: [],
@@ -108,13 +148,12 @@ describe("bookingRequirements", () => {
       petForms: {},
       now: NOW,
     });
-    // owner only; no pet item emitted, so the gate passes once owner is complete.
-    expect(items).toEqual([{ profile: "owner", status: "complete" }]);
+    expect(items).toEqual([{ formKey: "owner", status: "complete" }]);
     expect(requirementsSatisfied(items)).toBe(true);
   });
 
   it("treats a submission exactly at the window edge as still complete", () => {
-    const justInside = daysAgo(FRESHNESS_WINDOW_DAYS); // age == window, not > window
+    const justInside = daysAgo(FRESHNESS_WINDOW_DAYS);
     const items = bookingRequirements({
       pricingType: "meet_greet",
       assignedPets: [],
@@ -130,21 +169,15 @@ describe("requirementsSatisfied", () => {
   it("is true only when every item is complete", () => {
     expect(
       requirementsSatisfied([
-        { profile: "owner", status: "complete" },
-        { profile: "home", status: "complete" },
+        { formKey: "owner", status: "complete" },
+        { formKey: "home_access", status: "complete" },
       ]),
     ).toBe(true);
-  });
-
-  it("is false when any item is stale or missing", () => {
     expect(
       requirementsSatisfied([
-        { profile: "owner", status: "complete" },
-        { profile: "home", status: "stale" },
+        { formKey: "owner", status: "complete" },
+        { formKey: "home_access", status: "stale" },
       ]),
-    ).toBe(false);
-    expect(
-      requirementsSatisfied([{ profile: "owner", status: "missing" }]),
     ).toBe(false);
   });
 });
