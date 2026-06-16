@@ -17,7 +17,10 @@ import {
   runUpdatePet,
   runDeletePet,
   runSubmitForm,
+  runConfirmForm,
+  runAcceptAuthorization,
 } from "./account-actions";
+import { EXPENSE_AUTH_KIND, EXPENSE_AUTH_VERSION } from "./authorizations";
 
 const url = process.env.SUPABASE_TEST_URL!;
 const serviceKey = process.env.SUPABASE_TEST_SERVICE_ROLE_KEY!;
@@ -362,6 +365,196 @@ describe("submitForm", () => {
       vet_phone: "303-555-0301",
     });
 
+    expect(result.kind).toBe("validation_error");
+  });
+});
+
+// ─── 6. Pet-scoped forms ──────────────────────────────────────────────────────
+
+describe("runSubmitForm — pet scope", () => {
+  let petA: string;
+  let petB: string;
+
+  beforeAll(async () => {
+    const { data } = await serviceClient
+      .from("pets")
+      .insert([
+        { client_id: userId, name: "Rex", species: "dog" },
+        { client_id: userId, name: "Milo", species: "dog" },
+      ])
+      .select("id");
+    petA = data![0].id as string;
+    petB = data![1].id as string;
+  });
+
+  afterAll(async () => {
+    await serviceClient.from("form_responses").delete().eq("client_id", userId);
+    await serviceClient.from("pets").delete().eq("client_id", userId);
+  });
+
+  it("inserts a pet-scoped row carrying pet_id", async () => {
+    const result = await runSubmitForm(
+      sessionClient1,
+      userId,
+      "pet",
+      { feeding_schedule: "Twice daily" },
+      petA,
+    );
+    expect(result.kind).toBe("success");
+
+    const { data: rows } = await serviceClient
+      .from("form_responses")
+      .select("id, pet_id, data")
+      .eq("client_id", userId)
+      .eq("form_key", "pet");
+    expect(rows).toHaveLength(1);
+    expect(rows?.[0].pet_id).toBe(petA);
+  });
+
+  it("upserts the same pet's row in place (one row per pet)", async () => {
+    await runSubmitForm(
+      sessionClient1,
+      userId,
+      "pet",
+      { feeding_schedule: "Three times daily" },
+      petA,
+    );
+    const { data: rows } = await serviceClient
+      .from("form_responses")
+      .select("id, data")
+      .eq("client_id", userId)
+      .eq("form_key", "pet")
+      .eq("pet_id", petA);
+    expect(rows).toHaveLength(1);
+    expect(rows?.[0].data).toMatchObject({
+      feeding_schedule: "Three times daily",
+    });
+  });
+
+  it("keeps a separate row per pet", async () => {
+    await runSubmitForm(
+      sessionClient1,
+      userId,
+      "pet",
+      { feeding_schedule: "Once daily" },
+      petB,
+    );
+    const { data: rows } = await serviceClient
+      .from("form_responses")
+      .select("pet_id")
+      .eq("client_id", userId)
+      .eq("form_key", "pet");
+    expect(rows).toHaveLength(2);
+  });
+
+  it("rejects a pet-scoped form without a pet", async () => {
+    const result = await runSubmitForm(sessionClient1, userId, "pet", {
+      feeding_schedule: "x",
+    });
+    expect(result.kind).toBe("validation_error");
+  });
+
+  it("rejects an account-scoped form targeting a pet", async () => {
+    const result = await runSubmitForm(
+      sessionClient1,
+      userId,
+      "home",
+      { address: "1 St", entry_instructions: "Key" },
+      petA,
+    );
+    expect(result.kind).toBe("validation_error");
+  });
+
+  it("rejects a pet the caller does not own", async () => {
+    const { data: otherPet } = await serviceClient
+      .from("pets")
+      .insert({ client_id: userId2, name: "Notyours", species: "dog" })
+      .select("id")
+      .single();
+    const result = await runSubmitForm(
+      sessionClient1,
+      userId,
+      "pet",
+      { feeding_schedule: "x" },
+      otherPet!.id as string,
+    );
+    expect(result.kind).toBe("validation_error");
+    await serviceClient.from("pets").delete().eq("id", otherPet!.id);
+  });
+
+  it("confirmForm bumps submitted_at without changing data", async () => {
+    const { data: before } = await serviceClient
+      .from("form_responses")
+      .select("submitted_at, data")
+      .eq("client_id", userId)
+      .eq("form_key", "pet")
+      .eq("pet_id", petB)
+      .single();
+
+    await new Promise((r) => setTimeout(r, 10));
+    const result = await runConfirmForm(sessionClient1, userId, "pet", petB);
+    expect(result.kind).toBe("success");
+
+    const { data: after } = await serviceClient
+      .from("form_responses")
+      .select("submitted_at, data")
+      .eq("client_id", userId)
+      .eq("form_key", "pet")
+      .eq("pet_id", petB)
+      .single();
+    expect(new Date(after!.submitted_at).getTime()).toBeGreaterThan(
+      new Date(before!.submitted_at).getTime(),
+    );
+    expect(after!.data).toEqual(before!.data);
+  });
+});
+
+// ─── 7. Expense-authorization e-sign ──────────────────────────────────────────
+
+describe("runAcceptAuthorization", () => {
+  afterAll(async () => {
+    await serviceClient.from("authorizations").delete().eq("client_id", userId);
+  });
+
+  it("appends an immutable authorization row", async () => {
+    const result = await runAcceptAuthorization(sessionClient1, userId, {
+      kind: EXPENSE_AUTH_KIND,
+      version: EXPENSE_AUTH_VERSION,
+      acceptedName: "Cal Barba",
+    });
+    expect(result.kind).toBe("success");
+
+    const { data: rows } = await serviceClient
+      .from("authorizations")
+      .select("kind, version, accepted_name")
+      .eq("client_id", userId);
+    expect(rows).toHaveLength(1);
+    expect(rows?.[0]).toMatchObject({
+      kind: EXPENSE_AUTH_KIND,
+      version: EXPENSE_AUTH_VERSION,
+      accepted_name: "Cal Barba",
+    });
+  });
+
+  it("appends (never overwrites) on a second acceptance", async () => {
+    await runAcceptAuthorization(sessionClient1, userId, {
+      kind: EXPENSE_AUTH_KIND,
+      version: "2027-01-01",
+      acceptedName: "Cal Barba",
+    });
+    const { data: rows } = await serviceClient
+      .from("authorizations")
+      .select("version")
+      .eq("client_id", userId);
+    expect(rows).toHaveLength(2);
+  });
+
+  it("rejects an empty typed name", async () => {
+    const result = await runAcceptAuthorization(sessionClient1, userId, {
+      kind: EXPENSE_AUTH_KIND,
+      version: EXPENSE_AUTH_VERSION,
+      acceptedName: "   ",
+    });
     expect(result.kind).toBe("validation_error");
   });
 });

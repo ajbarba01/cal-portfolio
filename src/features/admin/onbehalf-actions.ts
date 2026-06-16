@@ -193,21 +193,36 @@ export async function adminSubmitFormCore(
   clientId: string,
   formKey: FormKey,
   data: unknown,
+  petId: string | null = null,
 ): Promise<AdminActionResult> {
   // SECURITY: admin check precedes every write.
   if (!(await assertActorIsAdmin(deps.serviceClient, deps.actorUserId))) {
     return { kind: "forbidden" };
   }
 
-  const schema = formRegistry[formKey];
-  if (!schema) {
+  const entry = formRegistry[formKey];
+  if (!entry) {
     return {
       kind: "validation_error",
       message: `Unknown form key: ${String(formKey)}`,
     };
   }
 
-  const parsed = schema.safeParse(data);
+  // Scope/petId coherence (mirrors runSubmitForm).
+  if (entry.scope === "pet" && !petId) {
+    return {
+      kind: "validation_error",
+      message: `Form '${formKey}' is pet-scoped and requires a pet.`,
+    };
+  }
+  if (entry.scope === "account" && petId) {
+    return {
+      kind: "validation_error",
+      message: `Form '${formKey}' is account-scoped and cannot target a pet.`,
+    };
+  }
+
+  const parsed = entry.schema.safeParse(data);
   if (!parsed.success) {
     return {
       kind: "validation_error",
@@ -215,13 +230,33 @@ export async function adminSubmitFormCore(
     };
   }
 
-  // Check for an existing row for this client + form_key.
-  const { data: existing, error: selectError } = await deps.serviceClient
+  // For pet-scoped forms, confirm the pet belongs to the TARGET client.
+  if (petId) {
+    const { data: pet, error: petError } = await deps.serviceClient
+      .from("pets")
+      .select("id")
+      .eq("id", petId)
+      .eq("client_id", clientId)
+      .maybeSingle();
+    if (petError) {
+      return { kind: "error", message: petError.message };
+    }
+    if (!pet) {
+      return { kind: "validation_error", message: "Pet not found." };
+    }
+  }
+
+  // Existing row for this (client, form_key, pet) scope. pet_id null → `.is`.
+  let selectQuery = deps.serviceClient
     .from("form_responses")
     .select("id")
     .eq("client_id", clientId)
-    .eq("form_key", formKey)
-    .maybeSingle();
+    .eq("form_key", formKey);
+  selectQuery = petId
+    ? selectQuery.eq("pet_id", petId)
+    : selectQuery.is("pet_id", null);
+  const { data: existing, error: selectError } =
+    await selectQuery.maybeSingle();
 
   if (selectError) {
     return { kind: "error", message: selectError.message };
@@ -245,6 +280,7 @@ export async function adminSubmitFormCore(
       // SECURITY: pinned to the target clientId, NOT the actor's id.
       client_id: clientId,
       form_key: formKey,
+      pet_id: petId,
       booking_id: null,
       data: parsed.data,
     });
@@ -261,6 +297,7 @@ export async function adminSubmitForm(
   clientId: string,
   formKey: FormKey,
   data: unknown,
+  petId: string | null = null,
 ): Promise<AdminActionResult> {
   const actorUserId = await getActorOrRedirect();
   const serviceClient = createServiceClient();
@@ -269,6 +306,7 @@ export async function adminSubmitForm(
     clientId,
     formKey,
     data,
+    petId,
   );
   if (result.kind === "success") revalidatePath(`/admin/clients/${clientId}`);
   return result;

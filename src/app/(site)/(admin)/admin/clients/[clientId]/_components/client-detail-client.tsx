@@ -328,24 +328,31 @@ export function ClientDetailClient({ client }: { client: ClientDetailView }) {
           <p className="text-muted-foreground text-sm">No forms on file.</p>
         ) : (
           <div className="flex flex-col gap-2">
-            {client.forms.map((form) => (
-              <FormCard
-                key={form.id}
-                formKey={form.form_key as FormKey}
-                existing={{ data: form.data as Record<string, unknown> }}
-                onSubmit={async (fk, vals) => {
-                  const r = await adminSubmitForm(client.id, fk, vals);
-                  if (r.kind === "forbidden") {
-                    return { kind: "error", message: "Not allowed" };
-                  }
-                  if (r.kind === "success") {
-                    router.refresh();
-                    return { kind: "success" };
-                  }
-                  return r;
-                }}
-              />
-            ))}
+            {client.forms.map((form) => {
+              const petName = form.pet_id
+                ? client.pets.find((p) => p.id === form.pet_id)?.name
+                : undefined;
+              return (
+                <FormCard
+                  key={form.id}
+                  formKey={form.form_key as FormKey}
+                  petId={form.pet_id}
+                  title={petName ? `${petName} — care details` : undefined}
+                  existing={{ data: form.data as Record<string, unknown> }}
+                  onSubmit={async (fk, vals, pid) => {
+                    const r = await adminSubmitForm(client.id, fk, vals, pid);
+                    if (r.kind === "forbidden") {
+                      return { kind: "error", message: "Not allowed" };
+                    }
+                    if (r.kind === "success") {
+                      router.refresh();
+                      return { kind: "success" };
+                    }
+                    return r;
+                  }}
+                />
+              );
+            })}
           </div>
         )}
       </Surface>

@@ -6,6 +6,7 @@ import type { BookingStatusDb } from "./booking-repository";
 import type { MutationPolicy } from "./mutation-policy";
 import { CLIENT_POLICY } from "./mutation-policy";
 import { transition } from "./state-machine";
+import type { RequirementItem } from "./required-profiles";
 import {
   computeBookingArtifacts,
   toRuleSettings,
@@ -26,7 +27,7 @@ export type CreateBookingResult =
   | { kind: "unavailable"; reason: string }
   | { kind: "blocked_debt"; owedCents: number }
   | { kind: "onboarding_incomplete" }
-  | { kind: "forms_incomplete" }
+  | { kind: "profiles_incomplete"; requirements: RequirementItem[] }
   | { kind: "validation_error"; message: string }
   | { kind: "error"; message: string };
 
@@ -75,8 +76,8 @@ export async function createBookingCore(
   if (result.kind === "onboarding_incomplete") {
     return { kind: "onboarding_incomplete" };
   }
-  if (result.kind === "forms_incomplete") {
-    return { kind: "forms_incomplete" };
+  if (result.kind === "profiles_incomplete") {
+    return { kind: "profiles_incomplete", requirements: result.requirements };
   }
 
   const { repo, now } = deps;

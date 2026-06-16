@@ -311,11 +311,11 @@ export function useEditBooking({
           );
           setBlocked(true);
           break;
-        case "forms_incomplete":
+        case "profiles_incomplete":
           setQuote(null);
           setApprovalWillReReview(false);
           setErrorMsg(
-            "Finish your required forms before changing this booking — see Account → Forms.",
+            "Complete your required profiles before changing this booking — see Account → Profiles.",
           );
           setBlocked(true);
           break;
@@ -374,11 +374,11 @@ export function useEditBooking({
           // Transient: user should pick a different slot, not permanently blocked.
           setErrorMsg("That time was just taken. Please pick another slot.");
           break;
-        case "forms_incomplete":
+        case "profiles_incomplete":
           toast.add({
-            title: "Forms required",
+            title: "Profiles required",
             description:
-              "Finish your required forms before changing this booking — see Account → Forms.",
+              "Complete your required profiles before changing this booking — see Account → Profiles.",
             type: "error",
           });
           break;

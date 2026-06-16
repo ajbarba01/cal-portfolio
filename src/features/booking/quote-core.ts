@@ -10,6 +10,7 @@ import {
   type BookingServiceDeps,
   type CreateBookingInput,
 } from "./booking-service-shared";
+import type { RequirementItem } from "./required-profiles";
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Result types
@@ -42,7 +43,7 @@ export type PreviewResult =
   | { kind: "refuse"; reason: string }
   | { kind: "blocked_debt"; owedCents: number }
   | { kind: "onboarding_incomplete" }
-  | { kind: "forms_incomplete" }
+  | { kind: "profiles_incomplete"; requirements: RequirementItem[] }
   | { kind: "validation_error"; message: string }
   | { kind: "error"; message: string };
 

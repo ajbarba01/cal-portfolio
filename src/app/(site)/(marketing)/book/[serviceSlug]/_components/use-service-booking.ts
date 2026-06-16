@@ -43,6 +43,7 @@ import type {
   validateStayRange,
 } from "@/features/booking/index.client";
 import type { Pet } from "@/features/accounts";
+import type { RequirementItem } from "@/features/booking/index.client";
 import { useToast } from "@/components/feedback/toast";
 import type { DateRange } from "@/components/ui/calendar";
 import {
@@ -113,11 +114,13 @@ export interface UseServiceBookingReturn {
   quote: BookingQuotePreview | null;
   previewMsg: UserMessage | null;
   /**
-   * True when the server returned forms_incomplete — the client is authenticated
-   * and ready but hasn't submitted a required form. Renders a calm gate card
-   * instead of the price box.
+   * True when the server returned profiles_incomplete — the client is ready but
+   * one or more required profiles are missing/stale. Renders the requirements
+   * gate instead of the price box.
    */
   formsIncomplete: boolean;
+  /** The unmet (and met) profile requirements backing the gate checklist. */
+  profileRequirements: RequirementItem[] | null;
   isPreviewing: boolean;
   isSubmitting: boolean;
   submitDone: boolean;
@@ -212,6 +215,9 @@ export function useServiceBooking({
   const [kicheWelcome, setKicheWelcome] = useState(true);
   const [previewMsg, setPreviewMsg] = useState<UserMessage | null>(null);
   const [formsIncomplete, setFormsIncomplete] = useState(false);
+  const [profileRequirements, setProfileRequirements] = useState<
+    RequirementItem[] | null
+  >(null);
   // U1: success snapshot — non-null is the flow's terminal state.
   const [success, setSuccess] = useState<BookingSuccessInfo | null>(null);
   const submitDone = success !== null;
@@ -282,13 +288,15 @@ export function useServiceBooking({
     canQuoteRef.current = hasSelection && petsOk && authState === "ready";
     runPreviewRef.current = async () => {
       const result = await previewQuote(buildSelectionInput());
-      if (result.kind === "forms_incomplete") {
+      if (result.kind === "profiles_incomplete") {
         setQuote(null);
         setPreviewMsg(null);
         setFormsIncomplete(true);
+        setProfileRequirements(result.requirements);
         return;
       }
       setFormsIncomplete(false);
+      setProfileRequirements(null);
       const out = previewResultMessage(result);
       if (out.kind === "quote") {
         setQuote(out.preview);
@@ -302,11 +310,13 @@ export function useServiceBooking({
       setQuote(null);
       setPreviewMsg(null);
       setFormsIncomplete(false);
+      setProfileRequirements(null);
     };
     clearOnIdleRef.current = () => {
       setQuote(null);
       setPreviewMsg(null);
       setFormsIncomplete(false);
+      setProfileRequirements(null);
     };
   });
 
@@ -373,6 +383,7 @@ export function useServiceBooking({
     setQuote(null);
     setPreviewMsg(null);
     setFormsIncomplete(false);
+    setProfileRequirements(null);
     setSuccess(null);
     setComments("");
     setKicheWelcome(true);
@@ -435,6 +446,7 @@ export function useServiceBooking({
     quote,
     previewMsg,
     formsIncomplete,
+    profileRequirements,
     isPreviewing,
     isSubmitting,
     submitDone,

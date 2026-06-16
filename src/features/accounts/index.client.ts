@@ -14,7 +14,9 @@ export type {
   FormCardProps,
   FormResponseLike,
   EmergencyFormValues,
+  AuthConfig,
 } from "./_components/form-card";
+export type { FieldValues } from "./_components/profile-fields";
 
 export { PetList } from "./_components/pet-list";
 export type { PetListProps, PetViewLike } from "./_components/pet-list";
@@ -28,12 +30,19 @@ export type { PetFormActions } from "./_components/pet-form";
 
 export {
   submitForm,
+  confirmForm,
+  acceptAuthorization,
   deletePet,
   createPet,
   updatePet,
   updateProfile,
   changePassword,
 } from "./account-actions";
+export {
+  EXPENSE_AUTH_KIND,
+  EXPENSE_AUTH_VERSION,
+  EXPENSE_AUTH_TEXT,
+} from "./authorizations";
 export type {
   Pet,
   PetInput,
