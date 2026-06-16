@@ -80,7 +80,7 @@ export function PasswordForm() {
       <div className="flex items-center gap-3">
         <Button
           type="submit"
-          variant="outline"
+          variant="brand"
           disabled={isPending}
           className="self-start"
         >
