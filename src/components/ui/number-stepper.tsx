@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { clampToStep, sanitizeIntInput } from "@/lib/number-input";
 import { cn } from "@/lib/utils";
+import { controlBox } from "@/components/ui/control-variants";
 
 interface NumberStepperProps {
   value: number;
@@ -69,7 +70,12 @@ export function NumberStepper({
   );
 
   return (
-    <div className="border-border bg-card inline-flex h-11 items-center overflow-hidden rounded-lg border">
+    <div
+      className={cn(
+        controlBox.lg,
+        "border-border bg-card inline-flex items-center overflow-hidden border",
+      )}
+    >
       <button
         type="button"
         aria-label={`Decrease ${ariaLabel}`}

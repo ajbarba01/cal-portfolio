@@ -3,6 +3,7 @@
 import * as React from "react";
 
 import { cn } from "@/lib/utils";
+import { controlBox } from "@/components/ui/control-variants";
 
 /**
  * One segment of a {@link Multiswitch}. `tone: "warn"` renders the active state
@@ -89,7 +90,8 @@ export function Multiswitch<T extends string>({
       role="group"
       aria-label={ariaLabel}
       className={cn(
-        "bg-muted border-border relative inline-flex gap-0.5 rounded-lg border p-1",
+        controlBox.md,
+        "bg-muted border-border relative inline-flex items-stretch gap-0.5 border p-1",
         className,
       )}
     >
@@ -126,7 +128,7 @@ export function Multiswitch<T extends string>({
             aria-pressed={isActive}
             onClick={() => onValueChange(opt.value)}
             className={cn(
-              "focus-visible:ring-ring relative z-10 inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-semibold transition-colors focus-visible:ring-2 focus-visible:outline-none",
+              "focus-visible:ring-ring relative z-10 inline-flex items-center gap-1.5 rounded-md px-3 text-sm font-semibold transition-colors focus-visible:ring-2 focus-visible:outline-none",
               isActive && opt.tone === "warn"
                 ? // Lifted surface carries the red once measured; before that the
                   // button does (no-flash / no-JS fallback).
