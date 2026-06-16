@@ -1,45 +1,36 @@
 import * as React from "react";
 
-import { CardShimmer } from "@/components/effects/card-shimmer";
-import { cn } from "@/lib/utils";
+import { Surface } from "@/components/ui/surface";
 
 /**
  * ShimmerCard — the canonical marketing card surface.
  *
- * One source of truth for the outline treatment introduced by the home-page
- * trust cards: the semantic card surface (`bg-card` + `border-border` +
- * `rounded-2xl`) with a hover-revealed {@link CardShimmer} clay ring tracing the
- * edge. Every presentational marketing card (reviews, contact, services, the
- * booking step cards) renders this so the outline stays uniform — no bespoke
- * borders or shadows per card.
+ * Now a thin alias of {@link Surface} `variant="emphasis"` (the clay shimmer
+ * ring). Kept as a named export so the many existing call sites keep working
+ * while the codebase migrates to `<Surface variant="emphasis">` directly; new
+ * code should prefer Surface. Output is identical to the previous hand-rolled
+ * version (same `bg-card`/`border`/`rounded-card`, baked-in {@link CardShimmer},
+ * optional `hoverLift` drop-shadow).
  *
- * Callers own padding and inner layout via `className`. `hoverLift` adds a soft
- * clay drop-shadow that fades in on hover (the individual service cards).
- *
- * The baked-in ring needs a positioned parent; this provides `relative`. `group`
- * is included so inner elements can react to hover (matching the trust cards).
+ * Callers own padding and inner layout via `className`.
  */
 export function ShimmerCard({
-  className,
   hoverLift = false,
+  className,
   children,
   ...props
 }: React.ComponentProps<"div"> & {
-  /** Fade a soft clay drop-shadow in on hover (service cards). */
+  /** Fade a soft clay drop-shadow in on hover (the individual service cards). */
   hoverLift?: boolean;
 }) {
   return (
-    <div
-      className={cn(
-        "group bg-card text-card-foreground border-border relative rounded-2xl border",
-        hoverLift &&
-          "transition-shadow duration-300 ease-out hover:shadow-[0_12px_30px_-16px_rgba(60,40,20,0.45)]",
-        className,
-      )}
+    <Surface
+      variant="emphasis"
+      hoverLift={hoverLift}
+      className={className}
       {...props}
     >
-      <CardShimmer />
       {children}
-    </div>
+    </Surface>
   );
 }

@@ -3,8 +3,9 @@
  *
  * Color + radius live in `src/app/globals.css` as CSS variables (the runtime source of truth,
  * two-layer: primitive palette -> semantic roles). This file holds the **non-color** tokens that
- * are useful in TypeScript (motion, breakpoints, z-index) plus the canonical list of semantic
- * color roles, so code references roles by name rather than hardcoding values.
+ * are useful in TypeScript (motion, breakpoints, z-index, spacing, type, control sizing, elevation)
+ * plus the canonical list of semantic color roles, so code references roles by name rather than
+ * hardcoding values.
  *
  * See docs/FRONTEND.md ("Modular theming"). Project palette/type are finalized in docs/DESIGN.md.
  */
@@ -106,6 +107,44 @@ export const space = {
   stack: "gap-6",
   /** Gap between a label and its form control. */
   field: "gap-1.5",
+} as const;
+
+/**
+ * Control sizing track — the shared size steps every interactive control
+ * (input, select, textarea, multiswitch, number-stepper, and button) references
+ * so a text field, dropdown, and same-size button line up by construction.
+ * `md` is the form-control baseline, `sm` is dense/admin, `lg` is touch.
+ *
+ * Values are the CSS vars in globals.css (the runtime source of truth and the
+ * single swap point when re-theming the system for another site). Consumed in
+ * the shared `controlVariants` cva, never as a raw per-component height.
+ */
+export const control = {
+  height: {
+    sm: "var(--control-h-sm)",
+    md: "var(--control-h-md)",
+    lg: "var(--control-h-lg)",
+  },
+  paddingX: {
+    sm: "var(--control-px-sm)",
+    md: "var(--control-px-md)",
+    lg: "var(--control-px-lg)",
+  },
+  /** All controls share one radius. */
+  radius: "var(--control-radius)",
+} as const;
+
+export type ControlSize = keyof typeof control.height;
+
+/**
+ * Card surface tokens + elevation scale. The `rounded-card`, `shadow-elev-1`
+ * (resting) and `shadow-elev-2` (hover lift) Tailwind utilities resolve to
+ * these (mapped in globals.css `@theme`); listed here for discovery.
+ */
+export const surface = {
+  radius: "var(--card-radius)",
+  padding: "var(--card-pad)",
+  elevation: { rest: "var(--elev-1)", lift: "var(--elev-2)" },
 } as const;
 
 /** Reading measure for long-form/marketing content (also the `.measure` CSS utility). */

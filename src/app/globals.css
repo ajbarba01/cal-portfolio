@@ -73,6 +73,13 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+  /* Component-role radii (one knob each; resolves the card xl/2xl split) →
+     utilities `rounded-control`, `rounded-card`. */
+  --radius-control: var(--control-radius);
+  --radius-card: var(--card-radius);
+  /* Elevation scale → utilities `shadow-elev-1` (resting) / `shadow-elev-2` (hover lift). */
+  --shadow-elev-1: var(--elev-1);
+  --shadow-elev-2: var(--elev-2);
 }
 
 :root {
@@ -122,6 +129,32 @@
   --blue-text-dark: #afc6d6; /* booked foreground + chart on dark */
 
   --radius: 0.375rem;
+
+  /* ── Sizing system (theme-independent; swap to retune density/shape) ──
+     One control track every interactive control references, so a text input,
+     dropdown, and same-size button share height + padding + radius + ring by
+     construction. md is the form-control baseline; sm = dense/admin, lg = touch.
+     Mirrored for discovery in src/lib/design-tokens.ts (`control`, `elevation`). */
+  --control-h-sm: 2rem; /* 32px */
+  --control-h-md: 2.25rem; /* 36px — form-control baseline */
+  --control-h-lg: 2.75rem; /* 44px — touch / prominent */
+  --control-px-sm: 0.5rem; /* 8px */
+  --control-px-md: 0.625rem; /* 10px — matches current input/select px-2.5 */
+  --control-px-lg: 0.75rem; /* 12px */
+  --control-radius: var(
+    --radius
+  ); /* all controls share one radius (= radius-lg) */
+
+  /* Card surface — one radius + padding baseline (resolves the xl/2xl split) */
+  --card-radius: calc(
+    var(--radius) * 1.8
+  ); /* = radius-2xl, the canonical card */
+  --card-pad: 1.25rem; /* 20px (= p-5) */
+
+  /* Elevation — resting depth + the hover lift (generalizes shadow-sm and the
+     ad-hoc clay drop-shadows). Warm-tinted to sit on the sand base. */
+  --elev-1: 0 1px 2px 0 rgb(28 24 19 / 0.06);
+  --elev-2: 0 12px 30px -16px rgb(60 40 20 / 0.45);
 
   /* Scroll reveal (effects/reveal.tsx). Fade-in-on-scroll knobs; mirrors
      motion.reveal in design-tokens.ts. distance = 0 ⇒ pure fade — raise to
