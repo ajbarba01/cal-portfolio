@@ -14,7 +14,7 @@
  */
 export const copy = {
   // Home — src/app/(marketing)/page.tsx
-  "home.hero.hook": "Pet care on the Front Range",
+  "home.hero.hook": "Reliable pet care on the Front Range",
   "home.hero.body":
     "Highly individualized drop-in visits, walks, house sitting, and training from a local animal-lover",
   "home.why.header": "[[HEADER: why-Cal section]]",
@@ -90,6 +90,11 @@ export const copy = {
   "services.pricing.header": "[[HEADER: pricing flexibility section]]",
   "services.pricing.body":
     "[[BODY: pricing accessibility statement and how to ask about it]]",
+  // FAQ — scope question, surfaced where buyers weigh services (moved from resources, 2026-06-15).
+  "services.faq.1.q":
+    "Can you watch my animal at your house?/Can you board my animal?",
+  "services.faq.1.a":
+    "Unfortunately, I'm unable to care for clients' pets in my own home at this time due to housing restrictions and the needs of my own dog. I am, however, happy to take your pup on walks, hikes, and other adventures outside of your home!",
 
   // Reviews — src/app/(marketing)/reviews/page.tsx
   "reviews.purpose": "[[BODY: reviews section purpose]]",
@@ -145,15 +150,6 @@ export const copy = {
   "resources.closing":
     "Please let me know if there are other resources you think I should share. I'm always learning, and I'd love to continue expanding this list with helpful information!",
 
-  // FAQ
-  "resources.faq.1.q":
-    "Can you watch my animal at your house?/Can you board my animal?",
-  "resources.faq.1.a":
-    "Unfortunately, I'm unable to care for clients' pets in my own home at this time due to housing restrictions and the needs of my own dog. I am, however, happy to take your pup on walks, hikes, and other adventures outside of your home!",
-  "resources.faq.2.q": "Will I receive updates while I'm away?",
-  "resources.faq.2.a":
-    "Yes! I'm happy to send updates and photos as often as you'd like. I know it can be difficult to be away from your pets, and I strive to provide clear communication and timely responses throughout your booking.",
-
   // Gallery — src/app/(marketing)/gallery/page.tsx
   "gallery.eyebrow": "[[HEADER: gallery eyebrow]]",
   "gallery.body": "[[BODY: one line about the photos]]",
@@ -165,6 +161,10 @@ export const copy = {
   "contact.intro":
     "Questions about walks, sitting, or whether we're a fit — send a note.",
   "contact.replyNote": "I usually reply within a day.",
+  // FAQ — communication/reassurance question, surfaced beside the contact form (moved from resources, 2026-06-15).
+  "contact.faq.1.q": "Will I receive updates while I'm away?",
+  "contact.faq.1.a":
+    "Yes! I'm happy to send updates and photos as often as you'd like. I know it can be difficult to be away from your pets, and I strive to provide clear communication and timely responses throughout your booking.",
 
   // Footer — src/components/layout/site-footer.tsx
   "footer.tagline": "Dog Walking · House Sitting · Colorado",

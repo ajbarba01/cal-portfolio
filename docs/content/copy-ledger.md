@@ -648,55 +648,33 @@
 - transforms: punctuation — curly apostrophes normalized to straight ASCII (auto-allowed).
 - notes: -
 
-### resources.faq.1.q
+> FAQ relocated by page (2026-06-15): the boarding question moved to the services page (`services.faq.1.*`), the updates question to the contact page (`contact.faq.1.*`). Same Cal-verbatim text; see those IDs below. Entries split by intent so each answer renders where the question arises.
+
+> Dropped placeholders (user-confirmed 2026-06-09, "drop everything but Cal's source"): `resources.1.{name,desc}`, `resources.2.{name,desc}`, `resources.faq.{3,4,5}.{q,a}`, and the hardcoded public-fact entries r3 (Animal Emergency & Referral Center of Northern Colorado) + r4 (ASPCA Poison Control). None had prior ledger entries.
+
+### services.faq.1.q
 
 - status: placed
 - provenance: cal-verbatim
-- consumed-by: src/app/(marketing)/resources/page.tsx
+- consumed-by: src/app/(marketing)/services/page.tsx
 - applied-from: |
   Can you watch my animal at your house?/Can you board my animal?
 - live-text: |
   Can you watch my animal at your house?/Can you board my animal?
 - transforms: none
-- notes: replaced the "[[FAQ 1: question]]" placeholder (no prior ledger entry). Slash kept verbatim (Cal's two-phrasing question).
+- notes: moved from resources.faq.1.q (2026-06-15) — scope question surfaced on the services page. Slash kept verbatim (Cal's two-phrasing question).
 
-### resources.faq.1.a
+### services.faq.1.a
 
 - status: placed
 - provenance: cal-verbatim
-- consumed-by: src/app/(marketing)/resources/page.tsx
+- consumed-by: src/app/(marketing)/services/page.tsx
 - applied-from: |
   Unfortunately, I'm unable to care for clients' pets in my own home at this time due to housing restrictions and the needs of my own dog. I am, however, happy to take your pup on walks, hikes, and other adventures outside of your home!
 - live-text: |
   Unfortunately, I'm unable to care for clients' pets in my own home at this time due to housing restrictions and the needs of my own dog. I am, however, happy to take your pup on walks, hikes, and other adventures outside of your home!
 - transforms: punctuation — curly apostrophes normalized to straight ASCII (auto-allowed).
-- notes: -
-
-### resources.faq.2.q
-
-- status: placed
-- provenance: cal-verbatim
-- consumed-by: src/app/(marketing)/resources/page.tsx
-- applied-from: |
-  Will I receive updates while I'm away?
-- live-text: |
-  Will I receive updates while I'm away?
-- transforms: punctuation — curly apostrophe normalized to straight ASCII (auto-allowed).
-- notes: replaced the "[[FAQ 2: question]]" placeholder (no prior ledger entry).
-
-### resources.faq.2.a
-
-- status: placed
-- provenance: cal-verbatim
-- consumed-by: src/app/(marketing)/resources/page.tsx
-- applied-from: |
-  Yes! I'm happy to send updates and photos as often as you'd like. I know it can be difficult to be away from your pets, and I strive to provide clear communication and timely responses throughout your booking.
-- live-text: |
-  Yes! I'm happy to send updates and photos as often as you'd like. I know it can be difficult to be away from your pets, and I strive to provide clear communication and timely responses throughout your booking.
-- transforms: punctuation — curly apostrophes normalized to straight ASCII (auto-allowed).
-- notes: -
-
-> Dropped placeholders (user-confirmed 2026-06-09, "drop everything but Cal's source"): `resources.1.{name,desc}`, `resources.2.{name,desc}`, `resources.faq.{3,4,5}.{q,a}`, and the hardcoded public-fact entries r3 (Animal Emergency & Referral Center of Northern Colorado) + r4 (ASPCA Poison Control). None had prior ledger entries.
+- notes: moved from resources.faq.1.a (2026-06-15).
 
 ### contact.header
 
@@ -709,6 +687,30 @@
   Contact Me
 - transforms: none
 - notes: replaced the "[[HEADER: Contact]]" placeholder (no prior ledger entry).
+
+### contact.faq.1.q
+
+- status: placed
+- provenance: cal-verbatim
+- consumed-by: src/app/(marketing)/contact/page.tsx
+- applied-from: |
+  Will I receive updates while I'm away?
+- live-text: |
+  Will I receive updates while I'm away?
+- transforms: punctuation — curly apostrophe normalized to straight ASCII (auto-allowed).
+- notes: moved from resources.faq.2.q (2026-06-15) — updates/communication question surfaced beside the contact form.
+
+### contact.faq.1.a
+
+- status: placed
+- provenance: cal-verbatim
+- consumed-by: src/app/(marketing)/contact/page.tsx
+- applied-from: |
+  Yes! I'm happy to send updates and photos as often as you'd like. I know it can be difficult to be away from your pets, and I strive to provide clear communication and timely responses throughout your booking.
+- live-text: |
+  Yes! I'm happy to send updates and photos as often as you'd like. I know it can be difficult to be away from your pets, and I strive to provide clear communication and timely responses throughout your booking.
+- transforms: punctuation — curly apostrophes normalized to straight ASCII (auto-allowed).
+- notes: moved from resources.faq.2.a (2026-06-15).
 
 ### contact.subtitle
 

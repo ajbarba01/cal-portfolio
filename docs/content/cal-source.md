@@ -336,28 +336,20 @@ Raw food
 Please let me know if there are other resources you think I should share. I'm always learning, and I'd love to continue expanding this list with helpful information!
 ```
 
-### resources.faq.1.q
+## Services page
+
+> FAQ moved from the resources page (2026-06-15): a scope question belongs where buyers weigh services. Same Cal-verbatim text.
+
+### services.faq.1.q
 
 ```
 Can you watch my animal at your house?/Can you board my animal?
 ```
 
-### resources.faq.1.a
+### services.faq.1.a
 
 ```
 Unfortunately, I'm unable to care for clients' pets in my own home at this time due to housing restrictions and the needs of my own dog. I am, however, happy to take your pup on walks, hikes, and other adventures outside of your home!
-```
-
-### resources.faq.2.q
-
-```
-Will I receive updates while I'm away?
-```
-
-### resources.faq.2.a
-
-```
-Yes! I'm happy to send updates and photos as often as you'd like. I know it can be difficult to be away from your pets, and I strive to provide clear communication and timely responses throughout your booking.
 ```
 
 ## Contact page
@@ -369,3 +361,17 @@ Contact Me
 ```
 
 > Cal's directive (not copy, no slot): for the contact subtitle/body — "actually i don't think we need this". Subtitle dropped, header + contact form retained (user-confirmed 2026-06-09).
+
+> FAQ moved from the resources page (2026-06-15): the updates/communication question belongs beside the contact form. Same Cal-verbatim text.
+
+### contact.faq.1.q
+
+```
+Will I receive updates while I'm away?
+```
+
+### contact.faq.1.a
+
+```
+Yes! I'm happy to send updates and photos as often as you'd like. I know it can be difficult to be away from your pets, and I strive to provide clear communication and timely responses throughout your booking.
+```

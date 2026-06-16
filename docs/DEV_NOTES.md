@@ -1,11 +1,19 @@
 ## now
 
-- dropdowns should be same height as search bar and should start below the current selected box
-- allow some sections to ease in by scroll height not altogether? or remove sections for like gallery and resources and other long sections
 - hero images should also ease in on load (?)
-- services still need a longer description inside their page.
 - word count/character count for pretty much any user input.
-- FAQ should probably live in services or contact
+- kiche discount
+- booking details redesign
+- paw print effect
+- enter site page
+- onboarding styling: why is there page below the footer, the page width changes from step to 1 to 2
+
+## Notes for the future
+
+- make more skills! (skills for frontend design in your project, etc...)
+- components need to be standardized and similar components need to use the same styles
+- components should have clear categorizations for when they should be used.
+- mockups should maybe be grained in the site, with some sort of skill system for creating mockups that can use the actual components and effects of the site.
 
 # Dev notes — capture inbox
 
