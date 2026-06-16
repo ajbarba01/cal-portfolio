@@ -398,7 +398,9 @@ export function useServiceBooking({
   }
 
   function handlePetAdded(pet: Pet) {
-    setSelectedPetIds((prev) => [...prev, pet.id]);
+    // Respect the per-service cap: single-select services (training) replace the
+    // selection rather than appending, so adding a pet can't leave two selected.
+    setSelectedPetIds((prev) => (maxPets === 1 ? [pet.id] : [...prev, pet.id]));
     setQuote(null);
     setPreviewMsg(null);
     // Reload server data (fresh pet list + signed photo URLs); client state persists.

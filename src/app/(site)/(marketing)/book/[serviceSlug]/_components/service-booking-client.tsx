@@ -152,6 +152,12 @@ export function ServiceBookingClient({
     myBookingDayKeys,
   });
 
+  // Pet-step heading adapts to the service: "dog" when only dogs are eligible,
+  // singular when at most one may be selected (training is a single-dog session).
+  const petNoun =
+    allowedSpecies.length === 1 && allowedSpecies[0] === "dog" ? "dog" : "pet";
+  const petSectionLabel = `Which ${maxPets === 1 ? petNoun : `${petNoun}s`}?`;
+
   // U1: terminal success state — the panel replaces the flow until the user
   // starts over ("Book another") or leaves for /account/bookings.
   if (success) {
@@ -196,7 +202,7 @@ export function ServiceBookingClient({
           <section aria-labelledby="pets-heading">
             <BookingFlowStepHead
               num={step2Label}
-              label="Which pets?"
+              label={petSectionLabel}
               labelId="pets-heading"
             />
             {authState === "ready" ? (
