@@ -24,6 +24,7 @@ import {
   QuantityForm,
   QuotePanel,
 } from "@/features/booking/index.client";
+import { Surface } from "@/components/ui/surface";
 import { Textarea } from "@/components/ui/textarea";
 import type {
   BookingRuleSettings,
@@ -314,11 +315,14 @@ export function ServiceBookingClient({
                   showBook
                 />
               ) : (
-                <div className="border-border bg-card text-muted-foreground rounded-2xl border border-dashed p-6 text-center text-sm">
+                <Surface
+                  variant="plain"
+                  className="text-muted-foreground border-dashed p-6 text-center text-sm"
+                >
                   {isPreviewing
                     ? "Calculating…"
                     : "Select a day and time to see your price."}
-                </div>
+                </Surface>
               )}
             </section>
           )}
@@ -347,7 +351,7 @@ function GatePanel({
 }) {
   return (
     <section aria-labelledby={labelledById}>
-      <div className="bg-card border-border rounded-2xl border p-6">
+      <Surface variant="plain" className="p-6">
         <h2
           id={labelledById}
           className="font-heading text-foreground mb-1 text-base font-semibold"
@@ -364,7 +368,7 @@ function GatePanel({
         >
           {ctaLabel}
         </Link>
-      </div>
+      </Surface>
     </section>
   );
 }

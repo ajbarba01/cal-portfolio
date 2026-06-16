@@ -32,6 +32,7 @@ function ItemBody({ item }: { item: StatTickerItem }) {
       <>
         {/* A white plaque keeps the black/gold college wordmark legible on the
             toned ribbon in both light and dark themes. */}
+        {/* eslint-disable-next-line design-system/no-drift -- intentional fixed-white plaque: third-party black/gold wordmarks must stay legible in both themes */}
         <span className="flex items-center rounded-md bg-white px-3 py-2 ring-1 ring-black/5">
           <Image
             src={item.src}
