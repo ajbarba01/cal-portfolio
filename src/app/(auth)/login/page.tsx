@@ -9,6 +9,7 @@ import { FormField } from "@/components/ui/form-field";
 import { ShimmerCard } from "@/components/ui/shimmer-card";
 import { TextLink } from "@/components/ui/text-link";
 import { PageContainer } from "@/components/layout/page-container";
+import { FIELD_LIMITS } from "@/lib/field-limits";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -63,6 +64,7 @@ export default function LoginPage() {
               type="email"
               autoComplete="email"
               required
+              maxLength={FIELD_LIMITS.email}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
@@ -73,6 +75,7 @@ export default function LoginPage() {
               type="password"
               autoComplete="current-password"
               required
+              maxLength={FIELD_LIMITS.password}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />

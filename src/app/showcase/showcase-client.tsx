@@ -7,6 +7,7 @@ import { StatDisplay } from "@/components/marketing/stat-display";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { CharCounter } from "@/components/ui/char-counter";
 import { FormField } from "@/components/ui/form-field";
 import { FormSection } from "@/components/ui/form-section";
 import { Input } from "@/components/ui/input";
@@ -27,6 +28,7 @@ import { Switch } from "@/components/ui/switch";
 import { TextLink } from "@/components/ui/text-link";
 import { Textarea } from "@/components/ui/textarea";
 import { UnitInput } from "@/components/ui/unit-input";
+import { FIELD_LIMITS } from "@/lib/field-limits";
 
 /** A labelled block in the catalog. */
 function Section({
@@ -89,6 +91,7 @@ export function ShowcaseClient() {
   const [toggle, setToggle] = React.useState(true);
   const [pet, setPet] = React.useState<"dog" | "cat">("dog");
   const [agree, setAgree] = React.useState(true);
+  const [notes, setNotes] = React.useState("");
 
   return (
     <main className="mx-auto flex max-w-5xl flex-col gap-14 px-6 py-12">
@@ -158,6 +161,22 @@ export function ShowcaseClient() {
         <div className="flex flex-col gap-1.5">
           <Tag>Textarea — shares the shell, height auto</Tag>
           <Textarea placeholder="Multi-line field" className="max-w-md" />
+        </div>
+        <div className="flex max-w-md flex-col gap-1.5">
+          <Tag>CharCounter — long free-text fields (cap from field-limits)</Tag>
+          <Textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Type to see the counter turn amber near the cap, red at it"
+            maxLength={FIELD_LIMITS.note}
+            aria-describedby="showcase-notes-counter"
+          />
+          <CharCounter
+            id="showcase-notes-counter"
+            value={notes}
+            max={FIELD_LIMITS.note}
+            className="text-right"
+          />
         </div>
       </Section>
 

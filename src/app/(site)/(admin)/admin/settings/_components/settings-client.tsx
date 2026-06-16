@@ -10,6 +10,7 @@ import { Surface } from "@/components/ui/surface";
 import { TimePicker } from "@/components/ui/time-picker";
 import { UnitInput } from "@/components/ui/unit-input";
 import { updateSettings, type SettingsRow } from "@/features/admin";
+import { FIELD_LIMITS } from "@/lib/field-limits";
 
 // ── Local helpers ──────────────────────────────────────────────────────────────
 
@@ -368,6 +369,7 @@ export function SettingsClient({
             <Input
               id="origin-label"
               type="text"
+              maxLength={FIELD_LIMITS.shortText}
               value={originLabel}
               onChange={(e) => setOriginLabel(e.target.value)}
             />

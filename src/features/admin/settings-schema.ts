@@ -9,6 +9,7 @@
  */
 
 import { z } from "zod";
+import { FIELD_LIMITS } from "@/lib/field-limits";
 
 const minuteOfDaySchema = z.number().int().min(0).max(1440);
 const nonNegIntSchema = z.number().int().nonnegative();
@@ -20,7 +21,7 @@ const isoDateSchema = z
 
 export const settingsUpdateSchema = z
   .object({
-    origin_label: z.string().min(1).max(200).optional(),
+    origin_label: z.string().min(1).max(FIELD_LIMITS.shortText).optional(),
     origin_lat: z.number().min(-90).max(90).optional(),
     origin_lng: z.number().min(-180).max(180).optional(),
     road_factor: nonNegFloatSchema.optional(),

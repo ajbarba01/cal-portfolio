@@ -9,6 +9,7 @@
 
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
+import { FIELD_LIMITS } from "@/lib/field-limits";
 import { createServiceClient } from "@/lib/supabase/service";
 import { assertActorIsAdmin } from "@/lib/admin-guard";
 import { getActorOrRedirect } from "@/lib/admin-session";
@@ -115,8 +116,8 @@ export async function listServicesCore(
 
 const updateServiceInputSchema = z.object({
   serviceId: z.string().uuid(),
-  name: z.string().min(1).max(100).optional(),
-  description: z.string().max(1000).nullable().optional(),
+  name: z.string().min(1).max(FIELD_LIMITS.name).optional(),
+  description: z.string().max(FIELD_LIMITS.note).nullable().optional(),
   pricing_config: z.record(z.string(), z.unknown()).optional(),
   default_duration_min: z.number().int().positive().optional(),
   max_pets: z.number().int().positive().optional(),

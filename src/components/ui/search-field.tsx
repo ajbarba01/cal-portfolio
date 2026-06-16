@@ -5,6 +5,7 @@ import { Search } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { FIELD_LIMITS } from "@/lib/field-limits";
 
 /**
  * Shared search field for list/search pages: a leading lucide search icon over
@@ -34,6 +35,7 @@ export function SearchField({
         onChange={(e) => onValueChange(e.target.value)}
         placeholder={placeholder}
         aria-label={ariaLabel ?? placeholder}
+        maxLength={FIELD_LIMITS.shortText}
         className="h-9 pl-9"
       />
     </div>

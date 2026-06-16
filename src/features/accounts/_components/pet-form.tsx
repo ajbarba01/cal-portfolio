@@ -3,7 +3,10 @@
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
+import { Textarea } from "@/components/ui/textarea";
+import { CharCounter } from "@/components/ui/char-counter";
 import { RadioGroup } from "@/components/ui/radio-group";
+import { FIELD_LIMITS } from "@/lib/field-limits";
 import { PhotoCropField } from "./photo-crop-field";
 import {
   createPet,
@@ -130,6 +133,7 @@ export function PetForm({ initial, onSaved, onCancel, actions }: PetFormProps) {
           label="Name *"
           name="name"
           type="text"
+          maxLength={FIELD_LIMITS.name}
           value={values.name}
           onChange={(e) => set("name", e.target.value)}
           required
@@ -156,19 +160,30 @@ export function PetForm({ initial, onSaved, onCancel, actions }: PetFormProps) {
         label="Breed"
         name="breed"
         type="text"
+        maxLength={FIELD_LIMITS.shortText}
         value={values.breed ?? ""}
         onChange={(e) => set("breed", e.target.value)}
         autoComplete="off"
       />
 
-      <FormField
-        label="Notes (vet, meds, feeding)"
-        name="notes"
-        type="text"
-        value={values.notes ?? ""}
-        onChange={(e) => set("notes", e.target.value)}
-        autoComplete="off"
-      />
+      <div className="flex flex-col gap-1.5">
+        <FormField label="Notes (vet, meds, feeding)" name="notes">
+          <Textarea
+            name="notes"
+            rows={3}
+            maxLength={FIELD_LIMITS.note}
+            value={values.notes ?? ""}
+            onChange={(e) => set("notes", e.target.value)}
+            aria-describedby="pet-notes-counter"
+          />
+        </FormField>
+        <CharCounter
+          id="pet-notes-counter"
+          value={values.notes ?? ""}
+          max={FIELD_LIMITS.note}
+          className="text-right"
+        />
+      </div>
 
       <div className="flex flex-col gap-1.5">
         <span className={groupLabel}>Photo (optional)</span>

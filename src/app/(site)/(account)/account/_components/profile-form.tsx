@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
 import { updateProfile } from "@/features/accounts";
 import type { ProfileInput } from "@/features/accounts";
+import { FIELD_LIMITS } from "@/lib/field-limits";
 
 interface ProfileFormProps {
   initialValues: ProfileInput;
@@ -46,6 +47,7 @@ export function ProfileForm({ initialValues }: ProfileFormProps) {
           name="full_name"
           type="text"
           autoComplete="name"
+          maxLength={FIELD_LIMITS.name}
           value={values.full_name}
           onChange={handleChange}
           required
@@ -56,6 +58,7 @@ export function ProfileForm({ initialValues }: ProfileFormProps) {
           name="phone"
           type="tel"
           autoComplete="tel"
+          maxLength={FIELD_LIMITS.phone}
           value={values.phone}
           onChange={handleChange}
           required
@@ -68,6 +71,7 @@ export function ProfileForm({ initialValues }: ProfileFormProps) {
           name="address"
           type="text"
           autoComplete="street-address"
+          maxLength={FIELD_LIMITS.addressLine}
           value={values.address}
           onChange={handleChange}
           required

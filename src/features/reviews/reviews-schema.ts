@@ -3,6 +3,7 @@
  */
 
 import { z } from "zod";
+import { FIELD_LIMITS } from "@/lib/field-limits";
 
 export const submitReviewSchema = z.object({
   rating: z
@@ -13,7 +14,10 @@ export const submitReviewSchema = z.object({
   body: z
     .string()
     .min(1, "Review text is required")
-    .max(2000, "Review text must be 2000 characters or fewer"),
+    .max(
+      FIELD_LIMITS.note,
+      `Review text must be ${FIELD_LIMITS.note} characters or fewer`,
+    ),
 });
 
 export type SubmitReviewInput = z.infer<typeof submitReviewSchema>;

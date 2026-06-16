@@ -77,6 +77,7 @@ sanctioned card lift is `ShimmerCard`'s opt-in `hoverLift` (the service cards).
 | empty / error / loading panel     | `EmptyState` / `ErrorState` / `Spinner` | see FRONTEND.md feedback taxonomy              |
 | inline link / textual CTA         | `TextLink`                              | the one clay link style                        |
 | titled group of form fields       | `FormSection`                           | emphasis Surface, not fieldset/legend          |
+| live length count on a long field | `CharCounter`                           | long textareas only; `maxLength` = server cap  |
 | section intro (eyebrow + heading) | `SectionHeader`                         | reuses `Eyebrow`                               |
 | stat / receipt line               | `StatDisplay`                           | `stacked` or `receipt`                         |
 | page title / subtitle / actions   | `PageHeader`                            | a layout shell (FRONTEND.md)                   |
@@ -94,6 +95,12 @@ field is a `FormField` carrying its label, control, optional `xs` hint, and `sm`
 inline error. Controls use the `bg-background` fill; one `brand` submit (control
 `md` size, `self-start` desktop / full-width mobile). Validation renders inline at
 the field, never as a toast (see FRONTEND.md feedback).
+
+Every text control carries a `maxLength` (and its server schema a matching
+`.max()`) drawn from the same semantic tier in `src/lib/field-limits.ts` —
+client and server caps share one constant so they cannot drift. Long free-text
+textareas (message, review body, booking comments, pet notes) pair the control
+with a `CharCounter`; short inputs rely on the silent `maxLength` wall alone.
 
 ## /showcase
 

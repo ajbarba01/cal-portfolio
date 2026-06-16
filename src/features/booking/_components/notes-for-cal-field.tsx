@@ -8,6 +8,7 @@
  */
 
 import { Textarea } from "@/components/ui/textarea";
+import { CharCounter } from "@/components/ui/char-counter";
 import { BOOKING_COMMENTS_MAX } from "../booking-service-shared";
 import { BookingFlowStepHead } from "./booking-flow";
 
@@ -48,12 +49,12 @@ export function NotesForCalSection({
         aria-describedby={counterId}
         placeholder={placeholder}
       />
-      <p
+      <CharCounter
         id={counterId}
-        className="text-muted-foreground mt-1 text-right text-xs"
-      >
-        {value.length} / {BOOKING_COMMENTS_MAX}
-      </p>
+        value={value}
+        max={BOOKING_COMMENTS_MAX}
+        className="mt-1 text-right"
+      />
     </section>
   );
 }

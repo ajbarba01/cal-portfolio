@@ -7,10 +7,12 @@ import { useToast } from "@/components/feedback/toast";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
 import { Textarea } from "@/components/ui/textarea";
+import { CharCounter } from "@/components/ui/char-counter";
 import { ShimmerCard } from "@/components/ui/shimmer-card";
 import { TextLink } from "@/components/ui/text-link";
 import { createClient } from "@/lib/supabase/client";
 import { submitInquiry } from "@/features/inquiries";
+import { FIELD_LIMITS } from "@/lib/field-limits";
 
 export function ContactForm({
   heading,
@@ -34,6 +36,7 @@ export function ContactForm({
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [message, setMessage] = useState("");
 
   useEffect(() => {
     const supabase = createClient();
@@ -80,6 +83,7 @@ export function ContactForm({
       if (result.ok) {
         setIsDone(true);
         form.reset();
+        setMessage("");
         toast.add({
           type: "success",
           title: "Message sent",
@@ -143,6 +147,7 @@ export function ContactForm({
           label="Name"
           name="name"
           autoComplete="name"
+          maxLength={FIELD_LIMITS.name}
           value={name}
           onChange={(e) => setName(e.target.value)}
           required
@@ -153,6 +158,7 @@ export function ContactForm({
           name="email"
           type="email"
           autoComplete="email"
+          maxLength={FIELD_LIMITS.email}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
@@ -163,6 +169,7 @@ export function ContactForm({
           name="phone"
           type="tel"
           autoComplete="tel"
+          maxLength={FIELD_LIMITS.phone}
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
           required
@@ -178,11 +185,26 @@ export function ContactForm({
             </>
           }
           name="subject"
+          maxLength={FIELD_LIMITS.shortText}
         />
 
         <FormField label="Message" name="message">
-          <Textarea name="message" required rows={5} />
+          <Textarea
+            name="message"
+            required
+            rows={5}
+            maxLength={FIELD_LIMITS.message}
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            aria-describedby="contact-message-counter"
+          />
         </FormField>
+        <CharCounter
+          id="contact-message-counter"
+          value={message}
+          max={FIELD_LIMITS.message}
+          className="-mt-2 text-right"
+        />
 
         {/* Honeypot */}
         <div

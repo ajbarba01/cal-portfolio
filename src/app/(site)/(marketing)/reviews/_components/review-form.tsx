@@ -10,9 +10,11 @@ import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
 import { TextLink } from "@/components/ui/text-link";
 import { Textarea } from "@/components/ui/textarea";
+import { CharCounter } from "@/components/ui/char-counter";
 import { ShimmerCard } from "@/components/ui/shimmer-card";
 import { createClient } from "@/lib/supabase/client";
 import { submitReview } from "@/features/reviews";
+import { FIELD_LIMITS } from "@/lib/field-limits";
 
 export function ReviewForm() {
   // Auth resolves browser-side so this page (and /reviews) can render statically.
@@ -95,21 +97,24 @@ export function ReviewForm() {
           />
         </div>
 
-        <FormField
-          label="Your review"
-          name="body"
-          hint={<span className="block text-right">{body.length} / 2000</span>}
-        >
+        <FormField label="Your review" name="body">
           <Textarea
             name="body"
             value={body}
             onChange={(e) => setBody(e.target.value)}
             rows={4}
             required
-            maxLength={2000}
+            maxLength={FIELD_LIMITS.note}
+            aria-describedby="review-body-counter"
             placeholder="Tell us about your experience…"
           />
         </FormField>
+        <CharCounter
+          id="review-body-counter"
+          value={body}
+          max={FIELD_LIMITS.note}
+          className="-mt-2 text-right"
+        />
 
         {error && (
           <p role="alert" className="text-destructive text-sm">

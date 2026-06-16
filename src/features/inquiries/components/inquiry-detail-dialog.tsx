@@ -8,7 +8,9 @@ import { Check, Pencil, Save, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CharCounter } from "@/components/ui/char-counter";
 import { CardShimmer } from "@/components/effects/card-shimmer";
+import { FIELD_LIMITS } from "@/lib/field-limits";
 import type { InquiryRow } from "@/features/inquiries/inquiry-actions";
 import {
   canEditInquiry,
@@ -46,7 +48,7 @@ function InquiryEditFields({
             name="subject"
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
-            maxLength={200}
+            maxLength={FIELD_LIMITS.shortText}
           />
         </div>
         <div className="flex flex-col gap-1.5">
@@ -56,8 +58,15 @@ function InquiryEditFields({
             name="message"
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            maxLength={4000}
+            maxLength={FIELD_LIMITS.message}
+            aria-describedby="inquiry-edit-message-counter"
             className="border-input bg-background focus-visible:border-ring focus-visible:ring-ring/50 min-h-32 w-full rounded-md border px-3 py-2 text-sm outline-none focus-visible:ring-3"
+          />
+          <CharCounter
+            id="inquiry-edit-message-counter"
+            value={message}
+            max={FIELD_LIMITS.message}
+            className="text-right"
           />
         </div>
       </div>

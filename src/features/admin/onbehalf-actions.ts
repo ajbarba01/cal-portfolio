@@ -27,6 +27,7 @@ import type { PetInput, Pet } from "@/features/accounts";
 // Re-import the pet schema for validation — we share PetInput but re-validate
 // here rather than exposing account-actions internals.
 import { z } from "zod";
+import { FIELD_LIMITS } from "@/lib/field-limits";
 
 // ─── Result types (extend account-actions results with forbidden) ─────────────
 
@@ -45,10 +46,10 @@ export type AdminActionResult =
   | { kind: "error"; message: string };
 
 const petSchema = z.object({
-  name: z.string().min(1, "Pet name is required"),
+  name: z.string().min(1, "Pet name is required").max(FIELD_LIMITS.name),
   species: z.enum(["dog", "cat"]).default("dog"),
-  breed: z.string().optional(),
-  notes: z.string().optional(),
+  breed: z.string().max(FIELD_LIMITS.shortText).optional(),
+  notes: z.string().max(FIELD_LIMITS.note).optional(),
 });
 
 const PET_COLUMNS = "id, name, species, breed, notes, photo_url";
