@@ -54,7 +54,18 @@ export function FormField(props: FormFieldProps) {
         {label}
       </Field.Label>
 
-      {children ?? <Field.Control render={<Input {...inputProps} />} />}
+      {/* A custom control passed via `children` is wired through Field.Control so
+          base-ui links the label + aria-describedby; a bare element won't register
+          otherwise. Plain Input fields use the default branch. */}
+      {children ? (
+        React.isValidElement(children) ? (
+          <Field.Control render={children as React.ReactElement} />
+        ) : (
+          children
+        )
+      ) : (
+        <Field.Control render={<Input {...inputProps} />} />
+      )}
 
       {hint ? (
         <Field.Description className="text-muted-foreground text-xs">
