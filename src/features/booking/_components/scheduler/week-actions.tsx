@@ -19,6 +19,8 @@
 import { useTransition, useState } from "react";
 import { useScheduler } from "@/features/booking/scheduler-context";
 import { Button } from "@/components/ui/button";
+import { Surface } from "@/components/ui/surface";
+import { cn } from "@/lib/utils";
 import { mergeDraftToRanges } from "@/features/booking/schedule-selection";
 import type { DraftRange } from "@/features/booking/schedule-selection";
 import type { ConflictBooking } from "@/features/admin";
@@ -253,14 +255,11 @@ export function WeekActions({ className }: WeekActionsProps) {
   // ── Render ───────────────────────────────────────────────────────────────────
 
   return (
-    <aside
+    <Surface
+      as="aside"
+      variant="plain"
       aria-label="Week grid draft actions"
-      className={[
-        "bg-card border-border flex flex-col gap-4 rounded-xl border p-4",
-        className ?? "",
-      ]
-        .join(" ")
-        .trim()}
+      className={cn("flex flex-col gap-4 p-4", className)}
     >
       {/* Header */}
       <div>
@@ -350,6 +349,6 @@ export function WeekActions({ className }: WeekActionsProps) {
           </Button>
         </div>
       </section>
-    </aside>
+    </Surface>
   );
 }
