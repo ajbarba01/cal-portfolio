@@ -120,14 +120,28 @@ function EmergencyFields({
 function FormStatus({
   open,
   submitted,
+  status,
 }: {
   open: boolean;
   submitted: boolean;
+  /** Freshness status when used inline in the booking gate; drives the label. */
+  status?: "complete" | "stale" | "missing";
 }) {
   if (open) {
     return <span className="text-muted-foreground text-xs">Editing…</span>;
   }
-  if (submitted) {
+  if (status === "stale") {
+    return (
+      <span className="text-foreground inline-flex items-center gap-1.5 text-xs font-medium">
+        <span
+          aria-hidden="true"
+          className="bg-muted-foreground size-1.5 rounded-full"
+        />
+        Needs reconfirming
+      </span>
+    );
+  }
+  if (status === "complete" || (status === undefined && submitted)) {
     return (
       <span className="text-status-available-foreground inline-flex items-center gap-1.5 text-xs font-medium">
         <span
@@ -195,6 +209,12 @@ export interface FormCardProps {
   status?: "complete" | "stale" | "missing";
   /** Fires after a successful submit so a host (booking gate) can re-check. */
   onSaved?: () => void;
+  /**
+   * Render without the ShimmerCard chrome — a borderless row for hosts that
+   * already provide a single surrounding card (the booking flow's forms step
+   * stacks these as dividers inside one card instead of nesting cards).
+   */
+  flat?: boolean;
 }
 
 function initialValues(
@@ -223,10 +243,12 @@ export function FormCard({
   auth,
   status,
   onSaved,
+  flat = false,
 }: FormCardProps) {
-  const [open, setOpen] = useState(
-    status === undefined ? !existing : status !== "complete",
-  );
+  // Cards always start collapsed — the client expands the ones they want to
+  // fill. The header status (and the booking gate's hard-block) signals which
+  // still need attention without forcing every card open.
+  const [open, setOpen] = useState(false);
   const [submitted, setSubmitted] = useState(existing !== undefined);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -275,112 +297,112 @@ export function FormCard({
 
   const label = title ?? formRegistry[formKey].title;
 
-  return (
-    <ShimmerCard>
-      <div className="overflow-hidden rounded-2xl">
-        <div className="flex items-center justify-between gap-3 px-4 py-3">
-          <div className="flex flex-col gap-1">
-            <p className="text-foreground text-sm font-semibold">{label}</p>
-            <FormStatus open={open} submitted={submitted} />
-          </div>
-          <Button
-            variant={open ? "ghost" : "outline"}
-            size="sm"
-            onClick={() => setOpen((o) => !o)}
-            aria-expanded={open}
-          >
-            {open ? "Close" : submitted ? "Edit" : "Start"}
-          </Button>
+  const inner = (
+    <div className={flat ? "" : "overflow-hidden rounded-2xl"}>
+      <div className="flex items-center justify-between gap-3 px-4 py-3">
+        <div className="flex flex-col gap-1">
+          <p className="text-foreground text-sm font-semibold">{label}</p>
+          <FormStatus open={open} submitted={submitted} status={status} />
         </div>
-
-        {open && (
-          <form
-            onSubmit={handleSubmit}
-            noValidate
-            className="border-border bg-muted/40 flex flex-col gap-6 border-t px-4 py-4"
-          >
-            {status === "stale" && (
-              <p
-                role="status"
-                className="text-foreground border-border bg-muted rounded-xl border p-3 text-xs leading-relaxed"
-              >
-                You filled this out a while ago. Please review it and save to
-                confirm it&apos;s still accurate.
-              </p>
-            )}
-            <ProfileDisclaimer />
-            {formKey === "emergency" ? (
-              <EmergencyFields values={values} onChange={handleChange} />
-            ) : (
-              <ProfileFields
-                formKey={formKey}
-                values={values}
-                onChange={handleChange}
-              />
-            )}
-
-            {auth ? (
-              <div
-                role="group"
-                aria-labelledby={`${authNameId}-h`}
-                className="flex flex-col gap-3"
-              >
-                <Eyebrow id={`${authNameId}-h`}>
-                  Emergency expense authorization
-                </Eyebrow>
-                {needsAccept ? (
-                  <>
-                    <p className="text-muted-foreground border-border bg-background rounded-xl border p-3 text-xs leading-relaxed whitespace-pre-line">
-                      {auth.text}
-                    </p>
-                    <label className="flex items-start gap-2.5 text-sm">
-                      <Checkbox
-                        checked={authChecked}
-                        onChange={(e) => setAuthChecked(e.target.checked)}
-                        className="mt-0.5"
-                      />
-                      <span>
-                        I have read and agree to the authorization above.
-                      </span>
-                    </label>
-                    <FormField
-                      label="Type your legal name to sign"
-                      name="accepted_name"
-                      type="text"
-                      maxLength={FIELD_LIMITS.name}
-                      value={authName}
-                      onChange={(e) => setAuthName(e.target.value)}
-                    />
-                  </>
-                ) : (
-                  <p className="text-muted-foreground text-xs">
-                    Accepted
-                    {auth.acceptedAt
-                      ? ` on ${new Date(auth.acceptedAt).toLocaleDateString()}`
-                      : ""}
-                    . Thank you.
-                  </p>
-                )}
-              </div>
-            ) : null}
-
-            {error && (
-              <p role="alert" className="text-destructive text-sm">
-                {error}
-              </p>
-            )}
-
-            <Button
-              type="submit"
-              variant="brand"
-              disabled={isPending}
-              className="self-start"
-            >
-              {isPending ? "Saving…" : submitted ? "Update" : "Submit"}
-            </Button>
-          </form>
-        )}
+        <Button
+          variant={open ? "ghost" : "outline"}
+          size="sm"
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+        >
+          {open ? "Close" : submitted ? "Edit" : "Start"}
+        </Button>
       </div>
-    </ShimmerCard>
+
+      {open && (
+        <form
+          onSubmit={handleSubmit}
+          noValidate
+          className="border-border bg-muted/40 flex flex-col gap-6 border-t px-4 py-4"
+        >
+          {status === "stale" && (
+            <p
+              role="status"
+              className="text-foreground border-border bg-muted rounded-xl border p-3 text-xs leading-relaxed"
+            >
+              You filled this out a while ago. Please review it and save to
+              confirm it&apos;s still accurate.
+            </p>
+          )}
+          <ProfileDisclaimer />
+          {formKey === "emergency" ? (
+            <EmergencyFields values={values} onChange={handleChange} />
+          ) : (
+            <ProfileFields
+              formKey={formKey}
+              values={values}
+              onChange={handleChange}
+            />
+          )}
+
+          {auth ? (
+            <div
+              role="group"
+              aria-labelledby={`${authNameId}-h`}
+              className="flex flex-col gap-3"
+            >
+              <Eyebrow id={`${authNameId}-h`}>
+                Emergency expense authorization
+              </Eyebrow>
+              {needsAccept ? (
+                <>
+                  <p className="text-muted-foreground border-border bg-background rounded-xl border p-3 text-xs leading-relaxed whitespace-pre-line">
+                    {auth.text}
+                  </p>
+                  <label className="flex items-start gap-2.5 text-sm">
+                    <Checkbox
+                      checked={authChecked}
+                      onChange={(e) => setAuthChecked(e.target.checked)}
+                      className="mt-0.5"
+                    />
+                    <span>
+                      I have read and agree to the authorization above.
+                    </span>
+                  </label>
+                  <FormField
+                    label="Type your legal name to sign"
+                    name="accepted_name"
+                    type="text"
+                    maxLength={FIELD_LIMITS.name}
+                    value={authName}
+                    onChange={(e) => setAuthName(e.target.value)}
+                  />
+                </>
+              ) : (
+                <p className="text-muted-foreground text-xs">
+                  Accepted
+                  {auth.acceptedAt
+                    ? ` on ${new Date(auth.acceptedAt).toLocaleDateString()}`
+                    : ""}
+                  . Thank you.
+                </p>
+              )}
+            </div>
+          ) : null}
+
+          {error && (
+            <p role="alert" className="text-destructive text-sm">
+              {error}
+            </p>
+          )}
+
+          <Button
+            type="submit"
+            variant="brand"
+            disabled={isPending}
+            className="self-start"
+          >
+            {isPending ? "Saving…" : submitted ? "Update" : "Submit"}
+          </Button>
+        </form>
+      )}
+    </div>
   );
+
+  return flat ? inner : <ShimmerCard>{inner}</ShimmerCard>;
 }

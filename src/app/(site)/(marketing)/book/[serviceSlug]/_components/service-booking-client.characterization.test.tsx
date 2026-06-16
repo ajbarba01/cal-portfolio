@@ -10,7 +10,7 @@
  * Pinned invariants (do not relax — a changed expectation means the public flow
  * changed, which violates the behavior-preserving refactor contract):
  *   - Step 1 calendar heading renders ("1. Pick a day" for a week-slots service)
- *   - Step 2 pets section renders for a pet-aware service ("2. Which pets?")
+ *   - Step 2 pets section renders for a pet-aware service (dog-only walk → "Which dogs?")
  *   - Step 3 details/quantities section renders ("Details")
  *   - For a "ready" viewer with no selection: the price box shows the empty
  *     prompt, NOT the Book CTA (no quote yet)
@@ -95,8 +95,8 @@ describe("ServiceBookingClient (characterization)", () => {
     // The step number (1) moved to an aria-hidden clay disc; the h2 text is now
     // just the label (SP6 Task 9: step-card heading pattern).
     expect(screen.getByRole("heading", { name: /Pick a day/i })).toBeTruthy();
-    // Step 2 — pets (pet-aware service)
-    expect(screen.getByRole("heading", { name: /Which pets\?/i })).toBeTruthy();
+    // Step 2 — pets (dog-only walk → "Which dogs?")
+    expect(screen.getByRole("heading", { name: /Which dogs\?/i })).toBeTruthy();
     // Step 3 — details / quantities
     expect(screen.getByRole("heading", { name: /Details/i })).toBeTruthy();
 

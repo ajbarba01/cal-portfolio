@@ -123,7 +123,10 @@ export interface BookingFlowProps {
   detailsSection?: ReactNode;
   /** Step 4 — recurring controls (public/admin) or the single notes card (edit). */
   extraSection?: ReactNode;
-  /** Step 5 — notes for Cal on create paths (public + admin); separate card from extraSection. Edit uses extraSection for notes instead. */
+  /** Required-profiles step — the public flow's inline intake forms. Rendered
+   * between the recurring and notes steps so it reads as its own numbered step. */
+  formsSection?: ReactNode;
+  /** Notes for Cal on create paths (public + admin); separate card from extraSection. Edit uses extraSection for notes instead. */
   notesSection?: ReactNode;
   /** The gated price receipt + primary CTA block. */
   receipt: ReactNode;
@@ -324,6 +327,7 @@ export function BookingFlow({
   petSection,
   detailsSection,
   extraSection,
+  formsSection,
   notesSection,
   receipt,
   rules,
@@ -436,6 +440,7 @@ export function BookingFlow({
       {petSection && <StepShell>{petSection}</StepShell>}
       {detailsSection && <StepShell>{detailsSection}</StepShell>}
       {extraSection && <StepShell>{extraSection}</StepShell>}
+      {formsSection && <StepShell>{formsSection}</StepShell>}
       {notesSection && <StepShell>{notesSection}</StepShell>}
 
       {/* Summary + receipt card — inline after the steps (no side receipt).
