@@ -92,13 +92,6 @@ export function ContactForm({
                 className="text-brand-strong font-medium underline underline-offset-4 hover:opacity-70"
               >
                 check availability
-              </Link>{" "}
-              or{" "}
-              <Link
-                href="/resources"
-                className="text-brand-strong font-medium underline underline-offset-4 hover:opacity-70"
-              >
-                read the FAQ
               </Link>
               .
             </p>

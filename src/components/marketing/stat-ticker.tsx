@@ -2,13 +2,16 @@ import * as React from "react";
 import Image from "next/image";
 import { Star } from "lucide-react";
 
+import { StatTickerTrack } from "./stat-ticker-track";
+
 /**
  * Continuous horizontal stat ribbon (LED sports-panel style) for marketing pages.
  * The track renders the item set twice (each set doubled so one group always
  * exceeds the sheet width) so the rightward marquee loops seamlessly; the CSS in
  * `globals.css` (`.stat-ticker-track`) drives the motion and freezes it for
  * reduced-motion users. The first group is read by screen readers; the looping
- * duplicate is `aria-hidden`. Server component — no client JS. Full-bleed within
+ * duplicate is `aria-hidden`. Items render server-side; a thin client island
+ * (`<StatTickerTrack>`) eases the marquee to a halt on hover. Full-bleed within
  * the marketing sheet; authored mobile-first.
  */
 export type StatTickerItem =
@@ -116,10 +119,10 @@ export function StatTicker({
         aria-hidden="true"
         className="from-card pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-l to-transparent sm:w-16"
       />
-      <div className="stat-ticker-track">
+      <StatTickerTrack>
         {group(false)}
         {group(true)}
-      </div>
+      </StatTickerTrack>
     </section>
   );
 }
