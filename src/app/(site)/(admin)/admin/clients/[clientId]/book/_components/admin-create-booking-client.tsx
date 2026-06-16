@@ -23,6 +23,7 @@ import {
   QuotePanel,
 } from "@/features/booking/index.client";
 import { Textarea } from "@/components/ui/textarea";
+import { Surface } from "@/components/ui/surface";
 import type {
   BookingRuleSettings,
   PublicBusyRange,
@@ -242,11 +243,14 @@ export function AdminCreateBookingClient({
               }
             />
           ) : (
-            <div className="border-border bg-card text-muted-foreground rounded-xl border border-dashed p-6 text-center text-sm">
+            <Surface
+              variant="plain"
+              className="text-muted-foreground border-dashed p-6 text-center text-sm"
+            >
               {isPreviewing
                 ? "Calculating…"
                 : "Select a day and time to see the price."}
-            </div>
+            </Surface>
           )}
         </section>
       }

@@ -49,6 +49,7 @@ import {
 } from "@/features/admin";
 import type { AvailabilityWindow, AdminBusyRangeView } from "@/features/admin";
 import { useConfirm } from "@/components/feedback/confirm-dialog";
+import { Surface } from "@/components/ui/surface";
 
 const DENVER_TZ = "America/Denver";
 
@@ -244,9 +245,11 @@ function InspectCard({
   onClose: () => void;
 }) {
   return (
-    <section
+    <Surface
+      as="section"
+      variant="plain"
       aria-label="Booking details"
-      className="bg-card border-border rounded-xl border p-4"
+      className="p-4"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex flex-col gap-1">
@@ -307,7 +310,7 @@ function InspectCard({
       <p className="text-muted-foreground mt-3 text-xs">
         Availability is paint-only — moderation lives on Bookings.
       </p>
-    </section>
+    </Surface>
   );
 }
 

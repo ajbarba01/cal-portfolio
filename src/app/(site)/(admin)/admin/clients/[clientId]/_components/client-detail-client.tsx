@@ -14,6 +14,7 @@ import { useConfirm } from "@/components/feedback/confirm-dialog";
 import { useToast } from "@/components/feedback/toast";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Surface } from "@/components/ui/surface";
 import {
   approveBooking,
   declineBooking,
@@ -88,8 +89,8 @@ function denver(iso: string): string {
 
 // ─── Token classes ────────────────────────────────────────────────────────────
 
-const SECTION =
-  "bg-card border-border flex flex-col gap-3 rounded-xl border p-4";
+// Layout-only — the surface (bg/border/radius/shimmer) comes from Surface emphasis.
+const SECTION = "flex flex-col gap-3 p-4";
 const LEGEND =
   "text-brand-strong text-xs font-semibold tracking-wide uppercase";
 
@@ -214,7 +215,7 @@ export function ClientDetailClient({ client }: { client: ClientDetailView }) {
       ) : null}
 
       {/* Account */}
-      <section className={SECTION}>
+      <Surface as="section" variant="emphasis" className={SECTION}>
         <p className={LEGEND}>Account</p>
         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
           <dt className="text-muted-foreground">Email</dt>
@@ -228,10 +229,10 @@ export function ClientDetailClient({ client }: { client: ClientDetailView }) {
           <dt className="text-muted-foreground">Joined</dt>
           <dd>{denver(client.created_at)}</dd>
         </dl>
-      </section>
+      </Surface>
 
       {/* Kiche discount — own card with switch + explanation */}
-      <section className={SECTION}>
+      <Surface as="section" variant="emphasis" className={SECTION}>
         <p className={LEGEND}>Kiche discount</p>
         <div className="flex items-center gap-3">
           {/* Accessible switch */}
@@ -265,10 +266,10 @@ export function ClientDetailClient({ client }: { client: ClientDetailView }) {
           Gives this client the friends-of-Kiche rate on every booking. Toggle
           off to charge standard pricing.
         </p>
-      </section>
+      </Surface>
 
       {/* Onboarding */}
-      <section className={SECTION}>
+      <Surface as="section" variant="emphasis" className={SECTION}>
         <p className={LEGEND}>Onboarding</p>
         {meetGreetBooking ? (
           <p className="text-muted-foreground text-sm">
@@ -289,10 +290,10 @@ export function ClientDetailClient({ client }: { client: ClientDetailView }) {
           status={client.onboarding_status}
           meetGreetUpcoming={client.meetGreetUpcoming}
         />
-      </section>
+      </Surface>
 
       {/* Pets */}
-      <section className={SECTION}>
+      <Surface as="section" variant="emphasis" className={SECTION}>
         <p className={LEGEND}>
           Pets{" "}
           {client.pets.length > 0 ? (
@@ -310,10 +311,10 @@ export function ClientDetailClient({ client }: { client: ClientDetailView }) {
           actions={adminPetActions}
           // No onDelete → Delete button is suppressed in admin zone
         />
-      </section>
+      </Surface>
 
       {/* Forms */}
-      <section className={SECTION}>
+      <Surface as="section" variant="emphasis" className={SECTION}>
         <p className={LEGEND}>
           Forms{" "}
           {client.forms.length > 0 ? (
@@ -346,10 +347,10 @@ export function ClientDetailClient({ client }: { client: ClientDetailView }) {
             ))}
           </div>
         )}
-      </section>
+      </Surface>
 
       {/* Bookings */}
-      <section className={SECTION}>
+      <Surface as="section" variant="emphasis" className={SECTION}>
         <p className={LEGEND}>Bookings</p>
         {client.bookings.length === 0 ? (
           <p className="text-muted-foreground text-sm">No bookings.</p>
@@ -364,16 +365,8 @@ export function ClientDetailClient({ client }: { client: ClientDetailView }) {
               });
               const isDisputed = Boolean(booking.disputed_at);
 
-              return (
-                <li
-                  key={booking.id}
-                  className={[
-                    "flex flex-col gap-1.5 py-2 text-sm",
-                    isDisputed
-                      ? "border-destructive bg-card ring-destructive rounded-xl border p-3 ring-1"
-                      : "border-border/60 border-b last:border-b-0",
-                  ].join(" ")}
-                >
+              const rowInner = (
+                <>
                   {/* Top row: service + pills + amount */}
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-semibold">
@@ -474,6 +467,26 @@ export function ClientDetailClient({ client }: { client: ClientDetailView }) {
                       </a>
                     ) : null}
                   </div>
+                </>
+              );
+
+              // Disputed rows become a highlighted nested card (plain Surface +
+              // destructive ring); normal rows stay flat border-bottom list items.
+              return isDisputed ? (
+                <Surface
+                  as="li"
+                  key={booking.id}
+                  variant="plain"
+                  className="border-destructive ring-destructive flex flex-col gap-1.5 p-3 text-sm ring-1"
+                >
+                  {rowInner}
+                </Surface>
+              ) : (
+                <li
+                  key={booking.id}
+                  className="border-border/60 flex flex-col gap-1.5 border-b py-2 text-sm last:border-b-0"
+                >
+                  {rowInner}
                 </li>
               );
             })}
@@ -485,10 +498,10 @@ export function ClientDetailClient({ client }: { client: ClientDetailView }) {
         >
           + New booking for {client.full_name ?? "this client"}
         </Link>
-      </section>
+      </Surface>
 
       {/* Balance */}
-      <section className={SECTION}>
+      <Surface as="section" variant="emphasis" className={SECTION}>
         <p className={LEGEND}>Balance</p>
         <p className="text-sm">
           Outstanding:{" "}
@@ -548,7 +561,7 @@ export function ClientDetailClient({ client }: { client: ClientDetailView }) {
             ))}
           </ul>
         ) : null}
-      </section>
+      </Surface>
     </div>
   );
 }

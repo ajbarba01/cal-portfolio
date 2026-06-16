@@ -38,6 +38,7 @@ import { Multiswitch } from "@/components/ui/multiswitch";
 import { Pagination } from "@/components/ui/pagination";
 import { ResultCount } from "@/components/ui/result-count";
 import { SearchField } from "@/components/ui/search-field";
+import { Surface } from "@/components/ui/surface";
 import {
   Select,
   SelectContent,
@@ -252,7 +253,10 @@ function BookingDayTimeline({
   }
 
   return (
-    <div className="bg-card border-border grid grid-cols-[3.25rem_1fr] overflow-hidden rounded-xl border">
+    <Surface
+      variant="plain"
+      className="grid grid-cols-[3.25rem_1fr] overflow-hidden"
+    >
       {/* hour gutter */}
       <div
         className="border-border relative border-r py-2"
@@ -325,7 +329,7 @@ function BookingDayTimeline({
           );
         })}
       </div>
-    </div>
+    </Surface>
   );
 }
 
