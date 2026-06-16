@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import Link from "next/link";
 import { CheckCircle, Clock, Send } from "lucide-react";
 
 import { useToast } from "@/components/feedback/toast";
@@ -9,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
 import { Textarea } from "@/components/ui/textarea";
 import { ShimmerCard } from "@/components/ui/shimmer-card";
+import { TextLink } from "@/components/ui/text-link";
 import { submitInquiry } from "@/features/inquiries";
 
 export function ContactForm({
@@ -85,14 +85,7 @@ export function ContactForm({
             </h2>
             <p className="text-muted-foreground text-sm">
               Thanks — Cal will get back to you within a day. In the meantime
-              you can{" "}
-              <Link
-                href="/book"
-                className="text-brand-strong font-medium underline underline-offset-4 hover:opacity-70"
-              >
-                check availability
-              </Link>
-              .
+              you can <TextLink href="/book">check availability</TextLink>.
             </p>
           </div>
         </div>

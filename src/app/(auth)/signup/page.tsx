@@ -2,13 +2,13 @@
 
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
 import { Mail } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { safeReturnTo } from "@/features/booking/index.client";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
 import { ShimmerCard } from "@/components/ui/shimmer-card";
+import { TextLink } from "@/components/ui/text-link";
 import { PageContainer } from "@/components/layout/page-container";
 
 export default function SignupPage() {
@@ -189,12 +189,5 @@ function AuthSwitchLink({
   href: string;
   children: React.ReactNode;
 }) {
-  return (
-    <Link
-      href={href}
-      className="text-brand-strong underline underline-offset-4 hover:opacity-70"
-    >
-      {children}
-    </Link>
-  );
+  return <TextLink href={href}>{children}</TextLink>;
 }

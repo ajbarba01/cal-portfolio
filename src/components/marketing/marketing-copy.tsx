@@ -8,7 +8,7 @@
  * in those). Server component.
  */
 import { Fragment } from "react";
-import Link from "next/link";
+import { TextLink } from "@/components/ui/text-link";
 import { copy, type CopyId } from "@/content/marketing";
 import { segmentCopy } from "@/content/linkify";
 
@@ -18,13 +18,9 @@ export function MarketingCopy({ id }: { id: CopyId }) {
     <>
       {segments.map((segment, i) =>
         segment.href ? (
-          <Link
-            key={i}
-            href={segment.href}
-            className="text-brand-strong underline underline-offset-4 hover:opacity-70"
-          >
+          <TextLink key={i} href={segment.href}>
             {segment.text}
-          </Link>
+          </TextLink>
         ) : (
           <Fragment key={i}>{segment.text}</Fragment>
         ),
