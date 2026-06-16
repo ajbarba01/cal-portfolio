@@ -116,6 +116,21 @@ const recurrenceRuleSchema = z.object({
 });
 
 /**
+ * Permissive UUID-shape validator for ids that are SERVER-TRUSTED or DB-issued
+ * (the session userId, a booking id, owned pet ids). These are never free-form
+ * user input — they come from the auth session or from rows we already own — so
+ * RFC-9562 version/variant enforcement (`z.uuid()`) adds no safety and can reject
+ * legitimate Postgres uuids whose variant nibble falls outside the RFC set. We
+ * only assert the canonical 8-4-4-4-12 hex shape.
+ */
+const uuidLike = z
+  .string()
+  .regex(
+    /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/,
+    "Invalid id",
+  );
+
+/**
  * Booking request input schema.
  *
  * The client supplies ONLY: which service, time window, quantities, and an
@@ -128,7 +143,7 @@ const recurrenceRuleSchema = z.object({
  */
 export const createBookingInputSchema = z
   .object({
-    userId: z.string().uuid(),
+    userId: uuidLike,
     serviceSlug: z.string().min(1),
     startsAt: z.coerce.date(),
     endsAt: z.coerce.date(),
@@ -139,7 +154,7 @@ export const createBookingInputSchema = z
      * counts, like money) and the pets are linked via booking_pets. Optional for
      * backward compatibility — count-only submits still quote correctly.
      */
-    petIds: z.array(z.string().uuid()).optional(),
+    petIds: z.array(uuidLike).optional(),
     /** Weekly recurrence rule. MVP UI exposes weekly only; daily/monthly accepted for future use. */
     recurringRule: recurrenceRuleSchema.nullable(),
     /** Optional freeform note from the client, surfaced to Cal. */
@@ -158,8 +173,8 @@ export const createBookingInputSchema = z
   });
 
 export const cancelBookingInputSchema = z.object({
-  userId: z.string().uuid(),
-  bookingId: z.string().uuid(),
+  userId: uuidLike,
+  bookingId: uuidLike,
   /**
    * When true, override timing policy and refund 100% of what was paid.
    * Set by the admin cancel path (DESIGN: decision 14). Default false.
