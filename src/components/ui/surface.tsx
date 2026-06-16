@@ -42,6 +42,7 @@ export type SurfaceVariant = NonNullable<
 >;
 
 export function Surface({
+  as: Comp = "div",
   variant = "plain",
   hoverLift = false,
   className,
@@ -49,11 +50,13 @@ export function Surface({
   ...props
 }: React.ComponentProps<"div"> &
   VariantProps<typeof surfaceVariants> & {
+    /** Render as a different element (e.g. `"fieldset"`, `"li"`, `"section"`) while keeping the surface styling + shimmer. */
+    as?: React.ElementType;
     /** Fade a soft clay drop-shadow in on hover (independent of `variant`). */
     hoverLift?: boolean;
   }) {
   return (
-    <div
+    <Comp
       data-slot="surface"
       data-variant={variant}
       className={cn(
@@ -68,6 +71,6 @@ export function Surface({
         <CardShimmer />
       ) : null}
       {children}
-    </div>
+    </Comp>
   );
 }

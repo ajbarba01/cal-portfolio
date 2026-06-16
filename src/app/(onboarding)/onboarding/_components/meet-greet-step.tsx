@@ -4,6 +4,7 @@ import { useState } from "react";
 import { MeetGreetScheduler } from "@/features/accounts";
 import { ApprovalWatcher } from "./approval-watcher";
 import { Button } from "@/components/ui/button";
+import { Surface } from "@/components/ui/surface";
 import type {
   BookingRuleSettings,
   PublicBusyRange,
@@ -50,7 +51,7 @@ export function MeetGreetStep({
   const showScheduler = bookingStartsAt === null || rescheduling;
 
   return (
-    <div className="bg-card border-border flex flex-col gap-5 rounded-xl border p-6">
+    <Surface variant="plain" className="flex flex-col gap-5 p-6">
       {/* Intro */}
       <div className="border-border/60 flex items-center gap-3 border-b pb-4">
         <div
@@ -112,6 +113,6 @@ export function MeetGreetStep({
           onBooked={() => setRescheduling(false)}
         />
       ) : null}
-    </div>
+    </Surface>
   );
 }
