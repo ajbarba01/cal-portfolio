@@ -1,5 +1,6 @@
 ## now
 
+- component-system refactor underway: sizing tokens (control track / card radius / elevation) + `Surface` + family primitives (Alert/TextLink/ListRow/SectionHeader/StatDisplay) + form controls (Switch/RadioGroup/Checkbox/UnitInput) + dev-only `/showcase` route + `docs/COMPONENT_SYSTEM.md` + ESLint drift checks (`warn`) all shipped. **Phase E = zone-by-zone migration onto Surface/primitives** is in progress (marketing started: home trust cards → Surface). Resume worklist = the ~29 `design-system/no-drift` lint warnings; flip those rules to `error` per zone as each is cleaned. (2026-06-15)
 - hero images should also ease in on load (?)
 - word count/character count for pretty much any user input.
 - kiche discount
@@ -7,6 +8,8 @@
 - paw print effect
 - enter site page
 - onboarding styling: why is there page below the footer, the page width changes from step to 1 to 2
+- ssg
+- maybe: try making some sections or areas a window to the page bg
 
 ## Notes for the future
 
