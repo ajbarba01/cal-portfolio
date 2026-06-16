@@ -93,6 +93,28 @@ function SocialLinks() {
   );
 }
 
+/**
+ * Personal designer credit. Split row: brand tagline left, maker credit right
+ * (stacks centered on mobile). The mailto here is the designer's own channel and
+ * is intentional — distinct from Cal's contact, which always routes to /contact.
+ */
+function DesignerCredit() {
+  return (
+    <div className="border-border/60 flex flex-col items-center gap-1.5 border-t py-3 text-center sm:flex-row sm:justify-between sm:gap-3 sm:text-left">
+      <span className="text-muted-foreground/60 text-xs">Made with care</span>
+      <span className="text-muted-foreground/80 text-xs">
+        Site by{" "}
+        <a
+          href="mailto:zander@barba.org"
+          className="hover:text-brand-strong font-medium underline-offset-[3px] transition-colors hover:underline focus-visible:outline-2 focus-visible:outline-offset-2"
+        >
+          Zander Barba
+        </a>
+      </span>
+    </div>
+  );
+}
+
 /** Shared sheet footer. Rendered once by PageShell in the persistent (site) shell. */
 export function SiteFooter() {
   return (
@@ -121,6 +143,9 @@ export function SiteFooter() {
             ©&nbsp;{new Date().getFullYear()}&nbsp;Cal Barba · Colorado
           </p>
         </div>
+
+        {/* ── Shared designer credit (below both layouts) ─────────────── */}
+        <DesignerCredit />
       </div>
     </FooterReveal>
   );

@@ -617,28 +617,16 @@
 
   /*
    * About-page stat ribbon: a continuous, sports-panel-style marquee. The track
-   * holds two identical item groups (rendered by <StatTicker>); translating it
-   * one full group-width keeps the loop seamless. Motion is CSS-only and honors
-   * the reduced-motion preference (accessibility floor) by freezing in place.
+   * holds two identical item groups (rendered by <StatTicker>); wrapping the
+   * translate over one group-width keeps the loop seamless. Motion is driven by
+   * a JS rAF physics loop (<StatTickerTrack>) — baseline drift, cursor-coupled
+   * hover, and kinetic momentum decay. Reduced-motion users get no loop and the
+   * track stays frozen at its start (accessibility floor).
    */
   .stat-ticker-track {
     display: flex;
     width: max-content;
-    animation: stat-ticker 38s linear infinite;
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .stat-ticker-track {
-      animation: none;
-    }
-  }
-}
-
-@keyframes stat-ticker {
-  from {
-    transform: translateX(-50%);
-  }
-  to {
-    transform: translateX(0);
+    will-change: transform;
   }
 }
 
