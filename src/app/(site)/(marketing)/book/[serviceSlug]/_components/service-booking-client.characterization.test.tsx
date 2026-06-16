@@ -85,6 +85,9 @@ describe("ServiceBookingClient (characterization)", () => {
         pets={[]}
         initialSelection={{ start: null, end: null, petIds: [] }}
         myBookingDayKeys={[]}
+        formResponses={{}}
+        acceptedAuthVersion={null}
+        acceptedAuthAt={null}
       />,
     );
 
@@ -114,6 +117,9 @@ describe("ServiceBookingClient (characterization)", () => {
         pets={[]}
         initialSelection={{ start: null, end: null, petIds: [] }}
         myBookingDayKeys={[]}
+        formResponses={{}}
+        acceptedAuthVersion={null}
+        acceptedAuthAt={null}
       />,
     );
 

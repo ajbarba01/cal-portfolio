@@ -38,6 +38,15 @@ import { cn } from "@/lib/utils";
 import { bookingSuccessSummary } from "../../_components/messages";
 import { useServiceBooking } from "./use-service-booking";
 import type { RequirementItem } from "@/features/booking/index.client";
+import {
+  FormCard,
+  submitForm,
+  acceptAuthorization,
+  EXPENSE_AUTH_KIND,
+  EXPENSE_AUTH_VERSION,
+  EXPENSE_AUTH_TEXT,
+} from "@/features/accounts/index.client";
+import type { AuthConfig } from "@/features/accounts/index.client";
 
 export type { ServiceDetail };
 
@@ -67,6 +76,12 @@ interface ServiceBookingClientProps {
   initialSelection: InitialSelection;
   /** Denver day-keys where this client already has an active booking (your-booking dot). */
   myBookingDayKeys: string[];
+  /** Server-loaded form responses keyed by form_key (account) or `${form_key}:${pet_id}` (pet). */
+  formResponses: Record<string, { data: Record<string, unknown> }>;
+  /** Latest accepted expense-auth version (null = never accepted). */
+  acceptedAuthVersion: string | null;
+  /** ISO timestamp of the acceptance (null = never accepted). */
+  acceptedAuthAt: string | null;
 }
 
 // ── Main ────────────────────────────────────────────────────────────────────────
@@ -80,6 +95,9 @@ export function ServiceBookingClient({
   pets,
   initialSelection,
   myBookingDayKeys,
+  formResponses,
+  acceptedAuthVersion,
+  acceptedAuthAt,
 }: ServiceBookingClientProps) {
   const {
     mode,
@@ -110,6 +128,7 @@ export function ServiceBookingClient({
     onKicheWelcomeChange,
     formsIncomplete,
     profileRequirements,
+    refreshRequirements,
     step2Label,
     step3Label,
     step4Label,
@@ -286,6 +305,20 @@ export function ServiceBookingClient({
             <RequirementsGate
               requirements={profileRequirements ?? []}
               pets={pets}
+              formResponses={formResponses}
+              auth={{
+                acceptedVersion: acceptedAuthVersion,
+                acceptedAt: acceptedAuthAt,
+                currentVersion: EXPENSE_AUTH_VERSION,
+                text: EXPENSE_AUTH_TEXT,
+                onAccept: (name) =>
+                  acceptAuthorization({
+                    kind: EXPENSE_AUTH_KIND,
+                    version: EXPENSE_AUTH_VERSION,
+                    acceptedName: name,
+                  }),
+              }}
+              onSaved={refreshRequirements}
             />
           )}
 
@@ -375,35 +408,41 @@ function requirementLabel(
   item: RequirementItem,
   pets: AssignablePet[],
 ): string {
-  if (item.formKey === "owner") return "Owner & emergency contacts";
-  if (item.formKey === "home_access") return "Home access & care";
-  if (item.formKey === "home_sitting") return "Home sitting preferences";
-  const name = item.petId
-    ? pets.find((p) => p.id === item.petId)?.name
-    : undefined;
-  if (item.formKey === "pet_walk")
-    return name ? `${name} — walk preferences` : "Walk preferences";
-  return name ? `${name} — care details` : "Pet care details";
+  switch (item.formKey) {
+    case "owner":
+      return "Owner & emergency contacts";
+    case "home_access":
+      return "Home access";
+    case "home_sitting":
+      return "House-sitting details";
+    default: {
+      const name = item.petId
+        ? pets.find((p) => p.id === item.petId)?.name
+        : undefined;
+      const kind = item.formKey === "pet_walk" ? "walks & outings" : "care";
+      return name ? `${name} — ${kind}` : kind;
+    }
+  }
 }
 
-const REQUIREMENT_STATUS_TEXT: Record<RequirementItem["status"], string> = {
-  complete: "Ready",
-  stale: "Needs reconfirming",
-  missing: "Not started",
-};
-
 /**
- * Lists each required profile with its status and hard-blocks booking until all
- * are complete. Missing/stale profiles are completed on the profiles page (the
- * shared form-card); returning here re-checks the gate. Status is conveyed by an
- * explicit label, never by color alone.
+ * Renders an inline FormCard per required profile and hard-blocks booking until
+ * all are complete. Each card auto-expands when incomplete; complete items stay
+ * collapsed. After any save, onSaved re-runs the preview so the gate clears once
+ * all requirements are met. Status is conveyed by text, never by color alone.
  */
 function RequirementsGate({
   requirements,
   pets,
+  formResponses,
+  auth,
+  onSaved,
 }: {
   requirements: RequirementItem[];
   pets: AssignablePet[];
+  formResponses: Record<string, { data: Record<string, unknown> }>;
+  auth: AuthConfig;
+  onSaved: () => void;
 }) {
   return (
     <section aria-labelledby="gate-requirements-heading">
@@ -416,53 +455,28 @@ function RequirementsGate({
         </h2>
         <p className="text-muted-foreground mb-4 text-sm">
           So Cal has what&apos;s needed to care for your pets. Complete or
-          reconfirm these, then come back to book.
+          reconfirm these to finish booking.
         </p>
-
-        <ul className="mb-5 flex flex-col gap-2.5">
+        <div className="flex flex-col gap-3">
           {requirements.map((item) => {
-            const done = item.status === "complete";
+            const scopeKey = item.petId
+              ? `${item.formKey}:${item.petId}`
+              : item.formKey;
             return (
-              <li
-                key={`${item.formKey}:${item.petId ?? "account"}`}
-                className="flex items-center justify-between gap-3 text-sm"
-              >
-                <span className="text-foreground flex items-center gap-2.5">
-                  <span
-                    aria-hidden="true"
-                    className={cn(
-                      "size-1.5 rounded-full",
-                      done
-                        ? "bg-status-available-foreground"
-                        : "bg-muted-foreground/40",
-                    )}
-                  />
-                  {requirementLabel(item, pets)}
-                </span>
-                <span
-                  className={cn(
-                    "text-xs font-medium",
-                    done
-                      ? "text-status-available-foreground"
-                      : "text-muted-foreground",
-                  )}
-                >
-                  {REQUIREMENT_STATUS_TEXT[item.status]}
-                </span>
-              </li>
+              <FormCard
+                key={scopeKey}
+                formKey={item.formKey}
+                petId={item.petId ?? null}
+                title={requirementLabel(item, pets)}
+                status={item.status}
+                existing={formResponses[scopeKey]}
+                onSubmit={submitForm}
+                onSaved={onSaved}
+                auth={item.formKey === "owner" ? auth : undefined}
+              />
             );
           })}
-        </ul>
-
-        <Link
-          href="/account/forms"
-          className={cn(
-            buttonVariants({ variant: "brand" }),
-            "w-full sm:w-auto",
-          )}
-        >
-          Complete profiles →
-        </Link>
+        </div>
       </Surface>
     </section>
   );

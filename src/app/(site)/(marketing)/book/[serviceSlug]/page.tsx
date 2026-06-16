@@ -26,6 +26,7 @@ import {
   ServiceBookingClient,
   type AuthState,
 } from "./_components/service-booking-client";
+import { EXPENSE_AUTH_KIND } from "@/features/accounts";
 import type { PricingType } from "@/features/pricing";
 import { createStaticClient } from "@/lib/supabase/static";
 import {
@@ -128,6 +129,9 @@ export default async function ServiceBookingPage({
   // Denver day-keys where this client already has an active booking for THIS
   // service — drives the "your booking" dot on the month grid (e.g. recurring walks).
   let myBookingDayKeys: string[] = [];
+  const formResponses: Record<string, { data: Record<string, unknown> }> = {};
+  let acceptedAuthVersion: string | null = null;
+  let acceptedAuthAt: string | null = null;
 
   if (user) {
     const { data: profile } = await svc
@@ -181,7 +185,12 @@ export default async function ServiceBookingPage({
       );
     };
 
-    const [resolvedPets, { data: myBookingRows }] = await Promise.all([
+    const [
+      resolvedPets,
+      { data: myBookingRows },
+      { data: formRows },
+      { data: authRows },
+    ] = await Promise.all([
       loadReadyPets(),
       svc
         .from("bookings")
@@ -190,12 +199,42 @@ export default async function ServiceBookingPage({
         .eq("service_id", serviceRow.id as string)
         .in("status", ["pending_approval", "confirmed"])
         .gte("ends_at", new Date().toISOString()),
+      authState === "ready"
+        ? svc
+            .from("form_responses")
+            .select("form_key, pet_id, data")
+            .eq("client_id", user.id)
+        : Promise.resolve({ data: null, error: null }),
+      authState === "ready"
+        ? svc
+            .from("authorizations")
+            .select("version, accepted_at")
+            .eq("client_id", user.id)
+            .eq("kind", EXPENSE_AUTH_KIND)
+            .order("accepted_at", { ascending: false })
+            .limit(1)
+        : Promise.resolve({ data: null, error: null }),
     ]);
 
     pets = resolvedPets;
     myBookingDayKeys = (myBookingRows ?? []).map((r) =>
       denverDayKey(new Date(r.starts_at as string)),
     );
+
+    for (const r of formRows ?? []) {
+      const key = r.pet_id
+        ? `${r.form_key as string}:${r.pet_id as string}`
+        : (r.form_key as string);
+      formResponses[key] = {
+        data: (r.data ?? {}) as Record<string, unknown>,
+      };
+    }
+
+    const latestAuth = (
+      authRows as { version: string; accepted_at: string }[] | null
+    )?.[0];
+    acceptedAuthVersion = latestAuth?.version ?? null;
+    acceptedAuthAt = latestAuth?.accepted_at ?? null;
   }
 
   const petsParam = firstParam(sp.pets);
@@ -279,6 +318,9 @@ export default async function ServiceBookingPage({
           pets={pets}
           initialSelection={initialSelection}
           myBookingDayKeys={myBookingDayKeys}
+          formResponses={formResponses}
+          acceptedAuthVersion={acceptedAuthVersion}
+          acceptedAuthAt={acceptedAuthAt}
         />
       </main>
     </>

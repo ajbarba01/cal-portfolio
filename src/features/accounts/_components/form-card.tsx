@@ -14,6 +14,7 @@ import {
   type FieldValues,
 } from "@/features/accounts/_components/profile-fields";
 import type { ActionResult } from "@/features/accounts/account-actions";
+import { ProfileDisclaimer } from "@/features/accounts/_components/profile-disclaimer";
 
 // ─── Emergency form (legacy) ──────────────────────────────────────────────────
 
@@ -186,6 +187,14 @@ export interface FormCardProps {
   title?: string;
   /** Owner-card expense-authorization e-sign. Ignored for other forms. */
   auth?: AuthConfig;
+  /**
+   * Drives initial open + a stale warning when reused inline in the booking flow.
+   * complete → collapsed; stale → open in edit mode with a warning; missing →
+   * open empty. Omitted → legacy behavior (open when no existing row).
+   */
+  status?: "complete" | "stale" | "missing";
+  /** Fires after a successful submit so a host (booking gate) can re-check. */
+  onSaved?: () => void;
 }
 
 function initialValues(
@@ -212,8 +221,12 @@ export function FormCard({
   petId = null,
   title,
   auth,
+  status,
+  onSaved,
 }: FormCardProps) {
-  const [open, setOpen] = useState(!existing);
+  const [open, setOpen] = useState(
+    status === undefined ? !existing : status !== "complete",
+  );
   const [submitted, setSubmitted] = useState(existing !== undefined);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -256,6 +269,7 @@ export function FormCard({
       }
       setSubmitted(true);
       setOpen(false);
+      onSaved?.();
     });
   }
 
@@ -285,6 +299,16 @@ export function FormCard({
             noValidate
             className="border-border bg-muted/40 flex flex-col gap-6 border-t px-4 py-4"
           >
+            {status === "stale" && (
+              <p
+                role="status"
+                className="text-foreground border-border bg-muted rounded-xl border p-3 text-xs leading-relaxed"
+              >
+                You filled this out a while ago. Please review it and save to
+                confirm it&apos;s still accurate.
+              </p>
+            )}
+            <ProfileDisclaimer />
             {formKey === "emergency" ? (
               <EmergencyFields values={values} onChange={handleChange} />
             ) : (
