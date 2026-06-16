@@ -16,6 +16,7 @@
  */
 
 import Link from "next/link";
+import { Check } from "lucide-react";
 import {
   BookingFlow,
   BookingFlowStepHead,
@@ -129,10 +130,11 @@ export function ServiceBookingClient({
     formsIncomplete,
     profileRequirements,
     refreshRequirements,
-    step2Label,
-    step3Label,
-    step4Label,
-    step5Label,
+    petStepLabel,
+    detailsStepLabel,
+    recurringStepLabel,
+    formsStepLabel,
+    notesStepLabel,
     onSelectionChange,
     handleBook,
     handlePetAdded,
@@ -201,7 +203,7 @@ export function ServiceBookingClient({
         petAware && (
           <section aria-labelledby="pets-heading">
             <BookingFlowStepHead
-              num={step2Label}
+              num={petStepLabel}
               label={petSectionLabel}
               labelId="pets-heading"
             />
@@ -225,7 +227,7 @@ export function ServiceBookingClient({
       detailsSection={
         <section aria-labelledby="qty-heading">
           <BookingFlowStepHead
-            num={step3Label}
+            num={detailsStepLabel}
             label="Details"
             labelId="qty-heading"
           />
@@ -240,7 +242,7 @@ export function ServiceBookingClient({
         supportsRecurring && (
           <section aria-labelledby="recur-heading">
             <BookingFlowStepHead
-              num={step4Label}
+              num={recurringStepLabel}
               label="Repeat weekly?"
               labelId="recur-heading"
               hint="optional"
@@ -254,10 +256,66 @@ export function ServiceBookingClient({
           </section>
         )
       }
+      formsSection={
+        authState === "ready" ? (
+          <section aria-labelledby="forms-heading">
+            <BookingFlowStepHead
+              num={formsStepLabel}
+              label="Required forms"
+              labelId="forms-heading"
+            />
+            {formsIncomplete ? (
+              <RequirementsGate
+                requirements={profileRequirements ?? []}
+                pets={pets}
+                formResponses={formResponses}
+                auth={{
+                  acceptedVersion: acceptedAuthVersion,
+                  acceptedAt: acceptedAuthAt,
+                  currentVersion: EXPENSE_AUTH_VERSION,
+                  text: EXPENSE_AUTH_TEXT,
+                  onAccept: (name) =>
+                    acceptAuthorization({
+                      kind: EXPENSE_AUTH_KIND,
+                      version: EXPENSE_AUTH_VERSION,
+                      acceptedName: name,
+                    }),
+                }}
+                onSaved={refreshRequirements}
+              />
+            ) : quote ? (
+              <p className="text-status-available-foreground inline-flex items-center gap-1.5 text-sm font-medium">
+                <Check
+                  className="size-4"
+                  strokeWidth={2.5}
+                  aria-hidden="true"
+                />
+                Your forms are up to date.
+              </p>
+            ) : (
+              <p className="text-muted-foreground text-sm">
+                Pick a date and time and we&apos;ll list any forms Cal needs for
+                this booking.
+              </p>
+            )}
+          </section>
+        ) : (
+          <section aria-labelledby="forms-heading">
+            <BookingFlowStepHead
+              num={formsStepLabel}
+              label="Required forms"
+              labelId="forms-heading"
+            />
+            <p className="text-muted-foreground text-sm">
+              You&apos;ll complete any required forms after signing in.
+            </p>
+          </section>
+        )
+      }
       notesSection={
         <NotesForCalSection
           id="create-comments"
-          num={supportsRecurring ? step5Label : step4Label}
+          num={notesStepLabel}
           value={comments}
           onChange={onCommentsChange}
           placeholder="Anything Cal should know about this visit?"
@@ -306,40 +364,27 @@ export function ServiceBookingClient({
             />
           )}
 
-          {/* Requirements gate — ready user is missing/stale on a required profile */}
-          {authState === "ready" && formsIncomplete && (
-            <RequirementsGate
-              requirements={profileRequirements ?? []}
-              pets={pets}
-              formResponses={formResponses}
-              auth={{
-                acceptedVersion: acceptedAuthVersion,
-                acceptedAt: acceptedAuthAt,
-                currentVersion: EXPENSE_AUTH_VERSION,
-                text: EXPENSE_AUTH_TEXT,
-                onAccept: (name) =>
-                  acceptAuthorization({
-                    kind: EXPENSE_AUTH_KIND,
-                    version: EXPENSE_AUTH_VERSION,
-                    acceptedName: name,
-                  }),
-              }}
-              onSaved={refreshRequirements}
-            />
-          )}
-
-          {/* Receipt + Book — only for ready users who have completed all forms */}
-          {authState === "ready" && !formsIncomplete && (
+          {/* Receipt + Book. The required-profiles gate is its own step above;
+              here we only show the price (or, while forms are unmet, a pointer
+              back to that step — the quote stays withheld until the gate clears). */}
+          {authState === "ready" && (
             <section aria-labelledby="receipt-heading" aria-live="polite">
               <h2 id="receipt-heading" className="sr-only">
                 Your price
               </h2>
-              {previewMsg && (
+              {previewMsg && !formsIncomplete && (
                 <p role="alert" className="text-destructive mb-3 text-sm">
                   {previewMsg.text}
                 </p>
               )}
-              {quote ? (
+              {formsIncomplete ? (
+                <Surface
+                  variant="plain"
+                  className="text-muted-foreground border-dashed p-6 text-center text-sm"
+                >
+                  Complete the required forms above to see your price and book.
+                </Surface>
+              ) : quote ? (
                 // U1: success renders a terminal panel (early return above),
                 // so the Book CTA always shows alongside a quote here.
                 <QuotePanel
@@ -432,10 +477,11 @@ function requirementLabel(
 }
 
 /**
- * Renders an inline FormCard per required profile and hard-blocks booking until
- * all are complete. Each card auto-expands when incomplete; complete items stay
- * collapsed. After any save, onSaved re-runs the preview so the gate clears once
- * all requirements are met. Status is conveyed by text, never by color alone.
+ * Renders the required profiles as flat, collapsible rows inside the forms step's
+ * single card (no nested cards) and hard-blocks booking until all are complete.
+ * Each row starts collapsed with its status; the client expands the ones to fill.
+ * After any save, onSaved re-runs the preview so the gate clears once all
+ * requirements are met. Status is conveyed by text, never by color alone.
  */
 function RequirementsGate({
   requirements,
@@ -451,39 +497,32 @@ function RequirementsGate({
   onSaved: () => void;
 }) {
   return (
-    <section aria-labelledby="gate-requirements-heading">
-      <Surface variant="plain" className="p-6">
-        <h2
-          id="gate-requirements-heading"
-          className="font-heading text-foreground mb-1 text-base font-semibold"
-        >
-          A few things on file before booking
-        </h2>
-        <p className="text-muted-foreground mb-4 text-sm">
-          So Cal has what&apos;s needed to care for your pets. Complete or
-          reconfirm these to finish booking.
-        </p>
-        <div className="flex flex-col gap-3">
-          {requirements.map((item) => {
-            const scopeKey = item.petId
-              ? `${item.formKey}:${item.petId}`
-              : item.formKey;
-            return (
-              <FormCard
-                key={scopeKey}
-                formKey={item.formKey}
-                petId={item.petId ?? null}
-                title={requirementLabel(item, pets)}
-                status={item.status}
-                existing={formResponses[scopeKey]}
-                onSubmit={submitForm}
-                onSaved={onSaved}
-                auth={item.formKey === "owner" ? auth : undefined}
-              />
-            );
-          })}
-        </div>
-      </Surface>
-    </section>
+    <>
+      <p className="text-muted-foreground mb-3 text-sm">
+        So Cal has what&apos;s needed to care for your pets. Complete or
+        reconfirm these to finish booking.
+      </p>
+      <div className="border-border divide-border divide-y rounded-xl border">
+        {requirements.map((item) => {
+          const scopeKey = item.petId
+            ? `${item.formKey}:${item.petId}`
+            : item.formKey;
+          return (
+            <FormCard
+              key={scopeKey}
+              flat
+              formKey={item.formKey}
+              petId={item.petId ?? null}
+              title={requirementLabel(item, pets)}
+              status={item.status}
+              existing={formResponses[scopeKey]}
+              onSubmit={submitForm}
+              onSaved={onSaved}
+              auth={item.formKey === "owner" ? auth : undefined}
+            />
+          );
+        })}
+      </div>
+    </>
   );
 }

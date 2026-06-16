@@ -143,10 +143,12 @@ export interface UseServiceBookingReturn {
   kicheWelcome: boolean;
 
   // Step labels
-  step2Label: string;
-  step3Label: string;
-  step4Label: string;
-  step5Label: string;
+  /** Step numbers, derived sequentially from which sections are present. */
+  petStepLabel: string;
+  detailsStepLabel: string;
+  recurringStepLabel: string;
+  formsStepLabel: string;
+  notesStepLabel: string;
 
   // Event handlers
   onSelectionChange: (state: ScheduleSelectionState) => void;
@@ -428,11 +430,16 @@ export function useServiceBooking({
     return `/login?returnTo=${encodeURIComponent(returnTo)}`;
   })();
 
-  // Step counter helpers
-  const step2Label = "2";
-  const step3Label = petAware ? "3" : "2";
-  const step4Label = petAware ? "4" : "3";
-  const step5Label = petAware ? "5" : "4";
+  // Step numbering. Schedule is step 1; each section that renders takes the next
+  // number. Pets appear for pet-aware services, recurring only when supported;
+  // the required-forms step and notes always render (forms = its own step before
+  // notes).
+  let stepCounter = 1;
+  const petStepLabel = petAware ? String(++stepCounter) : "";
+  const detailsStepLabel = String(++stepCounter);
+  const recurringStepLabel = supportsRecurring ? String(++stepCounter) : "";
+  const formsStepLabel = String(++stepCounter);
+  const notesStepLabel = String(++stepCounter);
 
   function onCommentsChange(v: string) {
     setComments(v);
@@ -473,10 +480,11 @@ export function useServiceBooking({
     comments,
     kicheWelcome,
     onKicheWelcomeChange: setKicheWelcome,
-    step2Label,
-    step3Label,
-    step4Label,
-    step5Label,
+    petStepLabel,
+    detailsStepLabel,
+    recurringStepLabel,
+    formsStepLabel,
+    notesStepLabel,
     onSelectionChange,
     handleBook,
     handlePetAdded,

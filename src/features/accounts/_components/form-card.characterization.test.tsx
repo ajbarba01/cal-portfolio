@@ -8,9 +8,9 @@
  * changed, which violates the behavior-preserving refactor contract):
  *   - form label is rendered in the card header
  *   - "Completed" status pill shown when existing response is present
- *   - "Editing…" status shown when card opens (no existing → card starts open)
- *   - Edit button shown when existing; Close button when card is open
- *   - clicking Edit toggles open (aria-expanded reflects state)
+ *   - cards always start collapsed (the client expands the ones to fill)
+ *   - "Not started" status + Start button when no existing response
+ *   - clicking the toggle opens the card (aria-expanded reflects state)
  */
 
 import * as React from "react";
@@ -60,7 +60,7 @@ describe("FormCard", () => {
     expect(screen.getByText("Completed")).toBeTruthy();
   });
 
-  it('shows "Editing…" status when no existing response (card starts open)', () => {
+  it('shows "Not started" status when no existing response (card starts collapsed)', () => {
     render(
       <FormCard
         formKey="emergency"
@@ -68,7 +68,7 @@ describe("FormCard", () => {
         onSubmit={noopSubmit}
       />,
     );
-    expect(screen.getByText("Editing…")).toBeTruthy();
+    expect(screen.getByText("Not started")).toBeTruthy();
   });
 
   it("shows Edit button (aria-expanded false) when existing response; card starts closed", () => {
@@ -84,7 +84,7 @@ describe("FormCard", () => {
     expect(btn.getAttribute("aria-expanded")).toBe("false");
   });
 
-  it("shows Close button (aria-expanded true) when no existing response; card starts open", () => {
+  it("shows Start button (aria-expanded false) when no existing response; card starts collapsed", () => {
     render(
       <FormCard
         formKey="emergency"
@@ -92,8 +92,16 @@ describe("FormCard", () => {
         onSubmit={noopSubmit}
       />,
     );
-    const btn = screen.getByRole("button", { name: /close/i });
-    expect(btn.getAttribute("aria-expanded")).toBe("true");
+    const btn = screen.getByRole("button", { name: /start/i });
+    expect(btn.getAttribute("aria-expanded")).toBe("false");
+
+    // Expanding shows the Close affordance.
+    fireEvent.click(btn);
+    expect(
+      screen
+        .getByRole("button", { name: /close/i })
+        .getAttribute("aria-expanded"),
+    ).toBe("true");
   });
 
   it("toggles open on Edit button click (aria-expanded flips to true)", () => {
