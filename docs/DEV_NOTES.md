@@ -4,14 +4,14 @@
 - word count/character count for pretty much any user input.
 - ensure owing system
 - site logo + wordmark typeface
-- booking details redesign (include kiche discount)
+- booking details redesign (include kiche discount and details descriptions)
 - paw print effect
 - enter site page
 - onboarding styling: why is there page below the footer, the page width changes from step to 1 to 2
 - maybe: try making some sections or areas a window to the page bg
 - what pronouns are being used? most of the site its like Cal is speaking directly to the user but there some text when it says like "Cal will get back to you soon"
 - reviews filtering and pagination + mini redesign
-- seo stuff
+- ~~seo stuff~~ — technical SEO foundation DONE (centralized `src/features/seo/`: metadata/canonicals, sitemap.ts, robots.ts, manifest.ts, opengraph-image, LocalBusiness/WebSite/Service/Breadcrumb/Person/aggregateRating JSON-LD; service-area geo = Front Range/CO). Deferred follow-ups: (1) content/keyword pass over `src/content/marketing.ts` (needs Cal's voice + copy-sync); (2) icon/favicon/manifest art + OG heading font once the brand mark lands. (2026-06-16)
 
 ## Notes for the future
 

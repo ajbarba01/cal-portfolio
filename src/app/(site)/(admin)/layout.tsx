@@ -1,9 +1,14 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCachedUser } from "@/lib/supabase/server-cache";
 import { AppShell } from "@/components/layout/app-shell";
 import { adminNav, type NavBadges } from "@/components/layout/nav-config";
 import { getAttentionCounts } from "@/features/admin";
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 /** Guard for all (admin) routes: unauthenticated or non-admin role → redirect. */
 export default async function AdminLayout({

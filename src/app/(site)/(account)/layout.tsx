@@ -1,8 +1,13 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCachedUser } from "@/lib/supabase/server-cache";
 import { AppShell } from "@/components/layout/app-shell";
 import { accountNav } from "@/components/layout/nav-config";
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 /**
  * Account zone shell. The real auth + onboarding gate lives in middleware
