@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useId, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { FormField } from "@/components/ui/form-field";
+import { Eyebrow } from "@/components/marketing/eyebrow";
 import { ShimmerCard } from "@/components/ui/shimmer-card";
 import type { FormKey } from "@/features/accounts/form-registry";
 import type { ActionResult } from "@/features/accounts/account-actions";
@@ -35,84 +35,75 @@ function EmergencyFields({
     onChange(e.target.name, e.target.value);
   }
 
+  // Borderless titled groups (role="group" + aria-labelledby) — not native
+  // fieldset/legend — so these sub-groups nested inside the card carry no notch
+  // or extra border.
+  const contactId = useId();
+  const vetId = useId();
+
   return (
     <>
-      <fieldset className="flex flex-col gap-4">
-        <legend className="text-brand-strong text-xs font-semibold tracking-wide uppercase">
-          Emergency contact
-        </legend>
+      <div
+        role="group"
+        aria-labelledby={contactId}
+        className="flex flex-col gap-4"
+      >
+        <Eyebrow id={contactId}>Emergency contact</Eyebrow>
 
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="contact_name">Contact name</Label>
-          <Input
-            id="contact_name"
-            name="contact_name"
+        <FormField
+          label="Contact name"
+          name="contact_name"
+          type="text"
+          value={values.contact_name}
+          onChange={handle}
+          required
+        />
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <FormField
+            label="Contact phone"
+            name="contact_phone"
+            type="tel"
+            value={values.contact_phone}
+            onChange={handle}
+            required
+          />
+
+          <FormField
+            label="Relationship"
+            name="contact_relationship"
             type="text"
-            value={values.contact_name}
+            placeholder="e.g. Parent, Spouse, Friend"
+            value={values.contact_relationship}
             onChange={handle}
             required
           />
         </div>
+      </div>
+
+      <div role="group" aria-labelledby={vetId} className="flex flex-col gap-4">
+        <Eyebrow id={vetId}>Veterinarian</Eyebrow>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="contact_phone">Contact phone</Label>
-            <Input
-              id="contact_phone"
-              name="contact_phone"
-              type="tel"
-              value={values.contact_phone}
-              onChange={handle}
-              required
-            />
-          </div>
+          <FormField
+            label="Vet name or clinic"
+            name="vet_name"
+            type="text"
+            value={values.vet_name}
+            onChange={handle}
+            required
+          />
 
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="contact_relationship">Relationship</Label>
-            <Input
-              id="contact_relationship"
-              name="contact_relationship"
-              type="text"
-              placeholder="e.g. Parent, Spouse, Friend"
-              value={values.contact_relationship}
-              onChange={handle}
-              required
-            />
-          </div>
+          <FormField
+            label="Vet phone"
+            name="vet_phone"
+            type="tel"
+            value={values.vet_phone}
+            onChange={handle}
+            required
+          />
         </div>
-      </fieldset>
-
-      <fieldset className="flex flex-col gap-4">
-        <legend className="text-brand-strong text-xs font-semibold tracking-wide uppercase">
-          Veterinarian
-        </legend>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="vet_name">Vet name or clinic</Label>
-            <Input
-              id="vet_name"
-              name="vet_name"
-              type="text"
-              value={values.vet_name}
-              onChange={handle}
-              required
-            />
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="vet_phone">Vet phone</Label>
-            <Input
-              id="vet_phone"
-              name="vet_phone"
-              type="tel"
-              value={values.vet_phone}
-              onChange={handle}
-              required
-            />
-          </div>
-        </div>
-      </fieldset>
+      </div>
     </>
   );
 }

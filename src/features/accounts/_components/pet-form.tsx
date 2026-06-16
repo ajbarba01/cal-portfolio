@@ -2,8 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { FormField } from "@/components/ui/form-field";
 import { RadioGroup } from "@/components/ui/radio-group";
 import { PhotoCropField } from "./photo-crop-field";
 import {
@@ -73,7 +72,9 @@ export function PetForm({ initial, onSaved, onCancel, actions }: PetFormProps) {
   const [croppedPhoto, setCroppedPhoto] = useState<Blob | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  const fieldId = (f: string) => `pet-${f}-${initial?.id ?? "new"}`;
+  // Label classes mirror FormField's Field.Label so custom-control groups
+  // (species, photo) align with FormField rows in the grid.
+  const groupLabel = "text-sm leading-none font-medium";
 
   function set<K extends keyof PetInput>(key: K, value: PetInput[K]) {
     setValues((prev) => ({ ...prev, [key]: value }));
@@ -125,23 +126,20 @@ export function PetForm({ initial, onSaved, onCancel, actions }: PetFormProps) {
   return (
     <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor={fieldId("name")}>Name *</Label>
-          <Input
-            id={fieldId("name")}
-            name="name"
-            type="text"
-            value={values.name}
-            onChange={(e) => set("name", e.target.value)}
-            required
-            autoComplete="off"
-          />
-        </div>
+        <FormField
+          label="Name *"
+          name="name"
+          type="text"
+          value={values.name}
+          onChange={(e) => set("name", e.target.value)}
+          required
+          autoComplete="off"
+        />
 
-        {/* Mirror the Name field's div+Label structure exactly so the control
-            tops align across the 2-col grid. */}
+        {/* Custom control (radiogroup self-labels). Label classes match
+            FormField so the control tops align across the 2-col grid. */}
         <div className="flex flex-col gap-1.5">
-          <Label>Species</Label>
+          <span className={groupLabel}>Species</span>
           <RadioGroup
             ariaLabel="Species"
             value={values.species}
@@ -154,32 +152,26 @@ export function PetForm({ initial, onSaved, onCancel, actions }: PetFormProps) {
         </div>
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor={fieldId("breed")}>Breed</Label>
-        <Input
-          id={fieldId("breed")}
-          name="breed"
-          type="text"
-          value={values.breed ?? ""}
-          onChange={(e) => set("breed", e.target.value)}
-          autoComplete="off"
-        />
-      </div>
+      <FormField
+        label="Breed"
+        name="breed"
+        type="text"
+        value={values.breed ?? ""}
+        onChange={(e) => set("breed", e.target.value)}
+        autoComplete="off"
+      />
+
+      <FormField
+        label="Notes (vet, meds, feeding)"
+        name="notes"
+        type="text"
+        value={values.notes ?? ""}
+        onChange={(e) => set("notes", e.target.value)}
+        autoComplete="off"
+      />
 
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor={fieldId("notes")}>Notes (vet, meds, feeding)</Label>
-        <Input
-          id={fieldId("notes")}
-          name="notes"
-          type="text"
-          value={values.notes ?? ""}
-          onChange={(e) => set("notes", e.target.value)}
-          autoComplete="off"
-        />
-      </div>
-
-      <div className="flex flex-col gap-1.5">
-        <Label>Photo (optional)</Label>
+        <span className={groupLabel}>Photo (optional)</span>
         <PhotoCropField onCroppedBlobChange={setCroppedPhoto} />
       </div>
 
