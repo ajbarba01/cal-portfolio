@@ -33,12 +33,13 @@ export type {
   CreateBookingResult,
 } from "./booking-service";
 
-// Requirement gate (pure types — manifest/helper are server-evaluated)
+// Requirement gate (pure types + reverse-map helper — all client-safe)
 export type {
   RequirementItem,
   RequirementStatus,
   RequiredFormKey,
 } from "./required-profiles";
+export { servicesRequiring } from "./required-profiles";
 
 // booking-repository (types only — repo factory is server-only surface)
 export { onboardingStatusSchema } from "./booking-repository";
