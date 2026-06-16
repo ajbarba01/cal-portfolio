@@ -81,11 +81,11 @@ Buttons: exactly one `brand` primary per view — see FRONTEND.md "Button hierar
 
 ## Form recipe
 
-A form sits on an `emphasis` Surface; each field is a `FormField` (label + control
-
-- optional description + inline error); controls use the `bg-background` fill;
-  fieldsets carry a small-caps clay legend; one `brand` submit, bottom-left.
-  Validation renders inline at the field, never as a toast (FRONTEND.md feedback).
+A form sits on an `emphasis` Surface; each field is a `FormField` carrying its
+label, control, optional description, and inline error. Controls use the
+`bg-background` fill; fieldsets carry a small-caps clay legend; one `brand` submit
+sits bottom-left. Validation renders inline at the field, never as a toast (see
+FRONTEND.md feedback).
 
 ## /showcase
 
