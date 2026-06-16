@@ -123,7 +123,7 @@ export function InquiryDetailDialog({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Backdrop className="fixed inset-0 z-50 bg-[#1c1813]/60 backdrop-blur-[2px]" />
+        <Dialog.Backdrop className="bg-foreground/60 fixed inset-0 z-50 backdrop-blur-[2px]" />
         <Dialog.Popup
           data-ring-modal-surface
           className="group bg-popover text-popover-foreground border-border fixed inset-x-0 bottom-0 z-50 flex max-h-[88vh] flex-col rounded-t-2xl border shadow-2xl outline-none sm:inset-x-auto sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:max-h-[80vh] sm:w-[min(32rem,calc(100%-2rem))] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl"

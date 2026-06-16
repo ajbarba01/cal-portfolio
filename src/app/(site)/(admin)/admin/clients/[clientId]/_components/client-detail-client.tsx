@@ -309,6 +309,7 @@ export function ClientDetailClient({ client }: { client: ClientDetailView }) {
           pets={petsForList}
           onChanged={router.refresh}
           actions={adminPetActions}
+          surface="plain"
           // No onDelete → Delete button is suppressed in admin zone
         />
       </Surface>
