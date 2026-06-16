@@ -29,6 +29,7 @@ import {
   grantFullRefundCore,
   markNoShowCore,
   settleDebtCore,
+  setKicheAppliedCore,
   editBookingCore,
 } from "./booking-service";
 import { CLIENT_POLICY, ADMIN_POLICY } from "./mutation-policy";
@@ -42,6 +43,7 @@ import type {
   CreateBookingInput,
   CancelBookingInput,
   AdminBookingResult,
+  SetKicheAppliedResult,
   EditBookingPatch,
   EditBookingResult,
 } from "./booking-service";
@@ -239,6 +241,22 @@ export async function settleDebt(debitId: string): Promise<AdminBookingResult> {
   const admin = await requireAdminDeps();
   if (!admin.ok) return { kind: "error", message: "Forbidden" };
   return settleDebtCore({ repo: admin.repo, now: new Date() }, debitId);
+}
+
+/**
+ * Admin: apply or remove the Kiche discount on a booking. Re-quotes the booking
+ * and refunds any overpayment when applying to an already-paid booking.
+ */
+export async function setKicheApplied(
+  bookingId: string,
+  applied: boolean,
+): Promise<SetKicheAppliedResult> {
+  const admin = await requireAdminDeps();
+  if (!admin.ok) return { kind: "error", message: "Forbidden" };
+  return setKicheAppliedCore(
+    { repo: admin.repo, now: new Date(), gateway: admin.gateway },
+    { bookingId, applied },
+  );
 }
 
 /**

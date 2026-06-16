@@ -96,6 +96,8 @@ export interface BookingInsert {
   discount_cents: number;
   /** Freeform client note for Cal. Null when not provided. */
   comments: string | null;
+  /** Client consent that Kiche may tag along (default true). Never affects price. */
+  kiche_welcome: boolean;
 }
 
 /**
@@ -242,6 +244,25 @@ const bookingWithPaymentsRowSchema = z.object({
     .nullable(),
 });
 
+const bookingForKicheRowSchema = z.object({
+  id: z.string(),
+  client_id: z.string(),
+  status: z.string(),
+  quote_inputs: z.unknown(),
+  kiche_welcome: z.boolean(),
+  kiche_applied: z.boolean(),
+  final_cents: z.number(),
+  payments: z
+    .array(
+      z.object({
+        status: z.enum(["requires_payment", "succeeded", "refunded", "failed"]),
+        amount_cents: z.number(),
+        stripe_payment_intent_id: z.string(),
+      }),
+    )
+    .nullable(),
+});
+
 /** Full shape needed to edit a booking in place. */
 export interface BookingEditRow {
   id: string;
@@ -258,6 +279,8 @@ export interface BookingEditRow {
   petIds: string[];
   /** Sum of succeeded payment cents (0 or final_cents under prepay-full). */
   paidCents: number;
+  /** Whether Cal applied the Kiche discount — preserved across a re-quote. */
+  kiche_applied: boolean;
 }
 
 /** Fields an edit may update on the bookings row. */
@@ -379,6 +402,7 @@ const bookingEditRowSchema = z.object({
   series_id: z.string().nullable(),
   comments: z.string().nullable(),
   quote_inputs: z.unknown(),
+  kiche_applied: z.boolean(),
   // PostgREST may return a joined row as an object or a single-element array
   // depending on the client version and relationship cardinality hint.
   services: z
@@ -532,6 +556,36 @@ export interface BookingRepository {
    * matching client_id + form_key). Used by the forms-gate in computeBookingArtifacts.
    */
   hasFormResponse(userId: string, formKey: string): Promise<boolean>;
+
+  /** Load the data the Kiche apply action needs (frozen quote + consent + payments). Null if not found. */
+  getBookingForKiche(id: string): Promise<BookingForKiche | null>;
+
+  /** Persist a Kiche apply/remove: the flag plus the re-quoted price + breakdown. */
+  updateBookingKiche(id: string, fields: BookingKicheUpdate): Promise<void>;
+}
+
+/** Everything setKicheAppliedCore needs about a booking. */
+export interface BookingForKiche {
+  id: string;
+  client_id: string;
+  status: BookingStatusDb;
+  /** Frozen server-written QuoteInput (jsonb) — re-quoted with applyKiche flipped. */
+  quote_inputs: unknown;
+  /** Client consent that Kiche may come (gate: cannot apply without it). */
+  kiche_welcome: boolean;
+  /** Current applied state (idempotency + un-apply). */
+  kiche_applied: boolean;
+  /** Current stored total (cents). */
+  finalCents: number;
+  payments: BookingPaymentTxn[];
+}
+
+/** Fields the Kiche apply action updates on a booking. */
+export interface BookingKicheUpdate {
+  kiche_applied: boolean;
+  quote_inputs: unknown;
+  quote_breakdown: unknown;
+  final_cents: number;
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -1061,7 +1115,7 @@ export function createSupabaseBookingRepository(
         .from("bookings")
         .select(
           "id, client_id, status, starts_at, ends_at, series_id, comments, " +
-            "quote_inputs, services(slug), booking_pets(pet_id), " +
+            "quote_inputs, kiche_applied, services(slug), booking_pets(pet_id), " +
             "payments(status, amount_cents)",
         )
         .eq("id", id)
@@ -1105,6 +1159,7 @@ export function createSupabaseBookingRepository(
         quote_inputs: row.quote_inputs,
         petIds: (row.booking_pets ?? []).map((bp) => bp.pet_id),
         paidCents,
+        kiche_applied: row.kiche_applied,
       };
     },
 
@@ -1200,6 +1255,64 @@ export function createSupabaseBookingRepository(
         );
       }
       return (data ?? []).length > 0;
+    },
+
+    async getBookingForKiche(id) {
+      const { data, error } = await client
+        .from("bookings")
+        .select(
+          "id, client_id, status, quote_inputs, kiche_welcome, kiche_applied, final_cents, " +
+            "payments(status, amount_cents, stripe_payment_intent_id)",
+        )
+        .eq("id", id)
+        .maybeSingle();
+
+      if (error) {
+        throw new Error(
+          `Failed to load booking for kiche '${id}': ${error.message}`,
+        );
+      }
+      if (!data) return null;
+
+      const parsed = bookingForKicheRowSchema.safeParse(data);
+      if (!parsed.success) {
+        throw new Error(
+          `booking-for-kiche row has unexpected DB shape: ${parsed.error.message}`,
+        );
+      }
+      const row = parsed.data;
+      return {
+        id: row.id,
+        client_id: row.client_id,
+        status: row.status as BookingStatusDb,
+        quote_inputs: row.quote_inputs,
+        kiche_welcome: row.kiche_welcome,
+        kiche_applied: row.kiche_applied,
+        finalCents: row.final_cents,
+        payments: (row.payments ?? []).map((p) => ({
+          status: p.status,
+          amountCents: p.amount_cents,
+          paymentIntentId: p.stripe_payment_intent_id,
+        })),
+      };
+    },
+
+    async updateBookingKiche(id, fields) {
+      const { error } = await client
+        .from("bookings")
+        .update({
+          kiche_applied: fields.kiche_applied,
+          quote_inputs: fields.quote_inputs,
+          quote_breakdown: fields.quote_breakdown,
+          final_cents: fields.final_cents,
+        })
+        .eq("id", id);
+
+      if (error) {
+        throw new Error(
+          `Failed to update kiche for booking '${id}': ${error.message}`,
+        );
+      }
     },
   };
 }

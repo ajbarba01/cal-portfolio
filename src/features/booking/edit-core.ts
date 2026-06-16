@@ -204,7 +204,11 @@ export async function editBookingCore(
     endsAt,
   } = buildEditQuoteInput(booking, patch);
 
-  const artifacts = await computeBookingArtifacts(deps, mergedInput, policy);
+  // Preserve a Cal-granted Kiche discount across the re-quote (a date/pet edit
+  // must not silently drop it).
+  const artifacts = await computeBookingArtifacts(deps, mergedInput, policy, {
+    applyKiche: booking.kiche_applied,
+  });
   if (artifacts.kind === "validation_error")
     return { kind: "validation_error", message: artifacts.message };
   if (artifacts.kind === "error")
@@ -344,7 +348,9 @@ export async function previewEditCore(
     startsAt,
     endsAt,
   } = buildEditQuoteInput(booking, patch);
-  const artifacts = await computeBookingArtifacts(deps, mergedInput, policy);
+  const artifacts = await computeBookingArtifacts(deps, mergedInput, policy, {
+    applyKiche: booking.kiche_applied,
+  });
   if (artifacts.kind === "validation_error")
     return { kind: "validation_error", message: artifacts.message };
   if (artifacts.kind === "error")

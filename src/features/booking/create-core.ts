@@ -207,6 +207,7 @@ export async function createBookingCore(
       requires_approval: requiresApprovalByOccurrence[idx],
       discount_cents: 0, // see DISCOUNT_CENTS note in module header
       comments: input.comments ?? null,
+      kiche_welcome: input.kicheWelcome,
     };
   });
 

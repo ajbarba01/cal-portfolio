@@ -5,6 +5,7 @@
  */
 
 import { z } from "zod";
+import { FIELD_LIMITS } from "@/lib/field-limits";
 import { haversineMiles } from "@/lib/haversine";
 import { estimateDrivingMinutes, deriveApproval } from "@/features/pricing";
 import { deriveTimeApproval } from "./time-gate";
@@ -35,7 +36,7 @@ export const MS_PER_DAY = 24 * 60 * 60 * 1000;
 export const MEET_GREET_SLUG = "meet-greet";
 
 /** Max length of a client's freeform "Notes for Cal". Enforced server-side (schema) and surfaced to the UI counter. */
-export const BOOKING_COMMENTS_MAX = 2000;
+export const BOOKING_COMMENTS_MAX = FIELD_LIMITS.note;
 
 // ──────────────────────────────────────────────────────────────────────────────
 // deriveHolidayDays — server-trusted premium-day count
@@ -137,6 +138,13 @@ export const createBookingInputSchema = z
     recurringRule: recurrenceRuleSchema.nullable(),
     /** Optional freeform note from the client, surfaced to Cal. */
     comments: z.string().trim().max(BOOKING_COMMENTS_MAX).optional(),
+    /**
+     * Client consent that Cal's dog Kiche may tag along on this booking. Default
+     * true (consent-on). This is CONSENT ONLY — it never changes the price.
+     * Cal separately decides per booking whether Kiche actually comes
+     * (kiche_applied, admin-only), which is what triggers the discount.
+     */
+    kicheWelcome: z.boolean().default(true),
   })
   .refine((d) => d.endsAt > d.startsAt, {
     message: "endsAt must be after startsAt",
@@ -304,12 +312,18 @@ export function buildQuoteInput(opts: {
   roundTripDriveMinutes: number;
   recurringDiscountApplies: boolean;
   recurringDiscountPct: number;
+  /**
+   * Whether the service's Kiche discount applies. False on create/preview
+   * (Kiche is Cal-applied AFTER booking via setKicheApplied); the edit path
+   * passes the existing booking's kiche_applied so a re-quote preserves it.
+   */
+  applyKiche: boolean;
 }): QuoteInput {
   const shared = {
     roundTripDriveMinutes: opts.roundTripDriveMinutes,
     recurringDiscountApplies: opts.recurringDiscountApplies,
     recurringDiscountPct: opts.recurringDiscountPct,
-    applyKiche: false, // Kiche is Cal-applied post-booking; never auto-applied at submit
+    applyKiche: opts.applyKiche,
   };
 
   const q = opts.quantities;
@@ -443,6 +457,15 @@ export async function computeBookingArtifacts(
   deps: BookingServiceDeps,
   rawInput: CreateBookingInput,
   policy: MutationPolicy,
+  opts?: {
+    /**
+     * Whether the Kiche discount is applied for this quote. Defaults false
+     * (create/preview never auto-apply Kiche). The edit path passes the
+     * existing booking's kiche_applied so a re-quote does not silently drop a
+     * discount Cal already granted.
+     */
+    applyKiche?: boolean;
+  },
 ): Promise<ArtifactsResult> {
   // 1. Validate
   const parseResult = createBookingInputSchema.safeParse(rawInput);
@@ -709,6 +732,7 @@ export async function computeBookingArtifacts(
     roundTripDriveMinutes,
     recurringDiscountApplies,
     recurringDiscountPct: settings.recurring_discount_pct,
+    applyKiche: opts?.applyKiche ?? false,
   });
 
   const breakdown = quote(quoteInput);
