@@ -17,6 +17,7 @@ export interface FormResponseRow {
 export interface PetRef {
   id: string;
   name: string;
+  species: "dog" | "cat";
 }
 
 export default async function FormsPage() {
@@ -33,7 +34,7 @@ export default async function FormsPage() {
       .eq("client_id", user.id),
     supabase
       .from("pets")
-      .select("id, name")
+      .select("id, name, species")
       .eq("client_id", user.id)
       .order("created_at"),
     supabase
@@ -51,12 +52,21 @@ export default async function FormsPage() {
     authRes.data as { version: string; accepted_at: string }[]
   )?.[0];
 
-  // Account-scoped rows key by form_key (pet_id null); pet rows key by pet_id.
+  // Account-scoped rows key by form_key (pet_id null).
   const owner = responses.find((r) => r.form_key === "owner" && !r.pet_id);
-  const home = responses.find((r) => r.form_key === "home" && !r.pet_id);
+  const homeAccess = responses.find(
+    (r) => r.form_key === "home_access" && !r.pet_id,
+  );
+  const homeSitting = responses.find(
+    (r) => r.form_key === "home_sitting" && !r.pet_id,
+  );
+
+  // Pet-scoped rows: keyed by `${form_key}:${pet_id}` for pet_care and pet_walk.
   const petResponses: Record<string, FormResponseRow> = {};
   for (const r of responses) {
-    if (r.form_key === "pet" && r.pet_id) petResponses[r.pet_id] = r;
+    if (r.pet_id && (r.form_key === "pet_care" || r.form_key === "pet_walk")) {
+      petResponses[`${r.form_key}:${r.pet_id}`] = r;
+    }
   }
 
   return (
@@ -67,7 +77,8 @@ export default async function FormsPage() {
       />
       <FormsClient
         owner={owner}
-        home={home}
+        homeAccess={homeAccess}
+        homeSitting={homeSitting}
         pets={pets}
         petResponses={petResponses}
         acceptedAuthVersion={latestAuth?.version ?? null}

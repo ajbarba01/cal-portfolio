@@ -396,7 +396,7 @@ describe("runSubmitForm — pet scope", () => {
     const result = await runSubmitForm(
       sessionClient1,
       userId,
-      "pet",
+      "pet_care",
       { feeding_schedule: "Twice daily" },
       petA,
     );
@@ -406,7 +406,7 @@ describe("runSubmitForm — pet scope", () => {
       .from("form_responses")
       .select("id, pet_id, data")
       .eq("client_id", userId)
-      .eq("form_key", "pet");
+      .eq("form_key", "pet_care");
     expect(rows).toHaveLength(1);
     expect(rows?.[0].pet_id).toBe(petA);
   });
@@ -415,7 +415,7 @@ describe("runSubmitForm — pet scope", () => {
     await runSubmitForm(
       sessionClient1,
       userId,
-      "pet",
+      "pet_care",
       { feeding_schedule: "Three times daily" },
       petA,
     );
@@ -423,7 +423,7 @@ describe("runSubmitForm — pet scope", () => {
       .from("form_responses")
       .select("id, data")
       .eq("client_id", userId)
-      .eq("form_key", "pet")
+      .eq("form_key", "pet_care")
       .eq("pet_id", petA);
     expect(rows).toHaveLength(1);
     expect(rows?.[0].data).toMatchObject({
@@ -435,7 +435,7 @@ describe("runSubmitForm — pet scope", () => {
     await runSubmitForm(
       sessionClient1,
       userId,
-      "pet",
+      "pet_care",
       { feeding_schedule: "Once daily" },
       petB,
     );
@@ -443,12 +443,12 @@ describe("runSubmitForm — pet scope", () => {
       .from("form_responses")
       .select("pet_id")
       .eq("client_id", userId)
-      .eq("form_key", "pet");
+      .eq("form_key", "pet_care");
     expect(rows).toHaveLength(2);
   });
 
   it("rejects a pet-scoped form without a pet", async () => {
-    const result = await runSubmitForm(sessionClient1, userId, "pet", {
+    const result = await runSubmitForm(sessionClient1, userId, "pet_care", {
       feeding_schedule: "x",
     });
     expect(result.kind).toBe("validation_error");
@@ -458,7 +458,7 @@ describe("runSubmitForm — pet scope", () => {
     const result = await runSubmitForm(
       sessionClient1,
       userId,
-      "home",
+      "home_access",
       { address: "1 St", entry_instructions: "Key" },
       petA,
     );
@@ -474,7 +474,7 @@ describe("runSubmitForm — pet scope", () => {
     const result = await runSubmitForm(
       sessionClient1,
       userId,
-      "pet",
+      "pet_care",
       { feeding_schedule: "x" },
       otherPet!.id as string,
     );
@@ -487,19 +487,24 @@ describe("runSubmitForm — pet scope", () => {
       .from("form_responses")
       .select("submitted_at, data")
       .eq("client_id", userId)
-      .eq("form_key", "pet")
+      .eq("form_key", "pet_care")
       .eq("pet_id", petB)
       .single();
 
     await new Promise((r) => setTimeout(r, 10));
-    const result = await runConfirmForm(sessionClient1, userId, "pet", petB);
+    const result = await runConfirmForm(
+      sessionClient1,
+      userId,
+      "pet_care",
+      petB,
+    );
     expect(result.kind).toBe("success");
 
     const { data: after } = await serviceClient
       .from("form_responses")
       .select("submitted_at, data")
       .eq("client_id", userId)
-      .eq("form_key", "pet")
+      .eq("form_key", "pet_care")
       .eq("pet_id", petB)
       .single();
     expect(new Date(after!.submitted_at).getTime()).toBeGreaterThan(
