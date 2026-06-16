@@ -18,6 +18,7 @@
 
 import { Lock } from "lucide-react";
 import { Surface } from "@/components/ui/surface";
+import { Alert } from "@/components/ui/alert";
 import {
   BookingFlow,
   BookingFlowStepHead,
@@ -170,11 +171,10 @@ export function EditBookingClient({
               labelId="pets-heading"
             />
             {admin?.paidLock ? (
-              <p className="text-muted-foreground border-border bg-muted/30 rounded-lg border p-3 text-sm">
-                <Lock className="inline size-3.5" aria-hidden /> This booking is
-                paid — pets and price can&apos;t change here. Manage price in
-                Payments (coming soon).
-              </p>
+              <Alert variant="info" icon={Lock}>
+                This booking is paid — pets and price can&apos;t change here.
+                Manage price in Payments (coming soon).
+              </Alert>
             ) : (
               <PetAssignment
                 pets={pets}

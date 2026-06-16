@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { ChevronRight, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Surface, type SurfaceVariant } from "@/components/ui/surface";
 import { useConfirm } from "@/components/feedback/confirm-dialog";
 import { PetForm } from "./pet-form";
 import type { PetFormActions } from "./pet-form";
@@ -39,6 +40,12 @@ export interface PetListProps {
    * Account zone omits this; admin zone injects on-behalf variants.
    */
   actions?: PetFormActions;
+  /**
+   * Surface variant for the rows — the parent declares nesting. Account renders
+   * the list at top level (`emphasis`, the default → shimmer); admin nests it
+   * inside a detail card (`plain` → no nested ring).
+   */
+  surface?: SurfaceVariant;
 }
 
 // ─── Pet item ─────────────────────────────────────────────────────────────────
@@ -48,11 +55,13 @@ function PetItem({
   onChanged,
   onDelete,
   actions,
+  surface,
 }: {
   pet: PetViewLike;
   onChanged: () => void;
   onDelete?: (petId: string) => Promise<ActionResult>;
   actions?: PetFormActions;
+  surface: SurfaceVariant;
 }) {
   const [editing, setEditing] = useState(false);
   const [open, setOpen] = useState(false);
@@ -99,101 +108,113 @@ function PetItem({
   }
 
   return (
-    <li className="bg-card border-border overflow-hidden rounded-xl border">
-      {/* Identity row — always visible */}
-      <div className="flex items-center gap-3 px-4 py-3">
-        <PetAvatar
-          name={pet.name}
-          species={pet.species}
-          photoUrl={pet.photoUrl}
-          size={36}
-        />
-        <div className="min-w-0 flex-1 text-sm">
-          <p className="text-foreground font-semibold">
-            {pet.name}{" "}
-            <span className="text-muted-foreground font-normal">
-              ({pet.species})
-            </span>
-          </p>
-          {pet.breed && <p className="text-muted-foreground">{pet.breed}</p>}
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setEditing(true)}
-            disabled={isPending}
-          >
-            Edit
-          </Button>
-          {onDelete && (
+    <Surface as="li" variant={surface}>
+      {/* Inner clip wrapper rounds the expandable detail panel; overflow-hidden
+          can't sit on an emphasis Surface — it would clip the shimmer ring. */}
+      <div className="rounded-card overflow-hidden">
+        {/* Identity row — always visible */}
+        <div className="flex items-center gap-3 px-4 py-3">
+          <PetAvatar
+            name={pet.name}
+            species={pet.species}
+            photoUrl={pet.photoUrl}
+            size={36}
+          />
+          <div className="min-w-0 flex-1 text-sm">
+            <p className="text-foreground font-semibold">
+              {pet.name}{" "}
+              <span className="text-muted-foreground font-normal">
+                ({pet.species})
+              </span>
+            </p>
+            {pet.breed && <p className="text-muted-foreground">{pet.breed}</p>}
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
             <Button
               size="sm"
               variant="outline"
-              className="text-destructive hover:text-destructive border-destructive/30"
-              onClick={() => void handleDelete()}
+              onClick={() => setEditing(true)}
               disabled={isPending}
             >
-              {isPending ? "Deleting…" : "Delete"}
+              Edit
             </Button>
-          )}
-          <button
-            type="button"
-            aria-expanded={open}
-            aria-label={open ? "Collapse pet details" : "Expand pet details"}
-            onClick={() => setOpen((o) => !o)}
-            className="text-muted-foreground hover:text-foreground focus-visible:ring-ring rounded focus-visible:ring-2 focus-visible:outline-none"
-          >
-            <ChevronRight
-              className="size-4 transition-transform duration-150"
-              style={{ transform: open ? "rotate(90deg)" : "rotate(0deg)" }}
-              aria-hidden="true"
-            />
-          </button>
+            {onDelete && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-destructive hover:text-destructive border-destructive/30"
+                onClick={() => void handleDelete()}
+                disabled={isPending}
+              >
+                {isPending ? "Deleting…" : "Delete"}
+              </Button>
+            )}
+            <button
+              type="button"
+              aria-expanded={open}
+              aria-label={open ? "Collapse pet details" : "Expand pet details"}
+              onClick={() => setOpen((o) => !o)}
+              className="text-muted-foreground hover:text-foreground focus-visible:ring-ring rounded focus-visible:ring-2 focus-visible:outline-none"
+            >
+              <ChevronRight
+                className="size-4 transition-transform duration-150"
+                style={{ transform: open ? "rotate(90deg)" : "rotate(0deg)" }}
+                aria-hidden="true"
+              />
+            </button>
+          </div>
         </div>
+
+        {/* Detail panel — behind toggle */}
+        {open && (
+          <div className="border-border bg-muted/40 border-t px-4 py-3 text-sm">
+            {pet.notes && <p className="text-muted-foreground">{pet.notes}</p>}
+            {!pet.notes && !pet.breed && (
+              <p className="text-muted-foreground italic">
+                No additional notes.
+              </p>
+            )}
+            {error && (
+              <p role="alert" className="text-destructive mt-1 text-xs">
+                {error}
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Error shown even when collapsed */}
+        {!open && error && (
+          <p role="alert" className="text-destructive px-4 pb-2 text-xs">
+            {error}
+          </p>
+        )}
       </div>
 
-      {/* Detail panel — behind toggle */}
-      {open && (
-        <div className="border-border bg-muted/40 border-t px-4 py-3 text-sm">
-          {pet.notes && <p className="text-muted-foreground">{pet.notes}</p>}
-          {!pet.notes && !pet.breed && (
-            <p className="text-muted-foreground italic">No additional notes.</p>
-          )}
-          {error && (
-            <p role="alert" className="text-destructive mt-1 text-xs">
-              {error}
-            </p>
-          )}
-        </div>
-      )}
-
-      {/* Error shown even when collapsed */}
-      {!open && error && (
-        <p role="alert" className="text-destructive px-4 pb-2 text-xs">
-          {error}
-        </p>
-      )}
-
       {dialog}
-    </li>
+    </Surface>
   );
 }
 
 // ─── Pet list ─────────────────────────────────────────────────────────────────
 
-export function PetList({ pets, onChanged, onDelete, actions }: PetListProps) {
+export function PetList({
+  pets,
+  onChanged,
+  onDelete,
+  actions,
+  surface = "emphasis",
+}: PetListProps) {
   const [showAddForm, setShowAddForm] = useState(false);
 
   return (
     <div className="flex flex-col gap-6">
       {pets.length === 0 && !showAddForm && (
-        <div className="border-border bg-card rounded-xl border border-dashed p-8 text-center">
+        <Surface variant={surface} className="border-dashed p-8 text-center">
           <div aria-hidden="true" className="mb-2 text-3xl">
             🐾
           </div>
           <p className="text-muted-foreground text-sm">No pets added yet.</p>
-        </div>
+        </Surface>
       )}
 
       {pets.length > 0 && (
@@ -205,6 +226,7 @@ export function PetList({ pets, onChanged, onDelete, actions }: PetListProps) {
               onChanged={onChanged}
               onDelete={onDelete}
               actions={actions}
+              surface={surface}
             />
           ))}
         </ul>

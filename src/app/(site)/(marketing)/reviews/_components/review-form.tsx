@@ -6,9 +6,9 @@
  */
 
 import { useEffect, useState, useTransition } from "react";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
+import { TextLink } from "@/components/ui/text-link";
 import { Textarea } from "@/components/ui/textarea";
 import { ShimmerCard } from "@/components/ui/shimmer-card";
 import { createClient } from "@/lib/supabase/client";
@@ -51,13 +51,7 @@ export function ReviewForm() {
     return (
       <ShimmerCard className="p-6 sm:p-8">
         <p className="text-muted-foreground text-sm">
-          <Link
-            href="/login"
-            className="text-brand-strong underline underline-offset-4 hover:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2"
-          >
-            Sign in
-          </Link>{" "}
-          to leave a review.
+          <TextLink href="/login">Sign in</TextLink> to leave a review.
         </p>
       </ShimmerCard>
     );

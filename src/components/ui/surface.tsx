@@ -23,7 +23,7 @@ import { cn } from "@/lib/utils";
  * One radius (`rounded-card`) comes from the design tokens, killing the old
  * rounded-xl/2xl split. Callers own padding + inner layout via `className`.
  */
-const surfaceVariants = cva(
+export const surfaceVariants = cva(
   "bg-card text-card-foreground border-border rounded-card border",
   {
     variants: {

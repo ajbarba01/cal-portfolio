@@ -22,6 +22,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LogIn, UserPlus, UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Surface } from "@/components/ui/surface";
 
 export function SignInLink() {
   const pathname = usePathname();
@@ -82,9 +83,10 @@ export function SignInLink() {
         data-ring-include
         className="invisible absolute top-full right-5 z-30 opacity-0 transition-[opacity,visibility] delay-150 duration-200 group-focus-within:visible group-focus-within:opacity-100 group-focus-within:delay-0 group-hover:visible group-hover:opacity-100 group-hover:delay-0 sm:right-8"
       >
-        <div
+        <Surface
           role="menu"
-          className="border-border bg-card w-60 overflow-hidden rounded-b-2xl border shadow-xl"
+          variant="floating"
+          className="w-60 overflow-hidden rounded-b-2xl"
         >
           {/* Crest — mirrors the account crest, with a generic avatar + welcome. */}
           <div className="border-border panel-ombre bg-background border-b px-4 pt-6 pb-5 text-center">
@@ -128,7 +130,7 @@ export function SignInLink() {
               Create account
             </Link>
           </div>
-        </div>
+        </Surface>
       </div>
     </div>
   );

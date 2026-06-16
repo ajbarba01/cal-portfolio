@@ -40,6 +40,7 @@ import { Check, Info } from "lucide-react";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { ShimmerCard } from "@/components/ui/shimmer-card";
+import { TextLink } from "@/components/ui/text-link";
 import { Scheduler } from "./scheduler";
 import type { SchedulerData } from "./scheduler";
 import type { SchedulerCapabilities } from "../schedule-capabilities";
@@ -212,13 +213,8 @@ function LeadTimeNote({
       <Info size={14} className="mt-px shrink-0" aria-hidden="true" />
       <span>
         Days before {formatted} need more notice —{" "}
-        <Link
-          href="/contact"
-          className="text-brand-strong font-medium hover:underline focus-visible:underline"
-        >
-          contact Cal
-        </Link>{" "}
-        if you need something sooner.
+        <TextLink href="/contact">contact Cal</TextLink> if you need something
+        sooner.
       </span>
     </p>
   );

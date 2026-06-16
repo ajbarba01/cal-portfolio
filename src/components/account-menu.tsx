@@ -34,6 +34,7 @@ import {
 } from "@/components/layout/is-active-nav";
 import { accountNav, NAV_ICONS } from "@/components/layout/nav-config";
 import { SignOutButton } from "@/components/sign-out-button";
+import { Surface } from "@/components/ui/surface";
 
 /** Initials for the disc: first+last of the name, else the email's first char. */
 function initialsOf(name: string | null, email: string | null): string {
@@ -139,9 +140,10 @@ export function AccountMenu({
         data-ring-include
         className="invisible absolute top-full right-5 z-30 opacity-0 transition-[opacity,visibility] delay-150 duration-200 group-focus-within:visible group-focus-within:opacity-100 group-focus-within:delay-0 group-hover:visible group-hover:opacity-100 group-hover:delay-0 sm:right-8"
       >
-        <div
+        <Surface
           role="menu"
-          className="border-border bg-card w-60 overflow-hidden rounded-b-2xl border shadow-xl"
+          variant="floating"
+          className="w-60 overflow-hidden rounded-b-2xl"
         >
           {/* Crest header — clay-soft band with the warm ombre wash, echoing the
               About page hero. */}
@@ -208,7 +210,7 @@ export function AccountMenu({
               Sign out
             </SignOutButton>
           </div>
-        </div>
+        </Surface>
       </div>
     </div>
   );
