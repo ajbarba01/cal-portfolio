@@ -12,6 +12,7 @@ import { Reveal, RevealGroup } from "@/components/effects/reveal";
 import {
   buildPageMetadata,
   buildBreadcrumbJsonLd,
+  buildPersonJsonLd,
   JsonLd,
 } from "@/features/seo";
 
@@ -38,6 +39,7 @@ export default function AboutPage() {
           { name: "About", path: "/about" },
         ])}
       />
+      <JsonLd data={buildPersonJsonLd()} />
       <MarketingHero
         src="/bg/IMG_0048.JPG"
         blurDataURL={(placeholders as Record<string, string>)["IMG_0048.JPG"]}

@@ -11,6 +11,12 @@ import { listPublishedReviews, type PublishedReview } from "@/features/reviews";
 import { ReviewForm, StarRating } from "./_components/review-form";
 import { ShimmerCard } from "@/components/ui/shimmer-card";
 import { MarketingCopy } from "@/components/marketing/marketing-copy";
+import {
+  buildPageMetadata,
+  buildBreadcrumbJsonLd,
+  buildReviewsJsonLd,
+  JsonLd,
+} from "@/features/seo";
 
 function ReviewCard({ review }: { review: PublishedReview }) {
   const date = new Date(review.created_at).toLocaleDateString("en-US", {
@@ -38,6 +44,13 @@ function ReviewCard({ review }: { review: PublishedReview }) {
   );
 }
 
+export const metadata = buildPageMetadata({
+  title: "Reviews",
+  description:
+    "What Front Range clients say about Cal Barba's dog walking and house sitting.",
+  path: "/reviews",
+});
+
 // Static with daily ISR; new/moderated reviews reflect immediately via
 // revalidatePath("/reviews") in submitReview / moderateReview. The "leave a
 // review" control resolves auth browser-side inside ReviewForm, so this page
@@ -46,54 +59,64 @@ export const revalidate = 86400;
 
 export default async function ReviewsPage() {
   const reviews = await listPublishedReviews(createStaticClient());
+  const reviewsLd = buildReviewsJsonLd(reviews);
 
   return (
-    <PageContainer width="read" className="py-12 sm:py-16">
-      <Reveal>
-        <PageHeader
-          title="Reviews"
-          subtitle={<MarketingCopy id="reviews.purpose" />}
-        />
-      </Reveal>
-
-      <RevealGroup
-        as="section"
-        aria-labelledby="reviews-list-heading"
-        className="mb-12"
-      >
-        <h2 id="reviews-list-heading" className="sr-only">
-          Published reviews
-        </h2>
-        {reviews.length === 0 ? (
-          <Reveal>
-            <EmptyState
-              title="No reviews yet"
-              message="Be the first to share your experience."
-            />
-          </Reveal>
-        ) : (
-          <ul className="flex flex-col gap-4" role="list">
-            {reviews.map((review) => (
-              <Reveal as="li" key={review.id}>
-                <ReviewCard review={review} />
-              </Reveal>
-            ))}
-          </ul>
-        )}
-      </RevealGroup>
-
-      <RevealGroup as="section" aria-labelledby="submit-review-heading">
-        <Reveal
-          as="h2"
-          id="submit-review-heading"
-          className="font-heading mb-4 text-xl font-semibold"
-        >
-          Leave a review
-        </Reveal>
+    <>
+      <JsonLd
+        data={buildBreadcrumbJsonLd([
+          { name: "Home", path: "/" },
+          { name: "Reviews", path: "/reviews" },
+        ])}
+      />
+      {reviewsLd ? <JsonLd data={reviewsLd} /> : null}
+      <PageContainer width="read" className="py-12 sm:py-16">
         <Reveal>
-          <ReviewForm />
+          <PageHeader
+            title="Reviews"
+            subtitle={<MarketingCopy id="reviews.purpose" />}
+          />
         </Reveal>
-      </RevealGroup>
-    </PageContainer>
+
+        <RevealGroup
+          as="section"
+          aria-labelledby="reviews-list-heading"
+          className="mb-12"
+        >
+          <h2 id="reviews-list-heading" className="sr-only">
+            Published reviews
+          </h2>
+          {reviews.length === 0 ? (
+            <Reveal>
+              <EmptyState
+                title="No reviews yet"
+                message="Be the first to share your experience."
+              />
+            </Reveal>
+          ) : (
+            <ul className="flex flex-col gap-4" role="list">
+              {reviews.map((review) => (
+                <Reveal as="li" key={review.id}>
+                  <ReviewCard review={review} />
+                </Reveal>
+              ))}
+            </ul>
+          )}
+        </RevealGroup>
+
+        <RevealGroup as="section" aria-labelledby="submit-review-heading">
+          <Reveal
+            as="h2"
+            id="submit-review-heading"
+            className="font-heading mb-4 text-xl font-semibold"
+          >
+            Leave a review
+          </Reveal>
+          <Reveal>
+            <ReviewForm />
+          </Reveal>
+        </RevealGroup>
+      </PageContainer>
+    </>
   );
 }

@@ -18,6 +18,7 @@ import { Surface } from "@/components/ui/surface";
 import { buttonVariants } from "@/components/ui/button";
 import { copy } from "@/content/marketing";
 import { cn } from "@/lib/utils";
+import { buildPageMetadata } from "@/features/seo";
 
 // Cal's date of birth — age is derived so the ribbon never goes stale.
 const CAL_DOB = "2002-12-10";
@@ -99,6 +100,14 @@ const trustPoints = [
 // Static with daily ISR so the derived age ribbon (yearsSince) refreshes without
 // a redeploy; the page reads no per-request data, so it stays cached static HTML.
 export const revalidate = 86400;
+
+export const metadata = buildPageMetadata({
+  title: "Cal Barba — Dog Walking & House Sitting on the Front Range",
+  description:
+    "Reliable dog walking and house sitting across Colorado's Front Range. Caring, dependable pet care tailored to your dog.",
+  path: "/",
+  absoluteTitle: true,
+});
 
 export default function HomePage() {
   return (
