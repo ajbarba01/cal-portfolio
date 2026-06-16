@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
+import { RadioGroup } from "@/components/ui/radio-group";
 import { PhotoCropField } from "./photo-crop-field";
 import {
   createPet,
@@ -142,32 +142,15 @@ export function PetForm({ initial, onSaved, onCancel, actions }: PetFormProps) {
             tops align across the 2-col grid. */}
         <div className="flex flex-col gap-1.5">
           <Label>Species</Label>
-          <div
-            role="radiogroup"
-            aria-label="Species"
-            className="border-border inline-flex w-fit overflow-hidden rounded-md border"
-          >
-            {(["dog", "cat"] as const).map((sp) => {
-              const active = values.species === sp;
-              return (
-                <button
-                  key={sp}
-                  type="button"
-                  role="radio"
-                  aria-checked={active}
-                  onClick={() => set("species", sp)}
-                  className={cn(
-                    "focus-visible:ring-ring px-4 py-2 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset",
-                    active
-                      ? "bg-brand/15 text-brand-strong font-semibold"
-                      : "text-foreground hover:bg-muted",
-                  )}
-                >
-                  {sp === "dog" ? "🐕 Dog" : "🐈 Cat"}
-                </button>
-              );
-            })}
-          </div>
+          <RadioGroup
+            ariaLabel="Species"
+            value={values.species}
+            onValueChange={(v) => set("species", v)}
+            options={[
+              { value: "dog", label: "🐕 Dog" },
+              { value: "cat", label: "🐈 Cat" },
+            ]}
+          />
         </div>
       </div>
 
