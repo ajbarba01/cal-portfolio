@@ -8,6 +8,7 @@ export {
   markNoShow,
   editBooking,
   createBookingForClient,
+  setKicheApplied,
 } from "./actions";
 
 // booking-service
@@ -17,6 +18,13 @@ export type {
   EditBookingPatch,
   CreateBookingResult,
 } from "./booking-service";
+
+// kiche discount (pure helpers — server-safe)
+export {
+  serviceSupportsKiche,
+  requoteWithKiche,
+  kicheOverpayRefundCents,
+} from "./kiche";
 
 // booking-repository
 export {

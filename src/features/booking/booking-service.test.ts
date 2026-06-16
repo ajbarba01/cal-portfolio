@@ -1516,6 +1516,7 @@ function previewBaseRow(over: Partial<BookingEditRow> = {}): BookingEditRow {
     quote_inputs: { pricingType: "check_in", hours: 1 },
     petIds: [],
     paidCents: 0,
+    kiche_applied: false,
     ...over,
   };
 }

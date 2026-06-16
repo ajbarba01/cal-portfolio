@@ -10,13 +10,17 @@ import {
   createSupabaseBookingRepository,
   loadBookingFormData,
   quantityStateFromQuoteInputs,
+  serviceSupportsKiche,
+  requoteWithKiche,
+  kicheOverpayRefundCents,
   EDITABLE_STATUSES,
   type ServiceDetail,
   type AssignablePet,
   type PetSpecies,
 } from "@/features/booking";
 import { EditBookingClient } from "@/app/(site)/(account)/account/bookings/[id]/edit/_components/edit-booking-client";
-import type { PricingType } from "@/features/pricing";
+import { AdminKicheControl } from "./_components/admin-kiche-control";
+import type { PricingType, QuoteInput } from "@/features/pricing";
 
 const SIGNED_URL_TTL_SECONDS = 60 * 60;
 
@@ -120,6 +124,40 @@ export default async function AdminEditBookingPage({
     }),
   );
 
+  // Kiche apply control — only for kiche-rated services where the client
+  // consented. Preview numbers computed server-side from the frozen quote.
+  const kicheRow = await repo.getBookingForKiche(bookingId);
+  let kiche: {
+    applied: boolean;
+    currentFinalCents: number;
+    toggledFinalCents: number;
+    refundIfApplyCents: number;
+    paidCents: number;
+  } | null = null;
+  if (
+    kicheRow &&
+    serviceSupportsKiche(service.pricingType) &&
+    kicheRow.kiche_welcome
+  ) {
+    const paidCents = kicheRow.payments
+      .filter((p) => p.status === "succeeded")
+      .reduce((sum, p) => sum + p.amountCents, 0);
+    const toggled = requoteWithKiche(
+      kicheRow.quote_inputs as QuoteInput,
+      !kicheRow.kiche_applied,
+    );
+    kiche = {
+      applied: kicheRow.kiche_applied,
+      currentFinalCents: kicheRow.finalCents,
+      toggledFinalCents: toggled.finalCents,
+      // Refund only matters when applying (un-applying raises the total).
+      refundIfApplyCents: kicheRow.kiche_applied
+        ? 0
+        : kicheOverpayRefundCents(paidCents, toggled.finalCents),
+      paidCents,
+    };
+  }
+
   const initial = {
     startsAtIso: booking.startsAt.toISOString(),
     endsAtIso: booking.endsAt.toISOString(),
@@ -143,6 +181,16 @@ export default async function AdminEditBookingPage({
       </Link>
       <h1 className="mb-1 text-2xl font-semibold">Edit booking</h1>
       <p className="text-muted-foreground mb-8 text-sm">{service.name}</p>
+      {kiche && (
+        <AdminKicheControl
+          bookingId={bookingId}
+          applied={kiche.applied}
+          currentFinalCents={kiche.currentFinalCents}
+          toggledFinalCents={kiche.toggledFinalCents}
+          refundIfApplyCents={kiche.refundIfApplyCents}
+          paidCents={kiche.paidCents}
+        />
+      )}
       <EditBookingClient
         bookingId={bookingId}
         service={service}

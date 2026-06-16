@@ -322,6 +322,9 @@ export async function runSeriesRollCron(
             requires_approval: requiresApproval,
             discount_cents: 0,
             comments: null,
+            // Series rule does not store consent; materialized occurrences
+            // default to consent-on. Kiche is applied per booking by Cal.
+            kiche_welcome: true,
           },
         ]);
         materialized++;
