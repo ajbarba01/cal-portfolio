@@ -16,6 +16,9 @@ import { cn } from "@/lib/utils";
  *   border + tint hover (no drop-shadow, per the house style).
  * - `plain` — a card **nested inside another card**, or a flat sub-section / data
  *   container. No shimmer.
+ * - `floating` — a floating overlay (toast, dropdown menu): border + a sanctioned
+ *   `shadow-elev-2` drop-shadow, **no shimmer**. The house no-shadow rule applies to
+ *   page cards, not floating elements.
  *
  * One radius (`rounded-card`) comes from the design tokens, killing the old
  * rounded-xl/2xl split. Callers own padding + inner layout via `className`.
@@ -31,6 +34,8 @@ const surfaceVariants = cva(
         interactive:
           "group relative hover:border-brand/40 hover:bg-muted/40 transition-colors",
         emphasis: "group relative",
+        // Floating overlays: sanctioned drop-shadow, no shimmer ring.
+        floating: "shadow-elev-2",
       },
     },
     defaultVariants: { variant: "plain" },

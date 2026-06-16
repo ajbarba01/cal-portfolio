@@ -7,6 +7,8 @@ import { StatDisplay } from "@/components/marketing/stat-display";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { FormField } from "@/components/ui/form-field";
+import { FormSection } from "@/components/ui/form-section";
 import { Input } from "@/components/ui/input";
 import { ListRow } from "@/components/ui/list-row";
 import { Multiswitch } from "@/components/ui/multiswitch";
@@ -202,6 +204,36 @@ export function ShowcaseClient() {
               Nested card / sub-section. No shimmer.
             </p>
           </Surface>
+          <Surface variant="floating" className="p-5">
+            <p className="font-medium">floating</p>
+            <p className="text-muted-foreground mt-1 text-sm">
+              Floating overlay (toast, dropdown). Sanctioned shadow, no shimmer.
+            </p>
+          </Surface>
+        </div>
+      </Section>
+
+      {/* ── FormSection ───────────────────────────────────────────────── */}
+      <Section
+        title="FormSection — titled field group"
+        note="Replaces fieldset/legend (whose notch misaligns with the shimmer ring). An emphasis Surface titled by an Eyebrow, grouped via role=group + aria-labelledby. Multi-section forms stack several; each is its own outer card."
+      >
+        <div className="flex max-w-md flex-col gap-4">
+          <FormSection title="Your profile">
+            <FormField label="Full name" name="demo_full_name" />
+            <FormField
+              label="Phone"
+              name="demo_phone"
+              hint="We only call about your bookings."
+            />
+          </FormSection>
+          <FormSection title="Emergency contact">
+            <FormField
+              label="Contact name"
+              name="demo_emergency"
+              error="Required — add a backup contact."
+            />
+          </FormSection>
         </div>
       </Section>
 

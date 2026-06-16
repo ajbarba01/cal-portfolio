@@ -50,13 +50,15 @@ Fill is one role site-wide: `bg-background` (the form-on-card recipe). The
 **every outer card (one not nested inside another card) shimmers; nested cards
 don't** — so only the outermost edge carries the signature. `variant` encodes it:
 
-| variant       | use for                                                             | look                             |
-| ------------- | ------------------------------------------------------------------- | -------------------------------- |
-| `emphasis`    | an **outer** card (not nested) — the default for any top-level card | shimmer ring                     |
-| `interactive` | an outer card that's also clickable                                 | shimmer ring + border/tint hover |
-| `plain`       | a card **nested inside another card**, or a flat sub-section        | border only                      |
+| variant       | use for                                                             | look                                   |
+| ------------- | ------------------------------------------------------------------- | -------------------------------------- |
+| `emphasis`    | an **outer** card (not nested) — the default for any top-level card | shimmer ring                           |
+| `interactive` | an outer card that's also clickable                                 | shimmer ring + border/tint hover       |
+| `plain`       | a card **nested inside another card**, or a flat sub-section        | border only                            |
+| `floating`    | a floating overlay (toast, dropdown menu)                           | border + sanctioned shadow, no shimmer |
 
-`ShimmerCard` is a thin alias of `emphasis`. Use `ListRow` for list items (a
+`ShimmerCard` is a thin alias of `emphasis`. `floating` carries a sanctioned
+`shadow-elev-2` (the no-shadow rule governs page cards, not floating elements). Use `ListRow` for list items (a
 Surface at row padding; top-level rows are outer cards → shimmer). The only
 sanctioned card lift is `ShimmerCard`'s opt-in `hoverLift` (the service cards).
 
@@ -74,6 +76,7 @@ sanctioned card lift is `ShimmerCard`'s opt-in `hoverLift` (the service cards).
 | inline notice within a page       | `Alert`                                 | info / warning / success / error               |
 | empty / error / loading panel     | `EmptyState` / `ErrorState` / `Spinner` | see FRONTEND.md feedback taxonomy              |
 | inline link / textual CTA         | `TextLink`                              | the one clay link style                        |
+| titled group of form fields       | `FormSection`                           | emphasis Surface, not fieldset/legend          |
 | section intro (eyebrow + heading) | `SectionHeader`                         | reuses `Eyebrow`                               |
 | stat / receipt line               | `StatDisplay`                           | `stacked` or `receipt`                         |
 | page title / subtitle / actions   | `PageHeader`                            | a layout shell (FRONTEND.md)                   |
@@ -82,11 +85,15 @@ Buttons: exactly one `brand` primary per view — see FRONTEND.md "Button hierar
 
 ## Form recipe
 
-A form sits on an `emphasis` Surface; each field is a `FormField` carrying its
-label, control, optional description, and inline error. Controls use the
-`bg-background` fill; fieldsets carry a small-caps clay legend; one `brand` submit
-sits bottom-left. Validation renders inline at the field, never as a toast (see
-FRONTEND.md feedback).
+A form sits on one or more `emphasis` Surface cards. Titled groups use
+`FormSection` (an `emphasis` Surface titled by an `Eyebrow`, wired
+`role="group"` + `aria-labelledby`) — **not** native `fieldset`/`legend`, whose
+notch misaligns with the shimmer ring. A multi-section form stacks several
+FormSections (each its own outer card); a single-section form is one card. Each
+field is a `FormField` carrying its label, control, optional `xs` hint, and `sm`
+inline error. Controls use the `bg-background` fill; one `brand` submit (control
+`md` size, `self-start` desktop / full-width mobile). Validation renders inline at
+the field, never as a toast (see FRONTEND.md feedback).
 
 ## /showcase
 
@@ -111,4 +118,4 @@ nothing above the semantic layer changes.
 - Mechanical drift (hand-rolled card surfaces, raw control heights, arbitrary
   colors, off-token fills) is caught by custom ESLint rules in `eslint.config.mjs`.
 
-_Last reviewed: 2026-06-15_
+_Last reviewed: 2026-06-16_
