@@ -5,6 +5,7 @@ import { completeOnboarding } from "@/features/accounts";
 import type { OnboardingFormState } from "@/features/accounts";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
+import { Surface } from "@/components/ui/surface";
 
 const INITIAL: OnboardingFormState = { status: "idle" };
 
@@ -26,7 +27,11 @@ export function InfoStep({ returnTo }: { returnTo?: string }) {
         <input type="hidden" name="returnTo" value={returnTo} />
       ) : null}
 
-      <fieldset className="bg-card border-border flex flex-col gap-4 rounded-xl border p-5">
+      <Surface
+        as="fieldset"
+        variant="plain"
+        className="flex flex-col gap-4 p-5"
+      >
         <legend className="text-brand-strong mb-1 text-xs font-semibold tracking-wide uppercase">
           Your profile
         </legend>
@@ -68,9 +73,13 @@ export function InfoStep({ returnTo }: { returnTo?: string }) {
             required
           />
         </div>
-      </fieldset>
+      </Surface>
 
-      <fieldset className="bg-card border-border flex flex-col gap-4 rounded-xl border p-5">
+      <Surface
+        as="fieldset"
+        variant="plain"
+        className="flex flex-col gap-4 p-5"
+      >
         <legend className="text-brand-strong mb-1 text-xs font-semibold tracking-wide uppercase">
           Emergency contact
         </legend>
@@ -98,9 +107,13 @@ export function InfoStep({ returnTo }: { returnTo?: string }) {
             required
           />
         </div>
-      </fieldset>
+      </Surface>
 
-      <fieldset className="bg-card border-border flex flex-col gap-4 rounded-xl border p-5">
+      <Surface
+        as="fieldset"
+        variant="plain"
+        className="flex flex-col gap-4 p-5"
+      >
         <legend className="text-brand-strong mb-1 text-xs font-semibold tracking-wide uppercase">
           Veterinarian
         </legend>
@@ -120,7 +133,7 @@ export function InfoStep({ returnTo }: { returnTo?: string }) {
             required
           />
         </div>
-      </fieldset>
+      </Surface>
 
       <Button
         type="submit"

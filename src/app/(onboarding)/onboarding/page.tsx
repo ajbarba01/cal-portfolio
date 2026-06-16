@@ -18,6 +18,7 @@
 
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { Surface } from "@/components/ui/surface";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { PageContainer } from "@/components/layout/page-container";
@@ -171,7 +172,7 @@ export default async function OnboardingPage({
         title="[[HEADER: declined onboarding — invite the client to contact Cal]]"
         subtitle="[[BODY: declined onboarding — ask the client to reach out to Cal to sort it out]]"
       />
-      <div className="bg-card border-border flex flex-col gap-5 rounded-xl border p-6">
+      <Surface variant="plain" className="flex flex-col gap-5 p-6">
         {/* Illustration accent */}
         <div
           aria-hidden="true"
@@ -189,7 +190,7 @@ export default async function OnboardingPage({
         >
           Contact Cal
         </Link>
-      </div>
+      </Surface>
     </PageContainer>
   );
 }
