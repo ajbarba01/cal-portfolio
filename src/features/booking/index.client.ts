@@ -23,6 +23,7 @@ export {
   markNoShow,
   editBooking,
   createBookingForClient,
+  setKicheApplied,
 } from "./actions";
 
 // booking-service

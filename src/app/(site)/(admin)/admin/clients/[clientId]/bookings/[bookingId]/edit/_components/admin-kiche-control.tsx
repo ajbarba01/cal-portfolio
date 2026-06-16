@@ -19,7 +19,7 @@ import { Surface } from "@/components/ui/surface";
 import { Switch } from "@/components/ui/switch";
 import { useConfirm } from "@/components/feedback/confirm-dialog";
 import { useToast } from "@/components/feedback/toast";
-import { setKicheApplied } from "@/features/booking";
+import { setKicheApplied } from "@/features/booking/index.client";
 
 function dollars(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
