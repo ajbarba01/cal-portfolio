@@ -15,3 +15,23 @@ You are going to audit this project for the following points:
 I want you to act as THE project and technical lead here. this app must be thouroughly audited for all of the above points. You must iterate through all of the above points and gather all the necessary changes for the codebase. you must then think through the most optimal way to structure the refactors and create detailed plans that will allow lower level agents to complete the necessary work without confusion or openendedness. grill me for any clarifications about what I'm looking for in these plans. give your honest recommendations as we go, and again, prioritize industry standards; this app must be professional.
 
 Before you start any significant work, I want you to be confident that you know what I'm looking to get out of this prompt. Your work should be efficient. Also take a look at @DEV_NOTES.md to see what some of the future of this project may look like. For example, you'll probably want to integrate the eventual notification system and the fact of the existing payment stub into your planning. furthermore, any documented bugs in dev notes that can be worked into this plan should be. for any of these bugs ensure that you know what they mean and that you are fixing the root cause. although some of those notes have recommendations, remember you are the ultimate decision maker, so it is up to you to evaluate the validity of any recommendations from me.
+
+I want to perform a large refactor of the component system for this website. here's what im looking for:
+
+1. optimal component modularization: parts of components that should be broken down into smaller components should be, and there should be as much sharing of these "modules" in the site as possible. this prevents incosistency and promotes visual appeal.
+
+2. optimal component standardization: components should fit in with each other as well as possible, components that should share certain properties (like height or a certain color) should have an efficient system for doing this. for example, a text input and a dropdown menu should probably have the same height, have the same outline, rounding of edges, etc... buttons should have a standardized height (or multiple if there are multiple types of buttons that need different heights). basically im looking for an even larger extension of the tokenization system.
+
+3. token/component purpose & categorization: certain tokens (colors, etc...) and whole components should have clear use cases and conditions to be met in order for them to appear. for example the card component with the shimmer effect should be used to contain user input (with exceptions) or to emphasize an important part of the site. every component or component variant should have clear guidelines for where it should be applied, satisfying not only consistency of styling (no. 2), but also consistency of meaning and usage.
+
+4. there should be documentation in order to properly enforce all of these points and guide agents to use the correct components and document them correctly whenever necessary.
+
+5. we should maybe create a sort of component library that is almost seperate from the site. you should look into industry standards for this point as im not sure what to do. ideally the core of this system should be portable to any other website.
+
+6. as part of this plan, a detailed and maticulous audit of the website should be performed in order to find and fix any violations of the desired architecture.
+
+7. this is a specific grievance that should be handled by the correct handling of 1 and 2: any card
+
+I want you to act as the project lead and designer here. this app must be thouroughly audited for all of the above points. You must iterate through all of the above points and gather all the necessary changes for the codebase. you must then think through the most optimal way to structure the refactors and create a detailed plan. give your honest recommendations as we go, and again, prioritize industry standards; this app must be professional. before you begin, I want you to do your research on the points i've provided for you in order to understand the best way to approach a system design like this and understand what exactly the industry standards are.
+
+also
