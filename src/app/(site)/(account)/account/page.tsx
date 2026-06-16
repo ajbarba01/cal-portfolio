@@ -5,7 +5,6 @@ import { ProfileForm } from "./_components/profile-form";
 import { PasswordForm } from "./_components/password-form";
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
-import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ShimmerCard } from "@/components/ui/shimmer-card";
 
 export default async function AccountPage() {
@@ -29,10 +28,12 @@ export default async function AccountPage() {
 
       <div className="flex flex-col gap-5">
         <ShimmerCard className="flex flex-col gap-4 p-5">
-          <CardHeader>
-            <CardTitle className="text-base">Contact info</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1">
+            <h3 className="text-base leading-tight font-semibold">
+              Contact info
+            </h3>
+          </div>
+          <div className="flex flex-col gap-4 text-sm">
             {/* Email is read-only — comes from auth.users, not the profiles table. */}
             <div className="flex flex-col gap-1.5">
               <span className="text-muted-foreground text-sm font-medium">
@@ -51,16 +52,18 @@ export default async function AccountPage() {
                 zip: profile?.zip ?? "",
               }}
             />
-          </CardContent>
+          </div>
         </ShimmerCard>
 
         <ShimmerCard className="flex flex-col gap-4 p-5">
-          <CardHeader>
-            <CardTitle className="text-base">Change password</CardTitle>
-          </CardHeader>
-          <CardContent>
+          <div className="flex flex-col gap-1">
+            <h3 className="text-base leading-tight font-semibold">
+              Change password
+            </h3>
+          </div>
+          <div className="text-sm">
             <PasswordForm />
-          </CardContent>
+          </div>
         </ShimmerCard>
       </div>
     </PageContainer>

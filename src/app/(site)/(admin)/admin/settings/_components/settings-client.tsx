@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Surface } from "@/components/ui/surface";
-import { Card } from "@/components/ui/card";
 import { TimePicker } from "@/components/ui/time-picker";
 import { UnitInput } from "@/components/ui/unit-input";
 import { updateSettings, type SettingsRow } from "@/features/admin";
@@ -180,7 +179,7 @@ export function SettingsClient({
   return (
     <div className="flex flex-col gap-4">
       {/* ── When can clients book? ─────────────────────────────────────── */}
-      <Card>
+      <Surface variant="plain" className="flex flex-col gap-4 p-5">
         <GroupLegend>When can clients book?</GroupLegend>
         <div className="flex flex-col gap-4">
           <TimePicker
@@ -228,10 +227,10 @@ export function SettingsClient({
             unit="days ahead"
           />
         </div>
-      </Card>
+      </Surface>
 
       {/* ── Cancellations ──────────────────────────────────────────────── */}
-      <Card>
+      <Surface variant="plain" className="flex flex-col gap-4 p-5">
         <GroupLegend>Cancellations</GroupLegend>
         <div className="flex flex-col gap-4">
           <UnitField
@@ -249,10 +248,10 @@ export function SettingsClient({
             unit="% of the booking"
           />
         </div>
-      </Card>
+      </Surface>
 
       {/* ── Recurring discount ─────────────────────────────────────────── */}
-      <Card>
+      <Surface variant="plain" className="flex flex-col gap-4 p-5">
         <GroupLegend>Recurring discount</GroupLegend>
         <div className="flex flex-col gap-4">
           <UnitField
@@ -270,10 +269,10 @@ export function SettingsClient({
             unit="bookings"
           />
         </div>
-      </Card>
+      </Surface>
 
       {/* ── Premium days ───────────────────────────────────────────────── */}
-      <Card>
+      <Surface variant="plain" className="flex flex-col gap-4 p-5">
         <GroupLegend>Premium days surcharge</GroupLegend>
         <div className="flex flex-col gap-4">
           <UnitField
@@ -297,10 +296,10 @@ export function SettingsClient({
             .
           </p>
         </div>
-      </Card>
+      </Surface>
 
       {/* ── Email reminders ────────────────────────────────────────────── */}
-      <Card>
+      <Surface variant="plain" className="flex flex-col gap-4 p-5">
         <GroupLegend>Email reminders</GroupLegend>
         <UnitField
           id="reminder-lead-hours"
@@ -309,10 +308,10 @@ export function SettingsClient({
           onChange={setReminderLeadHours}
           unit="hours before start"
         />
-      </Card>
+      </Surface>
 
       {/* ── Distance & approval ────────────────────────────────────────── */}
-      <Card>
+      <Surface variant="plain" className="flex flex-col gap-4 p-5">
         <GroupLegend>Distance &amp; approval</GroupLegend>
         <div className="flex flex-col gap-4">
           <UnitField
@@ -341,7 +340,7 @@ export function SettingsClient({
             </Label>
           </div>
         </div>
-      </Card>
+      </Surface>
 
       {/* ── Advanced (collapsed by default) ───────────────────────────── */}
       <Surface as="details" variant="plain" className="group border-dashed">
