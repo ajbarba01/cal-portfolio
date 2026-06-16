@@ -9,14 +9,16 @@ import { cn } from "@/lib/utils";
  * a caller picks meaning and the system owns the look:
  *
  * - `plain` — a flat content/data container (admin rows, fieldsets, list items).
- * - `interactive` — a clickable surface; highlights on hover via border + tint
- *   (no drop-shadow, per the house style).
+ * - `interactive` — a clickable surface: carries the clay shimmer ring AND a
+ *   border + tint hover (no drop-shadow, per the house style).
  * - `emphasis` — carries the clay shimmer ring; reserved for surfaces that
  *   **contain user input** or **emphasize an important** region (the contract
  *   formerly only honored by ShimmerCard, now enforceable).
  *
- * One radius (`rounded-card`) comes from the design tokens, killing the old
- * rounded-xl/2xl split. Callers own padding + inner layout via `className`.
+ * `interactive` and `emphasis` both render the {@link CardShimmer} outline; only
+ * `interactive` adds the clickable hover affordance. One radius (`rounded-card`)
+ * comes from the design tokens, killing the old rounded-xl/2xl split. Callers own
+ * padding + inner layout via `className`.
  */
 const surfaceVariants = cva(
   "bg-card text-card-foreground border-border rounded-card border",
@@ -24,10 +26,10 @@ const surfaceVariants = cva(
     variants: {
       variant: {
         plain: "",
-        interactive:
-          "group hover:border-brand/40 hover:bg-muted/40 transition-colors",
         // `relative` + `group` give the baked-in shimmer a positioned parent and
         // let inner elements react to hover.
+        interactive:
+          "group relative hover:border-brand/40 hover:bg-muted/40 transition-colors",
         emphasis: "group relative",
       },
     },
@@ -62,7 +64,9 @@ export function Surface({
       )}
       {...props}
     >
-      {variant === "emphasis" ? <CardShimmer /> : null}
+      {variant === "emphasis" || variant === "interactive" ? (
+        <CardShimmer />
+      ) : null}
       {children}
     </div>
   );

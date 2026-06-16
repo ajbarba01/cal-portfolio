@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Surface } from "@/components/ui/surface";
+import { Switch } from "@/components/ui/switch";
 import { TextLink } from "@/components/ui/text-link";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -80,6 +81,7 @@ export function ShowcaseClient() {
   const [select, setSelect] = React.useState("two");
   const [filter, setFilter] = React.useState<FilterValue>("all");
   const [count, setCount] = React.useState(2);
+  const [toggle, setToggle] = React.useState(true);
 
   return (
     <main className="mx-auto flex max-w-5xl flex-col gap-14 px-6 py-12">
@@ -247,6 +249,22 @@ export function ShowcaseClient() {
           </div>
 
           <div className="flex flex-col gap-2">
+            <Tag>
+              Switch — shared on/off toggle (was hand-rolled per admin page)
+            </Tag>
+            <div className="flex items-center gap-3">
+              <Switch
+                checked={toggle}
+                onCheckedChange={setToggle}
+                aria-label="Demo toggle"
+              />
+              <span className="text-sm font-medium">
+                {toggle ? "On" : "Off"}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
             <Tag>SectionHeader</Tag>
             <SectionHeader
               eyebrow="Field journal"
@@ -299,21 +317,18 @@ export function ShowcaseClient() {
         </div>
       </Section>
 
-      {/* ── Input fill decision ───────────────────────────────────────── */}
+      {/* ── Form field standard ───────────────────────────────────────── */}
       <Section
-        title="Input fill — pick one (open question)"
-        note="Today account forms use a transparent fill while marketing/auth force bg-background; the designed bg-input (sand) token is unused. We standardize on ONE. Both candidates below sit on a card the way a real form would — compare and decide."
+        title="Form field — standard fill"
+        note="Decided: one fill site-wide = bg-background (cream), matching the form-on-card recipe. The unified form recipe applies this everywhere (account forms drop their transparent fill); bg-input stays only as the border role (border-input)."
       >
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Surface variant="emphasis" className="p-5">
-            <Tag>Candidate A — bg-background (cream)</Tag>
-            <Input className="bg-background mt-1.5" placeholder="Your name" />
-          </Surface>
-          <Surface variant="emphasis" className="p-5">
-            <Tag>Candidate B — bg-input (sand)</Tag>
-            <Input className="bg-input mt-1.5" placeholder="Your name" />
-          </Surface>
-        </div>
+        <Surface
+          variant="emphasis"
+          className="flex flex-col gap-1.5 p-5 sm:max-w-sm"
+        >
+          <Tag>Label + Input on an emphasis card</Tag>
+          <Input className="bg-background" placeholder="Your name" />
+        </Surface>
       </Section>
     </main>
   );

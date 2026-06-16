@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   updateService,
   type ServiceAdminRow,
@@ -14,7 +15,7 @@ import {
 import type { PricingType } from "@/features/pricing";
 
 // ---------------------------------------------------------------------------
-// Switch toggle — same accessible pattern as client-detail Kiche toggle
+// Labelled switch row — wraps the shared Switch primitive with its caption
 // ---------------------------------------------------------------------------
 
 interface SwitchProps {
@@ -27,28 +28,12 @@ interface SwitchProps {
 function SwitchToggle({ checked, onChange, label, disabled }: SwitchProps) {
   return (
     <div className="flex items-center gap-3">
-      <button
-        type="button"
-        role="switch"
-        aria-checked={checked}
-        aria-label={label}
+      <Switch
+        checked={checked}
+        onCheckedChange={onChange}
         disabled={disabled}
-        onClick={() => onChange(!checked)}
-        className={[
-          "relative inline-flex h-6 w-10 shrink-0 cursor-pointer items-center rounded-full transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
-          "focus-visible:ring-ring",
-          checked ? "bg-brand" : "bg-muted-foreground",
-          disabled ? "cursor-not-allowed opacity-50" : "",
-        ].join(" ")}
-      >
-        <span
-          aria-hidden="true"
-          className={[
-            "pointer-events-none inline-block size-5 rounded-full bg-white shadow-sm transition-transform",
-            checked ? "translate-x-4" : "translate-x-0.5",
-          ].join(" ")}
-        />
-      </button>
+        aria-label={label}
+      />
       <span className="text-sm font-medium">{label}</span>
     </div>
   );
