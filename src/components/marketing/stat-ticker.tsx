@@ -7,12 +7,12 @@ import { StatTickerTrack } from "./stat-ticker-track";
 /**
  * Continuous horizontal stat ribbon (LED sports-panel style) for marketing pages.
  * The track renders the item set twice (each set doubled so one group always
- * exceeds the sheet width) so the rightward marquee loops seamlessly; the CSS in
- * `globals.css` (`.stat-ticker-track`) drives the motion and freezes it for
- * reduced-motion users. The first group is read by screen readers; the looping
- * duplicate is `aria-hidden`. Items render server-side; a thin client island
- * (`<StatTickerTrack>`) eases the marquee to a halt on hover. Full-bleed within
- * the marketing sheet; authored mobile-first.
+ * exceeds the sheet width) so the rightward marquee loops seamlessly. The first
+ * group is read by screen readers; the looping duplicate is `aria-hidden`. Items
+ * render server-side; a thin client island (`<StatTickerTrack>`) drives the
+ * motion via a rAF physics loop — baseline drift, eased cursor-coupling on
+ * hover, and kinetic momentum decay on leave (frozen for reduced-motion users).
+ * Full-bleed within the marketing sheet; authored mobile-first.
  */
 export type StatTickerItem =
   | { kind: "stat"; value: string; label: string }
