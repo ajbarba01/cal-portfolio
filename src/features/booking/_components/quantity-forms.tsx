@@ -8,6 +8,7 @@
  */
 
 import { NumberStepper } from "@/components/ui/number-stepper";
+import { Switch } from "@/components/ui/switch";
 import type { PricingType } from "@/features/pricing";
 
 // ── State shapes ────────────────────────────────────────────────────────────
@@ -85,7 +86,7 @@ export function quantitiesToRecord(
 function StepperField({
   id,
   label,
-  sub,
+  description,
   value,
   min,
   max,
@@ -95,7 +96,8 @@ function StepperField({
 }: {
   id: string;
   label: string;
-  sub?: string;
+  /** Always-visible one-line helper under the title (no hover-only tooltip → mobile parity). */
+  description: string;
   value: number;
   min?: number;
   max?: number;
@@ -107,12 +109,10 @@ function StepperField({
     <div className="flex flex-col gap-1.5">
       <label htmlFor={id} className="text-foreground text-sm font-medium">
         {label}
-        {sub && (
-          <span className="text-muted-foreground ml-1 text-xs font-normal">
-            {sub}
-          </span>
-        )}
       </label>
+      <p className="text-muted-foreground text-xs leading-relaxed">
+        {description}
+      </p>
       <NumberStepper
         id={id}
         ariaLabel={label}
@@ -127,14 +127,51 @@ function StepperField({
   );
 }
 
+/**
+ * The client "Is Kiche welcome?" consent toggle. Consent only — it never changes
+ * the price; Cal separately decides per booking whether Kiche actually comes
+ * (which applies the discount). Shown only for house-sitting / walk bookings.
+ */
+function KicheWelcomeRow({
+  welcome,
+  onChange,
+}: {
+  welcome: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <div className="border-border col-span-full flex items-start justify-between gap-4 border-t pt-4">
+      <div>
+        <p className="text-foreground text-sm font-medium">Is Kiche welcome?</p>
+        <p className="text-muted-foreground text-xs leading-relaxed">
+          OK for Cal&apos;s dog Kiche to tag along. You&apos;ll get a discount
+          if she joins.
+        </p>
+      </div>
+      <Switch
+        checked={welcome}
+        onCheckedChange={onChange}
+        aria-label="Is Kiche welcome on this booking"
+      />
+    </div>
+  );
+}
+
 // ── Forms ─────────────────────────────────────────────────────────────────────
 
 export function QuantityForm({
   state,
   onChange,
+  kiche,
 }: {
   state: QuantityState;
   onChange: (s: QuantityState) => void;
+  /**
+   * When provided AND the service supports Kiche (house-sitting / walk), renders
+   * the "Is Kiche welcome?" consent toggle. Omit on surfaces that don't collect
+   * consent (e.g. the edit flow, where consent is fixed at booking time).
+   */
+  kiche?: { welcome: boolean; onChange: (v: boolean) => void };
 }) {
   if (state.type === "house_sitting") {
     const qty = state.qty;
@@ -148,6 +185,7 @@ export function QuantityForm({
         <StepperField
           id="hs-cant-alone"
           label="Can't-be-left-alone days"
+          description="Days your pet shouldn't be left alone — Cal stays on-site those days."
           value={qty.cantBeLeftAloneDays}
           min={0}
           unit="days"
@@ -155,8 +193,8 @@ export function QuantityForm({
         />
         <StepperField
           id="hs-walk-min"
-          label="Walk time/day"
-          sub="(15-min steps)"
+          label="Walk time per day"
+          description="Daily walk time, in 15-min steps. The first 45 min/day are included."
           value={qty.walkMinutesPerDay}
           min={0}
           step={15}
@@ -165,6 +203,9 @@ export function QuantityForm({
         />
         {/* Premium days (holiday surcharge) are server-derived from booking
             dates + admin-configured premium day settings — no manual input. */}
+        {kiche && (
+          <KicheWelcomeRow welcome={kiche.welcome} onChange={kiche.onChange} />
+        )}
       </fieldset>
     );
   }
@@ -174,25 +215,46 @@ export function QuantityForm({
     return null;
   }
 
-  // Hours-based services (check_in / walk / training).
-  const idMap: Record<"check_in" | "walk" | "training", string> = {
-    check_in: "checkin-hours",
-    walk: "walk-hours",
-    training: "training-hours",
+  // Hours-based services (check_in / walk / training). Each frames the single
+  // duration field in the language of that service.
+  const HOURS_COPY: Record<
+    "check_in" | "walk" | "training",
+    { id: string; label: string; description: string }
+  > = {
+    check_in: {
+      id: "checkin-hours",
+      label: "Visit length",
+      description: "How long each drop-in visit lasts, in 15-min steps.",
+    },
+    walk: {
+      id: "walk-hours",
+      label: "Walk length",
+      description: "How long each walk lasts, in 15-min steps.",
+    },
+    training: {
+      id: "training-hours",
+      label: "Session length",
+      description: "How long each training session lasts, in 15-min steps.",
+    },
   };
+  const copy = HOURS_COPY[state.type];
   return (
-    <fieldset>
+    <fieldset className="flex flex-col gap-4">
       <legend className="mb-2 text-sm font-medium">Duration</legend>
       <StepperField
-        id={idMap[state.type]}
-        label="Hours"
-        sub="(15-min steps)"
+        id={copy.id}
+        label={copy.label}
+        description={copy.description}
         value={state.qty.hours}
         min={0.25}
         step={0.25}
         unit="hr"
         onChange={(v) => onChange({ type: state.type, qty: { hours: v } })}
       />
+      {/* walk supports Kiche; check_in / training never carry a Kiche rate. */}
+      {kiche && state.type === "walk" && (
+        <KicheWelcomeRow welcome={kiche.welcome} onChange={kiche.onChange} />
+      )}
     </fieldset>
   );
 }

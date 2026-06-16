@@ -104,6 +104,8 @@ export function ServiceBookingClient({
     recurringOn,
     occurrenceCount,
     comments,
+    kicheWelcome,
+    onKicheWelcomeChange,
     formsIncomplete,
     step2Label,
     step3Label,
@@ -198,7 +200,11 @@ export function ServiceBookingClient({
             label="Details"
             labelId="qty-heading"
           />
-          <QuantityForm state={quantities} onChange={onQuantitiesChange} />
+          <QuantityForm
+            state={quantities}
+            onChange={onQuantitiesChange}
+            kiche={{ welcome: kicheWelcome, onChange: onKicheWelcomeChange }}
+          />
         </section>
       }
       extraSection={

@@ -100,6 +100,8 @@ export function AdminCreateBookingClient({
     onOccurrenceCountChange,
     comments,
     onCommentsChange,
+    kicheWelcome,
+    onKicheWelcomeChange,
     setForceConfirm,
   } = useAdminCreateBooking({
     clientId,
@@ -168,7 +170,11 @@ export function AdminCreateBookingClient({
             label="Details"
             labelId="qty-heading"
           />
-          <QuantityForm state={quantities} onChange={onQuantitiesChange} />
+          <QuantityForm
+            state={quantities}
+            onChange={onQuantitiesChange}
+            kiche={{ welcome: kicheWelcome, onChange: onKicheWelcomeChange }}
+          />
         </section>
       }
       extraSection={

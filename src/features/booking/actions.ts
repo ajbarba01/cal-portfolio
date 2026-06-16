@@ -330,6 +330,7 @@ export async function createBookingForClient(input: {
     until?: Date;
   } | null;
   comments?: string;
+  kicheWelcome?: boolean;
   forceConfirm?: boolean;
 }): Promise<CreateBookingResult> {
   const admin = await requireAdminDeps();
@@ -361,6 +362,7 @@ export async function createBookingForClient(input: {
       petIds: input.petIds,
       recurringRule: input.recurringRule,
       comments: input.comments,
+      kicheWelcome: input.kicheWelcome,
     },
     policy,
   );
