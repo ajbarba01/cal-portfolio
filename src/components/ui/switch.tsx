@@ -5,10 +5,10 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * Switch — the shared on/off toggle (settings, admin flags). One source for the
- * pattern that was hand-rolled per admin page. Control only: render a `<label>`
- * or adjacent text for the caption. Thumb is a semantic `bg-card` disc with no
- * drop-shadow (the colored track carries the affordance).
+ * Switch — the shared on/off toggle (settings, admin flags). A pill track that
+ * fills clay when on, with a sand thumb that glides between ends. Control only;
+ * render a `<label>` or adjacent text for the caption. No drop-shadow — the
+ * track tint carries the state.
  */
 export function Switch({
   checked,
@@ -30,8 +30,8 @@ export function Switch({
       onClick={() => onCheckedChange(!checked)}
       data-slot="switch"
       className={cn(
-        "focus-visible:ring-ring relative inline-flex h-6 w-10 shrink-0 cursor-pointer items-center rounded-full transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50",
-        checked ? "bg-brand" : "bg-muted-foreground/40",
+        "focus-visible:ring-ring/50 focus-visible:ring-offset-background relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 ease-out outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+        checked ? "bg-brand" : "bg-muted-foreground/30",
         className,
       )}
       {...props}
@@ -39,8 +39,8 @@ export function Switch({
       <span
         aria-hidden
         className={cn(
-          "bg-card pointer-events-none inline-block size-5 rounded-full transition-transform",
-          checked ? "translate-x-[18px]" : "translate-x-0.5",
+          "bg-card pointer-events-none block size-5 rounded-full transition-transform duration-200 ease-out",
+          checked ? "translate-x-5.5" : "translate-x-0.5",
         )}
       />
     </button>
