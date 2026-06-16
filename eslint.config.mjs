@@ -163,7 +163,7 @@ const eslintConfig = defineConfig([
       "**/*.test.tsx",
     ],
     plugins: { "design-system": designSystem },
-    rules: { "design-system/no-drift": "warn" },
+    rules: { "design-system/no-drift": "error" },
   },
   // Override default ignores of eslint-config-next.
   globalIgnores([

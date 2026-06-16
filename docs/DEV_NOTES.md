@@ -1,6 +1,6 @@
 ## now
 
-- component-system refactor underway: sizing tokens (control track / card radius / elevation) + `Surface` + family primitives (Alert/TextLink/ListRow/SectionHeader/StatDisplay) + form controls (Switch/RadioGroup/Checkbox/UnitInput) + dev-only `/showcase` route + `docs/COMPONENT_SYSTEM.md` + ESLint drift checks (`warn`) all shipped. **Phase E = zone-by-zone migration onto Surface/primitives** is in progress (marketing started: home trust cards → Surface). Resume worklist = the ~29 `design-system/no-drift` lint warnings; flip those rules to `error` per zone as each is cleaned. (2026-06-15)
+- component-system refactor: primitives (control track / card radius / elevation, `Surface`, family primitives, form controls, `/showcase`, `COMPONENT_SYSTEM.md`) shipped earlier. **Composed layer now done:** `FormSection` + `Surface variant="floating"` added; every form migrated to FormField/FormSection (marketing/auth/account/onboarding/booking/admin); all hand-rolled card surfaces routed through `Surface` (variant by the outer=emphasis/nested=plain rule; admin rows/lists kept `plain` for calm density); toast + header dropdowns on the floating Surface. `design-system/no-drift` is now **`error`** (zero violations). Remaining = optional quality follow-ups: family swaps (TextLink for `text-brand-strong hover:underline` CTAs, Alert for inline callouts, SectionHeader/StatDisplay/Badge sweeps), the `SideLabelSection` marketing extraction + `space.*` spacing-token enforcement, and removing the legacy `Card` (`card.tsx`). (2026-06-16)
 - hero images should also ease in on load (?)
 - word count/character count for pretty much any user input.
 - kiche discount
@@ -10,6 +10,10 @@
 - onboarding styling: why is there page below the footer, the page width changes from step to 1 to 2
 - ssg
 - maybe: try making some sections or areas a window to the page bg
+- what pronouns are being used? most of the site its like Cal is speaking directly to the user but there some text when it says like "Cal will get back to you soon"
+- reviews filtering and pagination + mini redesign
+- scrolling bar should follow the mouse while hovering it + momentum
+- /home should redirect to actual home
 
 ## Notes for the future
 
