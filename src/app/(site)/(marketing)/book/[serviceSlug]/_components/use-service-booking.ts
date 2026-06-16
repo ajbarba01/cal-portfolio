@@ -134,6 +134,7 @@ export interface UseServiceBookingReturn {
   recurringOn: boolean;
   occurrenceCount: number;
   comments: string;
+  kicheWelcome: boolean;
 
   // Step labels
   step2Label: string;
@@ -150,6 +151,7 @@ export interface UseServiceBookingReturn {
   onRecurringOnChange: (on: boolean) => void;
   onOccurrenceCountChange: (n: number) => void;
   onCommentsChange: (v: string) => void;
+  onKicheWelcomeChange: (v: boolean) => void;
 }
 
 // ── Hook ─────────────────────────────────────────────────────────────────────
@@ -205,6 +207,9 @@ export function useServiceBooking({
   // ── Wrapper-owned quote-state ──────────────────────────────────────────────
   const [quote, setQuote] = useState<BookingQuotePreview | null>(null);
   const [comments, setComments] = useState("");
+  // Client consent that Kiche may tag along (house-sitting / walk). Default on.
+  // Consent only — never affects the quote, so it's omitted from the preview input.
+  const [kicheWelcome, setKicheWelcome] = useState(true);
   const [previewMsg, setPreviewMsg] = useState<UserMessage | null>(null);
   const [formsIncomplete, setFormsIncomplete] = useState(false);
   // U1: success snapshot — non-null is the flow's terminal state.
@@ -328,6 +333,7 @@ export function useServiceBooking({
       const result = await createBooking({
         ...selInput,
         comments: comments.trim() || undefined,
+        kicheWelcome,
       });
       if (result.kind === "onboarding_incomplete") {
         router.push("/onboarding");
@@ -369,6 +375,7 @@ export function useServiceBooking({
     setFormsIncomplete(false);
     setSuccess(null);
     setComments("");
+    setKicheWelcome(true);
   }
 
   function handlePetAdded(pet: Pet) {
@@ -440,6 +447,8 @@ export function useServiceBooking({
     recurringOn,
     occurrenceCount,
     comments,
+    kicheWelcome,
+    onKicheWelcomeChange: setKicheWelcome,
     step2Label,
     step3Label,
     step4Label,

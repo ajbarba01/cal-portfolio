@@ -93,6 +93,7 @@ export interface UseAdminCreateBookingReturn {
   recurringOn: boolean;
   occurrenceCount: number;
   comments: string;
+  kicheWelcome: boolean;
 
   // Step labels
   step3Label: string;
@@ -108,6 +109,7 @@ export interface UseAdminCreateBookingReturn {
   onRecurringOnChange: (on: boolean) => void;
   onOccurrenceCountChange: (n: number) => void;
   onCommentsChange: (v: string) => void;
+  onKicheWelcomeChange: (v: boolean) => void;
   setForceConfirm: (v: boolean) => void;
 }
 
@@ -140,6 +142,7 @@ export function useAdminCreateBooking({
   const [forceConfirm, setForceConfirm] = useState(false);
   const [submitDone, setSubmitDone] = useState(false);
   const [comments, setComments] = useState("");
+  const [kicheWelcome, setKicheWelcome] = useState(true);
 
   const [isSubmitting, startSubmitting] = useTransition();
 
@@ -273,6 +276,7 @@ export function useAdminCreateBooking({
         petIds: input.petIds,
         recurringRule: input.recurringRule,
         comments: comments.trim() || undefined,
+        kicheWelcome,
         forceConfirm,
       });
       if (result.kind === "success") {
@@ -345,6 +349,7 @@ export function useAdminCreateBooking({
     recurringOn,
     occurrenceCount,
     comments,
+    kicheWelcome,
     step3Label,
     step4Label,
     step5Label,
@@ -356,6 +361,7 @@ export function useAdminCreateBooking({
     onRecurringOnChange,
     onOccurrenceCountChange,
     onCommentsChange,
+    onKicheWelcomeChange: setKicheWelcome,
     setForceConfirm,
   };
 }
