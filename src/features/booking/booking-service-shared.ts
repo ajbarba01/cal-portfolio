@@ -561,16 +561,30 @@ export async function computeBookingArtifacts(
   const findStatus = (formKey: string, petId: string | null) =>
     formStatuses.find((r) => r.formKey === formKey && r.petId === petId)
       ?.submittedAt ?? null;
-  const petForms: Record<string, string | null> = {};
+  // Build per-pet form map keyed by the finer PetFormKey names. Legacy DB rows
+  // still use "pet" as a single key; map them to pet_care until the DB migration
+  // renames them. pet_walk is intentionally absent until its rows are written.
+  const petForms: Record<
+    string,
+    Partial<Record<"pet_care" | "pet_walk", string | null>>
+  > = {};
   for (const id of assignedPetIds) {
-    petForms[id] = findStatus("pet", id);
+    petForms[id] = { pet_care: findStatus("pet", id) };
   }
   const requirements = bookingRequirements({
     pricingType: service.pricing_type,
-    assignedPets: assignedPetIds.map((id) => ({ id, name: "" })),
+    // Species unknown at gate time (resolved later for quantity); treat all as
+    // "dog" so dog-only forms (pet_walk) are included. A later task will thread
+    // species through once getPetsByIds is hoisted before the gate.
+    assignedPets: assignedPetIds.map((id) => ({
+      id,
+      name: "",
+      species: "dog" as const,
+    })),
     accountForms: {
       owner: findStatus("owner", null),
-      home: findStatus("home", null),
+      // Legacy DB key "home" maps to home_access until migration renames it.
+      home_access: findStatus("home", null),
     },
     petForms,
     now: deps.now,
@@ -579,7 +593,7 @@ export async function computeBookingArtifacts(
     if (policy.skipFormsGate) {
       const unmet = requirements
         .filter((r) => r.status !== "complete")
-        .map((r) => `${r.profile}:${r.status}`)
+        .map((r) => `${r.formKey}:${r.status}`)
         .join(", ");
       warnings.push(`Client profiles incomplete (${unmet}).`);
     } else {
