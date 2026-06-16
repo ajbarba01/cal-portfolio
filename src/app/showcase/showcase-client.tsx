@@ -18,10 +18,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup } from "@/components/ui/radio-group";
 import { Surface } from "@/components/ui/surface";
 import { Switch } from "@/components/ui/switch";
 import { TextLink } from "@/components/ui/text-link";
 import { Textarea } from "@/components/ui/textarea";
+import { UnitInput } from "@/components/ui/unit-input";
 
 /** A labelled block in the catalog. */
 function Section({
@@ -82,6 +85,8 @@ export function ShowcaseClient() {
   const [filter, setFilter] = React.useState<FilterValue>("all");
   const [count, setCount] = React.useState(2);
   const [toggle, setToggle] = React.useState(true);
+  const [pet, setPet] = React.useState<"dog" | "cat">("dog");
+  const [agree, setAgree] = React.useState(true);
 
   return (
     <main className="mx-auto flex max-w-5xl flex-col gap-14 px-6 py-12">
@@ -176,7 +181,7 @@ export function ShowcaseClient() {
       {/* ── Surface ───────────────────────────────────────────────────── */}
       <Section
         title="Surface — one card, variant = intent"
-        note="plain: flat data container. interactive: lifts on hover (clickable). emphasis: the clay shimmer ring, reserved for surfaces containing user input or emphasizing an important region. One radius (rounded-card); ShimmerCard is now an alias of emphasis."
+        note="plain: flat data container. interactive: shimmer ring + border/tint hover, for clickable cards. emphasis: shimmer ring, reserved for surfaces containing user input or emphasizing an important region. One radius (rounded-card); ShimmerCard is now an alias of emphasis."
       >
         <div className="grid gap-4 sm:grid-cols-3">
           <Surface variant="plain" className="p-5">
@@ -188,7 +193,7 @@ export function ShowcaseClient() {
           <Surface variant="interactive" className="p-5">
             <p className="font-medium">interactive</p>
             <p className="text-muted-foreground mt-1 text-sm">
-              Hover me — highlights via border + tint (no shadow).
+              Hover me — shimmer ring + border/tint (no shadow).
             </p>
           </Surface>
           <Surface variant="emphasis" className="p-5">
@@ -261,6 +266,51 @@ export function ShowcaseClient() {
               <span className="text-sm font-medium">
                 {toggle ? "On" : "Off"}
               </span>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Tag>RadioGroup — single-select form field</Tag>
+            <RadioGroup
+              ariaLabel="Species"
+              value={pet}
+              onValueChange={setPet}
+              options={[
+                { value: "dog", label: "🐕 Dog" },
+                { value: "cat", label: "🐈 Cat" },
+              ]}
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Tag>Checkbox</Tag>
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <Checkbox
+                checked={agree}
+                onChange={(e) => setAgree(e.target.checked)}
+              />
+              Repeat weekly
+            </label>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Tag>UnitInput — leading $ / trailing unit</Tag>
+            <div className="flex flex-wrap gap-3">
+              <UnitInput
+                unit="$"
+                unitPosition="leading"
+                type="number"
+                defaultValue="15.00"
+                aria-label="Price"
+                className="w-40"
+              />
+              <UnitInput
+                unit="% of booking"
+                type="number"
+                defaultValue="50"
+                aria-label="Deposit"
+                className="w-48"
+              />
             </div>
           </div>
 

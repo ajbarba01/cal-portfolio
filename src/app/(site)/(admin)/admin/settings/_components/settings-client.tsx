@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { TimePicker } from "@/components/ui/time-picker";
+import { UnitInput } from "@/components/ui/unit-input";
 import { updateSettings, type SettingsRow } from "@/features/admin";
 
 // ── Local helpers ──────────────────────────────────────────────────────────────
@@ -41,27 +42,15 @@ function UnitField({
       <Label htmlFor={id} className="text-muted-foreground text-xs font-medium">
         {label}
       </Label>
-      {/* Bordered row that looks like a single input */}
-      <div className="border-input bg-background flex h-8 items-center gap-2 rounded-lg border px-2.5">
-        {unitPosition === "leading" && (
-          <span className="text-muted-foreground shrink-0 text-xs select-none">
-            {unit}
-          </span>
-        )}
-        <input
-          id={id}
-          type="number"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="min-w-0 flex-1 bg-transparent text-sm outline-none"
-          {...inputProps}
-        />
-        {unitPosition === "trailing" && (
-          <span className="text-muted-foreground ml-auto shrink-0 text-xs select-none">
-            {unit}
-          </span>
-        )}
-      </div>
+      <UnitInput
+        id={id}
+        type="number"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        unit={unit}
+        unitPosition={unitPosition}
+        {...inputProps}
+      />
     </div>
   );
 }

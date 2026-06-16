@@ -2,6 +2,7 @@
 
 /** Weekly-recurrence toggle + occurrence count. Presentational; caller owns state. */
 
+import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { NumberStepper } from "@/components/ui/number-stepper";
 
@@ -19,12 +20,10 @@ export function RecurringControls({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-3">
-        <input
+        <Checkbox
           id="recurring-toggle"
-          type="checkbox"
           checked={enabled}
           onChange={(e) => onEnabledChange(e.target.checked)}
-          className="border-border accent-brand focus-visible:outline-ring h-4 w-4 rounded focus-visible:outline-2"
         />
         <Label htmlFor="recurring-toggle">Repeat weekly</Label>
       </div>
