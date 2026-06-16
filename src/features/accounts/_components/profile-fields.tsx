@@ -364,7 +364,12 @@ function FieldGroupBlock({
           <span className="inline-flex items-center gap-1.5">
             {f.label}
             {f.required ? (
-              <span className="text-destructive text-xs font-normal">*</span>
+              <span
+                className="text-destructive text-xs font-normal"
+                aria-label="required"
+              >
+                *
+              </span>
             ) : (
               <span className="text-muted-foreground text-xs font-normal">
                 (optional)

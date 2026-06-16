@@ -16,9 +16,8 @@ import { petWalkSchema } from "./pet-walk-schema";
  * `owner` but kept registered so existing rows still validate if edited; it is
  * no longer a required profile and is not surfaced on the profiles page.
  *
- * `home` and `pet` are legacy DB keys kept in the registry so existing rows
- * can still be found and edited. They are no longer surfaced on the profiles
- * page; new rows use `home_access`, `home_sitting`, `pet_care`, `pet_walk`.
+ * `home` and `pet` were legacy DB keys replaced by `home_access`, `home_sitting`,
+ * `pet_care`, and `pet_walk`. These old keys are no longer in the registry.
  */
 export type FormScope = "account" | "pet";
 
@@ -48,12 +47,12 @@ export const formRegistry = {
   home_sitting: {
     schema: homeSittingSchema,
     scope: "account",
-    title: "Staying over",
+    title: "House-sitting details",
   },
   pet_care: {
     schema: petCareSchema,
     scope: "pet",
-    title: "Pet care details",
+    title: "Pet care",
   },
   pet_walk: {
     schema: petWalkSchema,
