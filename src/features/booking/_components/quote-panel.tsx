@@ -7,6 +7,7 @@ import type { BookingQuotePreview } from "@/features/booking/booking-service";
 import { centsToDollars } from "@/features/booking/format-money";
 import { Button } from "@/components/ui/button";
 import { Surface } from "@/components/ui/surface";
+import { Alert } from "@/components/ui/alert";
 
 interface QuotePanelProps {
   preview: BookingQuotePreview;
@@ -103,17 +104,17 @@ export function QuotePanel({
       )}
 
       {warnings && warnings.length > 0 && (
-        <div className="bg-warning border-warning-foreground/30 text-warning-foreground mt-3 rounded-md border p-2.5 text-sm">
-          <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold tracking-wide uppercase">
-            <span aria-hidden="true">⚠</span> Overrides in effect — you can
-            still save
-          </p>
+        <Alert
+          variant="warning"
+          title="Overrides in effect — you can still save"
+          className="mt-3"
+        >
           <ul className="list-disc space-y-0.5 pl-4">
             {warnings.map((w, i) => (
               <li key={i}>{w}</li>
             ))}
           </ul>
-        </div>
+        </Alert>
       )}
       {footer && <div className="mt-3">{footer}</div>}
 
