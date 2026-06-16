@@ -5,6 +5,7 @@ import { Toast } from "@base-ui/react/toast";
 import type { ToastManagerAddOptions } from "@base-ui/react/toast";
 import { Check, AlertTriangle, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { surfaceVariants } from "@/components/ui/surface";
 
 type AddOptions = ToastManagerAddOptions<object>;
 
@@ -62,7 +63,9 @@ function Toaster() {
               toast={toast}
               data-slot="toast"
               className={cn(
-                "bg-card text-card-foreground border-border relative flex items-start gap-3 overflow-hidden rounded-xl border p-3 pr-2 shadow-lg",
+                // Floating-overlay surface (the system's `floating` Surface variant).
+                surfaceVariants({ variant: "floating" }),
+                "relative flex items-start gap-3 overflow-hidden p-3 pr-2",
                 "w-full max-w-sm transition-all duration-300 ease-out",
                 "data-starting-style:translate-y-2 data-starting-style:opacity-0",
                 "data-ending-style:opacity-0 motion-reduce:transition-none",
