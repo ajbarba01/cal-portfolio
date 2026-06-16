@@ -166,7 +166,7 @@ describe("computeBookingArtifacts — requirements gate", () => {
     expect(result.kind).toBe("profiles_incomplete");
     if (result.kind === "profiles_incomplete") {
       expect(result.requirements).toContainEqual({
-        profile: "owner",
+        formKey: "owner",
         status: "missing",
       });
     }
@@ -182,7 +182,7 @@ describe("computeBookingArtifacts — requirements gate", () => {
     expect(result.kind).toBe("profiles_incomplete");
     if (result.kind === "profiles_incomplete") {
       expect(result.requirements).toContainEqual({
-        profile: "owner",
+        formKey: "owner",
         status: "stale",
       });
     }
