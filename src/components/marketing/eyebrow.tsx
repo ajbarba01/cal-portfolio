@@ -9,12 +9,16 @@ import { cn } from "@/lib/utils";
 export function Eyebrow({
   children,
   className,
+  id,
 }: {
   children: React.ReactNode;
   className?: string;
+  /** Set when the eyebrow labels a region via `aria-labelledby` (e.g. FormSection). */
+  id?: string;
 }) {
   return (
     <p
+      id={id}
       data-slot="eyebrow"
       className={cn(
         "text-brand-strong text-xs font-semibold tracking-[0.14em] uppercase",

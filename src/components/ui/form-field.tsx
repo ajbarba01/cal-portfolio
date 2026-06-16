@@ -65,7 +65,7 @@ export function FormField(props: FormFieldProps) {
       {/* match={true} forces Field.Error visible for a controlled error string,
           ensuring the element gets an id that base-ui links via aria-describedby. */}
       {error ? (
-        <Field.Error match={true} className="text-destructive text-xs">
+        <Field.Error match={true} className="text-destructive text-sm">
           {error}
         </Field.Error>
       ) : null}

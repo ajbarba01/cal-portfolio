@@ -7,6 +7,8 @@ import { StatDisplay } from "@/components/marketing/stat-display";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { FormField } from "@/components/ui/form-field";
+import { FormSection } from "@/components/ui/form-section";
 import { Input } from "@/components/ui/input";
 import { ListRow } from "@/components/ui/list-row";
 import { Multiswitch } from "@/components/ui/multiswitch";
@@ -180,28 +182,58 @@ export function ShowcaseClient() {
 
       {/* ── Surface ───────────────────────────────────────────────────── */}
       <Section
-        title="Surface — one card, variant = intent"
-        note="plain: flat data container. interactive: shimmer ring + border/tint hover, for clickable cards. emphasis: shimmer ring, reserved for surfaces containing user input or emphasizing an important region. One radius (rounded-card); ShimmerCard is now an alias of emphasis."
+        title="Surface — one card, shimmer = outer card"
+        note="Structural rule: an OUTER card (not nested inside another card) shimmers; a nested card is plain. emphasis = outer card (default top-level). interactive = outer + clickable. plain = nested card / sub-section. One radius (rounded-card); ShimmerCard aliases emphasis."
       >
         <div className="grid gap-4 sm:grid-cols-3">
-          <Surface variant="plain" className="p-5">
-            <p className="font-medium">plain</p>
+          <Surface variant="emphasis" className="p-5">
+            <p className="font-medium">emphasis</p>
             <p className="text-muted-foreground mt-1 text-sm">
-              Flat container. Admin rows, fieldsets, list items.
+              Outer card (default top-level). Shimmer ring.
             </p>
           </Surface>
           <Surface variant="interactive" className="p-5">
             <p className="font-medium">interactive</p>
             <p className="text-muted-foreground mt-1 text-sm">
-              Hover me — shimmer ring + border/tint (no shadow).
+              Outer + clickable — shimmer ring + border/tint hover.
             </p>
           </Surface>
-          <Surface variant="emphasis" className="p-5">
-            <p className="font-medium">emphasis</p>
+          <Surface variant="plain" className="p-5">
+            <p className="font-medium">plain</p>
             <p className="text-muted-foreground mt-1 text-sm">
-              Shimmer ring on hover. Forms / important regions.
+              Nested card / sub-section. No shimmer.
             </p>
           </Surface>
+          <Surface variant="floating" className="p-5">
+            <p className="font-medium">floating</p>
+            <p className="text-muted-foreground mt-1 text-sm">
+              Floating overlay (toast, dropdown). Sanctioned shadow, no shimmer.
+            </p>
+          </Surface>
+        </div>
+      </Section>
+
+      {/* ── FormSection ───────────────────────────────────────────────── */}
+      <Section
+        title="FormSection — titled field group"
+        note="Replaces fieldset/legend (whose notch misaligns with the shimmer ring). An emphasis Surface titled by an Eyebrow, grouped via role=group + aria-labelledby. Multi-section forms stack several; each is its own outer card."
+      >
+        <div className="flex max-w-md flex-col gap-4">
+          <FormSection title="Your profile">
+            <FormField label="Full name" name="demo_full_name" />
+            <FormField
+              label="Phone"
+              name="demo_phone"
+              hint="We only call about your bookings."
+            />
+          </FormSection>
+          <FormSection title="Emergency contact">
+            <FormField
+              label="Contact name"
+              name="demo_emergency"
+              error="Required — add a backup contact."
+            />
+          </FormSection>
         </div>
       </Section>
 
