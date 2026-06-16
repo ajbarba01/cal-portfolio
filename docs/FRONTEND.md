@@ -2,7 +2,7 @@
 
 > CORE doc — project-agnostic; project facts live in docs/DESIGN.md.
 
-> Authority for **the design system, theming, and the design→code pipeline** (general, portable). Project-specific pages, brand direction, and the concrete palette live in [DESIGN.md](DESIGN.md). For code conventions see [CODE_STYLE.md](CODE_STYLE.md); for architecture see [ENGINEERING.md](ENGINEERING.md).
+> Authority for **the design system, theming, and the design→code pipeline** (general, portable). Project-specific pages, brand direction, and the concrete palette live in [DESIGN.md](DESIGN.md). For code conventions see [CODE_STYLE.md](CODE_STYLE.md); for architecture see [ENGINEERING.md](ENGINEERING.md). For the **component registry + per-primitive usage contracts** (which primitive/variant to use, the control-track + card + elevation sizing tiers, `/showcase`) see [COMPONENT_SYSTEM.md](COMPONENT_SYSTEM.md).
 
 Goal: distinctive, professional UI that **avoids the generic AI look**, with styling system modular enough that **palettes and components swap with minimal effort**.
 

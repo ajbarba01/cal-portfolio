@@ -6,16 +6,17 @@ Site at `calbarba.com` — **portfolio + self-serve booking system** for dog-wal
 
 ## Doc navigation (IMPORTANT, ensure that you have read any docs to your context)
 
-| Doc                                        | Authority over                                                           | Read before…                         |
-| ------------------------------------------ | ------------------------------------------------------------------------ | ------------------------------------ |
-| [docs/DESIGN.md](docs/DESIGN.md)           | **Project specifics** — data model, routes, pages, brand, pricing, scope | anything project-specific            |
-| [docs/ENGINEERING.md](docs/ENGINEERING.md) | Architecture & code-quality principles                                   | writing/refactoring non-trivial code |
-| [docs/CODE_STYLE.md](docs/CODE_STYLE.md)   | Formatting, naming, documentation                                        | writing any code                     |
-| [docs/FRONTEND.md](docs/FRONTEND.md)       | Design system, theming, design→code pipeline                             | building/altering UI                 |
-| [docs/WORKFLOW.md](docs/WORKFLOW.md)       | Dev loop, version control, handoff & escalation                          | starting a feature / committing      |
-| [docs/CONTENT.md](docs/CONTENT.md)         | Copy-sync protocol — transplanting Cal's marketing text                  | placing/updating site copy           |
-| [docs/ROUTING.md](docs/ROUTING.md)         | Model preferences per work-type; the override knob                       | choosing who plans / implements      |
-| [docs/ROLES.md](docs/ROLES.md)             | Role contracts (designer/implementer/reviewer); role inference           | acting as any agent in this repo     |
+| Doc                                                  | Authority over                                                                                | Read before…                         |
+| ---------------------------------------------------- | --------------------------------------------------------------------------------------------- | ------------------------------------ |
+| [docs/DESIGN.md](docs/DESIGN.md)                     | **Project specifics** — data model, routes, pages, brand, pricing, scope                      | anything project-specific            |
+| [docs/ENGINEERING.md](docs/ENGINEERING.md)           | Architecture & code-quality principles                                                        | writing/refactoring non-trivial code |
+| [docs/CODE_STYLE.md](docs/CODE_STYLE.md)             | Formatting, naming, documentation                                                             | writing any code                     |
+| [docs/FRONTEND.md](docs/FRONTEND.md)                 | Design system, theming, design→code pipeline                                                  | building/altering UI                 |
+| [docs/COMPONENT_SYSTEM.md](docs/COMPONENT_SYSTEM.md) | **Component registry + usage contracts** — which primitive/variant, sizing tiers, `/showcase` | adding/altering a component          |
+| [docs/WORKFLOW.md](docs/WORKFLOW.md)                 | Dev loop, version control, handoff & escalation                                               | starting a feature / committing      |
+| [docs/CONTENT.md](docs/CONTENT.md)                   | Copy-sync protocol — transplanting Cal's marketing text                                       | placing/updating site copy           |
+| [docs/ROUTING.md](docs/ROUTING.md)                   | Model preferences per work-type; the override knob                                            | choosing who plans / implements      |
+| [docs/ROLES.md](docs/ROLES.md)                       | Role contracts (designer/implementer/reviewer); role inference                                | acting as any agent in this repo     |
 
 ## Operating rules (always on)
 
