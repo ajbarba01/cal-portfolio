@@ -9,14 +9,14 @@ import { cn } from "@/lib/utils";
  * a caller picks meaning and the system owns the look:
  *
  * - `plain` — a flat content/data container (admin rows, fieldsets, list items).
- * - `interactive` — a plain surface that lifts on hover (clickable cards).
+ * - `interactive` — a clickable surface; highlights on hover via border + tint
+ *   (no drop-shadow, per the house style).
  * - `emphasis` — carries the clay shimmer ring; reserved for surfaces that
  *   **contain user input** or **emphasize an important** region (the contract
  *   formerly only honored by ShimmerCard, now enforceable).
  *
- * One radius (`rounded-card`) and the elevation scale (`shadow-elev-*`) come from
- * the design tokens, killing the old rounded-xl/2xl split and the bespoke hover
- * shadows. Callers own padding + inner layout via `className`.
+ * One radius (`rounded-card`) comes from the design tokens, killing the old
+ * rounded-xl/2xl split. Callers own padding + inner layout via `className`.
  */
 const surfaceVariants = cva(
   "bg-card text-card-foreground border-border rounded-card border",
@@ -25,7 +25,7 @@ const surfaceVariants = cva(
       variant: {
         plain: "",
         interactive:
-          "group transition-shadow duration-300 ease-out hover:shadow-elev-2",
+          "group hover:border-brand/40 hover:bg-muted/40 transition-colors",
         // `relative` + `group` give the baked-in shimmer a positioned parent and
         // let inner elements react to hover.
         emphasis: "group relative",
