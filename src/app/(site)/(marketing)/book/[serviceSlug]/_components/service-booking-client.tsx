@@ -85,6 +85,7 @@ export function ServiceBookingClient({
     mode,
     petAware,
     allowedSpecies,
+    maxPets,
     supportsRecurring,
     windowsLoading,
     windowsError,
@@ -186,6 +187,7 @@ export function ServiceBookingClient({
                 selected={selectedPetIds}
                 onChange={onPetIdsChange}
                 onPetAdded={handlePetAdded}
+                maxSelect={maxPets}
               />
             ) : (
               <p className="text-muted-foreground text-sm">

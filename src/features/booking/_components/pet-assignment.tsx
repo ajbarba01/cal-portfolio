@@ -36,6 +36,8 @@ interface PetAssignmentProps {
   onChange: (ids: string[]) => void;
   /** Called with the freshly created pet so the caller can auto-select + refresh. */
   onPetAdded: (pet: Pet) => void;
+  /** Cap on selected pets. 1 = single-select (radio). null/undefined = unlimited. */
+  maxSelect?: number | null;
 }
 
 export function PetAssignment({
@@ -44,17 +46,22 @@ export function PetAssignment({
   selected,
   onChange,
   onPetAdded,
+  maxSelect,
 }: PetAssignmentProps) {
   const [showAdd, setShowAdd] = useState(false);
 
   const eligible = pets.filter((p) => allowedSpecies.includes(p.species));
 
   function toggle(id: string) {
-    onChange(
-      selected.includes(id)
-        ? selected.filter((s) => s !== id)
-        : [...selected, id],
-    );
+    if (maxSelect === 1) {
+      onChange(selected.includes(id) ? [] : [id]);
+      return;
+    }
+    const next = selected.includes(id)
+      ? selected.filter((s) => s !== id)
+      : [...selected, id];
+    if (typeof maxSelect === "number" && next.length > maxSelect) return;
+    onChange(next);
   }
 
   return (
