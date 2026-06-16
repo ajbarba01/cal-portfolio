@@ -131,6 +131,8 @@ export interface UseServiceBookingReturn {
   guestLoginHref: string;
   /** Resets all booking state so the user can book again ("Book another"). */
   resetFlow: () => void;
+  /** Re-runs the preview so the gate re-evaluates after a form save. */
+  refreshRequirements: () => void;
 
   // Quantities / pets / recurring / comments (for controlled inputs)
   quantities: QuantityState;
@@ -380,6 +382,10 @@ export function useServiceBooking({
     });
   }
 
+  function refreshRequirements() {
+    void runPreviewRef.current();
+  }
+
   function resetFlow() {
     resetScheduler();
     setQuote(null);
@@ -457,6 +463,7 @@ export function useServiceBooking({
     bookEnabled,
     guestLoginHref,
     resetFlow,
+    refreshRequirements,
     quantities,
     selectedPetIds,
     recurringOn,
