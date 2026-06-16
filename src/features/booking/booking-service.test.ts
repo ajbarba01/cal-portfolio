@@ -1204,6 +1204,10 @@ function makeMockRepo(
       async () => opts.profileLatLng ?? { lat: 40.087, lng: -105.27 },
     ),
     getPetsByIds: vi.fn(async () => []),
+    getFormStatuses: vi.fn(async () => [
+      { formKey: "owner", petId: null, submittedAt: "2026-06-10T00:00:00Z" },
+      { formKey: "home", petId: null, submittedAt: "2026-06-10T00:00:00Z" },
+    ]),
     getOpenWindows: vi.fn(async () => opts.openWindows ?? []),
     insertBookings: vi.fn(async (rows: BookingInsert[]) => {
       if (opts.captureInserts) {
@@ -1546,6 +1550,10 @@ function makePreviewRepo(
     hasActiveBookingForServiceSlug: vi.fn(async () => false),
     hasFormResponse: vi.fn(async () => true),
     getPetsByIds: vi.fn(async () => []),
+    getFormStatuses: vi.fn(async () => [
+      { formKey: "owner", petId: null, submittedAt: "2026-06-10T00:00:00Z" },
+      { formKey: "home", petId: null, submittedAt: "2026-06-10T00:00:00Z" },
+    ]),
     getOpenWindows: vi.fn(async () => [
       {
         startsAt: new Date("2026-06-20T15:00:00Z"),

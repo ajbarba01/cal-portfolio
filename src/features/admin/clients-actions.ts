@@ -124,6 +124,7 @@ export interface ClientPet {
 export interface ClientFormResponse {
   id: string;
   form_key: string;
+  pet_id: string | null;
   booking_id: string | null;
   data: unknown;
   submitted_at: string;
@@ -221,7 +222,7 @@ export async function getClientDetailCore(
 
   const { data: forms } = await serviceClient
     .from("form_responses")
-    .select("id, form_key, booking_id, data, submitted_at")
+    .select("id, form_key, pet_id, booking_id, data, submitted_at")
     .eq("client_id", clientId)
     .order("submitted_at", { ascending: false });
 
@@ -323,6 +324,7 @@ export async function getClientDetailCore(
     forms: (forms ?? []).map((form) => ({
       id: form.id as string,
       form_key: form.form_key as string,
+      pet_id: (form.pet_id as string | null) ?? null,
       booking_id: (form.booking_id as string | null) ?? null,
       data: form.data,
       submitted_at: form.submitted_at as string,

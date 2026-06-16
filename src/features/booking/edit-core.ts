@@ -14,6 +14,7 @@ import {
   type CreateBookingInput,
 } from "./booking-service-shared";
 import type { BookingQuotePreview } from "./quote-core";
+import type { RequirementItem } from "./required-profiles";
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Types
@@ -27,7 +28,7 @@ export type EditBookingResult =
   | { kind: "price_locked" }
   | { kind: "blocked_debt"; owedCents: number }
   | { kind: "onboarding_incomplete" }
-  | { kind: "forms_incomplete" }
+  | { kind: "profiles_incomplete"; requirements: RequirementItem[] }
   | { kind: "refuse"; reason: string }
   | { kind: "unavailable"; reason: string }
   | { kind: "slot_taken" }
@@ -70,7 +71,7 @@ export type PreviewEditResult =
   | { kind: "price_locked" }
   | { kind: "blocked_debt"; owedCents: number }
   | { kind: "onboarding_incomplete" }
-  | { kind: "forms_incomplete" }
+  | { kind: "profiles_incomplete"; requirements: RequirementItem[] }
   | { kind: "refuse"; reason: string }
   | { kind: "unavailable"; reason: string }
   | { kind: "validation_error"; message: string }
@@ -219,8 +220,11 @@ export async function editBookingCore(
     return { kind: "blocked_debt", owedCents: artifacts.owedCents };
   if (artifacts.kind === "onboarding_incomplete")
     return { kind: "onboarding_incomplete" };
-  if (artifacts.kind === "forms_incomplete")
-    return { kind: "forms_incomplete" };
+  if (artifacts.kind === "profiles_incomplete")
+    return {
+      kind: "profiles_incomplete",
+      requirements: artifacts.requirements,
+    };
 
   const warnings = [...artifacts.artifacts.warnings];
   const {
@@ -361,8 +365,11 @@ export async function previewEditCore(
     return { kind: "blocked_debt", owedCents: artifacts.owedCents };
   if (artifacts.kind === "onboarding_incomplete")
     return { kind: "onboarding_incomplete" };
-  if (artifacts.kind === "forms_incomplete")
-    return { kind: "forms_incomplete" };
+  if (artifacts.kind === "profiles_incomplete")
+    return {
+      kind: "profiles_incomplete",
+      requirements: artifacts.requirements,
+    };
 
   const {
     settings: s,

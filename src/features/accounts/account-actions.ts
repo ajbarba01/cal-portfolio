@@ -302,18 +302,43 @@ export async function uploadPetPhoto(
 // ─── Forms ────────────────────────────────────────────────────────────────────
 
 /**
- * Core: submit a form response for a registered form_key.
- * Upserts: if the client already has a row for this form_key, updates it; else inserts.
- * Validates payload via formRegistry[formKey] — unknown keys are rejected.
+ * Core: submit a form response for a registered form_key, optionally pet-scoped.
+ * Upserts on (client_id, form_key, pet_id): account-scoped forms use petId null
+ * (one row per client); pet-scoped forms ('pet') carry a petId (one row per pet).
+ * Validates payload via formRegistry[formKey].schema — unknown keys rejected. For
+ * pet-scoped forms the petId is required and verified to belong to the caller
+ * (RLS scopes the row to the client but not to a specific owned pet).
  */
 export async function runSubmitForm(
   sessionClient: SupabaseClient,
   userId: string,
   formKey: FormKey,
   data: unknown,
+  petId: string | null = null,
 ): Promise<ActionResult> {
-  const schema = formRegistry[formKey];
-  const parsed = schema.safeParse(data);
+  const entry = formRegistry[formKey];
+  if (!entry) {
+    return {
+      kind: "validation_error",
+      message: `Unknown form key: ${String(formKey)}`,
+    };
+  }
+
+  // Scope/petId coherence.
+  if (entry.scope === "pet" && !petId) {
+    return {
+      kind: "validation_error",
+      message: `Form '${formKey}' is pet-scoped and requires a pet.`,
+    };
+  }
+  if (entry.scope === "account" && petId) {
+    return {
+      kind: "validation_error",
+      message: `Form '${formKey}' is account-scoped and cannot target a pet.`,
+    };
+  }
+
+  const parsed = entry.schema.safeParse(data);
   if (!parsed.success) {
     return {
       kind: "validation_error",
@@ -321,13 +346,34 @@ export async function runSubmitForm(
     };
   }
 
-  // Check if a response already exists for this client + form_key.
-  const { data: existing, error: selectError } = await sessionClient
+  // For pet-scoped forms, confirm the pet belongs to the caller.
+  if (petId) {
+    const { data: pet, error: petError } = await sessionClient
+      .from("pets")
+      .select("id")
+      .eq("id", petId)
+      .eq("client_id", userId)
+      .maybeSingle();
+    if (petError) {
+      return { kind: "error", message: petError.message };
+    }
+    if (!pet) {
+      return { kind: "validation_error", message: "Pet not found." };
+    }
+  }
+
+  // Find an existing row for this (client, form_key, pet) scope. pet_id null
+  // needs `.is`, a concrete id needs `.eq`.
+  let selectQuery = sessionClient
     .from("form_responses")
     .select("id")
     .eq("client_id", userId)
-    .eq("form_key", formKey)
-    .maybeSingle();
+    .eq("form_key", formKey);
+  selectQuery = petId
+    ? selectQuery.eq("pet_id", petId)
+    : selectQuery.is("pet_id", null);
+  const { data: existing, error: selectError } =
+    await selectQuery.maybeSingle();
 
   if (selectError) {
     return { kind: "error", message: selectError.message };
@@ -349,6 +395,7 @@ export async function runSubmitForm(
     const { error } = await sessionClient.from("form_responses").insert({
       client_id: userId,
       form_key: formKey,
+      pet_id: petId,
       booking_id: null,
       data: parsed.data,
     });
@@ -364,8 +411,82 @@ export async function runSubmitForm(
 export async function submitForm(
   formKey: FormKey,
   data: unknown,
+  petId: string | null = null,
 ): Promise<ActionResult> {
   const sessionClient = await createClient();
   const userId = await requireUserId(sessionClient);
-  return runSubmitForm(sessionClient, userId, formKey, data);
+  return runSubmitForm(sessionClient, userId, formKey, data, petId);
+}
+
+// ─── Confirm up-to-date (freshness bump) ──────────────────────────────────────
+
+/**
+ * Core: bump submitted_at on an existing profile response without changing data.
+ * Backs the booking gate's "Confirm up to date" action for a stale-but-accurate
+ * profile. No-op-safe: if no row exists the caller should submit instead.
+ */
+export async function runConfirmForm(
+  sessionClient: SupabaseClient,
+  userId: string,
+  formKey: FormKey,
+  petId: string | null = null,
+): Promise<ActionResult> {
+  let query = sessionClient
+    .from("form_responses")
+    .update({ submitted_at: new Date().toISOString() })
+    .eq("client_id", userId)
+    .eq("form_key", formKey);
+  query = petId ? query.eq("pet_id", petId) : query.is("pet_id", null);
+  const { error } = await query;
+  if (error) {
+    return { kind: "error", message: error.message };
+  }
+  return { kind: "success" };
+}
+
+export async function confirmForm(
+  formKey: FormKey,
+  petId: string | null = null,
+): Promise<ActionResult> {
+  const sessionClient = await createClient();
+  const userId = await requireUserId(sessionClient);
+  return runConfirmForm(sessionClient, userId, formKey, petId);
+}
+
+// ─── Expense-authorization e-sign ─────────────────────────────────────────────
+
+/**
+ * Core: append a click-to-accept authorization (immutable audit row). The typed
+ * legal name is validated; the kind/version come from the authorizations module.
+ */
+export async function runAcceptAuthorization(
+  sessionClient: SupabaseClient,
+  userId: string,
+  input: { kind: string; version: string; acceptedName: string },
+): Promise<ActionResult> {
+  const name = input.acceptedName.trim();
+  if (name.length < 1 || name.length > FIELD_LIMITS.name) {
+    return { kind: "validation_error", message: "Type your legal name." };
+  }
+
+  const { error } = await sessionClient.from("authorizations").insert({
+    client_id: userId,
+    kind: input.kind,
+    version: input.version,
+    accepted_name: name,
+  });
+  if (error) {
+    return { kind: "error", message: error.message };
+  }
+  return { kind: "success" };
+}
+
+export async function acceptAuthorization(input: {
+  kind: string;
+  version: string;
+  acceptedName: string;
+}): Promise<ActionResult> {
+  const sessionClient = await createClient();
+  const userId = await requireUserId(sessionClient);
+  return runAcceptAuthorization(sessionClient, userId, input);
 }

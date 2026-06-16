@@ -116,6 +116,10 @@ function makeRepo(
     getOutstandingDebtCents: vi.fn(async () => 0),
     hasActiveBookingForServiceSlug: vi.fn(async () => false),
     hasFormResponse: vi.fn(async () => true),
+    getFormStatuses: vi.fn(async () => [
+      { formKey: "owner", petId: null, submittedAt: "2026-06-10T00:00:00Z" },
+      { formKey: "home", petId: null, submittedAt: "2026-06-10T00:00:00Z" },
+    ]),
     getOpenWindows: vi.fn(async () => []),
     getPetsByIds: vi.fn(async () => []),
     insertBookings: vi.fn(async () => ["bk-001"]),

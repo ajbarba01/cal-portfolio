@@ -14,7 +14,12 @@ export {
 export { PetForm } from "./_components/pet-form";
 export { MeetGreetScheduler } from "./_components/meet-greet-scheduler";
 export { formRegistry } from "./form-registry";
-export type { FormKey } from "./form-registry";
+export type { FormKey, FormScope } from "./form-registry";
+export {
+  EXPENSE_AUTH_KIND,
+  EXPENSE_AUTH_VERSION,
+  EXPENSE_AUTH_TEXT,
+} from "./authorizations";
 export { completeOnboarding } from "./onboarding-action";
 export type { OnboardingFormState } from "./onboarding-form";
 export type { ProfileInput } from "./profile-schema";

@@ -315,6 +315,13 @@ export interface PetRef {
   species: PetSpeciesDb;
 }
 
+/** One form_responses row reduced to what the requirement gate needs. */
+export interface FormStatusRow {
+  formKey: string;
+  petId: string | null;
+  submittedAt: string;
+}
+
 /**
  * Identity-free busy range for the PUBLIC calendar. Carries pet thumbnails
  * (species + storage path) but NEVER an owner name or id — privacy by
@@ -553,9 +560,16 @@ export interface BookingRepository {
 
   /**
    * True when the client has submitted the named form (any row in form_responses
-   * matching client_id + form_key). Used by the forms-gate in computeBookingArtifacts.
+   * matching client_id + form_key). Legacy single-form gate helper.
    */
   hasFormResponse(userId: string, formKey: string): Promise<boolean>;
+
+  /**
+   * All of the client's form responses as (form_key, pet_id, submitted_at) tuples.
+   * Feeds the requirement-manifest gate in computeBookingArtifacts: account-scoped
+   * rows have pet_id null; pet-scoped rows ('pet') carry the pet's id.
+   */
+  getFormStatuses(userId: string): Promise<FormStatusRow[]>;
 
   /** Load the data the Kiche apply action needs (frozen quote + consent + payments). Null if not found. */
   getBookingForKiche(id: string): Promise<BookingForKiche | null>;
@@ -1255,6 +1269,30 @@ export function createSupabaseBookingRepository(
         );
       }
       return (data ?? []).length > 0;
+    },
+
+    async getFormStatuses(userId) {
+      const { data, error } = await client
+        .from("form_responses")
+        .select("form_key, pet_id, submitted_at")
+        .eq("client_id", userId);
+
+      if (error) {
+        throw new Error(
+          `Failed to load form statuses for '${userId}': ${error.message}`,
+        );
+      }
+      return (data ?? []).map(
+        (r: {
+          form_key: string;
+          pet_id: string | null;
+          submitted_at: string;
+        }) => ({
+          formKey: r.form_key,
+          petId: r.pet_id,
+          submittedAt: r.submitted_at,
+        }),
+      );
     },
 
     async getBookingForKiche(id) {

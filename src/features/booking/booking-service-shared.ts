@@ -13,6 +13,11 @@ import { quote } from "@/features/pricing";
 import { parsePricingConfig } from "@/features/pricing";
 import { expandOccurrences } from "./recurrence";
 import {
+  bookingRequirements,
+  requirementsSatisfied,
+  type RequirementItem,
+} from "./required-profiles";
+import {
   seriesQualifiesForRecurringDiscount,
   passesGuards,
   fitsWindow,
@@ -433,7 +438,7 @@ export type ArtifactsResult =
   | { kind: "refuse"; reason: string }
   | { kind: "blocked_debt"; owedCents: number }
   | { kind: "onboarding_incomplete" }
-  | { kind: "forms_incomplete" }
+  | { kind: "profiles_incomplete"; requirements: RequirementItem[] }
   | { kind: "validation_error"; message: string }
   | { kind: "error"; message: string };
 
@@ -528,13 +533,12 @@ export async function computeBookingArtifacts(
     };
   }
 
-  // Forms gate: if the service requires a form (form_key is set), the client must
-  // have submitted it. Check runs in parallel with parsePricingConfig (sync) by
-  // firing the repo call immediately — no serial await before the gate check.
-  const formResponsePromise =
-    service.form_key !== null
-      ? repo.hasFormResponse(input.userId, service.form_key)
-      : Promise.resolve(true); // no required form → trivially satisfied
+  // Requirements gate: a booking requires the reusable Owner/Home/Pet profiles
+  // its pricing_type calls for (REQUIRED_PROFILES manifest), each complete and
+  // fresh. Fire the form-status read immediately so it overlaps parsePricingConfig
+  // (sync) — no serial await before the gate check. services.form_key is legacy
+  // and no longer consulted.
+  const formStatusesPromise = repo.getFormStatuses(input.userId);
 
   let pricingConfig: ReturnType<typeof parsePricingConfig>;
   try {
@@ -549,15 +553,37 @@ export async function computeBookingArtifacts(
     };
   }
 
-  // Await the form response check (fired above, overlaps with parsePricingConfig).
-  const hasForm = await formResponsePromise;
-  if (!hasForm) {
+  // Await the form statuses (fired above, overlaps with parsePricingConfig) and
+  // evaluate the requirement manifest. Pet-scoped items are keyed by the booking's
+  // assigned pets; names are resolved client-side in the checklist UI.
+  const formStatuses = await formStatusesPromise;
+  const assignedPetIds = input.petIds ?? [];
+  const findStatus = (formKey: string, petId: string | null) =>
+    formStatuses.find((r) => r.formKey === formKey && r.petId === petId)
+      ?.submittedAt ?? null;
+  const petForms: Record<string, string | null> = {};
+  for (const id of assignedPetIds) {
+    petForms[id] = findStatus("pet", id);
+  }
+  const requirements = bookingRequirements({
+    pricingType: service.pricing_type,
+    assignedPets: assignedPetIds.map((id) => ({ id, name: "" })),
+    accountForms: {
+      owner: findStatus("owner", null),
+      home: findStatus("home", null),
+    },
+    petForms,
+    now: deps.now,
+  });
+  if (!requirementsSatisfied(requirements)) {
     if (policy.skipFormsGate) {
-      warnings.push(
-        `Client has not completed the required '${service.form_key}' form.`,
-      );
+      const unmet = requirements
+        .filter((r) => r.status !== "complete")
+        .map((r) => `${r.profile}:${r.status}`)
+        .join(", ");
+      warnings.push(`Client profiles incomplete (${unmet}).`);
     } else {
-      return { kind: "forms_incomplete" };
+      return { kind: "profiles_incomplete", requirements };
     }
   }
 

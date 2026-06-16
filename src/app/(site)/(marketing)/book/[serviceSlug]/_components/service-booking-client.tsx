@@ -37,6 +37,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { bookingSuccessSummary } from "../../_components/messages";
 import { useServiceBooking } from "./use-service-booking";
+import type { RequirementItem } from "@/features/booking/index.client";
 
 export type { ServiceDetail };
 
@@ -107,6 +108,7 @@ export function ServiceBookingClient({
     kicheWelcome,
     onKicheWelcomeChange,
     formsIncomplete,
+    profileRequirements,
     step2Label,
     step3Label,
     step4Label,
@@ -277,14 +279,11 @@ export function ServiceBookingClient({
             />
           )}
 
-          {/* Forms gate — ready user has not submitted a required form */}
+          {/* Requirements gate — ready user is missing/stale on a required profile */}
           {authState === "ready" && formsIncomplete && (
-            <GatePanel
-              labelledById="gate-forms-heading"
-              title="Finish your forms before booking"
-              body="Please complete the required form so Cal has what's needed to care for your pets."
-              ctaHref="/account/forms"
-              ctaLabel="Go to forms →"
+            <RequirementsGate
+              requirements={profileRequirements ?? []}
+              pets={pets}
             />
           )}
 
@@ -362,6 +361,102 @@ function GatePanel({
           )}
         >
           {ctaLabel}
+        </Link>
+      </Surface>
+    </section>
+  );
+}
+
+// ── Requirements gate ─────────────────────────────────────────────────────────
+
+function requirementLabel(
+  item: RequirementItem,
+  pets: AssignablePet[],
+): string {
+  if (item.profile === "owner") return "Owner & emergency contacts";
+  if (item.profile === "home") return "Home access & care";
+  const name = item.petId
+    ? pets.find((p) => p.id === item.petId)?.name
+    : undefined;
+  return name ? `${name} — care details` : "Pet care details";
+}
+
+const REQUIREMENT_STATUS_TEXT: Record<RequirementItem["status"], string> = {
+  complete: "Ready",
+  stale: "Needs reconfirming",
+  missing: "Not started",
+};
+
+/**
+ * Lists each required profile with its status and hard-blocks booking until all
+ * are complete. Missing/stale profiles are completed on the profiles page (the
+ * shared form-card); returning here re-checks the gate. Status is conveyed by an
+ * explicit label, never by color alone.
+ */
+function RequirementsGate({
+  requirements,
+  pets,
+}: {
+  requirements: RequirementItem[];
+  pets: AssignablePet[];
+}) {
+  return (
+    <section aria-labelledby="gate-requirements-heading">
+      <Surface variant="plain" className="p-6">
+        <h2
+          id="gate-requirements-heading"
+          className="font-heading text-foreground mb-1 text-base font-semibold"
+        >
+          A few things on file before booking
+        </h2>
+        <p className="text-muted-foreground mb-4 text-sm">
+          So Cal has what&apos;s needed to care for your pets. Complete or
+          reconfirm these, then come back to book.
+        </p>
+
+        <ul className="mb-5 flex flex-col gap-2.5">
+          {requirements.map((item) => {
+            const done = item.status === "complete";
+            return (
+              <li
+                key={`${item.profile}:${item.petId ?? "account"}`}
+                className="flex items-center justify-between gap-3 text-sm"
+              >
+                <span className="text-foreground flex items-center gap-2.5">
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      "size-1.5 rounded-full",
+                      done
+                        ? "bg-status-available-foreground"
+                        : "bg-muted-foreground/40",
+                    )}
+                  />
+                  {requirementLabel(item, pets)}
+                </span>
+                <span
+                  className={cn(
+                    "text-xs font-medium",
+                    done
+                      ? "text-status-available-foreground"
+                      : "text-muted-foreground",
+                  )}
+                >
+                  {REQUIREMENT_STATUS_TEXT[item.status]}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+
+        <Link
+          href="/account/forms"
+          className={cn(
+            buttonVariants({ variant: "brand" }),
+            "w-full sm:w-auto",
+          )}
+        >
+          Complete profiles →
         </Link>
       </Surface>
     </section>

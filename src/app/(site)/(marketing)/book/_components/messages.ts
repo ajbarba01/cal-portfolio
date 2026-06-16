@@ -70,10 +70,10 @@ export function createResultMessage(
         text: "Complete your onboarding before booking.",
       };
 
-    case "forms_incomplete":
+    case "profiles_incomplete":
       return {
         tone: "info",
-        text: "Finish your required forms before booking.",
+        text: "Complete your required profiles before booking.",
       };
 
     case "validation_error":
@@ -199,12 +199,12 @@ export function previewResultMessage(
         },
       };
 
-    case "forms_incomplete":
+    case "profiles_incomplete":
       return {
         kind: "message",
         message: {
           tone: "info",
-          text: "Finish your required forms before booking.",
+          text: "Complete your required profiles before booking.",
         },
       };
 

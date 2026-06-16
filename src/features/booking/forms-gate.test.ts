@@ -1,13 +1,16 @@
 /**
- * Unit tests for the required-forms booking gate in computeBookingArtifacts.
+ * Unit tests for the required-PROFILES booking gate in computeBookingArtifacts.
  *
  * Follows the fake-repo pattern established in
  * src/features/booking/mutations/create-booking.mutation.test.ts.
  * No real DB; all deps are injected vi.fn stubs.
  *
- * Gate rule: a service with form_key != null requires the client to have a
- * matching row in form_responses (repo.hasFormResponse). A service with
- * form_key = null has no form requirement (gate trivially passes).
+ * Gate rule: a booking requires the reusable profiles its pricing_type's manifest
+ * lists (REQUIRED_PROFILES), each complete and fresh (within FRESHNESS_WINDOW_DAYS
+ * of `now`). Missing or stale → CLIENT_POLICY blocks with `profiles_incomplete`;
+ * ADMIN_POLICY warns instead. Per-pet 'pet' items are vacuous when no pets are
+ * assigned, so a walk with owner complete + no pets passes. services.form_key is
+ * legacy and no longer consulted.
  */
 
 import { describe, it, expect, vi } from "vitest";
@@ -16,14 +19,26 @@ import {
   type CreateBookingInput,
 } from "./booking-service-shared";
 import { CLIENT_POLICY, ADMIN_POLICY } from "./mutation-policy";
+import { FRESHNESS_WINDOW_DAYS } from "./required-profiles";
 import type { BookingRepository, SettingsRow } from "./booking-repository";
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Fixtures
 // ──────────────────────────────────────────────────────────────────────────────
 
-const NOW = new Date("2026-06-10T12:00:00Z");
+const NOW = new Date("2026-06-16T12:00:00Z");
 const USER_ID = "11111111-1111-4111-a111-111111111111";
+
+const FRESH_OWNER = {
+  formKey: "owner",
+  petId: null,
+  submittedAt: "2026-06-10T00:00:00Z", // ~6 days old → within window
+};
+const STALE_OWNER = {
+  formKey: "owner",
+  petId: null,
+  submittedAt: "2025-01-01T00:00:00Z", // > 180 days old
+};
 
 /** Permissive settings so all guards pass in core. */
 const settings = {
@@ -53,8 +68,8 @@ const settings = {
 const NEAR_LAT = 40.087;
 const NEAR_LNG = -105.27;
 
-/** A walk service WITHOUT a required form. */
-const walkServiceNoForm = {
+/** A walk service (manifest: owner + pet). */
+const walkService = {
   id: "svc-walk",
   slug: "walk",
   pricing_type: "walk" as const,
@@ -68,13 +83,7 @@ const walkServiceNoForm = {
   form_key: null,
 };
 
-/** A walk service WITH a required emergency form. */
-const walkServiceWithForm = {
-  ...walkServiceNoForm,
-  form_key: "emergency",
-};
-
-/** A minimal valid walk input (start is well within the permissive settings). */
+/** A minimal valid walk input (no pets assigned → 'pet' requirement vacuous). */
 const BASE_INPUT: CreateBookingInput = {
   userId: USER_ID,
   serviceSlug: "walk",
@@ -85,24 +94,28 @@ const BASE_INPUT: CreateBookingInput = {
   recurringRule: null,
 };
 
+type FormStatus = {
+  formKey: string;
+  petId: string | null;
+  submittedAt: string;
+};
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Fake-repo factory
 // ──────────────────────────────────────────────────────────────────────────────
 
-function makeRepo(opts: {
-  service?: typeof walkServiceNoForm | typeof walkServiceWithForm;
-  hasFormResponse?: boolean;
-}): BookingRepository {
-  const { service = walkServiceNoForm, hasFormResponse = true } = opts;
+function makeRepo(opts: { formStatuses?: FormStatus[] }): BookingRepository {
+  const { formStatuses = [FRESH_OWNER] } = opts;
   return {
-    getServiceBySlug: vi.fn(async () => service),
-    getServiceById: vi.fn(async () => service),
+    getServiceBySlug: vi.fn(async () => walkService),
+    getServiceById: vi.fn(async () => walkService),
     getSettings: vi.fn(async () => settings),
     getProfileLatLng: vi.fn(async () => ({ lat: NEAR_LAT, lng: NEAR_LNG })),
     getOnboardingStatus: vi.fn(async () => "approved" as const),
     getOutstandingDebtCents: vi.fn(async () => 0),
     hasActiveBookingForServiceSlug: vi.fn(async () => false),
-    hasFormResponse: vi.fn(async () => hasFormResponse),
+    hasFormResponse: vi.fn(async () => true),
+    getFormStatuses: vi.fn(async () => formStatuses),
     getOpenWindows: vi.fn(async () => []),
     // unused stubs (satisfy interface)
     insertBookings: vi.fn(async () => ["bk-001"]),
@@ -132,54 +145,51 @@ function makeRepo(opts: {
 // Tests
 // ──────────────────────────────────────────────────────────────────────────────
 
-describe("computeBookingArtifacts — forms gate", () => {
-  it("passes when the service has no required form (form_key = null)", async () => {
-    const repo = makeRepo({
-      service: walkServiceNoForm,
-      hasFormResponse: false,
-    });
+describe("computeBookingArtifacts — requirements gate", () => {
+  it("passes when every required profile is complete (owner fresh, pet vacuous with no pets)", async () => {
+    const repo = makeRepo({ formStatuses: [FRESH_OWNER] });
     const result = await computeBookingArtifacts(
       { repo, now: NOW },
       BASE_INPUT,
       CLIENT_POLICY,
     );
     expect(result.kind).toBe("success");
-    // hasFormResponse should never be called when form_key is null
-    expect(repo.hasFormResponse).not.toHaveBeenCalled();
   });
 
-  it("passes when the service requires a form and the client has submitted it", async () => {
-    const repo = makeRepo({
-      service: walkServiceWithForm,
-      hasFormResponse: true,
-    });
+  it("returns profiles_incomplete under CLIENT_POLICY when a required profile is missing", async () => {
+    const repo = makeRepo({ formStatuses: [] });
     const result = await computeBookingArtifacts(
       { repo, now: NOW },
       BASE_INPUT,
       CLIENT_POLICY,
     );
-    expect(result.kind).toBe("success");
-    expect(repo.hasFormResponse).toHaveBeenCalledWith(USER_ID, "emergency");
+    expect(result.kind).toBe("profiles_incomplete");
+    if (result.kind === "profiles_incomplete") {
+      expect(result.requirements).toContainEqual({
+        profile: "owner",
+        status: "missing",
+      });
+    }
   });
 
-  it("returns forms_incomplete under CLIENT_POLICY when required form is missing", async () => {
-    const repo = makeRepo({
-      service: walkServiceWithForm,
-      hasFormResponse: false,
-    });
+  it("returns profiles_incomplete when a required profile is stale", async () => {
+    const repo = makeRepo({ formStatuses: [STALE_OWNER] });
     const result = await computeBookingArtifacts(
       { repo, now: NOW },
       BASE_INPUT,
       CLIENT_POLICY,
     );
-    expect(result.kind).toBe("forms_incomplete");
+    expect(result.kind).toBe("profiles_incomplete");
+    if (result.kind === "profiles_incomplete") {
+      expect(result.requirements).toContainEqual({
+        profile: "owner",
+        status: "stale",
+      });
+    }
   });
 
-  it("bypasses the forms gate under ADMIN_POLICY (warn-don't-block)", async () => {
-    const repo = makeRepo({
-      service: walkServiceWithForm,
-      hasFormResponse: false,
-    });
+  it("bypasses the gate under ADMIN_POLICY (warn-don't-block)", async () => {
+    const repo = makeRepo({ formStatuses: [] });
     const result = await computeBookingArtifacts(
       { repo, now: NOW },
       BASE_INPUT,
@@ -187,9 +197,13 @@ describe("computeBookingArtifacts — forms gate", () => {
     );
     expect(result.kind).toBe("success");
     if (result.kind === "success") {
-      expect(
-        result.artifacts.warnings.some((w) => w.includes("emergency")),
-      ).toBe(true);
+      expect(result.artifacts.warnings.some((w) => w.includes("owner"))).toBe(
+        true,
+      );
     }
+  });
+
+  it("sanity-checks the freshness window constant is the agreed 180 days", () => {
+    expect(FRESHNESS_WINDOW_DAYS).toBe(180);
   });
 });
