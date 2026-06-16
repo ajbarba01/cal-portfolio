@@ -14,7 +14,7 @@ import {
 } from "@/components/marketing/stat-ticker";
 import { PageContainer } from "@/components/layout/page-container";
 import { Reveal, RevealGroup } from "@/components/effects/reveal";
-import { CardShimmer } from "@/components/effects/card-shimmer";
+import { Surface } from "@/components/ui/surface";
 import { buttonVariants } from "@/components/ui/button";
 import { copy } from "@/content/marketing";
 import { cn } from "@/lib/utils";
@@ -146,32 +146,29 @@ export default function HomePage() {
               role="list"
             >
               {trustPoints.map((p) => (
-                <Reveal
-                  as="li"
-                  key={p.id}
-                  className="group bg-card border-border relative rounded-2xl border p-5 sm:p-5.5"
-                >
-                  <CardShimmer />
-                  {/* Icon disc + title row */}
-                  <div className="mb-3 flex items-center gap-3">
-                    <span
-                      className="bg-sidebar-active flex size-9.5 shrink-0 items-center justify-center rounded-full transition-[background-color,box-shadow] duration-300 ease-out group-hover:bg-[color-mix(in_oklab,var(--brand)_12%,var(--sidebar-active))] group-hover:shadow-[0_0_0_5px_color-mix(in_oklab,var(--brand)_9%,transparent)]"
-                      aria-hidden="true"
-                    >
-                      <p.Icon
-                        className="text-brand-strong group-hover:text-brand size-4.5 transition-colors duration-300 ease-out"
-                        strokeWidth={1.9}
-                      />
-                    </span>
-                    <h3 className="font-heading text-foreground text-[17px] leading-snug font-semibold">
-                      <MarketingCopy id={p.titleId} />
-                    </h3>
-                  </div>
+                <Reveal as="li" key={p.id} className="list-none">
+                  <Surface variant="emphasis" className="h-full p-5 sm:p-5.5">
+                    {/* Icon disc + title row */}
+                    <div className="mb-3 flex items-center gap-3">
+                      <span
+                        className="bg-sidebar-active flex size-9.5 shrink-0 items-center justify-center rounded-full transition-[background-color,box-shadow] duration-300 ease-out group-hover:bg-[color-mix(in_oklab,var(--brand)_12%,var(--sidebar-active))] group-hover:shadow-[0_0_0_5px_color-mix(in_oklab,var(--brand)_9%,transparent)]"
+                        aria-hidden="true"
+                      >
+                        <p.Icon
+                          className="text-brand-strong group-hover:text-brand size-4.5 transition-colors duration-300 ease-out"
+                          strokeWidth={1.9}
+                        />
+                      </span>
+                      <h3 className="font-heading text-foreground text-[17px] leading-snug font-semibold">
+                        <MarketingCopy id={p.titleId} />
+                      </h3>
+                    </div>
 
-                  {/* Long-form body — left-aligned, full width within card */}
-                  <p className="text-muted-foreground text-[13.5px] leading-[1.65]">
-                    <MarketingCopy id={p.bodyId} />
-                  </p>
+                    {/* Long-form body — left-aligned, full width within card */}
+                    <p className="text-muted-foreground text-[13.5px] leading-[1.65]">
+                      <MarketingCopy id={p.bodyId} />
+                    </p>
+                  </Surface>
                 </Reveal>
               ))}
             </ul>
