@@ -35,11 +35,7 @@ export function StatTickerTrack({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const reduced = window.matchMedia(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
-    console.log("[ticker] effect run, reducedMotion=", reduced);
-    if (reduced) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
     let frame = 0;
     let last = performance.now();
@@ -90,26 +86,15 @@ export function StatTickerTrack({ children }: { children: React.ReactNode }) {
       frame = requestAnimationFrame(tick);
     };
 
-    console.log("[ticker] groupWidth=", groupWidth);
-    let moveLogs = 0;
     const onEnter = (e: PointerEvent) => {
-      console.log("[ticker] pointerenter type=", e.pointerType);
       if (e.pointerType !== "mouse") return;
       hovering = true;
       target = offset; // anchor so the follow starts without a jump
     };
     const onMove = (e: PointerEvent) => {
-      if (moveLogs++ < 5)
-        console.log(
-          "[ticker] move movementX=",
-          e.movementX,
-          "hovering=",
-          hovering,
-        );
       if (hovering) target += e.movementX; // 1:1 cursor delta
     };
     const onLeave = (e: PointerEvent) => {
-      console.log("[ticker] pointerleave type=", e.pointerType);
       if (e.pointerType !== "mouse") return;
       hovering = false; // current velocity carries into the decay branch
     };
