@@ -6,8 +6,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { safeReturnTo } from "@/features/booking/index.client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { FormField } from "@/components/ui/form-field";
 import { ShimmerCard } from "@/components/ui/shimmer-card";
 import { PageContainer } from "@/components/layout/page-container";
 
@@ -58,33 +57,25 @@ export default function LoginPage() {
             noValidate
             className="mt-5 flex flex-col gap-4"
           >
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="bg-background"
-              />
-            </div>
+            <FormField
+              label="Email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
 
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="bg-background"
-              />
-            </div>
+            <FormField
+              label="Password"
+              name="password"
+              type="password"
+              autoComplete="current-password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
 
             {error && (
               <p role="alert" className="text-destructive text-sm">
