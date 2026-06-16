@@ -1,5 +1,3 @@
-import { createClient } from "@/lib/supabase/server";
-
 import { PageContainer } from "@/components/layout/page-container";
 import { Reveal } from "@/components/effects/reveal";
 import { MarketingCopy } from "@/components/marketing/marketing-copy";
@@ -16,26 +14,9 @@ const FAQ_ITEMS: ReadonlyArray<FaqItem> = [
   { id: "updates", questionId: "contact.faq.1.q", answerId: "contact.faq.1.a" },
 ];
 
-export default async function ContactPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  let defaults = { name: "", email: "", phone: "" };
-  if (user) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("full_name, email, phone")
-      .eq("id", user.id)
-      .maybeSingle();
-    defaults = {
-      name: profile?.full_name ?? "",
-      email: profile?.email ?? user.email ?? "",
-      phone: profile?.phone ?? "",
-    };
-  }
-
+// Static: the page reads no per-request data. Signed-in prefill (name/email/
+// phone) resolves browser-side inside ContactForm, so this route prerenders.
+export default function ContactPage() {
   return (
     <>
       {/* Form — base band */}
@@ -43,9 +24,6 @@ export default async function ContactPage() {
         <PageContainer width="narrow" className="py-10 sm:py-14">
           <Reveal>
             <ContactForm
-              defaultName={defaults.name}
-              defaultEmail={defaults.email}
-              defaultPhone={defaults.phone}
               heading={<MarketingCopy id="contact.header" />}
               intro={<MarketingCopy id="contact.intro" />}
               replyNote={<MarketingCopy id="contact.replyNote" />}

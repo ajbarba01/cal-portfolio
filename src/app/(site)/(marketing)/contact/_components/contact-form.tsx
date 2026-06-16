@@ -9,19 +9,14 @@ import { FormField } from "@/components/ui/form-field";
 import { Textarea } from "@/components/ui/textarea";
 import { ShimmerCard } from "@/components/ui/shimmer-card";
 import { TextLink } from "@/components/ui/text-link";
+import { createClient } from "@/lib/supabase/client";
 import { submitInquiry } from "@/features/inquiries";
 
 export function ContactForm({
-  defaultName,
-  defaultEmail,
-  defaultPhone,
   heading,
   intro,
   replyNote,
 }: {
-  defaultName: string;
-  defaultEmail: string;
-  defaultPhone: string;
   /** Registry copy nodes — rendered server-side, see contact/page.tsx. */
   heading: React.ReactNode;
   intro: React.ReactNode;
@@ -32,6 +27,35 @@ export function ContactForm({
   const [error, setError] = useState<string | null>(null);
   const [isDone, setIsDone] = useState(false);
   const successHeadingRef = useRef<HTMLHeadingElement>(null);
+
+  // Identity fields are prefilled browser-side for signed-in clients so the page
+  // can render statically (no server cookie read). Guests get an empty form
+  // immediately; a signed-in client's details fill in just after hydration.
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+
+  useEffect(() => {
+    const supabase = createClient();
+    let active = true;
+    // getSession() is the local cookie read (no network on HS256).
+    supabase.auth.getSession().then(async ({ data }) => {
+      const session = data.session;
+      if (!active || !session) return;
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name, email, phone")
+        .eq("id", session.user.id)
+        .maybeSingle();
+      if (!active) return;
+      setName(profile?.full_name ?? "");
+      setEmail(profile?.email ?? session.user.email ?? "");
+      setPhone(profile?.phone ?? "");
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (isDone) {
@@ -118,7 +142,9 @@ export function ContactForm({
         <FormField
           label="Name"
           name="name"
-          defaultValue={defaultName}
+          autoComplete="name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
           required
         />
 
@@ -126,7 +152,9 @@ export function ContactForm({
           label="Email"
           name="email"
           type="email"
-          defaultValue={defaultEmail}
+          autoComplete="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
           required
         />
 
@@ -134,7 +162,9 @@ export function ContactForm({
           label="Phone"
           name="phone"
           type="tel"
-          defaultValue={defaultPhone}
+          autoComplete="tel"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
           required
         />
 
