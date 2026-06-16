@@ -18,7 +18,7 @@ function SelectTrigger({
       data-slot="select-trigger"
       className={cn(
         controlVariants(),
-        "group data-[popup-open]:border-ring data-[popup-open]:ring-ring/50 hover:border-ring/60 flex w-full items-center justify-between gap-2 bg-transparent text-sm transition-[color,border-color,box-shadow] data-[popup-open]:ring-3",
+        "group data-[popup-open]:border-ring data-[popup-open]:ring-ring/50 hover:border-ring/60 bg-background flex w-full items-center justify-between gap-2 text-sm transition-[color,border-color,box-shadow] data-[popup-open]:ring-3",
         className,
       )}
       {...props}

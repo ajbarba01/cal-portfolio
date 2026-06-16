@@ -180,26 +180,26 @@ export function ShowcaseClient() {
 
       {/* ── Surface ───────────────────────────────────────────────────── */}
       <Section
-        title="Surface — one card, variant = intent"
-        note="plain: flat data container. interactive: shimmer ring + border/tint hover, for clickable cards. emphasis: shimmer ring, reserved for surfaces containing user input or emphasizing an important region. One radius (rounded-card); ShimmerCard is now an alias of emphasis."
+        title="Surface — one card, shimmer = outer card"
+        note="Structural rule: an OUTER card (not nested inside another card) shimmers; a nested card is plain. emphasis = outer card (default top-level). interactive = outer + clickable. plain = nested card / sub-section. One radius (rounded-card); ShimmerCard aliases emphasis."
       >
         <div className="grid gap-4 sm:grid-cols-3">
-          <Surface variant="plain" className="p-5">
-            <p className="font-medium">plain</p>
+          <Surface variant="emphasis" className="p-5">
+            <p className="font-medium">emphasis</p>
             <p className="text-muted-foreground mt-1 text-sm">
-              Flat container. Admin rows, fieldsets, list items.
+              Outer card (default top-level). Shimmer ring.
             </p>
           </Surface>
           <Surface variant="interactive" className="p-5">
             <p className="font-medium">interactive</p>
             <p className="text-muted-foreground mt-1 text-sm">
-              Hover me — shimmer ring + border/tint (no shadow).
+              Outer + clickable — shimmer ring + border/tint hover.
             </p>
           </Surface>
-          <Surface variant="emphasis" className="p-5">
-            <p className="font-medium">emphasis</p>
+          <Surface variant="plain" className="p-5">
+            <p className="font-medium">plain</p>
             <p className="text-muted-foreground mt-1 text-sm">
-              Shimmer ring on hover. Forms / important regions.
+              Nested card / sub-section. No shimmer.
             </p>
           </Surface>
         </div>

@@ -46,18 +46,19 @@ Fill is one role site-wide: `bg-background` (the form-on-card recipe). The
 
 ## Surface — the one card
 
-`Surface` is the only card primitive; `variant` encodes **intent**, not styling:
+`Surface` is the only card primitive. The shimmer-ring rule is **structural**:
+**every outer card (one not nested inside another card) shimmers; nested cards
+don't** — so only the outermost edge carries the signature. `variant` encodes it:
 
-| variant       | use for                                                                | look                             |
-| ------------- | ---------------------------------------------------------------------- | -------------------------------- |
-| `plain`       | flat data / content containers (admin rows, fieldsets, list items)     | border only                      |
-| `interactive` | clickable cards                                                        | shimmer ring + border/tint hover |
-| `emphasis`    | surfaces that **hold user input** or **emphasize an important** region | shimmer ring                     |
+| variant       | use for                                                             | look                             |
+| ------------- | ------------------------------------------------------------------- | -------------------------------- |
+| `emphasis`    | an **outer** card (not nested) — the default for any top-level card | shimmer ring                     |
+| `interactive` | an outer card that's also clickable                                 | shimmer ring + border/tint hover |
+| `plain`       | a card **nested inside another card**, or a flat sub-section        | border only                      |
 
-`interactive` and `emphasis` carry the clay shimmer ring (the house signature);
 `ShimmerCard` is a thin alias of `emphasis`. Use `ListRow` for list items (a
-Surface at row padding). The only sanctioned card lift is `ShimmerCard`'s opt-in
-`hoverLift` (the service cards).
+Surface at row padding; top-level rows are outer cards → shimmer). The only
+sanctioned card lift is `ShimmerCard`'s opt-in `hoverLift` (the service cards).
 
 ## Registry — when to use which
 

@@ -11,7 +11,7 @@ function Textarea({ className, ...props }: React.ComponentProps<"textarea">) {
       // fixed track height — it's multi-line and resizable (h-auto wins via twMerge).
       className={cn(
         controlVariants(),
-        "placeholder:text-muted-foreground disabled:bg-input/50 dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 h-auto min-h-[6rem] w-full min-w-0 resize-y bg-transparent py-2 text-base md:text-sm",
+        "placeholder:text-muted-foreground disabled:bg-input/50 dark:bg-input/30 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 bg-background h-auto min-h-[6rem] w-full min-w-0 resize-y py-2 text-base md:text-sm",
         className,
       )}
       {...props}

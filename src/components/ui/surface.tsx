@@ -5,20 +5,20 @@ import { CardShimmer } from "@/components/effects/card-shimmer";
 import { cn } from "@/lib/utils";
 
 /**
- * Surface — the one card primitive. `variant` encodes *intent*, not styling, so
- * a caller picks meaning and the system owns the look:
+ * Surface — the one card primitive. `variant` encodes whether the card is an
+ * OUTER card or a nested one — the rule for the clay shimmer ring is structural:
+ * **every outer card (one not nested inside another card) shimmers; nested cards
+ * don't** (so only the outermost edge carries the signature).
  *
- * - `plain` — a flat content/data container (admin rows, fieldsets, list items).
- * - `interactive` — a clickable surface: carries the clay shimmer ring AND a
+ * - `emphasis` — an **outer** card (not inside another card): the default choice
+ *   for any top-level card. Carries the {@link CardShimmer} ring.
+ * - `interactive` — an outer card that's also clickable: the shimmer ring AND a
  *   border + tint hover (no drop-shadow, per the house style).
- * - `emphasis` — carries the clay shimmer ring; reserved for surfaces that
- *   **contain user input** or **emphasize an important** region (the contract
- *   formerly only honored by ShimmerCard, now enforceable).
+ * - `plain` — a card **nested inside another card**, or a flat sub-section / data
+ *   container. No shimmer.
  *
- * `interactive` and `emphasis` both render the {@link CardShimmer} outline; only
- * `interactive` adds the clickable hover affordance. One radius (`rounded-card`)
- * comes from the design tokens, killing the old rounded-xl/2xl split. Callers own
- * padding + inner layout via `className`.
+ * One radius (`rounded-card`) comes from the design tokens, killing the old
+ * rounded-xl/2xl split. Callers own padding + inner layout via `className`.
  */
 const surfaceVariants = cva(
   "bg-card text-card-foreground border-border rounded-card border",
