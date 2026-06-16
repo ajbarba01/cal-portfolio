@@ -8,6 +8,11 @@
  */
 import Link from "next/link";
 import { Check } from "lucide-react";
+import {
+  buildPageMetadata,
+  buildBreadcrumbJsonLd,
+  JsonLd,
+} from "@/features/seo";
 import { PageContainer } from "@/components/layout/page-container";
 import { Reveal, RevealGroup } from "@/components/effects/reveal";
 import { Eyebrow } from "@/components/marketing/eyebrow";
@@ -149,6 +154,13 @@ function toItem(service: PublicService, index: number): ServiceTabItem {
   };
 }
 
+export const metadata = buildPageMetadata({
+  title: "Services",
+  description:
+    "Dog walking, house sitting, drop-in check-ins, and training across the Front Range — what's offered and how pricing works.",
+  path: "/services",
+});
+
 // Static with daily ISR; admin service edits reflect immediately via
 // revalidatePath("/services") in updateService.
 export const revalidate = 86400;
@@ -159,6 +171,12 @@ export default async function ServicesPage() {
 
   return (
     <>
+      <JsonLd
+        data={buildBreadcrumbJsonLd([
+          { name: "Home", path: "/" },
+          { name: "Services", path: "/services" },
+        ])}
+      />
       {/* Masthead — editorial header band */}
       <section
         aria-labelledby="services-heading"

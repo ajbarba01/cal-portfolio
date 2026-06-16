@@ -2,6 +2,11 @@
 
 import * as React from "react";
 import {
+  buildPageMetadata,
+  buildBreadcrumbJsonLd,
+  JsonLd,
+} from "@/features/seo";
+import {
   TriangleAlert,
   HeartPulse,
   Stethoscope,
@@ -230,11 +235,24 @@ function LedgerSection({
   );
 }
 
+export const metadata = buildPageMetadata({
+  title: "Resources",
+  description:
+    "Pet-care guidance and Colorado-specific safety notes — heat, foxtails, algae blooms — from Cal Barba.",
+  path: "/resources",
+});
+
 export default function ResourcesPage() {
   const [filter, setFilter] = React.useState<Filter>("all");
 
   return (
     <>
+      <JsonLd
+        data={buildBreadcrumbJsonLd([
+          { name: "Home", path: "/" },
+          { name: "Resources", path: "/resources" },
+        ])}
+      />
       {/* Masthead — centered editorial header, no eyebrow (it would restate
           "Resources"); the intro carries the framing. */}
       <section
