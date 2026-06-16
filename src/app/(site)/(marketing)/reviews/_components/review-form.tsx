@@ -8,7 +8,7 @@
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+import { FormField } from "@/components/ui/form-field";
 import { Textarea } from "@/components/ui/textarea";
 import { ShimmerCard } from "@/components/ui/shimmer-card";
 import { createClient } from "@/lib/supabase/client";
@@ -101,10 +101,12 @@ export function ReviewForm() {
           />
         </div>
 
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="review-body">Your review</Label>
+        <FormField
+          label="Your review"
+          name="body"
+          hint={<span className="block text-right">{body.length} / 2000</span>}
+        >
           <Textarea
-            id="review-body"
             name="body"
             value={body}
             onChange={(e) => setBody(e.target.value)}
@@ -112,12 +114,8 @@ export function ReviewForm() {
             required
             maxLength={2000}
             placeholder="Tell us about your experience…"
-            className="bg-background"
           />
-          <p className="text-muted-foreground text-right text-xs">
-            {body.length} / 2000
-          </p>
-        </div>
+        </FormField>
 
         {error && (
           <p role="alert" className="text-destructive text-sm">

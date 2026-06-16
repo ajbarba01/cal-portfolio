@@ -6,8 +6,7 @@ import { CheckCircle, Clock, Send } from "lucide-react";
 
 import { useToast } from "@/components/feedback/toast";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { FormField } from "@/components/ui/form-field";
 import { Textarea } from "@/components/ui/textarea";
 import { ShimmerCard } from "@/components/ui/shimmer-card";
 import { submitInquiry } from "@/features/inquiries";
@@ -123,61 +122,44 @@ export function ContactForm({
           </p>
         ) : null}
 
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="name">Name</Label>
-          <Input
-            id="name"
-            name="name"
-            defaultValue={defaultName}
-            required
-            className="bg-background"
-          />
-        </div>
+        <FormField
+          label="Name"
+          name="name"
+          defaultValue={defaultName}
+          required
+        />
 
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="email">Email</Label>
-          <Input
-            id="email"
-            name="email"
-            type="email"
-            defaultValue={defaultEmail}
-            required
-            className="bg-background"
-          />
-        </div>
+        <FormField
+          label="Email"
+          name="email"
+          type="email"
+          defaultValue={defaultEmail}
+          required
+        />
 
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="phone">Phone</Label>
-          <Input
-            id="phone"
-            name="phone"
-            type="tel"
-            defaultValue={defaultPhone}
-            required
-            className="bg-background"
-          />
-        </div>
+        <FormField
+          label="Phone"
+          name="phone"
+          type="tel"
+          defaultValue={defaultPhone}
+          required
+        />
 
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="subject">
-            Subject{" "}
-            <span className="text-muted-foreground font-normal">
-              (optional)
-            </span>
-          </Label>
-          <Input id="subject" name="subject" className="bg-background" />
-        </div>
+        <FormField
+          label={
+            <>
+              Subject{" "}
+              <span className="text-muted-foreground font-normal">
+                (optional)
+              </span>
+            </>
+          }
+          name="subject"
+        />
 
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="message">Message</Label>
-          <Textarea
-            id="message"
-            name="message"
-            required
-            rows={5}
-            className="bg-background"
-          />
-        </div>
+        <FormField label="Message" name="message">
+          <Textarea name="message" required rows={5} />
+        </FormField>
 
         {/* Honeypot */}
         <div
