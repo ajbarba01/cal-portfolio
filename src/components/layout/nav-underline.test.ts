@@ -44,19 +44,33 @@ describe("navTab", () => {
     expect(cls).toContain("transition-colors");
   });
 
-  it("active tab: brand-strong text, semibold, underline pinned full", () => {
+  it("active tab: brand-strong text, semibold, underline pinned full via --u:1", () => {
     const cls = navTab(true);
     expect(cls).toContain("text-brand-strong");
     expect(cls).toContain("font-semibold");
-    expect(cls).toContain("after:[transform:scaleX(1)]");
+    expect(cls).toContain("[--u:1]");
+  });
+
+  it("both states share one transform string so Chromium rasterizes them identically", () => {
+    // Active and inactive must drive the underline through the SAME declaration
+    // (only `--u` differs) — a literal scaleX(1) on one path antialiases the 2px
+    // line differently than scaleX(var(--u)) and renders a hair thinner.
+    expect(navTab(true)).toContain(
+      "after:[transform:translateZ(0)_scaleX(var(--u))]",
+    );
+    expect(navTab(false)).toContain(
+      "after:[transform:translateZ(0)_scaleX(var(--u))]",
+    );
+    expect(navTab(true)).not.toContain("scaleX(1)");
+    expect(navTab(false)).not.toContain("scaleX(1)");
   });
 
   it("inactive tab: subdued text, clay hover, proximity-driven underline pinned full on hover", () => {
     const cls = navTab(false);
     expect(cls).toContain("text-foreground/70");
     expect(cls).toContain("hover:text-brand-strong");
-    expect(cls).toContain("after:[transform:scaleX(var(--u))]");
-    expect(cls).toContain("hover:after:[transform:scaleX(1)]");
+    expect(cls).toContain("after:[transform:translateZ(0)_scaleX(var(--u))]");
+    expect(cls).toContain("hover:[--u:1]");
     expect(cls).not.toContain("font-semibold");
     expect(cls).not.toContain("hover:bg-muted");
   });

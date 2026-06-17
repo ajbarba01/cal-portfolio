@@ -54,4 +54,5 @@ next-env.d.ts
 # gallery pipeline: raw camera originals (re-encoded into public/ by npm run gallery:sync)
 /gallery-originals/
 /bg-originals/
+/services-originals/
 scripts/gallery-sync/.sync-manifest.json

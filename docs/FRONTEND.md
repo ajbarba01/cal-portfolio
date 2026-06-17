@@ -143,20 +143,23 @@ Navigation should feel like toggling a UI element, not fetching a page:
 Raw camera files are never committed to `public/`. Instead:
 
 - **Originals** live in gitignored source folders at the repo root:
-  `gallery-originals/` (grid photos) and `bg-originals/` (hero/background images).
+  `gallery-originals/` (grid photos), `bg-originals/` (hero/background images), and
+  `services-originals/<slug>/` (per-service photos — folder name **is** the service slug).
 - **`npm run gallery:sync`** (script: `scripts/gallery-sync/`, dep: `sharp`) re-encodes
   them into `public/`: resize ≤1600px long edge (no upscaling), JPEG q≈80 (mozjpeg),
-  EXIF stripped. Gallery outputs are **content-hashed** (`IMG_0592.<hash>.jpg`) so a
-  swapped photo busts caches; bg outputs keep **stable basenames** (referenced by path
-  in code). Sync is idempotent (skip unchanged / delete orphaned / process changed).
+  EXIF stripped. Gallery + per-service outputs are **content-hashed** (`IMG_0592.<hash>.jpg`)
+  so a swapped photo busts caches; bg outputs keep **stable basenames** (referenced by path
+  in code). The services job is **nested**: each `services-originals/<slug>/` maps to
+  `public/services/<slug>/`. Sync is idempotent (skip unchanged / delete orphaned /
+  process changed); running without source folders present never wipes committed placeholders.
 - **Blur placeholders** are emitted to `src/content/image-placeholders.json`
-  (tracked). `getGalleryImages()` attaches them to grid images; `MarketingHero`
-  takes an optional `blurDataURL`. Always use `next/image` with `placeholder="blur"`
-  where a placeholder exists.
+  (tracked). `getGalleryImages()` attaches them to grid images; `getServiceImages(slug)`
+  to the service triptych; `MarketingHero` takes an optional `blurDataURL`. Always use
+  `next/image` with `placeholder="blur"` where a placeholder exists.
 - **`next.config.ts`** serves `avif`/`webp` with a long `minimumCacheTTL`; non-default
   `quality` values must be allow-listed in `images.qualities`.
 - The `gallery-sync` skill documents the add/replace/remove workflow.
 
 ---
 
-_Last reviewed: 2026-06-13_ (instant navigation + image pipeline)
+_Last reviewed: 2026-06-16_ (instant navigation + image pipeline)

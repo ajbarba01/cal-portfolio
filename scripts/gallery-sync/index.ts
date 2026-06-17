@@ -1,15 +1,18 @@
 /**
  * gallery:sync — re-encode raw camera originals into web-ready images.
  *
- * Reads from gitignored source folders (`gallery-originals/`, `bg-originals/`),
- * writes optimized JPEGs into `public/`, and emits blur placeholders. Run it
- * after adding/removing originals; commit the regenerated outputs + placeholders.
+ * Reads from gitignored source folders (`gallery-originals/`, `bg-originals/`,
+ * `services-originals/<slug>/`), writes optimized JPEGs into `public/`, and emits
+ * blur placeholders. Run it after adding/removing originals; commit the
+ * regenerated outputs + placeholders.
  *
  * Pipeline per image: resize to ≤1600px long edge (no upscaling), JPEG q≈80
- * (mozjpeg), strip EXIF (sharp default). Gallery outputs get content-hashed
- * names (`IMG_0592.<hash>.jpg`) so swaps bust caches; bg outputs keep stable
- * basenames (referenced directly in code). Idempotent: unchanged source → skip;
- * orphaned output (no source) → delete; new/changed → process.
+ * (mozjpeg), strip EXIF (sharp default). Gallery + per-service outputs get
+ * content-hashed names (`IMG_0592.<hash>.jpg`) so swaps bust caches; bg outputs
+ * keep stable basenames (referenced directly in code). The services job is
+ * nested: each `services-originals/<slug>/` folder maps to `public/services/<slug>/`.
+ * Idempotent: unchanged source → skip; orphaned output (no source) → delete;
+ * new/changed → process.
  *
  * See docs/FRONTEND.md "Image pipeline" and .claude/skills/gallery-sync.
  */
@@ -42,8 +45,10 @@ const MANIFEST_PATH = path.join(
 interface Job {
   srcDir: string;
   outDir: string;
-  /** Gallery: content-hashed output names. bg: stable basenames. */
+  /** Gallery/services: content-hashed output names. bg: stable basenames. */
   hashed: boolean;
+  /** Nested: srcDir holds per-key subfolders mirrored under outDir (e.g. services/<slug>). */
+  nested?: boolean;
 }
 
 const JOBS: Job[] = [
@@ -53,6 +58,12 @@ const JOBS: Job[] = [
     hashed: true,
   },
   { srcDir: "bg-originals", outDir: path.join("public", "bg"), hashed: false },
+  {
+    srcDir: "services-originals",
+    outDir: path.join("public", "services"),
+    hashed: true,
+    nested: true,
+  },
 ];
 
 type Manifest = Record<string, string>; // outName → source content hash
@@ -91,6 +102,83 @@ async function blurDataUrl(buf: Buffer): Promise<string> {
   return `data:image/jpeg;base64,${small.toString("base64")}`;
 }
 
+interface Counts {
+  processed: number;
+  skipped: number;
+  removed: number;
+}
+
+/**
+ * Process one flat source→output directory pair. Mutates `manifest` and
+ * `placeholders`; records every kept output basename in `kept` and every
+ * orphan-removed basename in `removed`. A placeholder is pruned only when its
+ * output was actually removed this run (in `removed`) and isn't `kept` by any
+ * other subfolder — so running without source folders present (fresh clone:
+ * originals are gitignored) never wipes committed placeholders.
+ *
+ * Manifest keys are prefixed (`<keyPrefix><outName>`) to stay unambiguous across
+ * nested subfolders; placeholder keys stay bare output basenames (the basename is
+ * what the runtime accessors look up). `label` is the public-relative dir for logs.
+ */
+async function processDir(
+  srcDir: string,
+  outDir: string,
+  hashed: boolean,
+  keyPrefix: string,
+  label: string,
+  manifest: Manifest,
+  placeholders: Placeholders,
+  kept: Set<string>,
+  removed: Set<string>,
+): Promise<Counts> {
+  await mkdir(outDir, { recursive: true });
+  const counts: Counts = { processed: 0, skipped: 0, removed: 0 };
+
+  const srcEntries = existsSync(srcDir)
+    ? (await readdir(srcDir)).filter((f) => IMAGE_EXT.test(f))
+    : [];
+
+  const expectedOuts = new Set<string>();
+
+  for (const file of srcEntries) {
+    const srcBuf = await readFile(path.join(srcDir, file));
+    const hash = contentHash(srcBuf);
+    const base = path.parse(file).name;
+    const outName = hashed ? `${base}.${hash}.jpg` : file;
+    expectedOuts.add(outName);
+    kept.add(outName);
+
+    const outPath = path.join(outDir, outName);
+    if (manifest[`${keyPrefix}${outName}`] === hash && existsSync(outPath)) {
+      counts.skipped++;
+      continue;
+    }
+
+    const encoded = await encode(srcBuf);
+    await writeFile(outPath, encoded);
+    placeholders[outName] = await blurDataUrl(srcBuf);
+    manifest[`${keyPrefix}${outName}`] = hash;
+    counts.processed++;
+    console.log(`  process  ${label}/${outName}`);
+  }
+
+  // Delete orphan outputs (image files we manage that no longer have a source).
+  // Never touch non-image assets (e.g. the topography SVGs in public/bg).
+  for (const existing of await readdir(outDir)) {
+    if (!IMAGE_EXT.test(existing)) continue;
+    if (expectedOuts.has(existing)) continue;
+    // Only delete files we previously produced (tracked in the manifest).
+    if (!(`${keyPrefix}${existing}` in manifest)) continue;
+    await unlink(path.join(outDir, existing));
+    delete manifest[`${keyPrefix}${existing}`];
+    removed.add(existing);
+    counts.removed++;
+    console.log(`  remove   ${label}/${existing}`);
+  }
+
+  return counts;
+}
+
 async function main() {
   const manifest = await readJson<Manifest>(MANIFEST_PATH, {});
   const placeholders = await readJson<Placeholders>(PLACEHOLDERS_PATH, {});
@@ -98,52 +186,79 @@ async function main() {
   let processed = 0;
   let skipped = 0;
   let removed = 0;
+  const kept = new Set<string>(); // bare output basenames still backed by a source
+  const removedNames = new Set<string>(); // bare basenames orphan-removed this run
 
   for (const job of JOBS) {
-    const srcDir = path.join(ROOT, job.srcDir);
-    const outDir = path.join(ROOT, job.outDir);
-    await mkdir(outDir, { recursive: true });
+    const srcRoot = path.join(ROOT, job.srcDir);
+    const outRoot = path.join(ROOT, job.outDir);
 
-    const srcEntries = existsSync(srcDir)
-      ? (await readdir(srcDir)).filter((f) => IMAGE_EXT.test(f))
-      : [];
+    if (job.nested) {
+      await mkdir(outRoot, { recursive: true });
+      const subs = existsSync(srcRoot)
+        ? (await readdir(srcRoot, { withFileTypes: true }))
+            .filter((d) => d.isDirectory())
+            .map((d) => d.name)
+        : [];
+      const expectedSubs = new Set(subs);
 
-    const expectedOuts = new Set<string>();
-
-    for (const file of srcEntries) {
-      const srcBuf = await readFile(path.join(srcDir, file));
-      const hash = contentHash(srcBuf);
-      const base = path.parse(file).name;
-      const outName = job.hashed ? `${base}.${hash}.jpg` : file;
-      expectedOuts.add(outName);
-
-      const outPath = path.join(outDir, outName);
-      if (manifest[outName] === hash && existsSync(outPath)) {
-        skipped++;
-        continue;
+      for (const sub of subs) {
+        const c = await processDir(
+          path.join(srcRoot, sub),
+          path.join(outRoot, sub),
+          job.hashed,
+          `${job.outDir.replace(/\\/g, "/")}/${sub}/`,
+          `${job.outDir}/${sub}`,
+          manifest,
+          placeholders,
+          kept,
+          removedNames,
+        );
+        processed += c.processed;
+        skipped += c.skipped;
+        removed += c.removed;
       }
 
-      const encoded = await encode(srcBuf);
-      await writeFile(outPath, encoded);
-      placeholders[outName] = await blurDataUrl(srcBuf);
-      manifest[outName] = hash;
-      processed++;
-      console.log(`  process  ${job.outDir}/${outName}`);
+      // Remove orphaned subfolders (a slug whose source folder is gone).
+      if (existsSync(outRoot)) {
+        for (const entry of await readdir(outRoot, { withFileTypes: true })) {
+          if (!entry.isDirectory() || expectedSubs.has(entry.name)) continue;
+          const orphanDir = path.join(outRoot, entry.name);
+          for (const f of await readdir(orphanDir)) {
+            if (!IMAGE_EXT.test(f)) continue;
+            await unlink(path.join(orphanDir, f));
+            delete manifest[
+              `${job.outDir.replace(/\\/g, "/")}/${entry.name}/${f}`
+            ];
+            removedNames.add(f);
+            removed++;
+            console.log(`  remove   ${job.outDir}/${entry.name}/${f}`);
+          }
+        }
+      }
+    } else {
+      const c = await processDir(
+        srcRoot,
+        outRoot,
+        job.hashed,
+        "",
+        job.outDir,
+        manifest,
+        placeholders,
+        kept,
+        removedNames,
+      );
+      processed += c.processed;
+      skipped += c.skipped;
+      removed += c.removed;
     }
+  }
 
-    // Delete orphan outputs (image files we manage that no longer have a source).
-    // Never touch non-image assets (e.g. the topography SVGs in public/bg).
-    for (const existing of await readdir(outDir)) {
-      if (!IMAGE_EXT.test(existing)) continue;
-      if (expectedOuts.has(existing)) continue;
-      // Only delete files we previously produced (tracked in the manifest).
-      if (!(existing in manifest)) continue;
-      await unlink(path.join(outDir, existing));
-      delete manifest[existing];
-      delete placeholders[existing];
-      removed++;
-      console.log(`  remove   ${job.outDir}/${existing}`);
-    }
+  // Prune placeholders only for outputs orphan-removed this run that no other
+  // (byte-identical) source still keeps. Never touches placeholders when a
+  // source folder is simply absent — see processDir docblock.
+  for (const name of removedNames) {
+    if (!kept.has(name)) delete placeholders[name];
   }
 
   // Write placeholders sorted for stable diffs.

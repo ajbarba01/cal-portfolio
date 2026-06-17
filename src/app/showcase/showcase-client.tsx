@@ -3,6 +3,10 @@
 import * as React from "react";
 
 import { SectionHeader } from "@/components/marketing/section-header";
+import {
+  ServicePhotoStrip,
+  type ServicePhoto,
+} from "@/components/marketing/service-photo-strip";
 import { StatDisplay } from "@/components/marketing/stat-display";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +33,20 @@ import { TextLink } from "@/components/ui/text-link";
 import { Textarea } from "@/components/ui/textarea";
 import { UnitInput } from "@/components/ui/unit-input";
 import { FIELD_LIMITS } from "@/lib/field-limits";
+import placeholders from "@/content/image-placeholders.json";
+
+const blurMap = placeholders as Record<string, string>;
+
+// Real walk-service outputs (gallery-sync), to preview the triptych in situ.
+const SERVICE_PHOTOS: ServicePhoto[] = [
+  "IMG_0591.8c0affcf.jpg",
+  "IMG_5560.e0d4bd05.jpg",
+  "IMG_7762.3352f49b.jpg",
+].map((file) => ({
+  src: `/services/walk/${file}`,
+  alt: "A dog on a walk with Cal",
+  blurDataURL: blurMap[file],
+}));
 
 /** A labelled block in the catalog. */
 function Section({
@@ -108,6 +126,14 @@ export function ShowcaseClient() {
           to make visual decisions (e.g. the input fill below).
         </p>
       </header>
+
+      {/* ── Service photo strip ───────────────────────────────────────── */}
+      <Section
+        title="Service photo strip"
+        note="Triptych for a service panel. Equal-thirds grid at sm+; on a narrow viewport it becomes a peek-the-next scroll-snap row (resize the window below 640px to see it). Each photo zooms slightly on hover; sources are gallery-sync outputs with blur placeholders."
+      >
+        <ServicePhotoStrip photos={SERVICE_PHOTOS} />
+      </Section>
 
       {/* ── Control track ─────────────────────────────────────────────── */}
       <Section

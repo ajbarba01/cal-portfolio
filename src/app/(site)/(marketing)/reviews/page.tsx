@@ -7,9 +7,9 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Reveal, RevealGroup } from "@/components/effects/reveal";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { createStaticClient } from "@/lib/supabase/static";
-import { listPublishedReviews, type PublishedReview } from "@/features/reviews";
-import { ReviewForm, StarRating } from "./_components/review-form";
-import { ShimmerCard } from "@/components/ui/shimmer-card";
+import { listPublishedReviews } from "@/features/reviews";
+import { ReviewForm } from "./_components/review-form";
+import { ReviewsList } from "./_components/reviews-list";
 import { MarketingCopy } from "@/components/marketing/marketing-copy";
 import {
   buildPageMetadata,
@@ -17,32 +17,6 @@ import {
   buildReviewsJsonLd,
   JsonLd,
 } from "@/features/seo";
-
-function ReviewCard({ review }: { review: PublishedReview }) {
-  const date = new Date(review.created_at).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-  return (
-    <ShimmerCard className="flex flex-col gap-4 p-5">
-      <header className="flex items-start justify-between gap-4">
-        <div>
-          <p className="font-heading text-foreground font-semibold">
-            {review.author_name}
-          </p>
-          <p className="text-muted-foreground text-sm">{date}</p>
-        </div>
-        <div className="shrink-0">
-          <StarRating rating={review.rating} />
-        </div>
-      </header>
-      <p className="text-muted-foreground text-sm leading-relaxed">
-        {review.body}
-      </p>
-    </ShimmerCard>
-  );
-}
 
 export const metadata = buildPageMetadata({
   title: "Reviews",
@@ -78,11 +52,7 @@ export default async function ReviewsPage() {
           />
         </Reveal>
 
-        <RevealGroup
-          as="section"
-          aria-labelledby="reviews-list-heading"
-          className="mb-12"
-        >
+        <section aria-labelledby="reviews-list-heading" className="mb-12">
           <h2 id="reviews-list-heading" className="sr-only">
             Published reviews
           </h2>
@@ -94,15 +64,9 @@ export default async function ReviewsPage() {
               />
             </Reveal>
           ) : (
-            <ul className="flex flex-col gap-4" role="list">
-              {reviews.map((review) => (
-                <Reveal as="li" key={review.id}>
-                  <ReviewCard review={review} />
-                </Reveal>
-              ))}
-            </ul>
+            <ReviewsList reviews={reviews} />
           )}
-        </RevealGroup>
+        </section>
 
         <RevealGroup as="section" aria-labelledby="submit-review-heading">
           <Reveal

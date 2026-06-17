@@ -47,14 +47,19 @@ export function navTab(active: boolean): string {
   return cn(
     "relative px-[11px] py-2 text-base font-medium rounded-lg transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 [--u:0]",
     "after:absolute after:left-[11px] after:right-[11px] after:bottom-[2px] after:h-[2px] after:rounded-sm after:bg-brand-strong after:origin-center after:transition-transform after:duration-200 after:ease-out",
-    // translateZ(0) is baked into every transform on purpose: it forces each
-    // underline onto its own compositor layer. Without it, the active tab's
-    // identity scaleX(1) gets optimized back into the main paint layer while the
-    // proximity underline (animated scaleX(var(--u))) stays composited — and
-    // Chromium antialiases the 2px line differently on those two paths, so the
-    // selected underline renders a hair thinner than the hover/proximity one.
+    // EVERY state drives the underline through the one identical transform
+    // declaration `scaleX(var(--u))` — active and hover differ only in the VALUE
+    // of `--u`, never in the transform string. This is load-bearing on Chromium:
+    // shipping the active tab a literal `scaleX(1)` while inactive used
+    // `scaleX(var(--u))` made Blink pixel-snap the static identity transform onto
+    // the main paint layer while the var-driven one stayed GPU-composited, so the
+    // 2px line antialiased softer on one path and the selected underline rendered
+    // a hair thinner than the hovered one. One transform string = one raster path.
+    // Active pins `--u:1` here for the no-JS/reduced-motion render; CursorRing's
+    // proximity pass also force-writes "1" to the active tab so it never relaxes.
+    "after:[transform:translateZ(0)_scaleX(var(--u))]",
     active
-      ? "text-brand-strong font-semibold after:[transform:translateZ(0)_scaleX(1)]"
-      : "text-foreground/70 hover:text-brand-strong after:[transform:translateZ(0)_scaleX(var(--u))] hover:after:[transform:translateZ(0)_scaleX(1)]",
+      ? "text-brand-strong font-semibold [--u:1]"
+      : "text-foreground/70 hover:text-brand-strong hover:[--u:1]",
   );
 }

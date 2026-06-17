@@ -92,6 +92,13 @@ export function CursorRing({
       const dx = lastX + window.scrollX;
       const dy = lastY + window.scrollY;
       for (const { el, cx, cy } of linkCenters) {
+        // The active tab pins its underline full via `--u:1`; never let the
+        // proximity distance shrink it (it shares the inactive transform string,
+        // so writing a computed `--u` here would relax the selected underline).
+        if (el.getAttribute("aria-current") === "page") {
+          el.style.setProperty("--u", "1");
+          continue;
+        }
         const u = Math.max(0, 1 - Math.hypot(dx - cx, dy - cy) / proximity);
         el.style.setProperty("--u", u.toFixed(3));
       }
@@ -295,7 +302,11 @@ export function CursorRing({
         releaseTimer = 0;
       }
       overlay.removeAttribute("data-ring-pressed");
-      for (const { el } of linkCenters) el.style.setProperty("--u", "0");
+      for (const { el } of linkCenters)
+        el.style.setProperty(
+          "--u",
+          el.getAttribute("aria-current") === "page" ? "1" : "0",
+        );
     };
 
     // mouseleave on the root can be skipped on fast exits or when the pointer
