@@ -20,7 +20,9 @@
  */
 
 import React from "react";
+import { Star } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useScheduler } from "@/features/booking/scheduler-context";
 
 // ---------------------------------------------------------------------------
 // Types (re-exported so callers don't import from a grid-internal file)
@@ -94,6 +96,10 @@ export const GridCell = React.memo(function GridCell({
   const hoverClass = canSelect
     ? "hover:outline-2 hover:outline-dotted hover:outline-brand/60 hover:-outline-offset-2"
     : "";
+  // Read premiumDays via context (not props) so React.memo's props comparison
+  // is not defeated — context reads bypass the memo boundary.
+  const { data } = useScheduler();
+  const isPremium = data.premiumDays?.has(cell.dayKey) ?? false;
   return (
     <button
       type="button"
@@ -116,6 +122,14 @@ export const GridCell = React.memo(function GridCell({
       onPointerEnter={() => onCellPointerEnter(cell)}
       onPointerLeave={() => onCellPointerLeave(cell)}
       onClick={() => onCellClick(cell)}
-    />
+    >
+      {isPremium && (
+        <Star
+          aria-hidden="true"
+          size={10}
+          className="text-warning-foreground pointer-events-none absolute top-0.5 right-0.5 fill-current"
+        />
+      )}
+    </button>
   );
 });

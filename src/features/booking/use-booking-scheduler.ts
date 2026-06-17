@@ -360,6 +360,7 @@ export function useBookingScheduler({
         durationMin,
         rules,
         myBookings,
+        premiumDays,
       });
     }
     return {

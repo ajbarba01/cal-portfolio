@@ -20,10 +20,30 @@ describe("hourlySchedulerData", () => {
       durationMin: 30,
       rules,
       myBookings: new Set<string>(),
+      premiumDays: new Set<string>(),
     });
     expect(Array.isArray(data.overnightNights)).toBe(false);
     expect(data.busyResident).toEqual([]);
     expect(data.rules).toBe(rules);
     expect(data.now).toBe(now);
+  });
+
+  it("passes premiumDays through to the scheduler data", () => {
+    const premiumDays = new Set(["2026-07-04"]);
+    const data = hourlySchedulerData({
+      now: new Date("2026-07-01T12:00:00Z"),
+      openWindows: [],
+      busy: [],
+      durationMin: 60,
+      rules: {
+        bookingOpenMinute: 540,
+        bookingCloseMinute: 1020,
+        minLeadTimeHours: 2,
+        hardMaxAdvanceDays: 60,
+      },
+      myBookings: new Set(),
+      premiumDays,
+    });
+    expect(data.premiumDays).toBe(premiumDays);
   });
 });
