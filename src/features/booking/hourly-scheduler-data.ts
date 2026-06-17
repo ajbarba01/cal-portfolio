@@ -10,6 +10,7 @@ export interface HourlySchedulerDataInput {
   durationMin: number;
   rules: BookingRuleSettings;
   myBookings: Set<string>;
+  premiumDays: Set<string>;
 }
 
 /**
@@ -28,6 +29,7 @@ export function hourlySchedulerData({
   durationMin,
   rules,
   myBookings,
+  premiumDays,
 }: HourlySchedulerDataInput): SchedulerData {
   const days: Date[] = [];
   const seen = new Set<string>();
@@ -54,6 +56,7 @@ export function hourlySchedulerData({
     busy,
     busyResident: [],
     myBookings,
+    premiumDays,
     rules,
     now,
   };
