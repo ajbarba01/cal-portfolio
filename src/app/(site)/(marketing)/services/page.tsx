@@ -17,6 +17,8 @@ import { PageContainer } from "@/components/layout/page-container";
 import { Reveal, RevealGroup } from "@/components/effects/reveal";
 import { Eyebrow } from "@/components/marketing/eyebrow";
 import { MarketingCopy } from "@/components/marketing/marketing-copy";
+import { MarketingProse } from "@/components/marketing/marketing-prose";
+import { ServicePhotoStrip } from "@/components/marketing/service-photo-strip";
 import { buttonVariants } from "@/components/ui/button";
 import { ShimmerCard } from "@/components/ui/shimmer-card";
 import { createStaticClient } from "@/lib/supabase/static";
@@ -29,6 +31,7 @@ import {
   type PublicService,
 } from "@/features/booking";
 import { headlineRate, pricingBreakdown } from "@/features/pricing";
+import { getServiceImages, type ServiceImage } from "@/features/gallery";
 import { copy, type CopyId } from "@/content/marketing";
 import { cn } from "@/lib/utils";
 import {
@@ -47,7 +50,13 @@ const FAQ_ITEMS: ReadonlyArray<FaqItem> = [
 ];
 
 /** The panel body for one service (server-rendered, passed to the tab island). */
-function ServiceDetail({ service }: { service: PublicService }) {
+function ServiceDetail({
+  service,
+  photos,
+}: {
+  service: PublicService;
+  photos: readonly ServiceImage[];
+}) {
   const ledeId = serviceDetailLedeCopyId(service.pricingType);
   const bodyId = serviceDetailBodyCopyId(service.pricingType);
   const includedIds: readonly CopyId[] = serviceIncludedCopyIds(
@@ -61,13 +70,23 @@ function ServiceDetail({ service }: { service: PublicService }) {
 
   return (
     <>
-      {/* Photo placeholder — swap for real service imagery later. */}
-      <div
-        aria-hidden="true"
-        className="border-border bg-muted text-muted-foreground mb-7 grid h-48 place-items-center rounded-2xl border border-dashed text-xs tracking-[0.12em] uppercase sm:h-56"
-      >
-        Photo placeholder
-      </div>
+      {photos.length > 0 ? (
+        <ServicePhotoStrip
+          photos={photos.map((photo) => ({
+            ...photo,
+            alt: `${service.name} with Cal`,
+          }))}
+          className="mb-7"
+        />
+      ) : (
+        // No photos for this service yet — keep a quiet placeholder.
+        <div
+          aria-hidden="true"
+          className="border-border bg-muted text-muted-foreground mb-7 grid h-48 place-items-center rounded-2xl border border-dashed text-xs tracking-[0.12em] uppercase sm:h-56"
+        >
+          Photo placeholder
+        </div>
+      )}
 
       <div className="grid gap-8 lg:grid-cols-[1fr_300px] lg:gap-12">
         <div>
@@ -76,11 +95,7 @@ function ServiceDetail({ service }: { service: PublicService }) {
               <MarketingCopy id={ledeId} />
             </p>
           ) : null}
-          {bodyId ? (
-            <p className="text-muted-foreground mt-4 leading-relaxed">
-              <MarketingCopy id={bodyId} />
-            </p>
-          ) : null}
+          {bodyId ? <MarketingProse id={bodyId} className="mt-4" /> : null}
           {includedIds.length > 0 ? (
             <div className="mt-7">
               <Eyebrow>What&apos;s included</Eyebrow>
@@ -143,14 +158,18 @@ function ServiceDetail({ service }: { service: PublicService }) {
   );
 }
 
-function toItem(service: PublicService, index: number): ServiceTabItem {
+function toItem(
+  service: PublicService,
+  index: number,
+  photos: readonly ServiceImage[],
+): ServiceTabItem {
   const categoryId = serviceCategoryCopyId(service.pricingType);
   return {
     slug: service.slug,
     name: service.name,
     category: categoryId ? copy[categoryId] : null,
     badge: index === 0 ? copy["services.featured.badge"] : null,
-    detail: <ServiceDetail service={service} />,
+    detail: <ServiceDetail service={service} photos={photos} />,
   };
 }
 
@@ -167,7 +186,12 @@ export const revalidate = 86400;
 
 export default async function ServicesPage() {
   const services = await listActiveServices(createStaticClient());
-  const items = services.map(toItem);
+  const photoLists = await Promise.all(
+    services.map((service) => getServiceImages(service.slug)),
+  );
+  const items = services.map((service, index) =>
+    toItem(service, index, photoLists[index]),
+  );
 
   return (
     <>

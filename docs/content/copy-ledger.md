@@ -652,6 +652,308 @@
 
 > Dropped placeholders (user-confirmed 2026-06-09, "drop everything but Cal's source"): `resources.1.{name,desc}`, `resources.2.{name,desc}`, `resources.faq.{3,4,5}.{q,a}`, and the hardcoded public-fact entries r3 (Animal Emergency & Referral Center of Northern Colorado) + r4 (ASPCA Poison Control). None had prior ledger entries.
 
+> Service copy placed 2026-06-16 (copy-sync from SYNC.md). Cal's text did not map 1-1 to the single-paragraph `detail.body` slot, so the services tab panel was restructured: `detail.body` now renders multi-paragraph block content with `## ` subheads via the new `MarketingProse` component (`src/components/marketing/marketing-prose.tsx`), used in `services/page.tsx`. Still-placeholder service slots (no source in the dump): `services.hero.{eyebrow,title}`, `services.overview`, `services.featured.badge`, `service.*.category` (×4), `service.meet_greet.card.body`, `service.training.included.{3,4}`, `service.walk.included.{1,2,3,4}`.
+
+### services.pricing.header
+
+- status: placed
+- provenance: cal-verbatim
+- consumed-by: src/app/(site)/(marketing)/services/page.tsx
+- applied-from: |
+  Pricing Flexibility Available
+- live-text: |
+  Pricing Flexibility Available
+- transforms: none
+- notes: replaced "[[HEADER: pricing flexibility section]]" placeholder (no prior ledger entry). Rendered in the sliding-scale band (page hardcodes the "Sliding scale" side-label).
+
+### services.pricing.body
+
+- status: placed
+- provenance: cal-verbatim
+- consumed-by: src/app/(site)/(marketing)/services/page.tsx
+- applied-from: |
+  To accommodate different financial situations, I offer a limited number of free or discounted slots. Please reach out if this is something you're interested in.
+- live-text: |
+  To accommodate different financial situations, I offer a limited number of free or discounted slots. Please reach out if this is something you're interested in.
+- transforms: punctuation — curly apostrophe normalized to straight ASCII (auto-allowed).
+- notes: replaced "[[BODY: pricing accessibility statement…]]" placeholder (no prior ledger entry).
+
+### service.training.card.body
+
+- status: placed
+- provenance: cal-verbatim
+- consumed-by: src/features/booking/service-card-display.ts
+- applied-from: |
+  Puppy training or basic obedience
+- live-text: |
+  Puppy training or basic obedience
+- transforms: none
+- notes: from Cal's "Short Summary". Card-description fallback (used when the DB service.description is empty).
+
+### service.training.detail.lede
+
+- status: placed
+- provenance: cal-verbatim
+- consumed-by: src/app/(site)/(marketing)/services/page.tsx
+- applied-from: |
+  Currently, I offer two types of training: puppy training and basic obedience.
+- live-text: |
+  Currently, I offer two types of training: puppy training and basic obedience.
+- transforms: none
+- notes: -
+
+### service.training.detail.body
+
+- status: placed
+- provenance: cal-verbatim
+- consumed-by: src/app/(site)/(marketing)/services/page.tsx
+- applied-from: |
+  Puppy Training
+  I'm especially passionate about helping puppies develop into confident, well-mannered adults through positive experiences and thoughtful socialization. I've raised three puppies myself and have had the opportunity to assist with many others. Before getting my own dog, I spent an excessive amount of time researching puppy development, behavior, and training methods so I could be as prepared as possible. I've certainly made mistakes along the way, but I'm excited to share what I've learned from them with other dog owners.
+
+  Basic Obedience
+  Basic obedience includes the foundational skills that make everyday life with your dog easier and more enjoyable. We can focus on whatever skills are most important to you and your dog, whether that's loose-leash walking, recall, foundational commands, fun tricks, or anything else that does not fall under behaviour modification.
+
+  My training philosophy is relationship-based and my default approach is positive reinforcement. This includes treats, play, praise, or other rewards depending on what motivates your dog. I also have experience with e-collars and other tools, and I'm happy to discuss these options on an individual basis if you believe they may be beneficial for your dog. For more information about e-collars and my thoughts on their use, please see my resources page (hyperlinked).
+
+  Although I plan to continue my education before offering any other kind of behavioural or advanced training, I do have experience working with highly anxious and reactive dogs and am completely comfortable walking, caring for, and house sitting for dogs with these challenges.
+
+- live-text: |
+  ## Puppy Training\n\nI'm especially passionate about helping puppies develop into confident, well-mannered adults through positive experiences and thoughtful socialization. I've raised three puppies myself and have had the opportunity to assist with many others. Before getting my own dog, I spent an excessive amount of time researching puppy development, behavior, and training methods so I could be as prepared as possible. I've certainly made mistakes along the way, but I'm excited to share what I've learned from them with other dog owners.\n\n## Basic Obedience\n\nBasic obedience includes the foundational skills that make everyday life with your dog easier and more enjoyable. We can focus on whatever skills are most important to you and your dog, whether that's loose-leash walking, recall, foundational commands, fun tricks, or anything else that does not fall under behaviour modification.\n\nMy training philosophy is relationship-based and my default approach is positive reinforcement. This includes treats, play, praise, or other rewards depending on what motivates your dog. I also have experience with e-collars and other tools, and I'm happy to discuss these options on an individual basis if you believe they may be beneficial for your dog. For more information about e-collars and my thoughts on their use, please see my [resources page](/resources).\n\nAlthough I plan to continue my education before offering any other kind of behavioural or advanced training, I do have experience working with highly anxious and reactive dogs and am completely comfortable walking, caring for, and house sitting for dogs with these challenges.
+- transforms: structural — Cal's subsection labels "Puppy Training"/"Basic Obedience" marked as `## ` subheads, paragraphs separated by blank lines (rendered by MarketingProse). agent-resolved action item — "(hyperlinked)" on "resources page" → markdown marker [resources page](/resources) (target /resources, user-confirmed 2026-06-16). punctuation — curly apostrophes normalized to straight ASCII (auto-allowed). British spellings "behaviour"/"behavioural" kept verbatim. Cal's words unchanged.
+- notes: 5-paragraph long-form; did not fit the old single-paragraph slot, prompting the MarketingProse restructure.
+
+### service.training.included.1
+
+- status: placed
+- provenance: cal-verbatim
+- consumed-by: src/app/(site)/(marketing)/services/page.tsx
+- applied-from: |
+  Customized training plan based on your dog's needs
+- live-text: |
+  Customized training plan based on your dog's needs
+- transforms: none
+- notes: from Cal's "What's included". included.{3,4} left placeholder (no source).
+
+### service.training.included.2
+
+- status: placed
+- provenance: cal-verbatim
+- consumed-by: src/app/(site)/(marketing)/services/page.tsx
+- applied-from: |
+  Unlimited Q&A support between sessions
+- live-text: |
+  Unlimited Q&A support between sessions
+- transforms: none
+- notes: preserved "Q&A" verbatim.
+
+### service.walk.card.body
+
+- status: placed
+- provenance: cal-verbatim
+- consumed-by: src/features/booking/service-card-display.ts
+- applied-from: |
+  Walks, hikes, runs/jogs, or other adventures
+- live-text: |
+  Walks, hikes, runs/jogs, or other adventures
+- transforms: none
+- notes: from Cal's "Summary".
+
+### service.walk.detail.lede
+
+- status: placed
+- provenance: cal-verbatim
+- consumed-by: src/app/(site)/(marketing)/services/page.tsx
+- applied-from: |
+  Walks are scheduled in 15-minute increments and can be tailored to your dog's individual needs and energy level. Whether your pup prefers a leisurely neighborhood stroll or a more vigorous outing, I'm happy to adapt the outing accordingly.
+- live-text: |
+  Walks are scheduled in 15-minute increments and can be tailored to your dog's individual needs and energy level. Whether your pup prefers a leisurely neighborhood stroll or a more vigorous outing, I'm happy to adapt the outing accordingly.
+- transforms: none
+- notes: "neighborhood stroll" is generic (not a place name) — within DESIGN.md guardrails.
+
+### service.walk.detail.body
+
+- status: placed
+- provenance: cal-verbatim
+- consumed-by: src/app/(site)/(marketing)/services/page.tsx
+- applied-from: |
+  For dogs who enjoy a little extra adventure, I can also provide hikes and other outings that may involve transportation by car. I'm also more than happy to jog or run dogs when weather, health, and fitness levels permit!
+
+  Off-leash outings are offered cautiously and on a case-by-case basis.
+
+- live-text: |
+  For dogs who enjoy a little extra adventure, I can also provide hikes and other outings that may involve transportation by car. I'm also more than happy to jog or run dogs when weather, health, and fitness levels permit!\n\nOff-leash outings are offered cautiously and on a case-by-case basis.
+- transforms: structural — two source paragraphs kept as two blocks (blank-line separated, rendered by MarketingProse). Cal's words unchanged.
+- notes: walk.included.{1,2,3,4} left placeholder (no source bullets).
+
+### service.check_in.card.body
+
+- status: placed
+- provenance: cal-verbatim
+- consumed-by: src/features/booking/service-card-display.ts
+- applied-from: |
+  Drop-in visits for pet and home care
+- live-text: |
+  Drop-in visits for pet and home care
+- transforms: none
+- notes: from Cal's "Summary".
+
+### service.check_in.detail.lede
+
+- status: placed
+- provenance: cal-verbatim
+- consumed-by: src/app/(site)/(marketing)/services/page.tsx
+- applied-from: |
+  Check-ins can include feeding, potty breaks, short walks, playtime, enrichment activities, medication administration, and plenty of attention—whatever your pet needs to stay happy and comfortable while you're away, whether that's for several days or just an evening. I'm also happy to help with home upkeep such as watering plants, bringing in mail, or taking out the trash.
+- live-text: |
+  Check-ins can include feeding, potty breaks, short walks, playtime, enrichment activities, medication administration, and plenty of attention—whatever your pet needs to stay happy and comfortable while you're away, whether that's for several days or just an evening. I'm also happy to help with home upkeep such as watering plants, bringing in mail, or taking out the trash.
+- transforms: none
+- notes: preserved em-dash (—).
+
+### service.check_in.detail.body
+
+- status: placed
+- provenance: cal-verbatim
+- consumed-by: src/app/(site)/(marketing)/services/page.tsx
+- applied-from: |
+  To ensure animals receive adequate care and companionship, I generally require a minimum of three check-ins per full day you're away. Check-ins are also only available for trips no longer than one week, though exceptions may be possible depending on your pet's personality, needs, and routine.
+- live-text: |
+  To ensure animals receive adequate care and companionship, I generally require a minimum of three check-ins per full day you're away. Check-ins are also only available for trips no longer than one week, though exceptions may be possible depending on your pet's personality, needs, and routine.
+- transforms: none
+- notes: -
+
+### service.check_in.included.1
+
+- status: placed
+- provenance: cal-verbatim
+- consumed-by: src/app/(site)/(marketing)/services/page.tsx
+- applied-from: |
+  Feeding and medication administration
+- live-text: |
+  Feeding and medication administration
+- transforms: none
+- notes: -
+
+### service.check_in.included.2
+
+- status: placed
+- provenance: cal-verbatim
+- consumed-by: src/app/(site)/(marketing)/services/page.tsx
+- applied-from: |
+  Potty breaks or short walks
+- live-text: |
+  Potty breaks or short walks
+- transforms: none
+- notes: -
+
+### service.check_in.included.3
+
+- status: placed
+- provenance: cal-verbatim
+- consumed-by: src/app/(site)/(marketing)/services/page.tsx
+- applied-from: |
+  Home care (mail, plants, trash bins, lights, etc.)
+- live-text: |
+  Home care (mail, plants, trash bins, lights, etc.)
+- transforms: none
+- notes: -
+
+### service.check_in.included.4
+
+- status: placed
+- provenance: cal-verbatim
+- consumed-by: src/app/(site)/(marketing)/services/page.tsx
+- applied-from: |
+  Affection and attention
+- live-text: |
+  Affection and attention
+- transforms: none
+- notes: -
+
+### service.house_sitting.card.body
+
+- status: placed
+- provenance: cal-verbatim
+- consumed-by: src/features/booking/service-card-display.ts
+- applied-from: |
+  Overnight pet and home care
+- live-text: |
+  Overnight pet and home care
+- transforms: none
+- notes: from Cal's "Summary".
+
+### service.house_sitting.detail.lede
+
+- status: placed
+- provenance: cal-verbatim
+- consumed-by: src/app/(site)/(marketing)/services/page.tsx
+- applied-from: |
+  House sitting allows your pet to stay in the comfort of their own home and maintain their normal routine while you're away.
+- live-text: |
+  House sitting allows your pet to stay in the comfort of their own home and maintain their normal routine while you're away.
+- transforms: none
+- notes: -
+
+### service.house_sitting.detail.body
+
+- status: placed
+- provenance: cal-verbatim
+- consumed-by: src/app/(site)/(marketing)/services/page.tsx
+- applied-from: |
+  Together, we can determine how much time I spend in the home based on your pet's needs. House sitting includes all of the benefits of check-ins—feeding, walks, playtime, medication administration, enrichment, and plenty of attention—along with overnight companionship. I will also help with home upkeep such as watering plants, bringing in mail, or taking out the trash.
+- live-text: |
+  Together, we can determine how much time I spend in the home based on your pet's needs. House sitting includes all of the benefits of check-ins—feeding, walks, playtime, medication administration, enrichment, and plenty of attention—along with overnight companionship. I will also help with home upkeep such as watering plants, bringing in mail, or taking out the trash.
+- transforms: none
+- notes: preserved em-dashes (—).
+
+### service.house_sitting.included.1
+
+- status: placed
+- provenance: cal-verbatim
+- consumed-by: src/app/(site)/(marketing)/services/page.tsx
+- applied-from: |
+  Feeding and medication administration
+- live-text: |
+  Feeding and medication administration
+- transforms: none
+- notes: -
+
+### service.house_sitting.included.2
+
+- status: placed
+- provenance: cal-confirmed-edit
+- consumed-by: src/app/(site)/(marketing)/services/page.tsx
+- applied-from: |
+  Daily exercise and enrichment (including 45-minute of daily walks per dog)
+- live-text: |
+  Daily exercise and enrichment (including 45 minutes of daily walks per dog)
+- transforms: grammar (user-confirmed 2026-06-16) — "45-minute of daily walks" → "45 minutes of daily walks".
+- notes: -
+
+### service.house_sitting.included.3
+
+- status: placed
+- provenance: cal-verbatim
+- consumed-by: src/app/(site)/(marketing)/services/page.tsx
+- applied-from: |
+  Overnight companionship and supervision
+- live-text: |
+  Overnight companionship and supervision
+- transforms: none
+- notes: -
+
+### service.house_sitting.included.4
+
+- status: placed
+- provenance: agent-resolved
+- consumed-by: src/app/(site)/(marketing)/services/page.tsx
+- applied-from: |
+  Home care (mail, plants, trash bi
+- live-text: |
+  Home care (mail, plants, trash bins, lights, etc.)
+- transforms: agent-resolved — source dump truncated mid-line ("Home care (mail, plants, trash bi"); mirrored the check-in equivalent "Home care (mail, plants, trash bins, lights, etc.)" (user-confirmed 2026-06-16). Replace with Cal's full line once supplied.
+- notes: ⚠ source truncated — see cal-source.md note.
+
 ### services.faq.1.q
 
 - status: placed

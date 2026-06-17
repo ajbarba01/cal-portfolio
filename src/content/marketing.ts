@@ -87,9 +87,9 @@ export const copy = {
   "services.hero.title": "[[HEADER: services page headline]]",
   "services.overview": "[[BODY: services overview]]",
   "services.featured.badge": "[[LABEL: featured service badge]]",
-  "services.pricing.header": "[[HEADER: pricing flexibility section]]",
+  "services.pricing.header": "Pricing Flexibility Available",
   "services.pricing.body":
-    "[[BODY: pricing accessibility statement and how to ask about it]]",
+    "To accommodate different financial situations, I offer a limited number of free or discounted slots. Please reach out if this is something you're interested in.",
   // FAQ — scope question, surfaced where buyers weigh services (moved from resources, 2026-06-15).
   "services.faq.1.q":
     "Can you watch my animal at your house?/Can you board my animal?",
@@ -170,11 +170,10 @@ export const copy = {
   "footer.tagline": "Dog Walking · House Sitting · Colorado",
 
   // Service cards — src/features/booking/service-card-display.ts
-  "service.house_sitting.card.body":
-    "[[BODY: short house-sitting service description]]",
-  "service.check_in.card.body": "[[BODY: short check-in service description]]",
-  "service.walk.card.body": "[[BODY: short walk service description]]",
-  "service.training.card.body": "[[BODY: short training service description]]",
+  "service.house_sitting.card.body": "Overnight pet and home care",
+  "service.check_in.card.body": "Drop-in visits for pet and home care",
+  "service.walk.card.body": "Walks, hikes, runs/jogs, or other adventures",
+  "service.training.card.body": "Puppy training or basic obedience",
   "service.meet_greet.card.body":
     "[[BODY: short meet-and-greet service description]]",
 
@@ -185,32 +184,40 @@ export const copy = {
   "service.training.category": "[[LABEL: training category]]",
 
   // Long-form service detail — src/app/(marketing)/book/[serviceSlug]/page.tsx
-  "service.house_sitting.detail.lede": "[[BODY: house-sitting detail lede]]",
-  "service.house_sitting.detail.body": "[[BODY: house-sitting detail body]]",
-  "service.house_sitting.included.1":
-    "[[LABEL: house-sitting included item 1]]",
+  "service.house_sitting.detail.lede":
+    "House sitting allows your pet to stay in the comfort of their own home and maintain their normal routine while you're away.",
+  "service.house_sitting.detail.body":
+    "Together, we can determine how much time I spend in the home based on your pet's needs. House sitting includes all of the benefits of check-ins—feeding, walks, playtime, medication administration, enrichment, and plenty of attention—along with overnight companionship. I will also help with home upkeep such as watering plants, bringing in mail, or taking out the trash.",
+  "service.house_sitting.included.1": "Feeding and medication administration",
   "service.house_sitting.included.2":
-    "[[LABEL: house-sitting included item 2]]",
-  "service.house_sitting.included.3":
-    "[[LABEL: house-sitting included item 3]]",
+    "Daily exercise and enrichment (including 45 minutes of daily walks per dog)",
+  "service.house_sitting.included.3": "Overnight companionship and supervision",
   "service.house_sitting.included.4":
-    "[[LABEL: house-sitting included item 4]]",
-  "service.check_in.detail.lede": "[[BODY: check-in detail lede]]",
-  "service.check_in.detail.body": "[[BODY: check-in detail body]]",
-  "service.check_in.included.1": "[[LABEL: check-in included item 1]]",
-  "service.check_in.included.2": "[[LABEL: check-in included item 2]]",
-  "service.check_in.included.3": "[[LABEL: check-in included item 3]]",
-  "service.check_in.included.4": "[[LABEL: check-in included item 4]]",
-  "service.walk.detail.lede": "[[BODY: walk detail lede]]",
-  "service.walk.detail.body": "[[BODY: walk detail body]]",
+    "Home care (mail, plants, trash bins, lights, etc.)",
+  "service.check_in.detail.lede":
+    "Check-ins can include feeding, potty breaks, short walks, playtime, enrichment activities, medication administration, and plenty of attention—whatever your pet needs to stay happy and comfortable while you're away, whether that's for several days or just an evening. I'm also happy to help with home upkeep such as watering plants, bringing in mail, or taking out the trash.",
+  "service.check_in.detail.body":
+    "To ensure animals receive adequate care and companionship, I generally require a minimum of three check-ins per full day you're away. Check-ins are also only available for trips no longer than one week, though exceptions may be possible depending on your pet's personality, needs, and routine.",
+  "service.check_in.included.1": "Feeding and medication administration",
+  "service.check_in.included.2": "Potty breaks or short walks",
+  "service.check_in.included.3":
+    "Home care (mail, plants, trash bins, lights, etc.)",
+  "service.check_in.included.4": "Affection and attention",
+  "service.walk.detail.lede":
+    "Walks are scheduled in 15-minute increments and can be tailored to your dog's individual needs and energy level. Whether your pup prefers a leisurely neighborhood stroll or a more vigorous outing, I'm happy to adapt the outing accordingly.",
+  "service.walk.detail.body":
+    "For dogs who enjoy a little extra adventure, I can also provide hikes and other outings that may involve transportation by car. I'm also more than happy to jog or run dogs when weather, health, and fitness levels permit!\n\nOff-leash outings are offered cautiously and on a case-by-case basis.",
   "service.walk.included.1": "[[LABEL: walk included item 1]]",
   "service.walk.included.2": "[[LABEL: walk included item 2]]",
   "service.walk.included.3": "[[LABEL: walk included item 3]]",
   "service.walk.included.4": "[[LABEL: walk included item 4]]",
-  "service.training.detail.lede": "[[BODY: training detail lede]]",
-  "service.training.detail.body": "[[BODY: training detail body]]",
-  "service.training.included.1": "[[LABEL: training included item 1]]",
-  "service.training.included.2": "[[LABEL: training included item 2]]",
+  "service.training.detail.lede":
+    "Currently, I offer two types of training: puppy training and basic obedience.",
+  "service.training.detail.body":
+    "## Puppy Training\n\nI'm especially passionate about helping puppies develop into confident, well-mannered adults through positive experiences and thoughtful socialization. I've raised three puppies myself and have had the opportunity to assist with many others. Before getting my own dog, I spent an excessive amount of time researching puppy development, behavior, and training methods so I could be as prepared as possible. I've certainly made mistakes along the way, but I'm excited to share what I've learned from them with other dog owners.\n\n## Basic Obedience\n\nBasic obedience includes the foundational skills that make everyday life with your dog easier and more enjoyable. We can focus on whatever skills are most important to you and your dog, whether that's loose-leash walking, recall, foundational commands, fun tricks, or anything else that does not fall under behaviour modification.\n\nMy training philosophy is relationship-based and my default approach is positive reinforcement. This includes treats, play, praise, or other rewards depending on what motivates your dog. I also have experience with e-collars and other tools, and I'm happy to discuss these options on an individual basis if you believe they may be beneficial for your dog. For more information about e-collars and my thoughts on their use, please see my [resources page](/resources).\n\nAlthough I plan to continue my education before offering any other kind of behavioural or advanced training, I do have experience working with highly anxious and reactive dogs and am completely comfortable walking, caring for, and house sitting for dogs with these challenges.",
+  "service.training.included.1":
+    "Customized training plan based on your dog's needs",
+  "service.training.included.2": "Unlimited Q&A support between sessions",
   "service.training.included.3": "[[LABEL: training included item 3]]",
   "service.training.included.4": "[[LABEL: training included item 4]]",
 } as const;

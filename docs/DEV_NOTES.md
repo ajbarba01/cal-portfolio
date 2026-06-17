@@ -1,26 +1,36 @@
 ## now
 
-- component-system refactor: primitives (control track / card radius / elevation, `Surface`, family primitives, form controls, `/showcase`, `COMPONENT_SYSTEM.md`) shipped earlier. **Composed layer now done:** `FormSection` + `Surface variant="floating"` added; every form migrated to FormField/FormSection (marketing/auth/account/onboarding/booking/admin); all hand-rolled card surfaces routed through `Surface` (variant by the outer=emphasis/nested=plain rule; admin rows/lists kept `plain` for calm density); toast + header dropdowns on the floating Surface. `design-system/no-drift` is now **`error`** (zero violations). Family swaps partially done: inline CTA links → `TextLink`, booking override/paid-lock callouts → `Alert`; legacy `Card` (`card.tsx`) removed (settings/account callers → Surface; `archive/` excluded from tsconfig). `SideLabelSection` extraction **intentionally skipped** — resources/services/about share only a loose two-column pattern (resources already has its own `LedgerSection`); one primitive would be a forced abstraction. Still open (optional): `SectionHeader`/`StatDisplay`/`Badge` sweeps + `space.sectionY` spacing-token pass. (2026-06-16)
-- word count/character count for pretty much any user input.
 - ensure owing system
-- site logo + wordmark typeface (included in seo)
-- booking details redesign (include kiche discount and details descriptions)
-- paw print effect
-- enter site page
-- onboarding styling: why is there page below the footer, the page width changes from step to 1 to 2
-- maybe: try making some sections or areas a window to the page bg
+- email system omg
 - what pronouns are being used? most of the site its like Cal is speaking directly to the user but there some text when it says like "Cal will get back to you soon"
-- reviews filtering and pagination + mini redesign
 - premium days only appearing for house sitting
 - SOE google search console
 - admin test descriptions
+- remove repeat weekly probably
 
-## Notes for the future
+- 120% (configurable) drive time booked before or after
+- unavailable times should not show up green
+- clicking on the scheduler is finicky
+
+## NOT MVP
+
+- site logo + wordmark typeface (included in seo)
+- paw print effect
+- enter site page
+- maybe: try making some sections or areas a window to the page bg
+- onboarding styling: why is there page below the footer, the page width changes from step to 1 to 2
+- edit booking does not take up proper width
+
+## Notes for the other project
 
 - make more skills! (skills for frontend design in your project, etc...)
 - components need to be standardized and similar components need to use the same styles
 - components should have clear categorizations for when they should be used.
 - mockups should maybe be grained in the site, with some sort of skill system for creating mockups that can use the actual components and effects of the site.
+
+## Other
+
+- component-system refactor: primitives (control track / card radius / elevation, `Surface`, family primitives, form controls, `/showcase`, `COMPONENT_SYSTEM.md`) shipped earlier. **Composed layer now done:** `FormSection` + `Surface variant="floating"` added; every form migrated to FormField/FormSection (marketing/auth/account/onboarding/booking/admin); all hand-rolled card surfaces routed through `Surface` (variant by the outer=emphasis/nested=plain rule; admin rows/lists kept `plain` for calm density); toast + header dropdowns on the floating Surface. `design-system/no-drift` is now **`error`** (zero violations). Family swaps partially done: inline CTA links → `TextLink`, booking override/paid-lock callouts → `Alert`; legacy `Card` (`card.tsx`) removed (settings/account callers → Surface; `archive/` excluded from tsconfig). `SideLabelSection` extraction **intentionally skipped** — resources/services/about share only a loose two-column pattern (resources already has its own `LedgerSection`); one primitive would be a forced abstraction. Still open (optional): `SectionHeader`/`StatDisplay`/`Badge` sweeps + `space.sectionY` spacing-token pass. (2026-06-16)
 
 # Dev notes — capture inbox
 
