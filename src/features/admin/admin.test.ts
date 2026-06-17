@@ -23,11 +23,7 @@ import {
 import { updateServiceCore, listServicesCore } from "./services-actions";
 import { updateSettingsCore } from "./settings-actions";
 import { moderateReviewCore, listReviewsCore } from "./reviews-actions";
-import {
-  listClientsCore,
-  setKicheAllowedCore,
-  settleDebitCore,
-} from "./clients-actions";
+import { listClientsCore, settleDebitCore } from "./clients-actions";
 import { submitInquiryCore } from "@/features/inquiries/inquiry-actions";
 
 const url = process.env.SUPABASE_TEST_URL!;
@@ -634,25 +630,6 @@ describe("moderateReviewCore", () => {
 });
 
 describe("admin client capability cores", () => {
-  it("admin flips Kiche eligibility and non-admin is forbidden", async () => {
-    const forbidden = await setKicheAllowedCore(
-      nonAdminDeps(),
-      clientUserId,
-      true,
-    );
-    expect(forbidden.kind).toBe("forbidden");
-
-    const result = await setKicheAllowedCore(adminDeps(), clientUserId, true);
-    expect(result.kind).toBe("success");
-
-    const { data } = await serviceClient
-      .from("profiles")
-      .select("kiche_allowed")
-      .eq("id", clientUserId)
-      .single();
-    expect(data?.kiche_allowed).toBe(true);
-  });
-
   it("settles a debit and a second settle is a no-op", async () => {
     const { data: debit, error } = await serviceClient
       .from("client_debits")

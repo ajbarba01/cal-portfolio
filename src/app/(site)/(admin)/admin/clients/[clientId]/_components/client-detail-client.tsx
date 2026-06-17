@@ -18,7 +18,6 @@ import { Surface } from "@/components/ui/surface";
 import {
   approveBooking,
   declineBooking,
-  setKicheAllowed,
   settleDebit,
   OnboardingStatusSelect,
   adminCreatePet,
@@ -125,7 +124,6 @@ export function ClientDetailClient({ client }: { client: ClientDetailView }) {
   const { confirm, dialog } = useConfirm();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [isKicheAllowed, setIsKicheAllowed] = useState(client.kiche_allowed);
 
   function run<T extends { kind: string }>(
     action: () => Promise<T>,
@@ -141,19 +139,6 @@ export function ClientDetailClient({ client }: { client: ClientDetailView }) {
         setError(`Action failed: ${result.kind}`);
       }
     });
-  }
-
-  function toggleKiche() {
-    const next = !isKicheAllowed;
-    setIsKicheAllowed(next);
-    run(
-      () => setKicheAllowed(client.id, next),
-      () =>
-        toast.add({
-          type: "success",
-          title: next ? "Kiche discount enabled" : "Kiche discount disabled",
-        }),
-    );
   }
 
   async function onCancel(id: string) {
@@ -229,43 +214,6 @@ export function ClientDetailClient({ client }: { client: ClientDetailView }) {
           <dt className="text-muted-foreground">Joined</dt>
           <dd>{denver(client.created_at)}</dd>
         </dl>
-      </Surface>
-
-      {/* Kiche discount — own card with switch + explanation */}
-      <Surface as="section" variant="emphasis" className={SECTION}>
-        <p className={LEGEND}>Kiche discount</p>
-        <div className="flex items-center gap-3">
-          {/* Accessible switch */}
-          <button
-            type="button"
-            role="switch"
-            aria-checked={isKicheAllowed}
-            aria-label="Kiche discount"
-            disabled={isPending}
-            onClick={toggleKiche}
-            className={[
-              "relative inline-flex h-6 w-10 shrink-0 cursor-pointer items-center rounded-full transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
-              "focus-visible:ring-ring",
-              isKicheAllowed ? "bg-brand" : "bg-muted-foreground",
-              isPending ? "cursor-not-allowed opacity-50" : "",
-            ].join(" ")}
-          >
-            <span
-              aria-hidden="true"
-              className={[
-                "pointer-events-none inline-block size-5 rounded-full bg-white shadow-sm transition-transform",
-                isKicheAllowed ? "translate-x-4" : "translate-x-0.5",
-              ].join(" ")}
-            />
-          </button>
-          <span className="text-sm font-medium">
-            {isKicheAllowed ? "On" : "Off"}
-          </span>
-        </div>
-        <p className="text-muted-foreground text-xs">
-          Gives this client the friends-of-Kiche rate on every booking. Toggle
-          off to charge standard pricing.
-        </p>
       </Surface>
 
       {/* Onboarding */}
