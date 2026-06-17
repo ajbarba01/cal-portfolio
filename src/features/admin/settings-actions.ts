@@ -45,6 +45,7 @@ const settingsRowSchema = z.object({
   holiday_surcharge_cents: z.number(),
   holiday_dates: z.array(z.string()),
   reminder_lead_hours: z.number(),
+  drive_buffer_pct: z.number(),
 });
 
 export type SettingsRow = z.infer<typeof settingsRowSchema>;
@@ -97,7 +98,7 @@ export async function getSettingsCore(
         "recurrence_generation_horizon_days, " +
         "recurring_discount_pct, recurring_min_occurrences, " +
         "cancellation_full_refund_hours, late_cancel_refund_pct, no_show_charge_pct, " +
-        "holiday_surcharge_cents, holiday_dates, reminder_lead_hours",
+        "holiday_surcharge_cents, holiday_dates, reminder_lead_hours, drive_buffer_pct",
     )
     .limit(1)
     .single();
