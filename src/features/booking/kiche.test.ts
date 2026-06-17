@@ -4,6 +4,7 @@ import {
   serviceSupportsKiche,
   requoteWithKiche,
   kicheOverpayRefundCents,
+  kichePreview,
 } from "./kiche";
 
 /** A minimal walk QuoteInput: 1h, 1 dog, 25% Kiche rate, no travel/recurring. */
@@ -47,6 +48,57 @@ describe("requoteWithKiche", () => {
     // Stored input already has applyKiche=true; re-quoting with false removes it.
     const removed = requoteWithKiche(walkInput(true), false);
     expect(removed.finalCents).toBe(2500);
+  });
+});
+
+describe("kichePreview", () => {
+  it("builds the apply/remove preview from a valid stored quote", () => {
+    // Not applied, unpaid: applying drops 2500 → 1875, no refund (nothing paid).
+    const preview = kichePreview({
+      quoteInputs: walkInput(false),
+      kicheApplied: false,
+      currentFinalCents: 2500,
+      paidCents: 0,
+    });
+    expect(preview).toEqual({
+      applied: false,
+      currentFinalCents: 2500,
+      toggledFinalCents: 1875,
+      refundIfApplyCents: 0,
+      paidCents: 0,
+    });
+  });
+
+  it("computes the refund owed when applying to an already-paid booking", () => {
+    const preview = kichePreview({
+      quoteInputs: walkInput(false),
+      kicheApplied: false,
+      currentFinalCents: 2500,
+      paidCents: 2500,
+    });
+    expect(preview?.refundIfApplyCents).toBe(625);
+  });
+
+  it("returns null when the stored quote cannot be re-priced (guards the edit page)", () => {
+    // Seeded/legacy bookings can carry quote_inputs = {} or other malformed
+    // jsonb; quote() throws on it. The preview must degrade to null so the admin
+    // edit page omits the Kiche control instead of 500ing the whole page.
+    expect(
+      kichePreview({
+        quoteInputs: {},
+        kicheApplied: false,
+        currentFinalCents: 0,
+        paidCents: 0,
+      }),
+    ).toBeNull();
+    expect(
+      kichePreview({
+        quoteInputs: { pricingType: "walk" }, // no pricingConfig/quantities
+        kicheApplied: false,
+        currentFinalCents: 0,
+        paidCents: 0,
+      }),
+    ).toBeNull();
   });
 });
 
