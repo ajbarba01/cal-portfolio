@@ -40,6 +40,7 @@ const settings = {
   no_show_charge_pct: 100,
   holiday_dates: [],
   holiday_surcharge_cents: 0,
+  drive_buffer_pct: 120,
 } satisfies SettingsRow;
 
 /** Near-origin lat so approval auto-confirms (< 8 mi). */

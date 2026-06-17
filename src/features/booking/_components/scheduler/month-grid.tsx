@@ -60,7 +60,14 @@
  * so it never overrides the status fills.
  */
 
-import { useState, useMemo, useRef, useCallback } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useMemo,
+  useRef,
+  useCallback,
+} from "react";
 import { format, getDaysInMonth, startOfMonth } from "date-fns";
 import { Star } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
@@ -274,6 +281,82 @@ function SchedulerDayButton({
         />
       )}
     </button>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// MonthGrid-local cell context
+// ---------------------------------------------------------------------------
+//
+// IDENTITY-STABILITY CONTRACT (do not break — this is the second-click fix):
+// react-day-picker remounts EVERY day cell whenever the `components.DayButton`
+// REFERENCE changes. The grid's volatile hover/preview state (previewDays,
+// previewMode, hoveredBookingId) updates on every pointer move during the
+// two-click range flow. If the DayButton closure read that volatile state
+// directly, its identity would churn on each hover → rdp would remount the grid
+// → a second click whose pointerdown/pointerup straddle a remount never fires a
+// synthesized `click`, so onDayClick is lost ("takes a few clicks").
+//
+// FIX: the DayButton passed to rdp (`ContextDayButton`) is a MODULE-LEVEL
+// component with a permanently stable reference. It reads ALL per-render data
+// (fill/outline classes, availability, kind, pointer handlers) from this
+// context. MonthGrid rebuilds the context VALUE every render — that re-renders
+// the cells (cheap) WITHOUT remounting them, because the component TYPE at the
+// DayButton slot never changes. Never pass an inline/`useCallback` DayButton to
+// <Calendar> again, or the remount bug returns.
+
+interface MonthGridCellValue {
+  /** "YYYY-MM-DD" availability classification lookup for a cell. */
+  byKey: Map<string, DayAvailability>;
+  /** Pointer routing kind for a day-key. */
+  cellKind: (dayKey: string) => CellKind;
+  /** Composed status fill + selection/preview outline for a day-key. */
+  cellClasses: (dayKey: string) => { fill: string; outline: string };
+  /** Shared base layout classes for the button. */
+  dayButtonBase: string;
+  onCellPointerDown: (
+    dayKey: string,
+    kind: CellKind,
+    bookingId?: string,
+  ) => void;
+  onCellPointerEnter: (
+    dayKey: string,
+    kind: CellKind,
+    bookingId?: string,
+  ) => void;
+  onCellPointerLeave: (kind: CellKind) => void;
+}
+
+const MonthGridCellContext = createContext<MonthGridCellValue | null>(null);
+
+/**
+ * Stable (module-level) DayButton handed to react-day-picker. Its identity NEVER
+ * changes, so hover/preview re-renders re-render cells without remounting them
+ * (see IDENTITY-STABILITY CONTRACT above). All volatile per-render data is read
+ * from MonthGridCellContext; rdp passes `day.date` via props.
+ */
+function ContextDayButton(props: DayButtonProps) {
+  const ctx = useContext(MonthGridCellContext);
+  if (ctx === null) {
+    throw new Error("ContextDayButton must be rendered inside MonthGrid");
+  }
+  const k = format(props.day.date, "yyyy-MM-dd");
+  const availability = ctx.byKey.get(k);
+  const kind = ctx.cellKind(k);
+  const { fill, outline } = ctx.cellClasses(k);
+  return (
+    <SchedulerDayButton
+      {...props}
+      className={ctx.dayButtonBase}
+      dayKey={k}
+      availability={availability}
+      kind={kind}
+      fillClassName={fill}
+      outlineClassName={outline}
+      onCellPointerDown={ctx.onCellPointerDown}
+      onCellPointerEnter={ctx.onCellPointerEnter}
+      onCellPointerLeave={ctx.onCellPointerLeave}
+    />
   );
 }
 
@@ -722,28 +805,23 @@ export function MonthGrid({ className }: { className?: string }) {
     [handleDayClick],
   );
 
-  // ── Custom DayButton — default renderer for ALL modes ─────────────────────
-  const CustomDayButton = useCallback(
-    (props: DayButtonProps) => {
-      const k = format(props.day.date, "yyyy-MM-dd");
-      const availability = byKey.get(k);
-      const kind = cellKind(k);
-      const { fill, outline } = cellClasses(k);
-      return (
-        <SchedulerDayButton
-          {...props}
-          className={dayButtonBase}
-          dayKey={k}
-          availability={availability}
-          kind={kind}
-          fillClassName={fill}
-          outlineClassName={outline}
-          onCellPointerDown={handleCellPointerDown}
-          onCellPointerEnter={handleCellPointerEnter}
-          onCellPointerLeave={handleCellPointerLeave}
-        />
-      );
-    },
+  // ── Cell context value ────────────────────────────────────────────────────
+  // Carries the per-render volatile data each cell needs to render its visuals
+  // and wire its handlers. This value MAY change every render (cellClasses churns
+  // on hover/preview) — that's intentional and cheap: it re-renders the cells
+  // WITHOUT remounting them, because the DayButton component handed to rdp
+  // (ContextDayButton) is a stable module-level reference. See the
+  // IDENTITY-STABILITY CONTRACT note above.
+  const cellContextValue = useMemo<MonthGridCellValue>(
+    () => ({
+      byKey,
+      cellKind,
+      cellClasses,
+      dayButtonBase,
+      onCellPointerDown: handleCellPointerDown,
+      onCellPointerEnter: handleCellPointerEnter,
+      onCellPointerLeave: handleCellPointerLeave,
+    }),
     [
       byKey,
       cellKind,
@@ -765,29 +843,34 @@ export function MonthGrid({ className }: { className?: string }) {
       // text node itself.
       onDragStart={(e) => e.preventDefault()}
     >
-      <Calendar
-        mode="single"
-        month={userMonth}
-        onMonthChange={setUserMonth}
-        selected={undefined}
-        onDayClick={handleDayClickWithDragGuard}
-        disabled={isDisabled}
-        modifiers={modifiers}
-        modifiersClassNames={modifiersClassNames}
-        className="w-full"
-        // Slot overrides:
-        //  selected — neutralize rdp's default bg-primary (solid black on commit);
-        //    our selection is the overlay outline, modifier kept only for aria.
-        //  today    — the primitive's default puts a 1px BORDER on the cell, which
-        //    both shifts that one button ~1px AND reads as a stray outline. Drop
-        //    the box entirely; mark today with a bold number only (no layout cost,
-        //    no stray border).
-        classNames={{
-          selected: "",
-          today: "[&>button]:font-extrabold",
-        }}
-        components={{ DayButton: CustomDayButton }}
-      />
+      <MonthGridCellContext.Provider value={cellContextValue}>
+        <Calendar
+          mode="single"
+          month={userMonth}
+          onMonthChange={setUserMonth}
+          selected={undefined}
+          onDayClick={handleDayClickWithDragGuard}
+          disabled={isDisabled}
+          modifiers={modifiers}
+          modifiersClassNames={modifiersClassNames}
+          className="w-full"
+          // Slot overrides:
+          //  selected — neutralize rdp's default bg-primary (solid black on commit);
+          //    our selection is the overlay outline, modifier kept only for aria.
+          //  today    — the primitive's default puts a 1px BORDER on the cell, which
+          //    both shifts that one button ~1px AND reads as a stray outline. Drop
+          //    the box entirely; mark today with a bold number only (no layout cost,
+          //    no stray border).
+          classNames={{
+            selected: "",
+            today: "[&>button]:font-extrabold",
+          }}
+          // STABLE module-level reference — never swap for an inline/useCallback
+          // component or rdp will remount the grid on every hover (see the
+          // IDENTITY-STABILITY CONTRACT note above).
+          components={{ DayButton: ContextDayButton }}
+        />
+      </MonthGridCellContext.Provider>
     </div>
   );
 }

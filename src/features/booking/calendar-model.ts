@@ -209,6 +209,13 @@ export interface HourlyAvailableDayKeysArgs {
   leadTimeMs?: number;
   /** Current instant (required when `leadTimeMs` is provided). */
   now?: Date;
+  /**
+   * Minutes of drive buffer for the viewer's candidate. When > 0, a start is
+   * only considered free if `[start − bufferMin, end + bufferMin)` does not
+   * overlap any busy range. The lead-time check is always applied to the
+   * UN-buffered start. Defaults to 0 (no behavior change).
+   */
+  bufferMin?: number;
 }
 
 /**
@@ -228,13 +235,23 @@ export interface HourlyAvailableDayKeysArgs {
 export function hourlyAvailableDayKeys(
   args: HourlyAvailableDayKeysArgs,
 ): Set<string> {
-  const { days, windows, busy, durationMin, granularityMin, leadTimeMs, now } =
-    args;
+  const {
+    days,
+    windows,
+    busy,
+    durationMin,
+    granularityMin,
+    leadTimeMs,
+    now,
+    bufferMin = 0,
+  } = args;
   // Earliest bookable start instant (absolute ms). Undefined when no lead-time.
   const earliestStartMs =
     leadTimeMs !== undefined && now !== undefined
       ? now.getTime() + leadTimeMs
       : undefined;
+
+  const bufMs = bufferMin * 60_000;
 
   const out = new Set<string>();
 
@@ -262,16 +279,18 @@ export function hourlyAvailableDayKeys(
       windows: minuteWindows,
       durationMin,
       granularityMin,
+      bufferMin,
     });
     const hasFree = starts.some((s) => {
       const candidateStartMs = startMs + s * MS_PER_MIN;
-      // U2: skip any start that falls within the lead-time window.
+      // U2: lead-time check on the UN-buffered start instant.
       if (earliestStartMs !== undefined && candidateStartMs < earliestStartMs) {
         return false;
       }
+      // Busy-overlap check uses the buffered candidate span.
       const candidate: TimeRange = {
-        startsAt: new Date(candidateStartMs),
-        endsAt: new Date(startMs + (s + durationMin) * MS_PER_MIN),
+        startsAt: new Date(candidateStartMs - bufMs),
+        endsAt: new Date(startMs + (s + durationMin) * MS_PER_MIN + bufMs),
       };
       return !busy.some((b) => overlapsHalfOpen(candidate, b));
     });

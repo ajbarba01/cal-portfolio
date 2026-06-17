@@ -147,3 +147,7 @@ export { runSeriesRollCron } from "./series-cron";
 
 // scheduler-context
 export { useScheduler } from "./scheduler-context";
+
+// drive-buffer
+export { driveBufferMinutes } from "./drive-buffer";
+export type { DriveBufferConfig } from "./drive-buffer";

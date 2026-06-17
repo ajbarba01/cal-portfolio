@@ -52,6 +52,7 @@ function makeSettings(overrides: Partial<SettingsRow> = {}): SettingsRow {
     no_show_charge_pct: 100,
     holiday_dates: ["2026-12-25"],
     holiday_surcharge_cents: 1000,
+    drive_buffer_pct: 120,
     ...overrides,
   };
 }

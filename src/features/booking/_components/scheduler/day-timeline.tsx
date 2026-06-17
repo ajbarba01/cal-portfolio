@@ -31,7 +31,12 @@ import { cn } from "@/lib/utils";
 import { useScheduler } from "@/features/booking/scheduler-context";
 import { denverMidnight } from "@/features/booking/availability";
 import { overlapsHalfOpen } from "@/features/booking/calendar-model";
-import { startOptions, blockSpan } from "@/features/booking/day-timeline-model";
+import {
+  startOptions,
+  blockSpan,
+  clampRangesToDayMinutes,
+  subtractBlocked,
+} from "@/features/booking/day-timeline-model";
 import type { MinuteWindow } from "@/features/booking/day-timeline-model";
 import { useCellSelection } from "./use-cell-selection";
 
@@ -115,6 +120,7 @@ export function DayTimeline({ className }: { className?: string }) {
   const { capabilities, data, selection } = useScheduler();
   const { state, beginGridDrag, clearDays } = selection;
   const intervalMinutes = capabilities.intervalMinutes ?? 60;
+  const bufferMin = data.viewerDriveBufferMin ?? 0;
 
   // ── All hooks (unconditional — WeekGrid pattern) ──────────────────────────
 
@@ -125,6 +131,10 @@ export function DayTimeline({ className }: { className?: string }) {
   const { dragEndHandlerRef, installEndHandler } = useCellSelection();
   // Y-coord where the drag block was grabbed (relative to block top), in px
   const dragGrabOffsetPx = useRef(0);
+  // Latest drag-preview start, mirrored in a ref so the drag-end handler can read
+  // it WITHOUT calling beginGridDrag inside a setState updater (which runs during
+  // render → "Cannot update a component while rendering" — same fix as WeekGrid).
+  const dragPreviewStartRef = useRef<number | null>(null);
   // Ref to track container for pointer-coord math
   const trackRef = useRef<HTMLDivElement | null>(null);
 
@@ -144,25 +154,38 @@ export function DayTimeline({ className }: { className?: string }) {
    */
   const minuteWindows = useMemo<MinuteWindow[]>(() => {
     if (!dayKey) return [];
-    const midnight = denverMidnight(dayKey);
-    const dayStart = midnight.getTime();
-    const dayEnd = dayStart + 24 * 60 * 60 * 1000;
-
-    return data.windows
-      .filter(
-        (w) => w.startsAt.getTime() < dayEnd && w.endsAt.getTime() > dayStart,
-      )
-      .map((w) => {
-        // Clamp to the day's [0, 1440] minute range
-        const openMs = Math.max(w.startsAt.getTime(), dayStart);
-        const closeMs = Math.min(w.endsAt.getTime(), dayEnd);
-        // Convert absolute ms to minutes-since-Denver-midnight for this day
-        const openMin = Math.round((openMs - dayStart) / 60_000);
-        const closeMin = Math.round((closeMs - dayStart) / 60_000);
-        return [openMin, closeMin] as MinuteWindow;
-      })
-      .filter(([open, close]) => close > open);
+    return clampRangesToDayMinutes(
+      data.windows,
+      denverMidnight(dayKey).getTime(),
+    );
   }, [dayKey, data.windows]);
+
+  /**
+   * Busy ranges for the selected day: existing bookings (already widened by their
+   * own drive-time buffers, server-side) intersected with the day, as
+   * [startMin, endMin]. Rendered (further widened by the viewer's buffer at the
+   * render site) as unavailable strips so occupied + travel time reads as
+   * not-available instead of green. The candidate starts under these are already
+   * filtered out of `candidateStarts`.
+   */
+  const busyBlocks = useMemo<MinuteWindow[]>(() => {
+    if (!dayKey) return [];
+    return clampRangesToDayMinutes(data.busy, denverMidnight(dayKey).getTime());
+  }, [dayKey, data.busy]);
+
+  /**
+   * Free availability blocks: the open windows with the busy ranges removed.
+   * Each busy range is widened by the viewer's own drive buffer so the gap also
+   * reserves the travel time a new booking needs around an existing one. Rendered
+   * as discrete green rounded blocks; the white track between them reads as
+   * unavailable.
+   */
+  const freeBlocks = useMemo<MinuteWindow[]>(() => {
+    const blocked = busyBlocks.map(
+      ([s, e]) => [s - bufferMin, e + bufferMin] as MinuteWindow,
+    );
+    return subtractBlocked(minuteWindows, blocked);
+  }, [minuteWindows, busyBlocks, bufferMin]);
 
   /**
    * Candidate starts from day-timeline-model, then busy-filtered:
@@ -175,17 +198,19 @@ export function DayTimeline({ className }: { className?: string }) {
       windows: minuteWindows,
       durationMin: intervalMinutes,
       granularityMin: 15,
+      bufferMin,
     });
     const midnight = denverMidnight(dayKey).getTime();
     return allStarts.filter((startMin) => {
       const { endMin } = blockSpan(startMin, intervalMinutes);
+      const bufMs = bufferMin * 60_000;
       const candidateRange = {
-        startsAt: new Date(midnight + startMin * 60_000),
-        endsAt: new Date(midnight + endMin * 60_000),
+        startsAt: new Date(midnight + startMin * 60_000 - bufMs),
+        endsAt: new Date(midnight + endMin * 60_000 + bufMs),
       };
       return !data.busy.some((b) => overlapsHalfOpen(candidateRange, b));
     });
-  }, [dayKey, minuteWindows, intervalMinutes, data.busy]);
+  }, [dayKey, minuteWindows, intervalMinutes, data.busy, bufferMin]);
 
   // Track vertical span: min open → max close across all minute-windows
   const trackBounds = useMemo<{
@@ -292,6 +317,7 @@ export function DayTimeline({ className }: { className?: string }) {
         const rawY = me.clientY - r.top - dragGrabOffsetPx.current;
         const nearest = nearestCandidateFromY(rawY, trackBounds);
         if (nearest !== null) {
+          dragPreviewStartRef.current = nearest;
           setDragPreviewStart(nearest);
         }
       };
@@ -302,14 +328,16 @@ export function DayTimeline({ className }: { className?: string }) {
         window.removeEventListener("pointermove", onMove);
         dragEndHandlerRef.current = null;
         suppressNextClick.current = true;
-        // Commit to whichever candidate we're at
-        setDragPreviewStart((prev) => {
-          const finalStart = prev ?? liveStart;
-          if (dayKey && finalStart !== null) {
-            beginGridDrag(`${dayKey}@${finalStart}`);
-          }
-          return null;
-        });
+        // Read the final start from the ref, clear the preview, THEN dispatch —
+        // calling beginGridDrag inside a setState updater dispatches to the
+        // Scheduler reducer during render (the "update a component while rendering"
+        // error). Commit outside any updater instead (WeekGrid convention).
+        const finalStart = dragPreviewStartRef.current ?? liveStart;
+        dragPreviewStartRef.current = null;
+        setDragPreviewStart(null);
+        if (dayKey && finalStart !== null) {
+          beginGridDrag(`${dayKey}@${finalStart}`);
+        }
       };
       installEndHandler(endHandler);
     },
@@ -466,7 +494,7 @@ export function DayTimeline({ className }: { className?: string }) {
           className={cn(
             "relative flex-1 rounded-md",
             "border-border border",
-            "bg-status-unavailable overflow-hidden",
+            "bg-card overflow-hidden",
             "cursor-pointer",
             "focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none",
             // No native drag
@@ -481,11 +509,14 @@ export function DayTimeline({ className }: { className?: string }) {
           onKeyDown={handleTrackKeyDown}
           onDragStart={(e) => e.preventDefault()}
         >
-          {/* Open window bands */}
-          {minuteWindows.map(([open, close], i) => (
+          {/* Free availability blocks — open windows with bookings + their drive
+              buffers removed. Rendered as discrete green rounded blocks; the white
+              track showing between them reads as unavailable (Cal isn't free to
+              start there). Candidate starts under a gap are already filtered out. */}
+          {freeBlocks.map(([open, close], i) => (
             <div
               key={i}
-              className="bg-status-available/50 absolute inset-x-0"
+              className="bg-status-available/60 pointer-events-none absolute inset-x-1 rounded-lg"
               style={{
                 top: (open - minOpen) * PX_PER_MIN,
                 height: (close - open) * PX_PER_MIN,

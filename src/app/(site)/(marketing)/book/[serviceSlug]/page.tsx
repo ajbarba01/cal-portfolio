@@ -17,6 +17,7 @@ import {
   loadBookingFormData,
   denverDayKey,
   listActiveServices,
+  driveBufferMinutes,
   type ServiceDetail,
   type AssignablePet,
   type OnboardingStatus,
@@ -132,11 +133,12 @@ export default async function ServiceBookingPage({
   const formResponses: Record<string, { data: Record<string, unknown> }> = {};
   let acceptedAuthVersion: string | null = null;
   let acceptedAuthAt: string | null = null;
+  let viewerDriveBufferMin = 0;
 
   if (user) {
     const { data: profile } = await svc
       .from("profiles")
-      .select("onboarding_status")
+      .select("onboarding_status, lat, lng")
       .eq("id", user.id)
       .single();
 
@@ -152,6 +154,36 @@ export default async function ServiceBookingPage({
     } else {
       // info_pending or undefined → send to the onboarding info step.
       authState = "needs-info";
+    }
+
+    // Drive buffer: fetch origin + road params from settings, then compute the
+    // viewer's one-way blocking buffer. Only matters for time-based services
+    // (house-sitting is unbuffered), but we compute it unconditionally — the
+    // scheduler ignores it for month-range mode.
+    const { data: driveSettings } = await svc
+      .from("settings")
+      .select(
+        "origin_lat, origin_lng, road_factor, avg_speed_mph, drive_buffer_pct",
+      )
+      .limit(1)
+      .single();
+
+    if (driveSettings) {
+      viewerDriveBufferMin = driveBufferMinutes(
+        {
+          lat: driveSettings.origin_lat as number,
+          lng: driveSettings.origin_lng as number,
+        },
+        {
+          lat: (profile?.lat ?? null) as number | null,
+          lng: (profile?.lng ?? null) as number | null,
+        },
+        {
+          roadFactor: driveSettings.road_factor as number,
+          avgSpeedMph: driveSettings.avg_speed_mph as number,
+          pct: driveSettings.drive_buffer_pct as number,
+        },
+      );
     }
 
     // Pets (only when ready) and this client's active bookings for this service
@@ -321,6 +353,7 @@ export default async function ServiceBookingPage({
           formResponses={formResponses}
           acceptedAuthVersion={acceptedAuthVersion}
           acceptedAuthAt={acceptedAuthAt}
+          viewerDriveBufferMin={viewerDriveBufferMin}
         />
       </main>
     </>

@@ -21,6 +21,7 @@ describe("hourlySchedulerData", () => {
       rules,
       myBookings: new Set<string>(),
       premiumDays: new Set<string>(),
+      bufferMin: 0,
     });
     expect(Array.isArray(data.overnightNights)).toBe(false);
     expect(data.busyResident).toEqual([]);
@@ -43,6 +44,7 @@ describe("hourlySchedulerData", () => {
       },
       myBookings: new Set(),
       premiumDays,
+      bufferMin: 0,
     });
     expect(data.premiumDays).toBe(premiumDays);
   });

@@ -152,6 +152,14 @@ export interface UseBookingSchedulerInput {
   /** month-range seed (DateRange) or undefined. */
   initialRange: DateRange | undefined;
 
+  /**
+   * Minutes of drive buffer for the viewer's candidate (hourly only). Passed
+   * into `hourlySchedulerData` so month-grid availability and the day-timeline
+   * both see the buffer. Defaults to 0 (no behavior change). House-sitting
+   * branch ignores this — overnight bookings are unbuffered.
+   */
+  viewerDriveBufferMin?: number;
+
   // Wrapper-owned deltas, read fresh at debounce fire-time.
   /** true when a preview should fire (wrapper's gate). */
   canQuoteRef: MutableRefObject<boolean>;
@@ -247,6 +255,7 @@ export function useBookingScheduler({
   initialPetIds,
   initialSelectedStart,
   initialRange,
+  viewerDriveBufferMin = 0,
   canQuoteRef,
   runPreviewRef,
   clearOnSelectRef,
@@ -361,6 +370,7 @@ export function useBookingScheduler({
         rules,
         myBookings,
         premiumDays,
+        bufferMin: viewerDriveBufferMin,
       });
     }
     return {
@@ -383,6 +393,7 @@ export function useBookingScheduler({
     rules,
     myBookings,
     now,
+    viewerDriveBufferMin,
   ]);
 
   // ── Derived booking time ─────────────────────────────────────────────────────

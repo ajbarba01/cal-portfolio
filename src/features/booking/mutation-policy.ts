@@ -25,6 +25,8 @@ export interface MutationPolicy {
   skipDistanceRefuse: boolean;
   /** Bypass availability-window containment. */
   skipWindowFit: boolean;
+  /** Bypass drive-time spacing buffer guard. */
+  skipBufferGuard: boolean;
   /** Bypass hours-of-day + lead-time + hard-max-advance guards. */
   skipHoursLeadGuards: boolean;
   /** Bypass the client cancellation-cutoff edit gate (edit-only). */
@@ -46,6 +48,7 @@ export const CLIENT_POLICY: MutationPolicy = {
   skipFormsGate: false,
   skipDistanceRefuse: false,
   skipWindowFit: false,
+  skipBufferGuard: false,
   skipHoursLeadGuards: false,
   skipCancellationCutoff: false,
   skipHorizonRefuse: false,
@@ -58,6 +61,7 @@ export const ADMIN_POLICY: MutationPolicy = {
   skipFormsGate: true,
   skipDistanceRefuse: true,
   skipWindowFit: true,
+  skipBufferGuard: true,
   skipHoursLeadGuards: true,
   skipCancellationCutoff: true,
   skipHorizonRefuse: true,

@@ -1,5 +1,13 @@
 import { describe, it, expect } from "vitest";
-import { startOptions, blockSpan } from "./day-timeline-model";
+import {
+  startOptions,
+  blockSpan,
+  clampRangesToDayMinutes,
+  subtractBlocked,
+} from "./day-timeline-model";
+
+const DAY = Date.UTC(2026, 6, 10, 0, 0, 0); // 2026-07-10 00:00 UTC
+const at = (min: number) => new Date(DAY + min * 60_000);
 
 // windows: minute-since-midnight ranges [openMinute, closeMinute)
 describe("startOptions", () => {
@@ -44,9 +52,109 @@ describe("startOptions", () => {
       }),
     ).toEqual([]);
   });
+  it("buffer shrinks the window on both ends", () => {
+    // Window 9:00–11:00 (540–660), 60-min duration, 15-min granularity.
+    // No buffer: starts 540,555,570,585,600.
+    expect(
+      startOptions({
+        windows: [[540, 660]],
+        durationMin: 60,
+        granularityMin: 15,
+      }),
+    ).toEqual([540, 555, 570, 585, 600]);
+    // 30-min buffer: earliest start 570 (540+30), latest end ≤ 660−30=630 → last start 570.
+    expect(
+      startOptions({
+        windows: [[540, 660]],
+        durationMin: 60,
+        granularityMin: 15,
+        bufferMin: 30,
+      }),
+    ).toEqual([570]);
+  });
 });
 describe("blockSpan", () => {
   it("returns start/end minutes for a chosen start + duration", () => {
     expect(blockSpan(540, 75)).toEqual({ startMin: 540, endMin: 615 });
+  });
+});
+
+describe("clampRangesToDayMinutes", () => {
+  it("converts a range fully inside the day to [startMin, endMin]", () => {
+    expect(
+      clampRangesToDayMinutes([{ startsAt: at(540), endsAt: at(600) }], DAY),
+    ).toEqual([[540, 600]]);
+  });
+  it("clamps a range that starts before the day to 0", () => {
+    expect(
+      clampRangesToDayMinutes([{ startsAt: at(-120), endsAt: at(60) }], DAY),
+    ).toEqual([[0, 60]]);
+  });
+  it("clamps a range that ends after the day to 1440", () => {
+    expect(
+      clampRangesToDayMinutes([{ startsAt: at(1380), endsAt: at(1560) }], DAY),
+    ).toEqual([[1380, 1440]]);
+  });
+  it("drops a range that does not intersect the day", () => {
+    expect(
+      clampRangesToDayMinutes([{ startsAt: at(1500), endsAt: at(1560) }], DAY),
+    ).toEqual([]);
+    // A range ending exactly at day start is half-open non-overlapping.
+    expect(
+      clampRangesToDayMinutes([{ startsAt: at(-60), endsAt: at(0) }], DAY),
+    ).toEqual([]);
+  });
+  it("maps multiple ranges and preserves order", () => {
+    expect(
+      clampRangesToDayMinutes(
+        [
+          { startsAt: at(540), endsAt: at(600) },
+          { startsAt: at(720), endsAt: at(780) },
+        ],
+        DAY,
+      ),
+    ).toEqual([
+      [540, 600],
+      [720, 780],
+    ]);
+  });
+});
+
+describe("subtractBlocked", () => {
+  it("returns the whole window when nothing is blocked", () => {
+    expect(subtractBlocked([[540, 660]], [])).toEqual([[540, 660]]);
+  });
+  it("splits a window into two free blocks around a mid booking", () => {
+    // window 9:00–12:00, booking 10:00–10:30 → free [540,600] and [630,720]
+    expect(subtractBlocked([[540, 720]], [[600, 630]])).toEqual([
+      [540, 600],
+      [630, 720],
+    ]);
+  });
+  it("trims the window edges when blocked overlaps an end", () => {
+    expect(subtractBlocked([[540, 660]], [[540, 570]])).toEqual([[570, 660]]);
+    expect(subtractBlocked([[540, 660]], [[630, 660]])).toEqual([[540, 630]]);
+  });
+  it("drops a window fully covered by a block", () => {
+    expect(subtractBlocked([[540, 660]], [[500, 700]])).toEqual([]);
+  });
+  it("merges overlapping blocks (no zero/negative free slivers)", () => {
+    // overlapping blocks 600-640 and 620-660 inside 540-720 → free [540,600],[660,720]
+    expect(
+      subtractBlocked(
+        [[540, 720]],
+        [
+          [600, 640],
+          [620, 660],
+        ],
+      ),
+    ).toEqual([
+      [540, 600],
+      [660, 720],
+    ]);
+  });
+  it("clips blocks to the window before subtracting", () => {
+    // block extends beyond the window on both sides of a gap
+    expect(subtractBlocked([[540, 660]], [[500, 560]])).toEqual([[560, 660]]);
   });
 });

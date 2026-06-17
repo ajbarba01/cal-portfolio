@@ -71,6 +71,8 @@ export interface SettingsRow {
   holiday_dates: string[];
   /** Per-day surcharge (cents) for bookings on premium days. Applied to all service types. */
   holiday_surcharge_cents: number;
+  /** Percent of one-way drive time to reserve as a scheduling buffer (e.g. 120 = 1.2×). */
+  drive_buffer_pct: number;
 }
 
 export interface ProfileLatLng {
@@ -162,6 +164,7 @@ const settingsRowSchema = z.object({
   no_show_charge_pct: z.number(),
   holiday_dates: z.array(z.string()).default([]),
   holiday_surcharge_cents: z.number().int().nonnegative().default(0),
+  drive_buffer_pct: z.number(),
 });
 
 /** Parsed and validated service row. pricing_type is the closed enum. */
@@ -326,11 +329,21 @@ export interface FormStatusRow {
  * Identity-free busy range for the PUBLIC calendar. Carries pet thumbnails
  * (species + storage path) but NEVER an owner name or id — privacy by
  * construction (the projection cannot select identity columns).
+ *
+ * The repo-internal fields `concurrency`, `clientLat`, `clientLng` are used
+ * server-side to compute a drive-time buffer; they are never forwarded to the
+ * client (PublicBusyRange has no such fields).
  */
 export interface BusyRange {
   startsAt: Date;
   endsAt: Date;
   pets: { species: PetSpeciesDb; photoPath: string | null }[];
+  /** Repo-internal: used to decide whether to apply drive-time buffer. */
+  concurrency: ConcurrencyClass;
+  /** Repo-internal: booking owner's lat (ZIP centroid). Null when profile missing. */
+  clientLat: number | null;
+  /** Repo-internal: booking owner's lng (ZIP centroid). Null when profile missing. */
+  clientLng: number | null;
 }
 
 /** Enriched busy range for the ADMIN calendar — adds booking id, owner, status. */
@@ -354,6 +367,10 @@ export interface AdminBusyRange {
 const publicBusyRowSchema = z.object({
   starts_at: z.string(),
   ends_at: z.string(),
+  concurrency: z.enum(["exclusive", "resident"]),
+  profiles: z
+    .object({ lat: z.number().nullable(), lng: z.number().nullable() })
+    .nullable(),
   booking_pets: z
     .array(
       z.object({
@@ -676,7 +693,7 @@ export function createSupabaseBookingRepository(
             "recurrence_generation_horizon_days, " +
             "recurring_discount_pct, recurring_min_occurrences, " +
             "cancellation_full_refund_hours, late_cancel_refund_pct, no_show_charge_pct, " +
-            "holiday_dates, holiday_surcharge_cents",
+            "holiday_dates, holiday_surcharge_cents, drive_buffer_pct",
         )
         .limit(1)
         .single();
@@ -1009,7 +1026,11 @@ export function createSupabaseBookingRepository(
     async getActiveBusyRanges(now, concurrency) {
       let query = client
         .from("bookings")
-        .select("starts_at, ends_at, booking_pets(pets(species, photo_url))")
+        .select(
+          "starts_at, ends_at, concurrency, " +
+            "profiles(lat, lng), " +
+            "booking_pets(pets(species, photo_url))",
+        )
         .in("status", ACTIVE_BUSY_STATUSES)
         .gte("ends_at", now.toISOString());
       if (concurrency) query = query.eq("concurrency", concurrency);
@@ -1030,6 +1051,9 @@ export function createSupabaseBookingRepository(
         return {
           startsAt: new Date(r.starts_at),
           endsAt: new Date(r.ends_at),
+          concurrency: r.concurrency,
+          clientLat: r.profiles?.lat ?? null,
+          clientLng: r.profiles?.lng ?? null,
           pets: (r.booking_pets ?? [])
             .map((bp) => bp.pets)
             .filter((p): p is NonNullable<typeof p> => p !== null)
