@@ -26,6 +26,7 @@ import React, {
   useCallback,
   useEffect,
 } from "react";
+import { Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useScheduler } from "@/features/booking/scheduler-context";
 import { denverMidnight } from "@/features/booking/availability";
@@ -133,6 +134,8 @@ export function DayTimeline({ className }: { className?: string }) {
     if (state.selectedDays.size === 0) return null;
     return [...state.selectedDays][0];
   }, [state.selectedDays]);
+
+  const isPremiumDay = data.premiumDays?.has(dayKey ?? "") ?? false;
 
   /**
    * Minute-windows for the selected day: filter data.windows to those that
@@ -388,7 +391,11 @@ export function DayTimeline({ className }: { className?: string }) {
   if (!trackBounds || minuteWindows.length === 0) {
     return (
       <div className={cn("flex flex-col gap-3 select-none", className)}>
-        <DayHeader dayKey={dayKey} intervalMinutes={intervalMinutes} />
+        <DayHeader
+          dayKey={dayKey}
+          intervalMinutes={intervalMinutes}
+          isPremiumDay={isPremiumDay}
+        />
         <div className="flex min-h-20 items-center justify-center py-6">
           <p className="text-muted-foreground font-sans text-sm">
             No availability this day.
@@ -404,7 +411,11 @@ export function DayTimeline({ className }: { className?: string }) {
   return (
     <div className={cn("flex flex-col gap-4 select-none", className)}>
       {/* Header: date on left, duration on right */}
-      <DayHeader dayKey={dayKey} intervalMinutes={intervalMinutes} />
+      <DayHeader
+        dayKey={dayKey}
+        intervalMinutes={intervalMinutes}
+        isPremiumDay={isPremiumDay}
+      />
 
       {/* Timeline */}
       <div className="flex items-stretch gap-0">
@@ -615,15 +626,25 @@ export function DayTimeline({ className }: { className?: string }) {
 function DayHeader({
   dayKey,
   intervalMinutes,
+  isPremiumDay,
 }: {
   dayKey: string;
   intervalMinutes: number;
+  isPremiumDay: boolean;
 }) {
   return (
     <div className="flex items-baseline justify-between">
-      <span className="font-heading text-foreground text-sm font-medium">
-        {formatDayHeader(dayKey)}
-      </span>
+      <div className="flex items-center gap-2">
+        <span className="font-heading text-foreground text-sm font-medium">
+          {formatDayHeader(dayKey)}
+        </span>
+        {isPremiumDay && (
+          <span className="text-warning-foreground inline-flex items-center gap-1 text-xs font-medium">
+            <Star aria-hidden="true" size={12} className="fill-current" />
+            Premium day
+          </span>
+        )}
+      </div>
       <span className="text-muted-foreground font-sans text-xs">
         {formatDuration(intervalMinutes)}
       </span>
