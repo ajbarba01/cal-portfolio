@@ -128,6 +128,11 @@ export function SettingsClient({
     String(s.late_cancel_refund_pct),
   );
 
+  // Drive-time buffer
+  const [driveBufferPct, setDriveBufferPct] = useState(
+    String(s.drive_buffer_pct),
+  );
+
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -164,6 +169,7 @@ export function SettingsClient({
         cancellation_full_refund_hours: parseInt(fullRefundHours, 10),
         late_cancel_refund_pct: parseInt(lateRefundPct, 10),
         // no_show_charge_pct intentionally excluded (UI removed; column retained in DB)
+        drive_buffer_pct: parseInt(driveBufferPct, 10),
       });
       if (result.kind === "success") {
         setSuccess(true);
@@ -309,6 +315,25 @@ export function SettingsClient({
           onChange={setReminderLeadHours}
           unit="hours before start"
         />
+      </Surface>
+
+      {/* ── Scheduling ─────────────────────────────────────────────────── */}
+      <Surface variant="plain" className="flex flex-col gap-4 p-5">
+        <GroupLegend>Scheduling</GroupLegend>
+        <div className="flex flex-col gap-4">
+          <UnitField
+            id="drive-buffer-pct"
+            label="Drive-time buffer (%)"
+            value={driveBufferPct}
+            onChange={setDriveBufferPct}
+            unit="%"
+            inputProps={{ min: "0", max: "1000", step: "1" }}
+          />
+          <p className="text-muted-foreground text-xs">
+            Calendar space reserved for driving around each booking. 120 = 1.2×
+            the estimate.
+          </p>
+        </div>
       </Surface>
 
       {/* ── Distance & approval ────────────────────────────────────────── */}

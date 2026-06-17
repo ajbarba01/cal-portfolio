@@ -43,6 +43,7 @@ export const settingsUpdateSchema = z
     holiday_surcharge_cents: nonNegIntSchema.optional(),
     holiday_dates: z.array(isoDateSchema).optional(),
     reminder_lead_hours: nonNegIntSchema.optional(),
+    drive_buffer_pct: z.number().int().nonnegative().max(1000).optional(),
   })
   .refine(
     (s) =>
