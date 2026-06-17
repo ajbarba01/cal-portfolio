@@ -161,7 +161,6 @@ export interface ClientDetailView {
   address: string | null;
   zip: string | null;
   avatar_url: string | null;
-  kiche_allowed: boolean;
   onboarding_status: OnboardingStatus;
   created_at: string;
   pets: ClientPet[];
@@ -191,7 +190,7 @@ export async function getClientDetailCore(
   const { data: profile, error: profileError } = await serviceClient
     .from("profiles")
     .select(
-      "id, full_name, email, phone, address, zip, avatar_url, kiche_allowed, onboarding_status, created_at, role",
+      "id, full_name, email, phone, address, zip, avatar_url, onboarding_status, created_at, role",
     )
     .eq("id", clientId)
     .single();
@@ -316,7 +315,6 @@ export async function getClientDetailCore(
     address: (profile.address as string | null) ?? null,
     zip: (profile.zip as string | null) ?? null,
     avatar_url: (profile.avatar_url as string | null) ?? null,
-    kiche_allowed: Boolean(profile.kiche_allowed),
     onboarding_status:
       (profile.onboarding_status as OnboardingStatus) ?? "info_pending",
     created_at: profile.created_at as string,
@@ -376,26 +374,6 @@ export type ClientMutationResult =
 
 const uuidSchema = z.string().uuid();
 
-export async function setKicheAllowedCore(
-  deps: AdminDeps,
-  clientId: string,
-  isAllowed: boolean,
-): Promise<ClientMutationResult> {
-  if (!(await assertActorIsAdmin(deps.serviceClient, deps.actorUserId))) {
-    return { kind: "forbidden" };
-  }
-  if (!uuidSchema.safeParse(clientId).success) {
-    return { kind: "validation_error", message: "Invalid client id" };
-  }
-  const { error } = await deps.serviceClient
-    .from("profiles")
-    .update({ kiche_allowed: isAllowed })
-    .eq("id", clientId)
-    .eq("role", "client");
-  if (error) return { kind: "error", message: error.message };
-  return { kind: "success" };
-}
-
 export async function settleDebitCore(
   deps: AdminDeps,
   debitId: string,
@@ -428,20 +406,6 @@ export async function getClientDetail(
     { serviceClient: createServiceClient(), actorUserId },
     clientId,
   );
-}
-
-export async function setKicheAllowed(
-  clientId: string,
-  isAllowed: boolean,
-): Promise<ClientMutationResult> {
-  const actorUserId = await getActorOrRedirect();
-  const result = await setKicheAllowedCore(
-    { serviceClient: createServiceClient(), actorUserId },
-    clientId,
-    isAllowed,
-  );
-  if (result.kind === "success") revalidatePath(`/admin/clients/${clientId}`);
-  return result;
 }
 
 export async function settleDebit(

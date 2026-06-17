@@ -24,7 +24,9 @@ export {
   serviceSupportsKiche,
   requoteWithKiche,
   kicheOverpayRefundCents,
+  kichePreview,
 } from "./kiche";
+export type { KichePreview } from "./kiche";
 
 // booking-repository
 export {

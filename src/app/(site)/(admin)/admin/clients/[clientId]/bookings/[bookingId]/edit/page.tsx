@@ -11,8 +11,7 @@ import {
   loadBookingFormData,
   quantityStateFromQuoteInputs,
   serviceSupportsKiche,
-  requoteWithKiche,
-  kicheOverpayRefundCents,
+  kichePreview,
   EDITABLE_STATUSES,
   type ServiceDetail,
   type AssignablePet,
@@ -20,7 +19,7 @@ import {
 } from "@/features/booking";
 import { EditBookingClient } from "@/app/(site)/(account)/account/bookings/[id]/edit/_components/edit-booking-client";
 import { AdminKicheControl } from "./_components/admin-kiche-control";
-import type { PricingType, QuoteInput } from "@/features/pricing";
+import type { PricingType } from "@/features/pricing";
 
 const SIGNED_URL_TTL_SECONDS = 60 * 60;
 
@@ -125,38 +124,23 @@ export default async function AdminEditBookingPage({
   );
 
   // Kiche apply control — only for kiche-rated services where the client
-  // consented. Preview numbers computed server-side from the frozen quote.
+  // consented. Preview numbers computed server-side from the frozen quote;
+  // kichePreview returns null (control omitted) when that stored quote can't be
+  // re-priced, so a malformed/legacy quote_inputs never crashes the page.
   const kicheRow = await repo.getBookingForKiche(bookingId);
-  let kiche: {
-    applied: boolean;
-    currentFinalCents: number;
-    toggledFinalCents: number;
-    refundIfApplyCents: number;
-    paidCents: number;
-  } | null = null;
-  if (
+  const kiche =
     kicheRow &&
     serviceSupportsKiche(service.pricingType) &&
     kicheRow.kiche_welcome
-  ) {
-    const paidCents = kicheRow.payments
-      .filter((p) => p.status === "succeeded")
-      .reduce((sum, p) => sum + p.amountCents, 0);
-    const toggled = requoteWithKiche(
-      kicheRow.quote_inputs as QuoteInput,
-      !kicheRow.kiche_applied,
-    );
-    kiche = {
-      applied: kicheRow.kiche_applied,
-      currentFinalCents: kicheRow.finalCents,
-      toggledFinalCents: toggled.finalCents,
-      // Refund only matters when applying (un-applying raises the total).
-      refundIfApplyCents: kicheRow.kiche_applied
-        ? 0
-        : kicheOverpayRefundCents(paidCents, toggled.finalCents),
-      paidCents,
-    };
-  }
+      ? kichePreview({
+          quoteInputs: kicheRow.quote_inputs,
+          kicheApplied: kicheRow.kiche_applied,
+          currentFinalCents: kicheRow.finalCents,
+          paidCents: kicheRow.payments
+            .filter((p) => p.status === "succeeded")
+            .reduce((sum, p) => sum + p.amountCents, 0),
+        })
+      : null;
 
   const initial = {
     startsAtIso: booking.startsAt.toISOString(),

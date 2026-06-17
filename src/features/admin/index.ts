@@ -46,7 +46,6 @@ export type { PendingBookingRow, ApprovalResult } from "./approval-actions";
 export {
   listClients,
   getClientDetail,
-  setKicheAllowed,
   settleDebit,
   setOnboardingStatus,
 } from "./clients-actions";
