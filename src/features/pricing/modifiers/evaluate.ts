@@ -99,6 +99,104 @@ export function evaluate(
         });
     }
   }
+
+  // --- after phase 2, before return ---
+  const conditionHolds = (
+    c: import("../modifier-types").Condition,
+  ): boolean => {
+    switch (c) {
+      case "always":
+        return true;
+      case "noDogs":
+        return (i.dogs ?? 0) === 0;
+      case "anyDogUnder6mo":
+        return !!i.anyDogUnder6mo;
+      case "recurringSeries":
+        return !!i.recurringSeries;
+      case "nightsOver4":
+        return (i.nights ?? 0) > 4;
+      case "nightsOver6":
+        return (i.nights ?? 0) > 6;
+    }
+  };
+
+  // Phase 3 — pct_surcharge (premium) on running subtotal of phases 1-2
+  for (const mod of m) {
+    if (mod.kind !== "pct_surcharge") continue;
+    const premiumNights = i.premiumNights ?? 0;
+    if (premiumNights <= 0) continue;
+    const subtotal = sum(lines);
+    const factor =
+      mod.scope === "perPremiumNight" && nights > 0
+        ? premiumNights / nights
+        : 1;
+    const amt = round((mod.pct / 100) * subtotal * factor);
+    if (amt !== 0) lines.push({ label: mod.label, amountCents: amt });
+  }
+
+  // Phase 4 — min_floor (pre-discount)
+  for (const mod of m) {
+    if (mod.kind !== "min_floor") continue;
+    const subtotal = sum(lines);
+    if (subtotal > 0 && subtotal < mod.cents)
+      lines.push({
+        label: "Minimum charge",
+        amountCents: mod.cents - subtotal,
+      });
+  }
+
+  // Phase 5 — auto discounts (compounding)
+  for (const mod of m) {
+    if (mod.kind !== "pct_discount" || mod.manual) continue;
+    if (!conditionHolds(mod.condition)) continue;
+    const subtotal = sum(lines);
+    const amt = round((mod.pct / 100) * subtotal);
+    if (amt !== 0) lines.push({ label: mod.label, amountCents: -amt });
+  }
+
+  // Phase 6 — manual discounts (admin-enabled) + custom adjustments
+  const enabled = new Set(i.enabledManualIds ?? []);
+  for (const mod of m) {
+    if (
+      mod.kind === "pct_discount" &&
+      mod.manual &&
+      enabled.has(mod.id) &&
+      conditionHolds(mod.condition)
+    ) {
+      const amt = round((mod.pct / 100) * sum(lines));
+      if (amt !== 0) lines.push({ label: mod.label, amountCents: -amt });
+    }
+    if (
+      mod.kind === "flat_per_night_toggle" &&
+      mod.manual &&
+      enabled.has(mod.id)
+    ) {
+      lines.push({
+        label: mod.label,
+        amountCents: round(mod.cents * nightsOr1(nights)),
+      });
+    }
+  }
+  for (const adj of i.customAdjustments ?? []) {
+    const amt =
+      adj.amountCents != null
+        ? adj.amountCents
+        : round(((adj.pct ?? 0) / 100) * sum(lines));
+    if (amt !== 0)
+      lines.push({ label: adj.label, amountCents: -Math.abs(amt) });
+  }
+
+  // Phase 7 — travel (never discounted)
+  for (const mod of m) {
+    if (mod.kind !== "allowance_then_per_unit" || mod.unit !== "mile") continue;
+    const billable = Math.max(0, (i.billableMiles ?? 0) - mod.freeUnits);
+    if (billable > 0)
+      lines.push({
+        label: mod.label,
+        amountCents: round(billable * mod.cents),
+      });
+  }
+
   return { lines, finalCents: sum(lines) };
 }
 
