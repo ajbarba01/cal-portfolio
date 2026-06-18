@@ -6,6 +6,7 @@ import {
   hourlyAvailableDayKeys,
   validateStayRange,
 } from "./calendar-model";
+import { denverMidnight } from "./availability";
 import type { TimeRange, BookingRuleSettings } from "./availability";
 
 // ---------------------------------------------------------------------------
@@ -445,42 +446,62 @@ describe("hourlyAvailableDayKeys (bufferMin)", () => {
 // ---------------------------------------------------------------------------
 
 describe("hourlyAvailableDayKeys (busy-overlap buffer widening)", () => {
-  // 2026-07-15 MDT: midnight = UTC-6 → 06:00Z
-  const day = new Date("2026-07-15T06:00:00Z");
+  // Fixture: 2026-07-10 MDT (UTC-6). Window 8:40–11:20 Denver (min 520–680).
+  // durationMin=60, granularityMin=60.
+  //
+  // Window-fit at buffer=0:  startOptions finds starts in [520+0, 680-60-0]=[520,620].
+  //   Multiples of 60: 540 (9:00) and 600 (10:00). Both fit.
+  // Window-fit at buffer=20: startOptions finds starts in [520+20, 680-60-20]=[540,600].
+  //   Multiples of 60: 540 (9:00) and 600 (10:00). Both still fit.
+  // → Window-fit is CONSTANT across buffers 0 and 20; buffer change is isolated to
+  //   busy-overlap widening only.
+  //
+  // Busy: 9:30–9:45 Denver (min 570–585), inside the window.
+  //
+  // buffer=0 overlap check:
+  //   Start 540 (9:00): candidate [9:00,10:00) vs [9:30,9:45) → overlaps → excluded.
+  //   Start 600 (10:00): candidate [10:00,11:00) vs [9:30,9:45) → no overlap → FREE.
+  //   → Day IS available (10:00 slot is free).
+  //
+  // buffer=20 overlap check:
+  //   Start 540 (9:00): candidate [8:40,10:20) vs [9:30,9:45) → overlaps → excluded.
+  //   Start 600 (10:00): candidate [9:40,11:20) vs [9:30,9:45) → overlaps (9:40 < 9:45)
+  //     → excluded.
+  //   → Day IS NOT available (busy-overlap widening eliminates the 10:00 slot).
+  //
+  // buffer=20, no busy: both starts free → day IS available (control: proves
+  //   buffer-20 exclusion above is caused by the busy overlap, not window-fit).
 
-  // Window: 9:00–10:00 AM Denver MDT = 15:00Z–16:00Z.
-  // With durationMin=60 and granularityMin=60, only one candidate start: 9:00 AM.
-  // Candidate span at buffer=0: [15:00Z, 16:00Z).
-  // Busy range: [16:00Z, 16:30Z) — touches candidate end (half-open), so NO overlap.
-  // At buffer=30 min (bufMs=1_800_000): widened candidate = [14:30Z, 16:30Z).
-  //   overlapsHalfOpen([14:30Z, 16:30Z), [16:00Z, 16:30Z)):
-  //     14:30 < 16:30 (true) AND 16:00 < 16:30 (true) → overlaps → day excluded.
+  const dayKey = "2026-07-10";
+  const dayStart = denverMidnight(dayKey); // 2026-07-10T06:00:00Z (MDT)
+  const days = [dayStart];
+  const at = (min: number) => new Date(dayStart.getTime() + min * 60_000);
+
   const windows = [
-    {
-      startsAt: new Date("2026-07-15T15:00:00Z"), // 9:00 AM Denver MDT
-      endsAt: new Date("2026-07-15T16:00:00Z"), // 10:00 AM Denver MDT
-    },
+    { startsAt: at(520), endsAt: at(680) }, // 8:40–11:20 Denver
   ];
-  const busyRange = {
-    startsAt: new Date("2026-07-15T16:00:00Z"), // 10:00 AM MDT — adjacent to candidate end
-    endsAt: new Date("2026-07-15T16:30:00Z"), // 10:30 AM MDT
-  };
+  const busyRange = { startsAt: at(570), endsAt: at(585) }; // 9:30–9:45 Denver
   const base = {
-    days: [day],
+    days,
     windows,
     busy: [busyRange],
     durationMin: 60,
     granularityMin: 60,
   };
 
-  it("buffer=0: busy range only touches candidate end → no overlap → day IS included", () => {
-    const keys = hourlyAvailableDayKeys(base);
-    expect(keys.has("2026-07-15")).toBe(true);
+  it("buffer=0 + busy: 10:00 slot is free → day IS included", () => {
+    const result = hourlyAvailableDayKeys(base);
+    expect(result.has("2026-07-10")).toBe(true);
   });
 
-  it("buffer=30: widened candidate overlaps the adjacent busy range → day IS excluded", () => {
-    const keys = hourlyAvailableDayKeys({ ...base, bufferMin: 30 });
-    expect(keys.has("2026-07-15")).toBe(false);
+  it("buffer=20 + busy: widened 10:00 candidate hits busy → day IS excluded", () => {
+    const result = hourlyAvailableDayKeys({ ...base, bufferMin: 20 });
+    expect(result.has("2026-07-10")).toBe(false);
+  });
+
+  it("buffer=20 + no busy: both slots free → day IS included (proves exclusion above is busy-driven, not window-fit)", () => {
+    const result = hourlyAvailableDayKeys({ ...base, busy: [], bufferMin: 20 });
+    expect(result.has("2026-07-10")).toBe(true);
   });
 });
 
