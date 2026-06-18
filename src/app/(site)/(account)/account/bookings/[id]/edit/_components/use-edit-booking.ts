@@ -71,6 +71,8 @@ export interface UseEditBookingReturn {
   mode: "week-slots" | "month-range";
   petAware: boolean;
   allowedSpecies: PetSpecies[];
+  /** Cap on selected pets (service maxDogs), or null for unlimited. */
+  maxPets: number | null;
   durationBounds: { minHours: number; maxHours?: number };
 
   // Loading/error from availability
@@ -222,6 +224,7 @@ export function useEditBooking({
 
   const {
     allowedSpecies,
+    maxPets,
     durationBounds,
     windowsLoading,
     windowsError,
@@ -433,6 +436,7 @@ export function useEditBooking({
     mode,
     petAware,
     allowedSpecies,
+    maxPets,
     durationBounds,
     windowsLoading,
     windowsError,
