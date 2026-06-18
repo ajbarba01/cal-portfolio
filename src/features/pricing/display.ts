@@ -2,29 +2,11 @@
  * Pure pricing display helpers — no IO, no side effects.
  *
  * formatCents: integer cents → formatted dollar string (whole dollars if even).
- * headlineRate: short "from" label per service type for marketing cards.
+ * headlineRate: short "from" label derived from ServicePricingConfig modifiers.
+ * pricingBreakdown: itemized rate structure rows derived from config.modifiers.
  */
 
-import type {
-  PricingType,
-  HouseSittingConfig,
-  CheckInConfig,
-  WalkConfig,
-  TrainingConfig,
-  MeetGreetConfig,
-} from "./types";
-
-type ConfigForType<T extends PricingType> = T extends "house_sitting"
-  ? HouseSittingConfig
-  : T extends "check_in"
-    ? CheckInConfig
-    : T extends "walk"
-      ? WalkConfig
-      : T extends "training"
-        ? TrainingConfig
-        : T extends "meet_greet"
-          ? MeetGreetConfig
-          : never;
+import type { ServicePricingConfig, Modifier } from "./modifier-types";
 
 /**
  * Formats integer cents as a dollar string.
@@ -45,113 +27,130 @@ export interface PricingBreakdownRow {
 }
 
 /**
- * Returns the itemized "how it's priced" rows for a service's marketing
- * receipt — derived from its validated pricing_config, so admin rate edits flow
- * straight through. This is descriptive (rate structure), not a computed quote;
- * the live total is confirmed in the booking flow. Exhaustive on pricingType.
+ * Returns a short headline rate label for a service marketing card.
+ * Scans config.modifiers for the base modifier kind.
  */
-export function pricingBreakdown<T extends PricingType>(
-  pricingType: T,
-  pricingConfig: ConfigForType<T>,
-): PricingBreakdownRow[] {
-  switch (pricingType) {
-    case "house_sitting": {
-      const cfg = pricingConfig as HouseSittingConfig;
-      return [
-        {
-          label: "Base rate (with dog)",
-          value: `${formatCents(cfg.base_dog_cents_per_night)} / night`,
-        },
-        {
-          label: "Cat-only home",
-          value: `${formatCents(cfg.base_cat_cents_per_night)} / night`,
-        },
-        {
-          label: "Each extra dog",
-          value: `+${formatCents(cfg.extra_dog_cents_per_night)} / night`,
-        },
-        {
-          label: "Each cat",
-          value: `+${formatCents(cfg.extra_cat_cents_per_night)} / night`,
-        },
-        {
-          label: "Holiday",
-          value: `+${formatCents(cfg.holiday_cents_per_day)} / day`,
-        },
-      ];
+export function headlineRate(config: ServicePricingConfig): string {
+  for (const mod of config.modifiers) {
+    if (mod.kind === "base_per_night") {
+      return `from ${formatCents(mod.cents)} / night`;
     }
-    case "check_in": {
-      const cfg = pricingConfig as CheckInConfig;
-      return [
-        {
-          label: "Hourly",
-          value: `${formatCents(cfg.rate_cents_per_hour)} / hour`,
-        },
-        { label: "Minimum", value: formatCents(cfg.minimum_cents) },
-        { label: "Driving time", value: "Included" },
-      ];
-    }
-    case "walk": {
-      const cfg = pricingConfig as WalkConfig;
-      return [
-        {
-          label: "Hourly",
-          value: `${formatCents(cfg.rate_cents_per_hour)} / hour`,
-        },
-        { label: "Each dog", value: `+${formatCents(cfg.per_dog_cents)}` },
-      ];
-    }
-    case "training": {
-      const cfg = pricingConfig as TrainingConfig;
-      return [
-        {
-          label: "Hourly",
-          value: `${formatCents(cfg.rate_cents_per_hour)} / hour`,
-        },
-        { label: "Dogs per session", value: "1" },
-      ];
-    }
-    case "meet_greet":
-      return [];
-    default: {
-      const _exhaustive: never = pricingType;
-      throw new Error(`Unknown pricingType: ${String(_exhaustive)}`);
+    if (mod.kind === "base_per_hour") {
+      return `${formatCents(mod.cents)} / hour`;
     }
   }
+  return "Free";
 }
 
 /**
- * Returns a short headline rate label for a service marketing card.
- * Dispatches exhaustively on pricingType — TypeScript will error if a new
- * type is added without a corresponding case.
+ * Returns the itemized "how it's priced" rows for a service's marketing
+ * receipt — derived from config.modifiers, so admin rate edits flow
+ * straight through. Descriptive (rate structure), not a computed quote.
+ * Manual modifiers (manual: true) are excluded — they are never customer-visible.
  */
-export function headlineRate<T extends PricingType>(
-  pricingType: T,
-  pricingConfig: ConfigForType<T>,
-): string {
-  switch (pricingType) {
-    case "house_sitting": {
-      const cfg = pricingConfig as HouseSittingConfig;
-      return `from ${formatCents(cfg.base_dog_cents_per_night)} / night`;
-    }
-    case "check_in": {
-      const cfg = pricingConfig as CheckInConfig;
-      return `${formatCents(cfg.rate_cents_per_hour)} / hour`;
-    }
-    case "walk": {
-      const cfg = pricingConfig as WalkConfig;
-      return `${formatCents(cfg.rate_cents_per_hour)} / hour`;
-    }
-    case "training": {
-      const cfg = pricingConfig as TrainingConfig;
-      return `${formatCents(cfg.rate_cents_per_hour)} / hour`;
-    }
-    case "meet_greet":
-      return "Free";
-    default: {
-      // Exhaustiveness check.
-      const _exhaustive: never = pricingType;
-      throw new Error(`Unknown pricingType: ${String(_exhaustive)}`);
+export function pricingBreakdown(
+  config: ServicePricingConfig,
+): PricingBreakdownRow[] {
+  const rows: PricingBreakdownRow[] = [];
+
+  // Find base modifier first.
+  const baseMod = config.modifiers.find(
+    (m): m is Extract<Modifier, { kind: "base_per_night" | "base_per_hour" }> =>
+      m.kind === "base_per_night" || m.kind === "base_per_hour",
+  );
+
+  // No base → empty array (e.g. free / meet_greet style).
+  if (!baseMod) return [];
+
+  const baseValue =
+    baseMod.kind === "base_per_night"
+      ? `${formatCents(baseMod.cents)} / night`
+      : `${formatCents(baseMod.cents)} / hour`;
+
+  rows.push({ label: "Base rate", value: baseValue });
+
+  // Remaining modifiers — customer-visible only (exclude manual).
+  for (const mod of config.modifiers) {
+    if (mod.kind === "base_per_night" || mod.kind === "base_per_hour") continue;
+
+    switch (mod.kind) {
+      case "flat_per_unit": {
+        const unitLabel =
+          mod.unit === "dog"
+            ? "Each dog"
+            : mod.unit === "cat"
+              ? "Each cat"
+              : "Each additional animal";
+        rows.push({ label: unitLabel, value: `+${formatCents(mod.cents)}` });
+        break;
+      }
+
+      case "tiered_per_unit": {
+        const unitLabel =
+          mod.unit === "dog"
+            ? "Each additional dog"
+            : mod.unit === "cat"
+              ? "Each additional cat"
+              : "Each additional animal";
+        // Summarise using the first tier rate or pct.
+        const firstTier = mod.tiers[0];
+        if (firstTier !== undefined) {
+          const tierValue =
+            firstTier.cents !== undefined
+              ? `+${formatCents(firstTier.cents)} / night`
+              : firstTier.pct !== undefined
+                ? `+${firstTier.pct}%`
+                : "tiered";
+          rows.push({ label: unitLabel, value: tierValue });
+        }
+        break;
+      }
+
+      case "flat_per_night_toggle": {
+        if (mod.manual) break;
+        const sign = mod.cents >= 0 ? "+" : "−";
+        const absCents = Math.abs(mod.cents);
+        rows.push({
+          label: mod.label,
+          value: `${sign}${formatCents(absCents)} / night`,
+        });
+        break;
+      }
+
+      case "per_hour_addon": {
+        rows.push({
+          label: mod.label,
+          value: `+${formatCents(mod.cents)} / hour`,
+        });
+        break;
+      }
+
+      case "allowance_then_per_unit": {
+        const unitWord = mod.unit === "mile" ? "mile" : "exercise min";
+        rows.push({
+          label: mod.label,
+          value: `+${formatCents(mod.cents)} / ${unitWord} (${mod.freeUnits} free)`,
+        });
+        break;
+      }
+
+      case "pct_surcharge": {
+        rows.push({ label: mod.label, value: `+${mod.pct}%` });
+        break;
+      }
+
+      case "pct_discount": {
+        if (mod.manual) break;
+        rows.push({ label: mod.label, value: `−${mod.pct}%` });
+        break;
+      }
+
+      case "min_floor": {
+        rows.push({ label: "Minimum", value: formatCents(mod.cents) });
+        break;
+      }
     }
   }
+
+  return rows;
 }
