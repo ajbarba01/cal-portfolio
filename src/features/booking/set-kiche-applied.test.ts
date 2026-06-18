@@ -5,21 +5,43 @@ import type { BookingForKiche, BookingRepository } from "./booking-repository";
 import type { PaymentGateway } from "@/features/payments";
 
 const WALK_QUOTE_INPUTS = {
-  pricingType: "walk",
-  pricingConfig: {
-    rate_cents_per_hour: 2000,
-    per_dog_cents: 500,
-    kiche_discount_pct: 25,
+  config: {
+    modifiers: [
+      { kind: "base_per_hour", cents: 2500 },
+      {
+        kind: "pct_discount",
+        id: "kiche",
+        label: "Kiche discount (−25%)",
+        pct: 25,
+        condition: "always",
+        manual: true,
+      },
+    ],
+    constraints: { intervalMin: 15, allowedSpecies: ["dog"] },
   },
   hours: 1,
   dogs: 1,
-  roundTripDriveMinutes: 0,
-  recurringDiscountApplies: false,
-  recurringDiscountPct: 0,
-  applyKiche: false,
+  premiumNights: 0,
+  billableMiles: 0,
+  recurringSeries: false,
+  enabledManualIds: [],
 };
 
-// base 2000 (1h) + 500 (1 dog) = 2500; 25% Kiche off → 1875.
+/** A config WITHOUT a manual "kiche" modifier — Kiche toggle unsupported. */
+const NO_KICHE_QUOTE_INPUTS = {
+  config: {
+    modifiers: [{ kind: "base_per_hour", cents: 3000 }],
+    constraints: { intervalMin: 15, allowedSpecies: ["dog"] },
+  },
+  hours: 1,
+  dogs: 1,
+  premiumNights: 0,
+  billableMiles: 0,
+  recurringSeries: false,
+  enabledManualIds: [],
+};
+
+// base 2500 (1h, dog#1 in base); 25% Kiche off → 1875.
 const FULL = 2500;
 const DISCOUNTED = 1875;
 
@@ -104,7 +126,7 @@ describe("setKicheAppliedCore", () => {
   it("rejects applying on a service without a Kiche rate", async () => {
     const { deps } = makeDeps(
       makeBooking({
-        quote_inputs: { ...WALK_QUOTE_INPUTS, pricingType: "check_in" },
+        quote_inputs: NO_KICHE_QUOTE_INPUTS,
       }),
     );
     const res = await setKicheAppliedCore(deps, {

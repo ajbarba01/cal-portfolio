@@ -8,25 +8,11 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { parsePricingConfig } from "@/features/pricing";
-import type {
-  PricingType,
-  HouseSittingConfig,
-  CheckInConfig,
-  WalkConfig,
-  TrainingConfig,
-  MeetGreetConfig,
-} from "@/features/pricing";
+import type { PricingType, ServicePricingConfig } from "@/features/pricing";
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-
-export type ServicePricingConfig =
-  | { pricingType: "house_sitting"; pricingConfig: HouseSittingConfig }
-  | { pricingType: "check_in"; pricingConfig: CheckInConfig }
-  | { pricingType: "walk"; pricingConfig: WalkConfig }
-  | { pricingType: "training"; pricingConfig: TrainingConfig }
-  | { pricingType: "meet_greet"; pricingConfig: MeetGreetConfig };
 
 export type PublicService = {
   slug: string;
@@ -35,7 +21,11 @@ export type PublicService = {
   concurrency: "exclusive" | "resident";
   default_duration_min: number | null;
   max_pets: number | null;
-} & ServicePricingConfig;
+  /** The service's pricing kind (drives copy lookups). */
+  pricingType: PricingType;
+  /** The validated modifier-list pricing config (drives the marketing receipt). */
+  pricingConfig: ServicePricingConfig;
+};
 
 // ---------------------------------------------------------------------------
 // Repo
@@ -66,9 +56,9 @@ export async function listActiveServices(
   for (const row of data) {
     const pricingType = row.pricing_type as PricingType;
 
-    let pricingConfig: ServicePricingConfig["pricingConfig"];
+    let pricingConfig: ServicePricingConfig;
     try {
-      pricingConfig = parsePricingConfig(pricingType, row.pricing_config);
+      pricingConfig = parsePricingConfig(row.pricing_config);
     } catch {
       // Skip rows with invalid pricing_config — don't crash the page.
       continue;

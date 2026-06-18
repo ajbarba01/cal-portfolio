@@ -40,8 +40,14 @@ function makeRepo(
       id: "svc-checkin",
       slug: "check-in",
       pricing_type: "check_in",
-      // Correct field names per checkInConfigSchema: rate_cents_per_hour, minimum_cents
-      pricing_config: { rate_cents_per_hour: 3000, minimum_cents: 1500 },
+      // Modifier-config shape: $30/hr base with a $15 minimum floor.
+      pricing_config: {
+        modifiers: [
+          { kind: "base_per_hour", cents: 3000 },
+          { kind: "min_floor", cents: 1500 },
+        ],
+        constraints: { intervalMin: 15, allowedSpecies: ["dog", "cat"] },
+      },
       concurrency: "exclusive",
       requires_approval: false,
       form_key: null,

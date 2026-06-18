@@ -15,7 +15,6 @@ import { assertActorIsAdmin } from "@/lib/admin-guard";
 import { getActorOrRedirect } from "@/lib/admin-session";
 import { parsePricingConfig } from "@/features/pricing";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { PricingType } from "@/features/pricing";
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Row shape
@@ -161,7 +160,7 @@ export async function updateServiceCore(
     if (svcErr || !svc) return { kind: "not_found" };
 
     try {
-      parsePricingConfig(svc.pricing_type as PricingType, pricing_config);
+      parsePricingConfig(pricing_config);
     } catch (e) {
       return {
         kind: "validation_error",
