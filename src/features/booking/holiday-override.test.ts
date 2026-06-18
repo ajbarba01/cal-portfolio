@@ -1,9 +1,11 @@
 /**
- * Unit tests verifying that `computeBookingArtifacts` server-overrides any
- * client-supplied `holidayDays` value from the booking dates + settings.
+ * Unit tests verifying that `computeBookingArtifacts` server-derives the
+ * premium-day count (`premiumNights`) from the booking dates + settings, so the
+ * modifier engine's premium surcharge fires regardless of any client input.
  *
  * The core contract: "money is server-derived". A client submitting
- * `holidayDays: 99` must not get 99× the surcharge — the server recomputes.
+ * `holidayDays: 99` must not get 99× the surcharge — the server recomputes the
+ * premium-day count and the percentage surcharge lives in the config.
  *
  * Uses a fake-repo (no real DB — same pattern as forms-gate.test.ts).
  */
@@ -16,21 +18,28 @@ import type { BookingRepository, SettingsRow } from "./booking-repository";
 const NOW = new Date("2026-06-10T12:00:00Z");
 const USER_ID = "11111111-1111-4111-a111-111111111111";
 
-/** A house_sitting service stub. */
+/**
+ * A house_sitting service stub on the modifier config shape: $50/night base
+ * plus a +20% per-premium-night surcharge. With a 1-night, 1-dog stay the base
+ * is 5000, so 1 premium night adds 20% × 5000 = 1000.
+ */
 const houseService = {
   id: "svc-hs",
   slug: "house-sitting",
   pricing_type: "house_sitting" as const,
   pricing_config: {
-    base_dog_cents_per_night: 5000,
-    base_cat_cents_per_night: 3000,
-    extra_dog_cents_per_night: 1500,
-    extra_cat_cents_per_night: 1000,
-    cant_be_left_alone_cents_per_day: 1000,
-    extra_walk_15min_cents_per_day: 500,
-    // holiday_cents_per_day: $10 (1000 cents)
-    holiday_cents_per_day: 1000,
-    kiche_discount_pct: 0,
+    modifiers: [
+      { kind: "base_per_night", cents: 5000 },
+      {
+        kind: "pct_surcharge",
+        id: "premium",
+        label: "Premium night (+20%)",
+        pct: 20,
+        scope: "perPremiumNight",
+        condition: "premiumDays",
+      },
+    ],
+    constraints: { intervalMin: 15, allowedSpecies: ["dog", "cat"] },
   },
   concurrency: "resident" as const,
   requires_approval: false,
@@ -145,6 +154,8 @@ describe("computeBookingArtifacts — holiday derivation override", () => {
     expect(premiumLine).toBeUndefined();
     // finalCents = base_dog(5000) × 1 night = 5000 (no holiday surcharge).
     expect(result.artifacts.breakdown.finalCents).toBe(5000);
+    // approvalReasons is always present on the artifacts (Phase 1 carries it).
+    expect(Array.isArray(result.artifacts.approvalReasons)).toBe(true);
   });
 
   it("house_sitting spanning 1 premium day: surcharge derived from dates, client value ignored", async () => {
@@ -176,7 +187,7 @@ describe("computeBookingArtifacts — holiday derivation override", () => {
       l.label.toLowerCase().includes("premium"),
     );
     expect(premiumLine).toBeDefined();
-    expect(premiumLine!.amountCents).toBe(1000); // holiday_cents_per_day: 1000
+    expect(premiumLine!.amountCents).toBe(1000); // 20% × 5000 base = 1000
     // finalCents = 5000 (base) + 1000 (premium) = 6000.
     expect(result.artifacts.breakdown.finalCents).toBe(6000);
   });

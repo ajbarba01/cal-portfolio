@@ -2,7 +2,7 @@
  * computeBookingQuoteCore — read-only price preview.
  */
 
-import type { QuoteBreakdown } from "@/features/pricing";
+import type { QuoteBreakdown, ApprovalReason } from "@/features/pricing";
 import type { MutationPolicy } from "./mutation-policy";
 import { CLIENT_POLICY } from "./mutation-policy";
 import {
@@ -34,6 +34,8 @@ export interface BookingQuotePreview {
   requiresApproval: boolean;
   /** The distance-based approval decision. */
   decision: "auto" | "manual" | "refuse";
+  /** Typed reasons explaining why approval is needed (Phase 3 renders them). */
+  approvalReasons: ApprovalReason[];
   /** Warnings for admin-skipped gates (empty under client policy). */
   warnings: string[];
 }
@@ -64,8 +66,14 @@ export async function computeBookingQuoteCore(
 ): Promise<PreviewResult> {
   const result = await computeBookingArtifacts(deps, rawInput, policy);
   if (result.kind !== "success") return result;
-  const { breakdown, distanceMiles, requiresApproval, decision, warnings } =
-    result.artifacts;
+  const {
+    breakdown,
+    distanceMiles,
+    requiresApproval,
+    decision,
+    approvalReasons,
+    warnings,
+  } = result.artifacts;
   return {
     kind: "success",
     preview: {
@@ -74,6 +82,7 @@ export async function computeBookingQuoteCore(
       distanceMiles,
       requiresApproval,
       decision,
+      approvalReasons,
       warnings,
     },
   };

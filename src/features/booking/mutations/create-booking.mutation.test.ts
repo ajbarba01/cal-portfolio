@@ -56,9 +56,8 @@ const walkService = {
   slug: "walk",
   pricing_type: "walk" as const,
   pricing_config: {
-    rate_cents_per_hour: 3000,
-    per_dog_cents: 1000,
-    kiche_discount_pct: 0,
+    modifiers: [{ kind: "base_per_hour", cents: 3000 }],
+    constraints: { intervalMin: 15, allowedSpecies: ["dog"] },
   },
   concurrency: "resident" as const,
   requires_approval: false,

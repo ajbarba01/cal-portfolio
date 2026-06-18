@@ -186,20 +186,36 @@ let walkServiceId: string;
 let walkConcurrency: string;
 const createdSeriesIds: string[] = [];
 
-/** Frozen quote_inputs for a walk (matches seed config). */
+/** Frozen quote_inputs for a walk on the modifier-config shape (matches seed). */
 const FROZEN_WALK_QUOTE_INPUT = {
-  pricingType: "walk",
-  pricingConfig: {
-    rate_cents_per_hour: 2500,
-    per_dog_cents: 1000,
-    kiche_discount_pct: 25,
+  config: {
+    modifiers: [
+      { kind: "base_per_hour", cents: 2500 },
+      { kind: "tiered_per_unit", unit: "dog", tiers: [{ from: 2, pct: 50 }] },
+      {
+        kind: "pct_discount",
+        id: "kiche",
+        label: "Kiche discount (-15%)",
+        pct: 15,
+        condition: "always",
+        manual: true,
+      },
+      {
+        kind: "allowance_then_per_unit",
+        unit: "mile",
+        label: "Travel",
+        freeUnits: 5,
+        cents: 200,
+      },
+    ],
+    constraints: { intervalMin: 15, allowedSpecies: ["dog"] },
   },
   hours: 1,
   dogs: 1,
-  recurringDiscountApplies: false,
-  recurringDiscountPct: 10,
-  applyKiche: false,
-  roundTripDriveMinutes: 0,
+  premiumNights: 0,
+  billableMiles: 0,
+  recurringSeries: false,
+  enabledManualIds: [],
 };
 
 async function createUser(

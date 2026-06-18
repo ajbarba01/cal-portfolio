@@ -1,10 +1,19 @@
 import { describe, expect, it } from "vitest";
 import type { PublicService } from "@/features/booking/services-repo";
+import type { ServicePricingConfig } from "@/features/pricing";
 import {
   serviceCardDescription,
   serviceCardDurationLabel,
 } from "./service-card-display";
 import { copy } from "@/content/marketing";
+
+// These display helpers consult only pricingType / description / duration — the
+// pricingConfig content is irrelevant, so every fixture reuses one minimal
+// valid modifier config.
+const MINIMAL_CONFIG: ServicePricingConfig = {
+  modifiers: [{ kind: "base_per_hour", cents: 2500 }],
+  constraints: { intervalMin: 15, allowedSpecies: ["dog"] },
+};
 
 // ---------------------------------------------------------------------------
 // meet_greet fixture (mirrors check_in shape — single-day timed visit)
@@ -18,7 +27,7 @@ const MEET_GREET_SERVICE = {
   default_duration_min: 30,
   max_pets: null,
   pricingType: "meet_greet",
-  pricingConfig: {},
+  pricingConfig: MINIMAL_CONFIG,
 } satisfies PublicService;
 
 const HOUSE_SITTING_SERVICE = {
@@ -29,16 +38,7 @@ const HOUSE_SITTING_SERVICE = {
   default_duration_min: null,
   max_pets: null,
   pricingType: "house_sitting",
-  pricingConfig: {
-    base_dog_cents_per_night: 5000,
-    base_cat_cents_per_night: 3000,
-    extra_dog_cents_per_night: 1500,
-    extra_cat_cents_per_night: 1000,
-    cant_be_left_alone_cents_per_day: 1000,
-    extra_walk_15min_cents_per_day: 500,
-    holiday_cents_per_day: 1000,
-    kiche_discount_pct: 20,
-  },
+  pricingConfig: MINIMAL_CONFIG,
 } satisfies PublicService;
 
 const CHECK_IN_SERVICE = {
@@ -49,10 +49,7 @@ const CHECK_IN_SERVICE = {
   default_duration_min: 30,
   max_pets: null,
   pricingType: "check_in",
-  pricingConfig: {
-    rate_cents_per_hour: 3000,
-    minimum_cents: 1500,
-  },
+  pricingConfig: MINIMAL_CONFIG,
 } satisfies PublicService;
 
 const WALK_SERVICE = {
@@ -63,11 +60,7 @@ const WALK_SERVICE = {
   default_duration_min: 45,
   max_pets: null,
   pricingType: "walk",
-  pricingConfig: {
-    rate_cents_per_hour: 2500,
-    per_dog_cents: 1000,
-    kiche_discount_pct: 25,
-  },
+  pricingConfig: MINIMAL_CONFIG,
 } satisfies PublicService;
 
 const TRAINING_SERVICE = {
@@ -78,9 +71,7 @@ const TRAINING_SERVICE = {
   default_duration_min: 60,
   max_pets: 1,
   pricingType: "training",
-  pricingConfig: {
-    rate_cents_per_hour: 3500,
-  },
+  pricingConfig: MINIMAL_CONFIG,
 } satisfies PublicService;
 
 describe("serviceCardDescription", () => {

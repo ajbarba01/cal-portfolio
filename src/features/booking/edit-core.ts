@@ -377,6 +377,7 @@ export async function previewEditCore(
     distanceMiles,
     requiresApproval,
     decision,
+    approvalReasons,
     warnings,
   } = artifacts.artifacts;
 
@@ -408,6 +409,7 @@ export async function previewEditCore(
     distanceMiles: distanceMiles ?? null,
     requiresApproval,
     decision,
+    approvalReasons,
     warnings,
   };
   // hoisted for callers that need approval without drilling into preview

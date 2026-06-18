@@ -1,14 +1,15 @@
 /**
- * Integration tests verifying that `computeBookingArtifacts` applies the
- * premium-day surcharge to hourly bookings (walk, check_in, training) when
- * the service day falls on a configured holiday date.
+ * Unit tests verifying that `computeBookingArtifacts` applies the premium-day
+ * surcharge to hourly bookings (walk, check_in, training) when the service day
+ * falls on a configured holiday date.
  *
- * Contract:
- *  - Hourly booking on a premium day → "Premium day (1)" add-on line at
- *    settings.holiday_surcharge_cents.
+ * Contract (modifier-config model):
+ *  - The premium surcharge is a `pct_surcharge` modifier living in the service
+ *    config. The server derives the premium-day COUNT (premiumNights) from the
+ *    booking dates + settings.holiday_dates; the engine fires the percentage.
+ *  - Hourly booking on a premium day → premium line at config.pct × subtotal.
  *  - Hourly booking on a non-premium day → no premium line.
- *  - Client-supplied holidayDays is ignored (server always re-derives).
- *  - meet_greet is free regardless — no premium surcharge.
+ *  - Client-supplied holidayDays is ignored (server always re-derives the count).
  *
  * Uses a fake-repo (no real DB — same pattern as holiday-override.test.ts).
  */
@@ -57,15 +58,29 @@ function makeSettings(overrides: Partial<SettingsRow> = {}): SettingsRow {
   };
 }
 
+/** A +20% whole-booking premium surcharge modifier (fires on premium days). */
+const PREMIUM_MOD = {
+  kind: "pct_surcharge" as const,
+  id: "premium",
+  label: "Premium day (+20%)",
+  pct: 20,
+  scope: "wholeBooking" as const,
+  condition: "premiumDays" as const,
+};
+
+const HOURLY_CONSTRAINTS = {
+  intervalMin: 15,
+  allowedSpecies: ["dog" as const],
+};
+
 function makeWalkService() {
   return {
     id: "svc-walk",
     slug: "walk",
     pricing_type: "walk" as const,
     pricing_config: {
-      rate_cents_per_hour: 2500,
-      per_dog_cents: 1000,
-      kiche_discount_pct: 25,
+      modifiers: [{ kind: "base_per_hour", cents: 2500 }, PREMIUM_MOD],
+      constraints: HOURLY_CONSTRAINTS,
     },
     concurrency: "exclusive" as const,
     requires_approval: false,
@@ -79,8 +94,8 @@ function makeCheckInService() {
     slug: "check-in",
     pricing_type: "check_in" as const,
     pricing_config: {
-      rate_cents_per_hour: 3000,
-      minimum_cents: 1500,
+      modifiers: [{ kind: "base_per_hour", cents: 3000 }, PREMIUM_MOD],
+      constraints: HOURLY_CONSTRAINTS,
     },
     concurrency: "exclusive" as const,
     requires_approval: false,
@@ -94,7 +109,8 @@ function makeTrainingService() {
     slug: "training",
     pricing_type: "training" as const,
     pricing_config: {
-      rate_cents_per_hour: 3500,
+      modifiers: [{ kind: "base_per_hour", cents: 3500 }, PREMIUM_MOD],
+      constraints: HOURLY_CONSTRAINTS,
     },
     concurrency: "exclusive" as const,
     requires_approval: false,
@@ -159,11 +175,9 @@ function makeRepo(
 // ---------------------------------------------------------------------------
 
 describe("computeBookingArtifacts — hourly holiday surcharge (walk)", () => {
-  it("walk on a premium day → 'Premium day (1)' line at holiday_surcharge_cents", async () => {
-    // 1h walk + 1 dog on Dec 25 (premium)
-    // base: 2500 (hours) + 1000 (dog) = 3500
-    // + premium day: 1000
-    // total: 4500
+  it("walk on a premium day → premium line at config pct × subtotal", async () => {
+    // 1h walk + 1 dog on Dec 25 (premium). dog#1 is in the base.
+    // base: 2500 (hours); premium: 20% × 2500 = 500; total: 3000
     const settings = makeSettings();
     const repo = makeRepo(settings, makeWalkService());
     const result = await computeBookingArtifacts(
@@ -184,8 +198,8 @@ describe("computeBookingArtifacts — hourly holiday surcharge (walk)", () => {
       l.label.toLowerCase().includes("premium"),
     );
     expect(premiumLine).toBeDefined();
-    expect(premiumLine!.amountCents).toBe(1000);
-    expect(result.artifacts.breakdown.finalCents).toBe(4500);
+    expect(premiumLine!.amountCents).toBe(500);
+    expect(result.artifacts.breakdown.finalCents).toBe(3000);
   });
 
   it("walk on a non-premium day → no premium line", async () => {
@@ -210,7 +224,7 @@ describe("computeBookingArtifacts — hourly holiday surcharge (walk)", () => {
         l.label.toLowerCase().includes("premium"),
       ),
     ).toBeUndefined();
-    expect(result.artifacts.breakdown.finalCents).toBe(3500);
+    expect(result.artifacts.breakdown.finalCents).toBe(2500);
   });
 
   it("walk on premium day: client-supplied holidayDays is ignored", async () => {
@@ -237,7 +251,7 @@ describe("computeBookingArtifacts — hourly holiday surcharge (walk)", () => {
       l.label.toLowerCase().includes("premium"),
     );
     expect(premiumLine).toBeDefined();
-    expect(premiumLine!.amountCents).toBe(1000);
+    expect(premiumLine!.amountCents).toBe(500);
   });
 });
 
@@ -246,8 +260,8 @@ describe("computeBookingArtifacts — hourly holiday surcharge (walk)", () => {
 // ---------------------------------------------------------------------------
 
 describe("computeBookingArtifacts — hourly holiday surcharge (check_in)", () => {
-  it("check_in on a premium day → premium line at holiday_surcharge_cents", async () => {
-    // 1h × $30 = $30 base + $10 premium = $40
+  it("check_in on a premium day → premium line at config pct × subtotal", async () => {
+    // 1h × $30 = 3000 base; premium 20% × 3000 = 600; total 3600
     const settings = makeSettings();
     const repo = makeRepo(settings, makeCheckInService());
     const result = await computeBookingArtifacts(
@@ -268,8 +282,8 @@ describe("computeBookingArtifacts — hourly holiday surcharge (check_in)", () =
       l.label.toLowerCase().includes("premium"),
     );
     expect(premiumLine).toBeDefined();
-    expect(premiumLine!.amountCents).toBe(1000);
-    expect(result.artifacts.breakdown.finalCents).toBe(4000);
+    expect(premiumLine!.amountCents).toBe(600);
+    expect(result.artifacts.breakdown.finalCents).toBe(3600);
   });
 
   it("check_in on a non-premium day → no premium line", async () => {
@@ -303,8 +317,8 @@ describe("computeBookingArtifacts — hourly holiday surcharge (check_in)", () =
 // ---------------------------------------------------------------------------
 
 describe("computeBookingArtifacts — hourly holiday surcharge (training)", () => {
-  it("training on a premium day → premium line at holiday_surcharge_cents", async () => {
-    // 1h × $35 = $35 base + $10 premium = $45
+  it("training on a premium day → premium line at config pct × subtotal", async () => {
+    // 1h × $35 = 3500 base; premium 20% × 3500 = 700; total 4200
     const settings = makeSettings();
     const repo = makeRepo(settings, makeTrainingService());
     const result = await computeBookingArtifacts(
@@ -325,8 +339,8 @@ describe("computeBookingArtifacts — hourly holiday surcharge (training)", () =
       l.label.toLowerCase().includes("premium"),
     );
     expect(premiumLine).toBeDefined();
-    expect(premiumLine!.amountCents).toBe(1000);
-    expect(result.artifacts.breakdown.finalCents).toBe(4500);
+    expect(premiumLine!.amountCents).toBe(700);
+    expect(result.artifacts.breakdown.finalCents).toBe(4200);
   });
 
   it("training on a non-premium day → no premium line", async () => {

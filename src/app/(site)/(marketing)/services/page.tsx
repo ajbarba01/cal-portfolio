@@ -62,11 +62,8 @@ function ServiceDetail({
   const includedIds: readonly CopyId[] = serviceIncludedCopyIds(
     service.pricingType,
   );
-  const rate = headlineRate(service.pricingType, service.pricingConfig);
-  const breakdown = pricingBreakdown(
-    service.pricingType,
-    service.pricingConfig,
-  );
+  const rate = headlineRate(service.pricingConfig);
+  const breakdown = pricingBreakdown(service.pricingConfig);
 
   return (
     <>

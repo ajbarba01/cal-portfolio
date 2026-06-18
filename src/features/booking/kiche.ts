@@ -43,16 +43,56 @@ export function serviceSupportsKiche(pricingType: string): boolean {
 }
 
 /**
- * Re-runs a booking's STORED quote with `applyKiche` flipped. The stored
- * QuoteInput is the frozen, server-written quote — re-quoting it changes only
- * the Kiche line (no travel/holiday/settings re-derivation), so the price delta
- * is exactly the discount Cal is applying or removing. Pure.
+ * Whether a STORED QuoteInput's config carries a manual modifier with the given
+ * id (e.g. "kiche") — the modifier-config replacement for the old per-type
+ * `serviceSupportsKiche(pricingType)` check. A booking supports the Kiche
+ * toggle iff its frozen config defines a manual `pct_discount`/
+ * `flat_per_night_toggle` whose `id` matches. Tolerant of malformed/legacy
+ * stored inputs (returns false rather than throwing). Pure.
+ */
+export function quoteInputSupportsManual(
+  storedQuoteInput: unknown,
+  id: string,
+): boolean {
+  const config = (storedQuoteInput as Partial<QuoteInput> | null)?.config;
+  const modifiers = config?.modifiers;
+  if (!Array.isArray(modifiers)) return false;
+  return modifiers.some(
+    (m) =>
+      (m.kind === "pct_discount" || m.kind === "flat_per_night_toggle") &&
+      m.manual === true &&
+      m.id === id,
+  );
+}
+
+/**
+ * Re-runs a booking's STORED quote with a single manual modifier toggled on/off.
+ * The stored QuoteInput is the frozen, server-written quote — re-quoting it
+ * changes only the toggled manual line (no travel/premium/settings
+ * re-derivation), so the price delta is exactly the modifier Cal is applying or
+ * removing. Generic over the manual modifier `id` (e.g. "kiche"). Pure.
+ */
+export function requoteWithManual(
+  storedQuoteInput: QuoteInput,
+  id: string,
+  on: boolean,
+): QuoteBreakdown {
+  const current = new Set(storedQuoteInput.enabledManualIds ?? []);
+  if (on) current.add(id);
+  else current.delete(id);
+  return quote({ ...storedQuoteInput, enabledManualIds: [...current] });
+}
+
+/**
+ * Re-runs a booking's STORED quote with the Kiche discount flipped. Back-compat
+ * shim over {@link requoteWithManual} — the admin apply action stays untouched.
+ * Pure.
  */
 export function requoteWithKiche(
   storedQuoteInput: QuoteInput,
   applyKiche: boolean,
 ): QuoteBreakdown {
-  return quote({ ...storedQuoteInput, applyKiche } as QuoteInput);
+  return requoteWithManual(storedQuoteInput, "kiche", applyKiche);
 }
 
 /**

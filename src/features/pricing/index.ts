@@ -1,7 +1,16 @@
 // Public API of the pricing feature.
 export { parsePricingConfig } from "./config-schemas";
 export { quote } from "./quote";
-export { deriveApproval, estimateDrivingMinutes } from "./distance";
+export {
+  deriveApproval,
+  deriveApprovalWithReasons,
+  estimateDrivingMinutes,
+} from "./distance";
+export type {
+  ApprovalDecision,
+  ApprovalReason,
+  ApprovalReasonCode,
+} from "./distance";
 export { headlineRate, formatCents, pricingBreakdown } from "./display";
 export type { PricingBreakdownRow } from "./display";
 export { defaultGeocoder } from "./geocoding/zip-centroid-geocoder";
@@ -16,3 +25,4 @@ export type {
   TrainingConfig,
   MeetGreetConfig,
 } from "./types";
+export type { ServicePricingConfig } from "./modifier-types";

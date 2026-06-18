@@ -7,7 +7,8 @@
 import { z } from "zod";
 import { FIELD_LIMITS } from "@/lib/field-limits";
 import { haversineMiles } from "@/lib/haversine";
-import { estimateDrivingMinutes, deriveApproval } from "@/features/pricing";
+import { deriveApprovalWithReasons } from "@/features/pricing";
+import type { ApprovalReason } from "@/features/pricing";
 import { deriveTimeApproval } from "./time-gate";
 import { quote } from "@/features/pricing";
 import { parsePricingConfig } from "@/features/pricing";
@@ -32,7 +33,11 @@ import type {
 } from "./booking-repository";
 import type { MutationPolicy } from "./mutation-policy";
 import { CLIENT_POLICY } from "./mutation-policy";
-import type { QuoteInput, QuoteBreakdown } from "@/features/pricing";
+import type {
+  QuoteInput,
+  QuoteBreakdown,
+  ServicePricingConfig,
+} from "@/features/pricing";
 import type { RecurrenceRule } from "./recurrence";
 import type { BookingRuleSettings } from "./availability";
 
@@ -320,19 +325,33 @@ export function parseQuantities(
 }
 
 /**
- * Assembles a `QuoteInput` discriminated union from the service's pricing type,
- * validated config, and the already-parsed quantities.
+ * Assembles the flat modifier-engine {@link QuoteInput} from the validated
+ * {@link ServicePricingConfig}, the already-parsed quantities, and the
+ * server-derived travel/premium inputs.
  *
- * `quantities` is typed (output of `parseQuantities`) — no `as number` casts needed.
- * Guarantee: `final_cents` is always a non-negative integer for valid input.
+ * `quantities` is typed (output of `parseQuantities`) — no `as number` casts.
+ * Per-type quantities map onto the flat shape:
+ *   - house_sitting → dogs/cats/nights + exerciseMinutesPerDay (walk minutes)
+ *   - walk          → hours/dogs
+ *   - check_in/training → hours
+ *   - meet_greet    → (no quantities)
+ *
+ * `premiumNights` (server-derived holiday-day count) and `billableMiles`
+ * (road-adjusted one-way miles) are passed explicitly — the engine derives the
+ * premium surcharge and travel line from them. needyTier / anyDogUnder6mo /
+ * leashManners are left unset (Phase 2 sources them).
+ *
+ * Guarantee: `finalCents` is always a non-negative integer for valid input.
  */
 export function buildQuoteInput(opts: {
-  pricingType: string;
-  pricingConfig: unknown;
+  config: ServicePricingConfig;
   quantities: ParsedQuantities;
-  roundTripDriveMinutes: number;
-  recurringDiscountApplies: boolean;
-  recurringDiscountPct: number;
+  /** Server-derived road-adjusted one-way miles (0 when client location unknown). */
+  billableMiles: number;
+  /** Server-derived count of premium (holiday) days within the booking. */
+  premiumNights: number;
+  /** Whether this booking is part of a qualifying recurring series. */
+  recurringSeries: boolean;
   /**
    * Whether the service's Kiche discount applies. False on create/preview
    * (Kiche is Cal-applied AFTER booking via setKicheApplied); the edit path
@@ -340,66 +359,35 @@ export function buildQuoteInput(opts: {
    */
   applyKiche: boolean;
 }): QuoteInput {
-  const shared = {
-    roundTripDriveMinutes: opts.roundTripDriveMinutes,
-    recurringDiscountApplies: opts.recurringDiscountApplies,
-    recurringDiscountPct: opts.recurringDiscountPct,
-    applyKiche: opts.applyKiche,
-  };
-
   const q = opts.quantities;
+
+  const base: QuoteInput = {
+    config: opts.config,
+    premiumNights: opts.premiumNights,
+    billableMiles: opts.billableMiles,
+    recurringSeries: opts.recurringSeries,
+    enabledManualIds: opts.applyKiche ? ["kiche"] : [],
+  };
 
   switch (q.pricingType) {
     case "house_sitting":
       return {
-        pricingType: "house_sitting",
-        pricingConfig: opts.pricingConfig as QuoteInput["pricingConfig"],
+        ...base,
         dogs: q.data.dogs,
         cats: q.data.cats,
         nights: q.data.nights,
-        cantBeLeftAloneDays: q.data.cantBeLeftAloneDays,
-        walkMinutesPerDay: q.data.walkMinutesPerDay,
-        holidayDays: q.data.holidayDays,
-        ...shared,
-      } as QuoteInput;
-
-    case "check_in":
-      return {
-        pricingType: "check_in",
-        pricingConfig: opts.pricingConfig as QuoteInput["pricingConfig"],
-        hours: q.data.hours,
-        holidayDays: q.data.holidayDays,
-        holidaySurchargeCents: q.data.holidaySurchargeCents,
-        ...shared,
-      } as QuoteInput;
+        exerciseMinutesPerDay: q.data.walkMinutesPerDay,
+      };
 
     case "walk":
-      return {
-        pricingType: "walk",
-        pricingConfig: opts.pricingConfig as QuoteInput["pricingConfig"],
-        hours: q.data.hours,
-        dogs: q.data.dogs,
-        holidayDays: q.data.holidayDays,
-        holidaySurchargeCents: q.data.holidaySurchargeCents,
-        ...shared,
-      } as QuoteInput;
+      return { ...base, hours: q.data.hours, dogs: q.data.dogs };
 
+    case "check_in":
     case "training":
-      return {
-        pricingType: "training",
-        pricingConfig: opts.pricingConfig as QuoteInput["pricingConfig"],
-        hours: q.data.hours,
-        holidayDays: q.data.holidayDays,
-        holidaySurchargeCents: q.data.holidaySurchargeCents,
-        ...shared,
-      } as QuoteInput;
+      return { ...base, hours: q.data.hours };
 
     case "meet_greet":
-      return {
-        pricingType: "meet_greet",
-        pricingConfig: opts.pricingConfig as QuoteInput["pricingConfig"],
-        ...shared,
-      } as QuoteInput;
+      return base;
 
     default: {
       // Exhaustiveness check — TypeScript narrows q to never here.
@@ -440,6 +428,8 @@ export interface BookingQuoteArtifacts {
   requiresApproval: boolean;
   /** The distance-based approval decision (for preview display). */
   decision: "auto" | "manual" | "refuse";
+  /** Typed reasons explaining why approval is needed (Phase 3 renders them). */
+  approvalReasons: ApprovalReason[];
   /** Human-readable warnings for admin-skipped gates (empty under client policy). */
   warnings: string[];
   /**
@@ -556,12 +546,9 @@ export async function computeBookingArtifacts(
   // and no longer consulted.
   const formStatusesPromise = repo.getFormStatuses(input.userId);
 
-  let pricingConfig: ReturnType<typeof parsePricingConfig>;
+  let pricingConfig: ServicePricingConfig;
   try {
-    pricingConfig = parsePricingConfig(
-      service.pricing_type,
-      service.pricing_config,
-    );
+    pricingConfig = parsePricingConfig(service.pricing_config);
   } catch (e) {
     return {
       kind: "error",
@@ -656,47 +643,44 @@ export async function computeBookingArtifacts(
   // 4. Distance + approval. `baseRequiresApproval` is the distance/service-flag
   // contribution; the per-occurrence time gate is OR-ed in at step 5b.
   const origin = { lat: settings.origin_lat, lng: settings.origin_lng };
-  let distanceMiles: number | null = null;
-  let baseRequiresApproval: boolean;
-  let oneWayMin = 0;
-  let decision: "auto" | "manual" | "refuse" = "auto";
+  const locationKnown =
+    profileLatLng.lat !== null && profileLatLng.lng !== null;
+  const distanceMiles: number | null = locationKnown
+    ? haversineMiles(origin, {
+        lat: profileLatLng.lat as number,
+        lng: profileLatLng.lng as number,
+      })
+    : null;
 
-  if (profileLatLng.lat === null || profileLatLng.lng === null) {
-    baseRequiresApproval = true;
-    decision = "manual";
-  } else {
-    distanceMiles = haversineMiles(origin, {
-      lat: profileLatLng.lat,
-      lng: profileLatLng.lng,
-    });
-    // Gate on miles (Cal's mental model). Driving minutes are still computed
-    // below for the travel-cost line, but no longer gate approval.
-    oneWayMin = estimateDrivingMinutes(distanceMiles, {
-      roadFactor: settings.road_factor,
-      avgSpeedMph: settings.avg_speed_mph,
-    });
-    decision = deriveApproval(distanceMiles, {
-      autoApproveMiles: settings.auto_approve_threshold_miles,
-      hardCutoffMiles: settings.hard_cutoff_miles,
-      useRoadMiles: settings.gate_use_road_miles,
-      roadFactor: settings.road_factor,
-    });
+  const { decision, reasons: approvalReasons } = deriveApprovalWithReasons({
+    miles: distanceMiles ?? 0,
+    autoApproveMiles: settings.auto_approve_threshold_miles,
+    hardCutoffMiles: settings.hard_cutoff_miles,
+    useRoadMiles: settings.gate_use_road_miles,
+    roadFactor: settings.road_factor,
+    requiresApproval: !!service.requires_approval,
+    locationKnown,
+    softDistanceWarnMiles: pricingConfig.constraints.softDistanceWarnMiles,
+  });
 
-    if (decision === "refuse") {
-      if (policy.skipDistanceRefuse) {
-        warnings.push(
-          `Client is ${distanceMiles.toFixed(1)} mi away (beyond the ${settings.hard_cutoff_miles} mi cutoff).`,
-        );
-      } else {
-        return {
-          kind: "refuse",
-          reason: `Client location is too far (${distanceMiles.toFixed(1)} mi). Hard cutoff is ${settings.hard_cutoff_miles} mi.`,
-        };
-      }
+  if (decision === "refuse") {
+    const milesLabel = distanceMiles !== null ? distanceMiles.toFixed(1) : "?";
+    if (policy.skipDistanceRefuse) {
+      warnings.push(
+        `Client is ${milesLabel} mi away (beyond the ${settings.hard_cutoff_miles} mi cutoff).`,
+      );
+    } else {
+      return {
+        kind: "refuse",
+        reason: `Client location is too far (${milesLabel} mi). Hard cutoff is ${settings.hard_cutoff_miles} mi.`,
+      };
     }
-
-    baseRequiresApproval = decision === "manual" || !!service.requires_approval;
   }
+
+  // When location is unknown, deriveApprovalWithReasons returns "manual", which
+  // preserves the old behavior (no coords → always requires approval).
+  const baseRequiresApproval =
+    decision === "manual" || !!service.requires_approval;
 
   // 5. Expand occurrences, capping at the generation horizon (DESIGN: never
   // materialize past ~1 month out; the series-roll cron extends the rest). The
@@ -745,55 +729,28 @@ export async function computeBookingArtifacts(
   }
 
   // 6. Build quote for the first (representative) occurrence.
-  //    holidayDays is SERVER-DERIVED from dates + settings.holiday_dates —
-  //    any client-supplied value is overridden here (money invariant).
-  const roundTripDriveMinutes =
-    service.pricing_type === "house_sitting" ? 0 : 2 * oneWayMin;
-
-  const derivedHolidayDays = deriveHolidayDays(
+  //    premiumNights is SERVER-DERIVED from dates + settings.holiday_dates —
+  //    the engine derives the premium surcharge from it (any client-supplied
+  //    value is irrelevant; the count below is authoritative — money invariant).
+  const premiumNights = deriveHolidayDays(
     service.pricing_type,
     input.startsAt,
     input.endsAt,
     settings.holiday_dates,
   );
 
-  // Inject the server-derived count into the quantities record before building
-  // the QuoteInput. For house_sitting this overrides any client-supplied
-  // holidayDays. For hourly types (walk, check_in, training), we inject both
-  // holidayDays and holidaySurchargeCents (from settings) so the quote core
-  // can add the premium-day line — the client cannot supply these values.
-  let quantitiesWithHoliday: typeof quantities;
-  if (quantities.pricingType === "house_sitting") {
-    quantitiesWithHoliday = {
-      success: true as const,
-      pricingType: "house_sitting" as const,
-      data: { ...quantities.data, holidayDays: derivedHolidayDays },
-    };
-  } else if (
-    quantities.pricingType === "walk" ||
-    quantities.pricingType === "check_in" ||
-    quantities.pricingType === "training"
-  ) {
-    quantitiesWithHoliday = {
-      success: true as const,
-      pricingType: quantities.pricingType,
-      data: {
-        ...quantities.data,
-        holidayDays: derivedHolidayDays,
-        holidaySurchargeCents: settings.holiday_surcharge_cents,
-      },
-    } as typeof quantities;
-  } else {
-    quantitiesWithHoliday = quantities;
-  }
+  // Travel: road-adjusted ONE-WAY miles. Applies to every service type — the
+  // per-mile travel modifier in the config decides whether it bills. When the
+  // client location is unknown, no miles can be derived → 0 (no travel line).
+  const billableMiles =
+    distanceMiles !== null ? distanceMiles * settings.road_factor : 0;
 
   const quoteInput = buildQuoteInput({
-    pricingType: service.pricing_type,
-    pricingConfig,
-    quantities: quantitiesWithHoliday,
-    roundTripDriveMinutes,
-    recurringDiscountApplies,
-    recurringDiscountPct: settings.recurring_discount_pct,
+    config: pricingConfig,
+    quantities,
+    billableMiles,
+    premiumNights,
+    recurringSeries: recurringDiscountApplies,
     applyKiche: opts?.applyKiche ?? false,
   });
 
@@ -811,6 +768,7 @@ export async function computeBookingArtifacts(
       requiresApprovalByOccurrence,
       requiresApproval: requiresApprovalByOccurrence[0],
       decision,
+      approvalReasons,
       warnings,
       input,
     },

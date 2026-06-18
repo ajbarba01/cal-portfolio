@@ -5,7 +5,7 @@
 import { computeCancellationDebtCents } from "./cancellation";
 import { transition } from "./state-machine";
 import {
-  serviceSupportsKiche,
+  quoteInputSupportsManual,
   requoteWithKiche,
   kicheOverpayRefundCents,
 } from "./kiche";
@@ -153,9 +153,12 @@ export async function setKicheAppliedCore(
     };
   }
 
-  const storedInput = booking.quote_inputs as { pricingType?: string } | null;
-  const pricingType = storedInput?.pricingType;
-  if (!pricingType) {
+  // The frozen QuoteInput must carry a re-priceable modifier config. Kiche
+  // support is now read from the config itself: a booking supports the toggle
+  // iff its config defines a manual "kiche" modifier (replaces the old per-type
+  // serviceSupportsKiche check).
+  const storedInput = booking.quote_inputs as Partial<QuoteInput> | null;
+  if (!storedInput?.config) {
     return {
       kind: "error",
       message: "Booking has no stored quote to re-price.",
@@ -163,7 +166,8 @@ export async function setKicheAppliedCore(
   }
 
   if (args.applied) {
-    if (!serviceSupportsKiche(pricingType)) return { kind: "unsupported" };
+    if (!quoteInputSupportsManual(storedInput, "kiche"))
+      return { kind: "unsupported" };
     if (!booking.kiche_welcome) return { kind: "no_consent" };
   }
 
@@ -182,11 +186,16 @@ export async function setKicheAppliedCore(
     args.applied,
   );
 
+  // Persist the toggled "kiche" id in the frozen input's enabledManualIds so a
+  // later re-quote (e.g. series roll) reproduces this total.
+  const enabled = new Set(storedInput.enabledManualIds ?? []);
+  if (args.applied) enabled.add("kiche");
+  else enabled.delete("kiche");
   await repo.updateBookingKiche(args.bookingId, {
     kiche_applied: args.applied,
     quote_inputs: {
       ...(booking.quote_inputs as object),
-      applyKiche: args.applied,
+      enabledManualIds: [...enabled],
     },
     quote_breakdown: breakdown,
     final_cents: breakdown.finalCents,

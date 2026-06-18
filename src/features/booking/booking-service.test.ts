@@ -41,7 +41,7 @@ import type {
   BusyRange,
 } from "./booking-repository";
 import { quote } from "@/features/pricing/quote";
-import type { WalkConfig } from "@/features/pricing/types";
+import type { QuoteInput } from "@/features/pricing";
 import { ADMIN_POLICY, CLIENT_POLICY } from "./mutation-policy";
 
 const url = process.env.SUPABASE_TEST_URL!;
@@ -505,25 +505,10 @@ describe("createBookingCore", () => {
     expect(seriesIds.size).toBe(1);
     expect([...seriesIds][0]).not.toBeNull();
 
-    // final_cents matches a fresh quote with the same inputs.
-    // Walk service config from seed: rate_cents_per_hour=2500, per_dog_cents=1000.
-    const freshQuote = quote({
-      pricingType: "walk",
-      pricingConfig: {
-        rate_cents_per_hour: 2500,
-        per_dog_cents: 1000,
-        kiche_discount_pct: 25,
-      } satisfies WalkConfig,
-      hours: 1,
-      dogs: 1,
-      recurringDiscountApplies: true, // 3 occurrences ≥ min 3
-      recurringDiscountPct: 10,
-      applyKiche: false,
-      // Near client: roundTrip is non-zero (travel applies for walk).
-      // We don't need exact cents match — just verify it's reasonable.
-      roundTripDriveMinutes:
-        rows?.[0]?.quote_inputs?.roundTripDriveMinutes ?? 0,
-    });
+    // final_cents matches a fresh quote of the persisted QuoteInput. The stored
+    // quote_inputs is the frozen, server-written flat modifier QuoteInput; re-
+    // quoting it must reproduce the persisted final_cents exactly (no drift).
+    const freshQuote = quote(rows?.[0]?.quote_inputs as QuoteInput);
 
     // Every row should have the same final_cents, matching the fresh quote.
     rows?.forEach((r) => {

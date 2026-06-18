@@ -1,28 +1,37 @@
 import { describe, it, expect } from "vitest";
-import type { QuoteInput } from "@/features/pricing";
+import type { QuoteInput, ServicePricingConfig } from "@/features/pricing";
 import {
   serviceSupportsKiche,
   requoteWithKiche,
+  requoteWithManual,
   kicheOverpayRefundCents,
   kichePreview,
 } from "./kiche";
 
-/** A minimal walk QuoteInput: 1h, 1 dog, 25% Kiche rate, no travel/recurring. */
+/** Walk config: $25/h base, manual 25% Kiche discount. */
+const WALK_CONFIG: ServicePricingConfig = {
+  modifiers: [
+    { kind: "base_per_hour", cents: 2500 },
+    {
+      kind: "pct_discount",
+      id: "kiche",
+      label: "Kiche discount (−25%)",
+      pct: 25,
+      condition: "always",
+      manual: true,
+    },
+  ],
+  constraints: { intervalMin: 15, allowedSpecies: ["dog"] },
+};
+
+/** A minimal walk QuoteInput: 1h, 1 dog, Kiche toggled via enabledManualIds. */
 function walkInput(applyKiche: boolean): QuoteInput {
   return {
-    pricingType: "walk",
-    pricingConfig: {
-      rate_cents_per_hour: 2000,
-      per_dog_cents: 500,
-      kiche_discount_pct: 25,
-    },
+    config: WALK_CONFIG,
     hours: 1,
     dogs: 1,
-    roundTripDriveMinutes: 0,
-    recurringDiscountApplies: false,
-    recurringDiscountPct: 0,
-    applyKiche,
-  } as QuoteInput;
+    enabledManualIds: applyKiche ? ["kiche"] : [],
+  };
 }
 
 describe("serviceSupportsKiche", () => {
@@ -93,12 +102,32 @@ describe("kichePreview", () => {
     ).toBeNull();
     expect(
       kichePreview({
-        quoteInputs: { pricingType: "walk" }, // no pricingConfig/quantities
+        quoteInputs: { dogs: 1, hours: 1 }, // no `config` → evaluate throws
         kicheApplied: false,
         currentFinalCents: 0,
         paidCents: 0,
       }),
     ).toBeNull();
+  });
+});
+
+describe("requoteWithManual", () => {
+  it("toggles a manual id on/off in enabledManualIds and re-quotes", () => {
+    // Kiche off → 2500; toggling "kiche" on → 1875 (−25%).
+    const off = requoteWithManual(walkInput(false), "kiche", false);
+    const on = requoteWithManual(walkInput(false), "kiche", true);
+    expect(off.finalCents).toBe(2500);
+    expect(on.finalCents).toBe(1875);
+  });
+
+  it("removing an id already enabled drops the line", () => {
+    const removed = requoteWithManual(walkInput(true), "kiche", false);
+    expect(removed.finalCents).toBe(2500);
+  });
+
+  it("toggling an unknown id is a no-op on the total", () => {
+    const r = requoteWithManual(walkInput(false), "nonexistent", true);
+    expect(r.finalCents).toBe(2500);
   });
 });
 

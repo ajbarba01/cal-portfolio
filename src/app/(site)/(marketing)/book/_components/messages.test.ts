@@ -111,6 +111,7 @@ describe("previewResultMessage", () => {
       distanceMiles: 3.5,
       requiresApproval: false,
       decision: "auto" as const,
+      approvalReasons: [],
       warnings: [],
     };
     const result: PreviewActionResult = { kind: "success", preview };
