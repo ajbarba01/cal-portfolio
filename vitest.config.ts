@@ -18,6 +18,7 @@ export default defineConfig({
     globals: true,
     include: ["src/**/*.test.ts", "src/**/*.test.tsx", "scripts/**/*.test.ts"],
     passWithNoTests: true,
+    clearMocks: true,
     // setupFiles loads .env.test before any test runs so integration tests
     // can connect to the local Supabase stack without polluting .env.local.
     setupFiles: ["./src/test-setup.ts"],

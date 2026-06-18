@@ -82,7 +82,7 @@ export {
   listServicesCore,
   updateService,
 } from "./services-actions";
-export type { ServiceAdminRow } from "./services-actions";
+export type { ServiceAdminRow, UpdateServiceInput } from "./services-actions";
 
 // settings-actions
 export {
