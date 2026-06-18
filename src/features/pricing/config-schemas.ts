@@ -1,107 +1,211 @@
 /**
- * Per-type Zod schemas for pricing_config (validated at the DB/admin boundary).
+ * Zod schemas for the modifier-list `pricing_config` shape.
  *
- * Each schema matches the exact keys seeded in
- * supabase/migrations/20260529205144_seed.sql. Any Cal-edited config from the
- * database must pass through `parsePricingConfig` before entering quote().
+ * Each `Modifier` variant from `modifier-types.ts` gets its own discriminated
+ * schema. `parsePricingConfig(raw)` validates the `{ modifiers, constraints }`
+ * envelope and returns a typed `ServicePricingConfig`, throwing `ZodError` on
+ * any violation.
  */
 
 import { z } from "zod";
-import type {
-  PricingType,
-  HouseSittingConfig,
-  CheckInConfig,
-  WalkConfig,
-  TrainingConfig,
-  MeetGreetConfig,
-} from "./types";
+import type { ServicePricingConfig } from "./modifier-types";
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** A non-negative integer cents value (≥ 0). */
-const centsSchema = z.number().int().nonnegative();
+/** Non-negative integer cents (rates, bases, floors — must be ≥ 0). */
+const rateCentsSchema = z.number().int().nonnegative();
 
-/** A non-negative percentage (0–100 inclusive). */
-const pctSchema = z.number().nonnegative().max(100);
+/** Integer cents allowing negative values (discount toggles). */
+const discountCentsSchema = z.number().int();
 
-// ---------------------------------------------------------------------------
-// Per-type schemas
-// ---------------------------------------------------------------------------
+/** Percentage in [0, 100] inclusive. */
+const pctSchema = z.number().min(0).max(100);
 
-const houseSittingConfigSchema = z.object({
-  base_dog_cents_per_night: centsSchema,
-  base_cat_cents_per_night: centsSchema,
-  extra_dog_cents_per_night: centsSchema,
-  extra_cat_cents_per_night: centsSchema,
-  cant_be_left_alone_cents_per_day: centsSchema,
-  extra_walk_15min_cents_per_day: centsSchema,
-  holiday_cents_per_day: centsSchema,
-  kiche_discount_pct: pctSchema,
-});
+/** Positive integer (interval minutes etc.). */
+const positiveIntSchema = z.number().int().positive();
 
-const checkInConfigSchema = z.object({
-  rate_cents_per_hour: centsSchema,
-  minimum_cents: centsSchema,
-});
-
-const walkConfigSchema = z.object({
-  rate_cents_per_hour: centsSchema,
-  per_dog_cents: centsSchema,
-  kiche_discount_pct: pctSchema,
-});
-
-const trainingConfigSchema = z.object({
-  rate_cents_per_hour: centsSchema,
-});
-
-const meetGreetConfigSchema = z.object({}).strict();
+/** Non-negative number (optional soft limits). */
+const nonNegSchema = z.number().nonnegative();
 
 // ---------------------------------------------------------------------------
-// Discriminated dispatcher
+// Species / Unit / Condition / Tier
 // ---------------------------------------------------------------------------
 
-type ConfigForType<T extends PricingType> = T extends "house_sitting"
-  ? HouseSittingConfig
-  : T extends "check_in"
-    ? CheckInConfig
-    : T extends "walk"
-      ? WalkConfig
-      : T extends "training"
-        ? TrainingConfig
-        : T extends "meet_greet"
-          ? MeetGreetConfig
-          : never;
+const speciesSchema = z.enum([
+  "dog",
+  "cat",
+  "bird",
+  "rodent",
+  "reptile",
+  "fish",
+  "other",
+]);
+
+const unitSchema = z.enum(["dog", "cat", "other"]);
+
+const conditionSchema = z.enum([
+  "always",
+  "noDogs",
+  "anyDogUnder6mo",
+  "recurringSeries",
+  "nightsOver4",
+  "nightsOver6",
+]);
+
+const tierSchema = z.object({
+  from: z.number(),
+  cents: rateCentsSchema.optional(),
+  pct: pctSchema.optional(),
+});
+
+// ---------------------------------------------------------------------------
+// Source sub-schemas for flat_per_night_toggle
+// ---------------------------------------------------------------------------
+
+const conditionSourceSchema = z.object({
+  kind: z.literal("condition"),
+  condition: conditionSchema,
+});
+
+const ladderSourceSchema = z.object({
+  kind: z.literal("ladder"),
+  input: z.literal("needyTier"),
+  maxTier: z.number(),
+});
+
+const toggleSourceSchema = z.discriminatedUnion("kind", [
+  conditionSourceSchema,
+  ladderSourceSchema,
+]);
+
+// ---------------------------------------------------------------------------
+// Modifier variant schemas
+// ---------------------------------------------------------------------------
+
+const basePerNightSchema = z.object({
+  kind: z.literal("base_per_night"),
+  cents: rateCentsSchema,
+});
+
+const basePerHourSchema = z.object({
+  kind: z.literal("base_per_hour"),
+  cents: rateCentsSchema,
+});
+
+/** flat_per_unit: discount cents allowed (e.g. cat_only −2500). */
+const flatPerUnitSchema = z.object({
+  kind: z.literal("flat_per_unit"),
+  unit: unitSchema,
+  cents: discountCentsSchema,
+});
+
+const tieredPerUnitSchema = z.object({
+  kind: z.literal("tiered_per_unit"),
+  unit: unitSchema,
+  tiers: z.array(tierSchema),
+});
+
+/** flat_per_night_toggle: discount cents allowed (negative for reductions). */
+const flatPerNightToggleSchema = z.object({
+  kind: z.literal("flat_per_night_toggle"),
+  id: z.string(),
+  label: z.string(),
+  cents: discountCentsSchema,
+  source: toggleSourceSchema,
+  manual: z.boolean().optional(),
+});
+
+const perHourAddonSchema = z.object({
+  kind: z.literal("per_hour_addon"),
+  id: z.string(),
+  label: z.string(),
+  cents: rateCentsSchema,
+  optIn: z.literal(true),
+});
+
+const allowanceThenPerUnitSchema = z.object({
+  kind: z.literal("allowance_then_per_unit"),
+  unit: z.enum(["mile", "exercise"]),
+  label: z.string(),
+  freeUnits: z.number(),
+  cents: rateCentsSchema,
+  perScale: z.literal("perDogPerDay").optional(),
+});
+
+const pctSurchargeSchema = z.object({
+  kind: z.literal("pct_surcharge"),
+  id: z.string(),
+  label: z.string(),
+  pct: pctSchema,
+  scope: z.enum(["wholeBooking", "perPremiumNight"]),
+  condition: z.literal("premiumDays"),
+});
+
+const pctDiscountSchema = z.object({
+  kind: z.literal("pct_discount"),
+  id: z.string(),
+  label: z.string(),
+  pct: pctSchema,
+  condition: conditionSchema,
+  manual: z.boolean().optional(),
+});
+
+const minFloorSchema = z.object({
+  kind: z.literal("min_floor"),
+  cents: rateCentsSchema,
+});
+
+// ---------------------------------------------------------------------------
+// Modifier discriminated union
+// ---------------------------------------------------------------------------
+
+const modifierSchema = z.discriminatedUnion("kind", [
+  basePerNightSchema,
+  basePerHourSchema,
+  flatPerUnitSchema,
+  tieredPerUnitSchema,
+  flatPerNightToggleSchema,
+  perHourAddonSchema,
+  allowanceThenPerUnitSchema,
+  pctSurchargeSchema,
+  pctDiscountSchema,
+  minFloorSchema,
+]);
+
+// ---------------------------------------------------------------------------
+// Constraints schema
+// ---------------------------------------------------------------------------
+
+const constraintsSchema = z.object({
+  intervalMin: positiveIntSchema,
+  minDurationMin: nonNegSchema.optional(),
+  maxDurationMin: nonNegSchema.optional(),
+  maxDogs: nonNegSchema.optional(),
+  allowedSpecies: z.array(speciesSchema).nonempty(),
+  softDistanceWarnMiles: nonNegSchema.optional(),
+});
+
+// ---------------------------------------------------------------------------
+// Top-level ServicePricingConfig schema
+// ---------------------------------------------------------------------------
+
+const servicePricingConfigSchema = z.object({
+  modifiers: z.array(modifierSchema),
+  constraints: constraintsSchema,
+});
+
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
 
 /**
- * Parses and validates a raw `pricing_config` JSON object for the given
- * `pricingType`. Returns the typed config or throws a `ZodError` if
- * validation fails.
+ * Parses and validates a raw `pricing_config` JSON object.
+ * Returns a typed `ServicePricingConfig` or throws a `ZodError` on failure.
  *
- * @param pricingType - The service's pricing type (closed union).
- * @param raw         - The raw JSON from the database (unknown shape).
+ * @param raw - The raw JSON from the database (unknown shape).
  */
-export function parsePricingConfig<T extends PricingType>(
-  pricingType: T,
-  raw: unknown,
-): ConfigForType<T> {
-  switch (pricingType) {
-    case "house_sitting":
-      return houseSittingConfigSchema.parse(raw) as ConfigForType<T>;
-    case "check_in":
-      return checkInConfigSchema.parse(raw) as ConfigForType<T>;
-    case "walk":
-      return walkConfigSchema.parse(raw) as ConfigForType<T>;
-    case "training":
-      return trainingConfigSchema.parse(raw) as ConfigForType<T>;
-    case "meet_greet":
-      return meetGreetConfigSchema.parse(raw) as ConfigForType<T>;
-    default: {
-      // Exhaustiveness check — TypeScript will error here if a new
-      // PricingType is added without a corresponding case.
-      const _exhaustive: never = pricingType;
-      throw new Error(`Unknown pricingType: ${String(_exhaustive)}`);
-    }
-  }
+export function parsePricingConfig(raw: unknown): ServicePricingConfig {
+  return servicePricingConfigSchema.parse(raw) as ServicePricingConfig;
 }
