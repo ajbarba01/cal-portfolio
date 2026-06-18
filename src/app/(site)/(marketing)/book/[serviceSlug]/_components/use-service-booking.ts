@@ -65,6 +65,8 @@ export interface UseServiceBookingInput {
   pets: AssignablePet[];
   initialSelection: InitialSelection;
   myBookingDayKeys: string[];
+  /** Viewer's one-way drive buffer in whole minutes (0 = unknown / guest). */
+  viewerDriveBufferMin?: number;
 }
 
 // ── Success snapshot (U1) ─────────────────────────────────────────────────────
@@ -173,6 +175,7 @@ export function useServiceBooking({
   pets,
   initialSelection,
   myBookingDayKeys,
+  viewerDriveBufferMin = 0,
 }: UseServiceBookingInput): UseServiceBookingReturn {
   const router = useRouter();
   const toast = useToast();
@@ -251,6 +254,7 @@ export function useServiceBooking({
     runPreviewRef,
     clearOnSelectRef,
     clearOnIdleRef,
+    viewerDriveBufferMin,
   });
 
   const {

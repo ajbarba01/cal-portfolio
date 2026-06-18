@@ -83,6 +83,8 @@ interface ServiceBookingClientProps {
   acceptedAuthVersion: string | null;
   /** ISO timestamp of the acceptance (null = never accepted). */
   acceptedAuthAt: string | null;
+  /** Viewer's one-way drive buffer in whole minutes (0 = unknown / guest). */
+  viewerDriveBufferMin: number;
 }
 
 // ── Main ────────────────────────────────────────────────────────────────────────
@@ -99,6 +101,7 @@ export function ServiceBookingClient({
   formResponses,
   acceptedAuthVersion,
   acceptedAuthAt,
+  viewerDriveBufferMin,
 }: ServiceBookingClientProps) {
   const {
     mode,
@@ -152,6 +155,7 @@ export function ServiceBookingClient({
     pets,
     initialSelection,
     myBookingDayKeys,
+    viewerDriveBufferMin,
   });
 
   // Pet-step heading adapts to the service: "dog" when only dogs are eligible,

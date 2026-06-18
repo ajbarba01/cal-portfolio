@@ -88,6 +88,7 @@ describe("ServiceBookingClient (characterization)", () => {
         formResponses={{}}
         acceptedAuthVersion={null}
         acceptedAuthAt={null}
+        viewerDriveBufferMin={0}
       />,
     );
 
@@ -120,6 +121,7 @@ describe("ServiceBookingClient (characterization)", () => {
         formResponses={{}}
         acceptedAuthVersion={null}
         acceptedAuthAt={null}
+        viewerDriveBufferMin={0}
       />,
     );
 
