@@ -33,6 +33,12 @@ export interface SchedulerCapabilities {
    * (busy stays disabled there).
    */
   inspectable?: boolean;
+  /**
+   * Minutes between candidate slot-start times for "fixed-interval" intraday mode.
+   * Separate from `intervalMinutes` (which is the block length/duration).
+   * When absent, DayTimeline falls back to 15.
+   */
+  startGranularityMin?: number;
 }
 
 /** Admin view: full multi-select + free intraday painting, overnight, editable. */

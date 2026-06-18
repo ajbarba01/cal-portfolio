@@ -8,11 +8,12 @@ import type {
   BookingRuleSettings,
   ServiceDetail,
 } from "@/features/booking/index.client";
-import type { PricingType } from "@/features/pricing";
+import type { PricingType, Constraints } from "@/features/pricing";
 
 interface FlowService extends PickableService {
   pricingType: PricingType;
   defaultDurationMin: number | null;
+  constraints: Constraints;
 }
 
 export function AdminCreateBookingFlow({
@@ -50,6 +51,7 @@ export function AdminCreateBookingFlow({
     description: picked.description,
     pricingType: picked.pricingType,
     defaultDurationMin: picked.defaultDurationMin,
+    constraints: picked.constraints,
   };
 
   return (

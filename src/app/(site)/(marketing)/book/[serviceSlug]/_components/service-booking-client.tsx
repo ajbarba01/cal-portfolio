@@ -109,6 +109,7 @@ export function ServiceBookingClient({
     allowedSpecies,
     maxPets,
     supportsRecurring,
+    durationBounds,
     windowsLoading,
     windowsError,
     capabilities,
@@ -239,6 +240,8 @@ export function ServiceBookingClient({
             state={quantities}
             onChange={onQuantitiesChange}
             kiche={{ welcome: kicheWelcome, onChange: onKicheWelcomeChange }}
+            minHours={durationBounds.minHours}
+            maxHours={durationBounds.maxHours}
           />
         </section>
       }

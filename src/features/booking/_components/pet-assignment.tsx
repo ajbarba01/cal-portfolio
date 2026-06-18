@@ -49,6 +49,7 @@ export function PetAssignment({
   maxSelect,
 }: PetAssignmentProps) {
   const [showAdd, setShowAdd] = useState(false);
+  const [showCapNotice, setShowCapNotice] = useState(false);
 
   const eligible = pets.filter((p) => allowedSpecies.includes(p.species));
 
@@ -60,7 +61,11 @@ export function PetAssignment({
     const next = selected.includes(id)
       ? selected.filter((s) => s !== id)
       : [...selected, id];
-    if (typeof maxSelect === "number" && next.length > maxSelect) return;
+    if (typeof maxSelect === "number" && next.length > maxSelect) {
+      setShowCapNotice(true);
+      return;
+    }
+    setShowCapNotice(false);
     onChange(next);
   }
 
@@ -126,6 +131,12 @@ export function PetAssignment({
             );
           })}
         </ul>
+      )}
+
+      {showCapNotice && typeof maxSelect === "number" && maxSelect > 1 && (
+        <p className="text-muted-foreground text-xs" role="status">
+          You can select up to {maxSelect} pets for this service.
+        </p>
       )}
 
       {showAdd ? (

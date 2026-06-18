@@ -109,6 +109,7 @@ export function MeetGreetScheduler({
         openWindows,
         busy: busyRanges,
         durationMin,
+        granularityMin: 15,
         rules,
         myBookings,
         premiumDays: new Set<string>(),

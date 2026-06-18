@@ -72,6 +72,7 @@ import type { useBusyRanges } from "./use-busy-ranges";
 import type { useOvernightNights } from "./use-overnight-nights";
 import type { usePremiumDays } from "./use-premium-days";
 import type { DateRange } from "@/components/ui/calendar";
+import type { Constraints } from "@/features/pricing";
 
 // ── Local date helpers (browser-local calendar keys; layout, not business rules) ──
 
@@ -87,18 +88,50 @@ export function localDateFromKey(key: string): Date {
   return new Date(y, m - 1, d);
 }
 
+/** Pets are dog/cat by DB enum; narrow the config's species to that avatar set. */
+export function allowedSpeciesOf(constraints: Constraints): PetSpecies[] {
+  const set: PetSpecies[] = [];
+  if (constraints.allowedSpecies.includes("dog")) set.push("dog");
+  if (constraints.allowedSpecies.includes("cat")) set.push("cat");
+  return set;
+}
+
+/** Cap on selected pets — the service's maxDogs, or null for unlimited. */
+export function maxPetsOf(constraints: Constraints): number | null {
+  return constraints.maxDogs ?? null;
+}
+
+/** Duration bounds derived from service constraints, expressed in hours. */
+export function durationBoundsOf(constraints: Constraints): {
+  minHours: number;
+  maxHours?: number;
+} {
+  const minHours =
+    constraints.minDurationMin !== undefined
+      ? constraints.minDurationMin / 60
+      : 0.25;
+  return constraints.maxDurationMin !== undefined
+    ? { minHours, maxHours: constraints.maxDurationMin / 60 }
+    : { minHours };
+}
+
 // ── Mode = which calendar/capability set the pricing type uses ──────────────────
 
 export type BookingMode = "week-slots" | "month-range";
 
 // Internal helper to avoid inline ternary repetition (mirrors original logic exactly)
-function buildCapabilities(mode: BookingMode, durationMin: number) {
+function buildCapabilities(
+  mode: BookingMode,
+  durationMin: number,
+  startGranularityMin: number,
+) {
   return mode === "month-range"
     ? BOOK_HOUSE_SITTING_CAPABILITIES
     : {
         ...BOOK_WALK_CAPABILITIES,
         weekNavigable: false,
         intervalMinutes: durationMin,
+        startGranularityMin,
       };
 }
 
@@ -184,6 +217,7 @@ export interface UseBookingSchedulerReturn {
   allowedSpecies: PetSpecies[];
   maxPets: number | null;
   supportsRecurring: boolean;
+  durationBounds: { minHours: number; maxHours?: number };
 
   // Loading/error from availability
   windowsLoading: boolean;
@@ -270,10 +304,9 @@ export function useBookingScheduler({
     service.pricingType === "walk" ||
     service.pricingType === "check_in" ||
     service.pricingType === "training";
-  const allowedSpecies: PetSpecies[] =
-    service.pricingType === "house_sitting" ? ["dog", "cat"] : ["dog"];
-  // Training is a single-dog session; everything else allows multiple pets.
-  const maxPets: number | null = service.pricingType === "training" ? 1 : null;
+  const allowedSpecies: PetSpecies[] = allowedSpeciesOf(service.constraints);
+  const maxPets: number | null = maxPetsOf(service.constraints);
+  const durationBounds = durationBoundsOf(service.constraints);
   const supportsRecurring = mode === "week-slots";
 
   // Stable "now" for the component lifetime (page reload re-mounts).
@@ -353,8 +386,8 @@ export function useBookingScheduler({
 
   // ── Scheduler capabilities + data ────────────────────────────────────────────
   const capabilities = useMemo(
-    () => buildCapabilities(mode, durationMin),
-    [mode, durationMin],
+    () => buildCapabilities(mode, durationMin, service.constraints.intervalMin),
+    [mode, durationMin, service.constraints.intervalMin],
   );
 
   // Hourly month availability: a day is "available" only if it has ≥1 open start
@@ -367,6 +400,7 @@ export function useBookingScheduler({
         openWindows,
         busy: busyRanges,
         durationMin,
+        granularityMin: service.constraints.intervalMin,
         rules,
         myBookings,
         premiumDays,
@@ -394,6 +428,7 @@ export function useBookingScheduler({
     myBookings,
     now,
     viewerDriveBufferMin,
+    service.constraints.intervalMin,
   ]);
 
   // ── Derived booking time ─────────────────────────────────────────────────────
@@ -570,6 +605,7 @@ export function useBookingScheduler({
     allowedSpecies,
     maxPets,
     supportsRecurring,
+    durationBounds,
     windowsLoading,
     windowsError,
     capabilities,

@@ -18,6 +18,7 @@ import {
   denverDayKey,
   listActiveServices,
   driveBufferMinutes,
+  DEFAULT_CONSTRAINTS,
   type ServiceDetail,
   type AssignablePet,
   type OnboardingStatus,
@@ -29,6 +30,7 @@ import {
 } from "./_components/service-booking-client";
 import { EXPENSE_AUTH_KIND } from "@/features/accounts";
 import type { PricingType } from "@/features/pricing";
+import { parsePricingConfig } from "@/features/pricing";
 import { createStaticClient } from "@/lib/supabase/static";
 import {
   buildPageMetadata,
@@ -87,7 +89,7 @@ export default async function ServiceBookingPage({
       svc
         .from("services")
         .select(
-          "id, slug, name, description, pricing_type, default_duration_min",
+          "id, slug, name, description, pricing_type, pricing_config, default_duration_min",
         )
         .eq("slug", serviceSlug)
         .eq("active", true)
@@ -98,6 +100,13 @@ export default async function ServiceBookingPage({
     ]);
 
   if (!serviceRow) notFound();
+
+  let constraints = DEFAULT_CONSTRAINTS;
+  try {
+    constraints = parsePricingConfig(serviceRow.pricing_config).constraints;
+  } catch {
+    // keep DEFAULT_CONSTRAINTS — never crash the booking page on bad config
+  }
 
   const service: ServiceDetail = {
     slug: serviceRow.slug as string,
@@ -111,6 +120,7 @@ export default async function ServiceBookingPage({
       typeof serviceRow.default_duration_min === "number"
         ? serviceRow.default_duration_min
         : null,
+    constraints,
   };
 
   // Booking-rule settings + initial public busy ranges (shared loader).

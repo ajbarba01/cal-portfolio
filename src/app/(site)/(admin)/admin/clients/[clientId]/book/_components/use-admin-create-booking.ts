@@ -63,6 +63,7 @@ export interface UseAdminCreateBookingReturn {
   petAware: boolean;
   allowedSpecies: PetSpecies[];
   supportsRecurring: boolean;
+  durationBounds: { minHours: number; maxHours?: number };
 
   // Loading/error from availability
   windowsLoading: boolean;
@@ -174,6 +175,7 @@ export function useAdminCreateBooking({
     petAware,
     allowedSpecies,
     supportsRecurring,
+    durationBounds,
     windowsLoading,
     windowsError,
     capabilities,
@@ -329,6 +331,7 @@ export function useAdminCreateBooking({
     petAware,
     allowedSpecies,
     supportsRecurring,
+    durationBounds,
     windowsLoading,
     windowsError,
     capabilities,

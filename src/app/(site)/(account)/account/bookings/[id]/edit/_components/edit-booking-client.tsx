@@ -87,6 +87,7 @@ export function EditBookingClient({
     mode,
     petAware,
     allowedSpecies,
+    durationBounds,
     windowsLoading,
     windowsError,
     capabilities,
@@ -195,7 +196,12 @@ export function EditBookingClient({
               label="Details"
               labelId="qty-heading"
             />
-            <QuantityForm state={quantities} onChange={onQuantitiesChange} />
+            <QuantityForm
+              state={quantities}
+              onChange={onQuantitiesChange}
+              minHours={durationBounds.minHours}
+              maxHours={durationBounds.maxHours}
+            />
           </section>
         )
       }

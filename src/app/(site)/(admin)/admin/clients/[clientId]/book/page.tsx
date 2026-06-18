@@ -7,10 +7,12 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { getCachedUser } from "@/lib/supabase/server-cache";
 import { createServiceClient } from "@/lib/supabase/service";
-import { loadBookingFormData } from "@/features/booking";
+import { loadBookingFormData, DEFAULT_CONSTRAINTS } from "@/features/booking";
 import { AdminCreateBookingFlow } from "./_components/admin-create-booking-flow";
 import type { PetSpecies, AssignablePet } from "@/features/booking";
 import type { PricingType } from "@/features/pricing";
+import { parsePricingConfig } from "@/features/pricing";
+import type { Constraints } from "@/features/pricing";
 
 const SIGNED_URL_TTL_SECONDS = 60 * 60;
 
@@ -45,19 +47,30 @@ export default async function AdminCreateBookingPage({
 
   const { data: serviceRows } = await svc
     .from("services")
-    .select("slug, name, description, pricing_type, default_duration_min")
+    .select(
+      "slug, name, description, pricing_type, pricing_config, default_duration_min",
+    )
     .eq("active", true)
     .order("sort_order", { ascending: true });
-  const services = (serviceRows ?? []).map((s) => ({
-    slug: s.slug as string,
-    name: s.name as string,
-    description: typeof s.description === "string" ? s.description : null,
-    pricingType: s.pricing_type as PricingType,
-    defaultDurationMin:
-      typeof s.default_duration_min === "number"
-        ? s.default_duration_min
-        : null,
-  }));
+  const services = (serviceRows ?? []).map((s) => {
+    let constraints: Constraints = DEFAULT_CONSTRAINTS;
+    try {
+      constraints = parsePricingConfig(s.pricing_config).constraints;
+    } catch {
+      // keep DEFAULT_CONSTRAINTS — never crash on bad config
+    }
+    return {
+      slug: s.slug as string,
+      name: s.name as string,
+      description: typeof s.description === "string" ? s.description : null,
+      pricingType: s.pricing_type as PricingType,
+      defaultDurationMin:
+        typeof s.default_duration_min === "number"
+          ? s.default_duration_min
+          : null,
+      constraints,
+    };
+  });
 
   const { data: petRows } = await svc
     .from("pets")

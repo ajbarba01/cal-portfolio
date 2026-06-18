@@ -163,6 +163,8 @@ export function QuantityForm({
   state,
   onChange,
   kiche,
+  minHours,
+  maxHours,
 }: {
   state: QuantityState;
   onChange: (s: QuantityState) => void;
@@ -172,6 +174,9 @@ export function QuantityForm({
    * consent (e.g. the edit flow, where consent is fixed at booking time).
    */
   kiche?: { welcome: boolean; onChange: (v: boolean) => void };
+  /** Duration bounds (hours) from the service constraints. Hours services only. */
+  minHours?: number;
+  maxHours?: number;
 }) {
   if (state.type === "house_sitting") {
     const qty = state.qty;
@@ -246,10 +251,15 @@ export function QuantityForm({
         label={copy.label}
         description={copy.description}
         value={state.qty.hours}
-        min={0.25}
+        min={minHours ?? 0.25}
+        max={maxHours}
         step={0.25}
         unit="hr"
-        onChange={(v) => onChange({ type: state.type, qty: { hours: v } })}
+        onChange={(v) => {
+          const lo = minHours ?? 0.25;
+          const clamped = Math.min(Math.max(v, lo), maxHours ?? v);
+          onChange({ type: state.type, qty: { hours: clamped } });
+        }}
       />
       {/* walk supports Kiche; check_in / training never carry a Kiche rate. */}
       {kiche && state.type === "walk" && (

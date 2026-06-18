@@ -15,12 +15,14 @@ import {
   clientCanEditBooking,
   loadBookingFormData,
   quantityStateFromQuoteInputs,
+  DEFAULT_CONSTRAINTS,
   type ServiceDetail,
   type AssignablePet,
   type PetSpecies,
 } from "@/features/booking";
 import { EditBookingClient } from "./_components/edit-booking-client";
 import type { PricingType } from "@/features/pricing";
+import { parsePricingConfig } from "@/features/pricing";
 
 const SIGNED_URL_TTL_SECONDS = 60 * 60;
 
@@ -53,7 +55,9 @@ export default async function EditBookingPage({
     repo.getSettings(),
     svc
       .from("services")
-      .select("id, slug, name, description, pricing_type, default_duration_min")
+      .select(
+        "id, slug, name, description, pricing_type, pricing_config, default_duration_min",
+      )
       .eq("slug", booking.service_slug)
       .single(),
     svc.from("bookings").select("final_cents").eq("id", id).single(),
@@ -80,6 +84,13 @@ export default async function EditBookingPage({
 
   if (!serviceRow) redirect("/account/bookings");
 
+  let constraints = DEFAULT_CONSTRAINTS;
+  try {
+    constraints = parsePricingConfig(serviceRow.pricing_config).constraints;
+  } catch {
+    // keep DEFAULT_CONSTRAINTS — never crash on bad config
+  }
+
   const service: ServiceDetail = {
     slug: serviceRow.slug as string,
     name: serviceRow.name as string,
@@ -92,6 +103,7 @@ export default async function EditBookingPage({
       typeof serviceRow.default_duration_min === "number"
         ? serviceRow.default_duration_min
         : null,
+    constraints,
   };
 
   // Prior final_cents (getBookingForEdit does not return it).
