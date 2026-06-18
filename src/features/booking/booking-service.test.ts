@@ -1614,6 +1614,67 @@ describe("createBookingCore policy-aware", () => {
       );
     }
   });
+
+  // 7. Buffer guard: zero-buffer candidate (no coords) still blocked by existing booking's buffer.
+  //    Candidate client has NO coords → distanceMiles=null → candBufMin=0.
+  //    Existing exclusive booking: raw [16:00, 16:55) — no raw overlap with candidate [17:00, 18:00).
+  //    Existing client is ~70 mi away (lat=41.029); with drive_buffer_pct=200:
+  //      dist≈70mi, road_factor=1.3, avg_speed=30mph → drive=(70*1.3/30)*60≈182min × 2=364min buffer.
+  //      Widened existing: [16:00-364min, 16:55+364min) → covers [17:00,18:00) → conflict.
+  //    The old `candBufMin > 0` gate silently skipped this check; the new
+  //    `service.pricing_type !== "house_sitting"` gate runs it and returns unavailable.
+  it("buffer guard: zero-buffer candidate still blocked by an existing booking's buffer", async () => {
+    const existingBusy: BusyRange = {
+      startsAt: new Date("2026-06-20T16:00:00Z"),
+      endsAt: new Date("2026-06-20T16:55:00Z"),
+      concurrency: "exclusive",
+      // Distant client (~70 mi N of origin) so its own buffer is very large.
+      clientLat: 41.029,
+      clientLng: -105.27,
+      pets: [],
+    };
+    // Candidate client has NO coordinates → distanceMiles=null → candBufMin=0.
+    const { repo } = makeMockRepo({
+      openWindows: [
+        {
+          startsAt: new Date("2026-06-20T00:00:00Z"),
+          endsAt: new Date("2026-06-21T00:00:00Z"),
+        },
+      ],
+      profileLatLng: { lat: null, lng: null },
+      activeBusyRanges: [existingBusy],
+    });
+    (repo.getSettings as ReturnType<typeof vi.fn>).mockResolvedValue({
+      origin_lat: 40.015,
+      origin_lng: -105.27,
+      road_factor: 1.3,
+      avg_speed_mph: 30,
+      auto_approve_threshold_miles: 8,
+      hard_cutoff_miles: 50,
+      gate_use_road_miles: false,
+      booking_open_minute: 0,
+      booking_close_minute: 1440,
+      min_lead_time_hours: 0,
+      auto_confirm_horizon_days: 30,
+      hard_max_advance_days: 365,
+      recurrence_generation_horizon_days: 42,
+      recurring_discount_pct: 10,
+      recurring_min_occurrences: 3,
+      cancellation_full_refund_hours: 48,
+      late_cancel_refund_pct: 50,
+      no_show_charge_pct: 100,
+      holiday_dates: [],
+      holiday_surcharge_cents: 0,
+      drive_buffer_pct: 200,
+    });
+
+    const result = await createBookingCore(
+      { repo, now: CREATE_POLICY_NOW },
+      validClientInput,
+      CLIENT_POLICY,
+    );
+    expect(result.kind).toBe("unavailable");
+  });
 });
 
 // ──────────────────────────────────────────────────────────────────────────────

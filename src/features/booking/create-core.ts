@@ -166,9 +166,14 @@ export async function createBookingCore(
       ? 0
       : driveBufferMinutesFromMiles(result.artifacts.distanceMiles, driveCfg);
 
-  if (candBufMin > 0) {
-    // Only fetch existing bookings when the candidate has a non-zero buffer.
-    // A zero-buffer candidate can never conflict on buffer grounds alone.
+  if (service.pricing_type !== "house_sitting") {
+    // Run the guard for every time-based (non-house_sitting) service, regardless
+    // of the candidate's own buffer. An existing exclusive booking has its OWN
+    // buffer that can reach into the candidate's raw slot even when the candidate's
+    // buffer is 0 (e.g. candidate client has no coords → distanceMiles null →
+    // candBufMin 0, but an existing booking 10 min away widens its end by 10 min
+    // which overlaps the candidate's raw start). house_sitting is excluded: it is
+    // a resident stay with no drive-time semantics.
     const existing = await repo.getActiveBusyRanges(now, service.concurrency);
     const widenedExisting = existing.map((e) => {
       const eBufMin =
