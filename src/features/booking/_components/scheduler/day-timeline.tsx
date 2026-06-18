@@ -134,6 +134,10 @@ export function DayTimeline({ className }: { className?: string }) {
 
   // Drag: which candidate is being dragged (startMin offset)
   const [dragPreviewStart, setDragPreviewStart] = useState<number | null>(null);
+  // Hover: nearest candidate under the pointer (drives a single gliding ghost
+  // preview instead of N overlapping per-start hover buttons, which jumped/
+  // trailed as the pointer crossed the stacked zones).
+  const [hoverStart, setHoverStart] = useState<number | null>(null);
   const suppressNextClick = useRef(false);
   // dragEndHandlerRef + installEndHandler + unmount cleanup from shared hook.
   const { dragEndHandlerRef, installEndHandler } = useCellSelection();
@@ -386,6 +390,26 @@ export function DayTimeline({ className }: { className?: string }) {
     ],
   );
 
+  // ── Hover preview (track pointer move → nearest candidate ghost) ──────────
+  // One gliding ghost beats N overlapping hover buttons: no fade-trail as the
+  // pointer crosses stacked zones. setHoverStart no-ops when nearest is
+  // unchanged (React bails), so fast moves don't thrash renders.
+
+  const handleTrackPointerMove = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (dragPreviewStart !== null) return; // active drag owns its own preview
+      if (!trackBounds || candidateStarts.length === 0 || !trackRef.current) {
+        return;
+      }
+      const rect = trackRef.current.getBoundingClientRect();
+      const nearest = nearestCandidateFromY(e.clientY - rect.top, trackBounds);
+      setHoverStart(nearest);
+    },
+    [dragPreviewStart, trackBounds, candidateStarts, nearestCandidateFromY],
+  );
+
+  const handleTrackPointerLeave = useCallback(() => setHoverStart(null), []);
+
   // ── Keyboard: arrow up/down on the track moves selection ─────────────────
 
   const handleTrackKeyDown = useCallback(
@@ -515,6 +539,8 @@ export function DayTimeline({ className }: { className?: string }) {
           }}
           onClick={handleTrackClick}
           onKeyDown={handleTrackKeyDown}
+          onPointerMove={handleTrackPointerMove}
+          onPointerLeave={handleTrackPointerLeave}
           onDragStart={(e) => e.preventDefault()}
         >
           {/* Free availability blocks — open windows with bookings + their drive
@@ -572,41 +598,23 @@ export function DayTimeline({ className }: { className?: string }) {
             },
           )}
 
-          {/* Candidate start hover zones — thin clickable buttons */}
-          {candidateStarts.map((startMin) => {
-            const topPx = (startMin - minOpen) * PX_PER_MIN;
-            const isActive = startMin === liveStart;
-            return (
-              <button
-                key={startMin}
-                type="button"
-                tabIndex={-1} // track div handles keyboard
-                aria-label={`Start at ${formatMinutes12(startMin)}`}
-                className={cn(
-                  "absolute inset-x-1 cursor-pointer rounded-md transition-colors duration-75 ease-out",
-                  "focus-visible:ring-ring focus-visible:ring-1 focus-visible:outline-none",
-                  isActive
-                    ? "pointer-events-none" // block handles its own drag; don't double-fire
-                    : "hover:bg-brand/15 active:bg-brand/25",
-                )}
+          {/* Hover ghost — a single preview block that glides (GPU transform) to
+              the nearest candidate start under the pointer. Selecting is handled
+              by the track's onClick (nearest candidate), so this stays purely
+              visual. Hidden while dragging or when it would sit on the committed
+              block. */}
+          {hoverStart !== null &&
+            hoverStart !== liveStart &&
+            dragPreviewStart === null && (
+              <div
+                className="bg-brand/15 border-brand/40 pointer-events-none absolute inset-x-1 top-0 rounded-md border transition-transform duration-100 ease-out will-change-transform"
                 style={{
-                  // Match the block's height so the hover affordance previews the
-                  // booking footprint exactly (and short durations don't overlap
-                  // into a jumpy stack of 44px zones).
-                  top: topPx,
+                  transform: `translateY(${(hoverStart - minOpen) * PX_PER_MIN}px)`,
                   height: Math.max(intervalMinutes * PX_PER_MIN, MIN_BLOCK_PX),
                 }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (suppressNextClick.current) {
-                    suppressNextClick.current = false;
-                    return;
-                  }
-                  beginGridDrag(`${dayKey}@${startMin}`);
-                }}
+                aria-hidden="true"
               />
-            );
-          })}
+            )}
 
           {/* Selected / drag-preview block */}
           {liveStart !== null &&
