@@ -4,17 +4,11 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { formatCents, headlineRate } from "./display";
-import type {
-  HouseSittingConfig,
-  CheckInConfig,
-  WalkConfig,
-  TrainingConfig,
-  MeetGreetConfig,
-} from "./types";
+import { formatCents, headlineRate, pricingBreakdown } from "./display";
+import type { ServicePricingConfig } from "./modifier-types";
 
 // ---------------------------------------------------------------------------
-// formatCents
+// formatCents — unchanged contract
 // ---------------------------------------------------------------------------
 
 describe("formatCents", () => {
@@ -33,68 +27,214 @@ describe("formatCents", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Seed configs
+// ---------------------------------------------------------------------------
+
+const HS: ServicePricingConfig = {
+  modifiers: [
+    { kind: "base_per_night", cents: 6000 },
+    {
+      kind: "flat_per_night_toggle",
+      id: "cat_only",
+      label: "Cat-only home",
+      cents: -2500,
+      source: { kind: "condition", condition: "noDogs" },
+    },
+    {
+      kind: "tiered_per_unit",
+      unit: "dog",
+      tiers: [
+        { from: 2, cents: 1500 },
+        { from: 3, cents: 1000 },
+      ],
+    },
+    { kind: "flat_per_unit", unit: "cat", cents: 800 },
+    {
+      kind: "pct_discount",
+      id: "kiche",
+      label: "Kiche discount (−15%)",
+      pct: 15,
+      condition: "always",
+      manual: true,
+    },
+  ],
+  constraints: { intervalMin: 15, allowedSpecies: ["dog", "cat"] },
+};
+
+const WALK: ServicePricingConfig = {
+  modifiers: [
+    { kind: "base_per_hour", cents: 2500 },
+    { kind: "tiered_per_unit", unit: "dog", tiers: [{ from: 2, pct: 50 }] },
+    {
+      kind: "per_hour_addon",
+      id: "leash_manners",
+      label: "Leash manners (+$10/h)",
+      cents: 1000,
+      optIn: true,
+    },
+    { kind: "min_floor", cents: 1500 },
+    {
+      kind: "pct_surcharge",
+      id: "premium",
+      label: "Premium day (+20%)",
+      pct: 20,
+      scope: "wholeBooking",
+      condition: "premiumDays",
+    },
+    {
+      kind: "pct_discount",
+      id: "recurring",
+      label: "Recurring discount (−5%)",
+      pct: 5,
+      condition: "recurringSeries",
+    },
+    {
+      kind: "pct_discount",
+      id: "kiche",
+      label: "Kiche discount (−15%)",
+      pct: 15,
+      condition: "always",
+      manual: true,
+    },
+    {
+      kind: "allowance_then_per_unit",
+      unit: "mile",
+      label: "Travel",
+      freeUnits: 5,
+      cents: 200,
+    },
+  ],
+  constraints: {
+    intervalMin: 15,
+    maxDogs: 2,
+    allowedSpecies: ["dog"],
+  },
+};
+
+const CHECK_IN: ServicePricingConfig = {
+  modifiers: [{ kind: "base_per_hour", cents: 4500 }],
+  constraints: { intervalMin: 15, allowedSpecies: ["dog", "cat"] },
+};
+
+const FREE: ServicePricingConfig = {
+  modifiers: [],
+  constraints: { intervalMin: 0, allowedSpecies: ["dog"] },
+};
+
+// ---------------------------------------------------------------------------
 // headlineRate
 // ---------------------------------------------------------------------------
 
-const houseSittingConfig: HouseSittingConfig = {
-  base_dog_cents_per_night: 5000,
-  base_cat_cents_per_night: 4000,
-  extra_dog_cents_per_night: 1500,
-  extra_cat_cents_per_night: 1000,
-  cant_be_left_alone_cents_per_day: 2000,
-  extra_walk_15min_cents_per_day: 500,
-  holiday_cents_per_day: 1500,
-  kiche_discount_pct: 10,
-};
-
-const checkInConfig: CheckInConfig = {
-  rate_cents_per_hour: 3000,
-  minimum_cents: 1500,
-};
-
-const walkConfig: WalkConfig = {
-  rate_cents_per_hour: 2500,
-  per_dog_cents: 500,
-  kiche_discount_pct: 10,
-};
-
-const trainingConfig: TrainingConfig = {
-  rate_cents_per_hour: 3500,
-};
-
 describe("headlineRate", () => {
-  it("house_sitting: uses base_dog_cents_per_night with 'from' prefix", () => {
-    expect(headlineRate("house_sitting", houseSittingConfig)).toBe(
-      "from $50 / night",
-    );
+  it("base_per_night → 'from $X / night'", () => {
+    expect(headlineRate(HS)).toBe("from $60 / night");
   });
 
-  it("check_in: uses rate_cents_per_hour", () => {
-    expect(headlineRate("check_in", checkInConfig)).toBe("$30 / hour");
+  it("base_per_hour (walk 2500) → '$25 / hour'", () => {
+    expect(headlineRate(WALK)).toBe("$25 / hour");
   });
 
-  it("walk: uses rate_cents_per_hour", () => {
-    expect(headlineRate("walk", walkConfig)).toBe("$25 / hour");
+  it("base_per_hour (check_in 4500) → '$45 / hour'", () => {
+    expect(headlineRate(CHECK_IN)).toBe("$45 / hour");
   });
 
-  it("training: uses rate_cents_per_hour", () => {
-    expect(headlineRate("training", trainingConfig)).toBe("$35 / hour");
+  it("empty modifiers → 'Free'", () => {
+    expect(headlineRate(FREE)).toBe("Free");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// pricingBreakdown
+// ---------------------------------------------------------------------------
+
+describe("pricingBreakdown — empty config", () => {
+  it("returns empty array for no modifiers", () => {
+    expect(pricingBreakdown(FREE)).toEqual([]);
+  });
+});
+
+describe("pricingBreakdown — house sitting", () => {
+  it("first row is the base rate row", () => {
+    const rows = pricingBreakdown(HS);
+    expect(rows[0]).toEqual({ label: "Base rate", value: "$60 / night" });
   });
 
-  it("house_sitting: reflects config values (different rate)", () => {
-    const cfg: HouseSittingConfig = {
-      ...houseSittingConfig,
-      base_dog_cents_per_night: 6500,
-    };
-    expect(headlineRate("house_sitting", cfg)).toBe("from $65 / night");
+  it("includes cat flat-per-unit row", () => {
+    const rows = pricingBreakdown(HS);
+    const catRow = rows.find((r) => r.label === "Each cat");
+    expect(catRow).toBeDefined();
+    expect(catRow?.value).toBe("+$8");
   });
 
-  it("check_in: reflects fractional rate", () => {
-    const cfg: CheckInConfig = { rate_cents_per_hour: 3250, minimum_cents: 0 };
-    expect(headlineRate("check_in", cfg)).toBe("$32.50 / hour");
+  it("includes non-manual flat_per_night_toggle row", () => {
+    const rows = pricingBreakdown(HS);
+    const catOnly = rows.find((r) => r.label === "Cat-only home");
+    expect(catOnly).toBeDefined();
   });
 
-  it("meet_greet headline rate is Free", () => {
-    expect(headlineRate("meet_greet", {} as MeetGreetConfig)).toBe("Free");
+  it("excludes manual:true discount (kiche) from rows", () => {
+    const rows = pricingBreakdown(HS);
+    const kiche = rows.find((r) => r.label.toLowerCase().includes("kiche"));
+    expect(kiche).toBeUndefined();
+  });
+
+  it("includes tiered_per_unit dog row", () => {
+    const rows = pricingBreakdown(HS);
+    const dogRow = rows.find((r) => r.label === "Each additional dog");
+    expect(dogRow).toBeDefined();
+  });
+});
+
+describe("pricingBreakdown — walk", () => {
+  it("first row is base rate row (per-hour)", () => {
+    const rows = pricingBreakdown(WALK);
+    expect(rows[0]).toEqual({ label: "Base rate", value: "$25 / hour" });
+  });
+
+  it("includes per_hour_addon row (leash manners)", () => {
+    const rows = pricingBreakdown(WALK);
+    const addon = rows.find((r) => r.label === "Leash manners (+$10/h)");
+    expect(addon).toBeDefined();
+    expect(addon?.value).toBe("+$10 / hour");
+  });
+
+  it("includes min_floor row", () => {
+    const rows = pricingBreakdown(WALK);
+    const floor = rows.find((r) => r.label === "Minimum");
+    expect(floor).toBeDefined();
+    expect(floor?.value).toBe("$15");
+  });
+
+  it("includes pct_surcharge row", () => {
+    const rows = pricingBreakdown(WALK);
+    const surcharge = rows.find((r) => r.label === "Premium day (+20%)");
+    expect(surcharge).toBeDefined();
+    expect(surcharge?.value).toBe("+20%");
+  });
+
+  it("includes non-manual pct_discount row (recurring)", () => {
+    const rows = pricingBreakdown(WALK);
+    const discount = rows.find((r) => r.label === "Recurring discount (−5%)");
+    expect(discount).toBeDefined();
+    expect(discount?.value).toBe("−5%");
+  });
+
+  it("excludes manual:true pct_discount (kiche)", () => {
+    const rows = pricingBreakdown(WALK);
+    const kiche = rows.find((r) => r.label.toLowerCase().includes("kiche"));
+    expect(kiche).toBeUndefined();
+  });
+
+  it("includes allowance_then_per_unit row (travel)", () => {
+    const rows = pricingBreakdown(WALK);
+    const travel = rows.find((r) => r.label === "Travel");
+    expect(travel).toBeDefined();
+    expect(travel?.value).toBe("+$2 / mile (5 free)");
+  });
+
+  it("includes tiered_per_unit row for dog", () => {
+    const rows = pricingBreakdown(WALK);
+    const dogTier = rows.find((r) => r.label === "Each additional dog");
+    expect(dogTier).toBeDefined();
   });
 });
