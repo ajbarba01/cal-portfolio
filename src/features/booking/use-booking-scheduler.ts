@@ -72,6 +72,7 @@ import type { useBusyRanges } from "./use-busy-ranges";
 import type { useOvernightNights } from "./use-overnight-nights";
 import type { usePremiumDays } from "./use-premium-days";
 import type { DateRange } from "@/components/ui/calendar";
+import type { Constraints } from "@/features/pricing";
 
 // ── Local date helpers (browser-local calendar keys; layout, not business rules) ──
 
@@ -85,6 +86,19 @@ function localDayKey(d: Date): string {
 export function localDateFromKey(key: string): Date {
   const [y, m, d] = key.split("-").map((n) => parseInt(n, 10));
   return new Date(y, m - 1, d);
+}
+
+/** Pets are dog/cat by DB enum; narrow the config's species to that avatar set. */
+export function allowedSpeciesOf(constraints: Constraints): PetSpecies[] {
+  const set: PetSpecies[] = [];
+  if (constraints.allowedSpecies.includes("dog")) set.push("dog");
+  if (constraints.allowedSpecies.includes("cat")) set.push("cat");
+  return set;
+}
+
+/** Cap on selected pets — the service's maxDogs, or null for unlimited. */
+export function maxPetsOf(constraints: Constraints): number | null {
+  return constraints.maxDogs ?? null;
 }
 
 // ── Mode = which calendar/capability set the pricing type uses ──────────────────
@@ -270,10 +284,8 @@ export function useBookingScheduler({
     service.pricingType === "walk" ||
     service.pricingType === "check_in" ||
     service.pricingType === "training";
-  const allowedSpecies: PetSpecies[] =
-    service.pricingType === "house_sitting" ? ["dog", "cat"] : ["dog"];
-  // Training is a single-dog session; everything else allows multiple pets.
-  const maxPets: number | null = service.pricingType === "training" ? 1 : null;
+  const allowedSpecies: PetSpecies[] = allowedSpeciesOf(service.constraints);
+  const maxPets: number | null = maxPetsOf(service.constraints);
   const supportsRecurring = mode === "week-slots";
 
   // Stable "now" for the component lifetime (page reload re-mounts).
