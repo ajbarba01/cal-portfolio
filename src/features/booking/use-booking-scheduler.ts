@@ -101,6 +101,20 @@ export function maxPetsOf(constraints: Constraints): number | null {
   return constraints.maxDogs ?? null;
 }
 
+/** Duration bounds derived from service constraints, expressed in hours. */
+export function durationBoundsOf(constraints: Constraints): {
+  minHours: number;
+  maxHours?: number;
+} {
+  const minHours =
+    constraints.minDurationMin !== undefined
+      ? constraints.minDurationMin / 60
+      : 0.25;
+  return constraints.maxDurationMin !== undefined
+    ? { minHours, maxHours: constraints.maxDurationMin / 60 }
+    : { minHours };
+}
+
 // ── Mode = which calendar/capability set the pricing type uses ──────────────────
 
 export type BookingMode = "week-slots" | "month-range";
@@ -198,6 +212,7 @@ export interface UseBookingSchedulerReturn {
   allowedSpecies: PetSpecies[];
   maxPets: number | null;
   supportsRecurring: boolean;
+  durationBounds: { minHours: number; maxHours?: number };
 
   // Loading/error from availability
   windowsLoading: boolean;
@@ -286,6 +301,7 @@ export function useBookingScheduler({
     service.pricingType === "training";
   const allowedSpecies: PetSpecies[] = allowedSpeciesOf(service.constraints);
   const maxPets: number | null = maxPetsOf(service.constraints);
+  const durationBounds = durationBoundsOf(service.constraints);
   const supportsRecurring = mode === "week-slots";
 
   // Stable "now" for the component lifetime (page reload re-mounts).
@@ -582,6 +598,7 @@ export function useBookingScheduler({
     allowedSpecies,
     maxPets,
     supportsRecurring,
+    durationBounds,
     windowsLoading,
     windowsError,
     capabilities,

@@ -94,6 +94,7 @@ export interface UseServiceBookingReturn {
   allowedSpecies: PetSpecies[];
   maxPets: number | null;
   supportsRecurring: boolean;
+  durationBounds: { minHours: number; maxHours?: number };
 
   // Loading/error from availability
   windowsLoading: boolean;
@@ -262,6 +263,7 @@ export function useServiceBooking({
     allowedSpecies,
     maxPets,
     supportsRecurring,
+    durationBounds,
     windowsLoading,
     windowsError,
     capabilities,
@@ -461,6 +463,7 @@ export function useServiceBooking({
     allowedSpecies,
     maxPets,
     supportsRecurring,
+    durationBounds,
     windowsLoading,
     windowsError,
     capabilities,
