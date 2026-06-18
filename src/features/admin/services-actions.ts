@@ -119,7 +119,6 @@ const updateServiceInputSchema = z.object({
   description: z.string().max(FIELD_LIMITS.note).nullable().optional(),
   pricing_config: z.record(z.string(), z.unknown()).optional(),
   default_duration_min: z.number().int().positive().optional(),
-  max_pets: z.number().int().positive().optional(),
   requires_approval: z.boolean().optional(),
   active: z.boolean().optional(),
   sort_order: z.number().int().nonnegative().optional(),
@@ -176,7 +175,6 @@ export async function updateServiceCore(
   if (pricing_config !== undefined) update.pricing_config = pricing_config;
   if (rest.default_duration_min !== undefined)
     update.default_duration_min = rest.default_duration_min;
-  if (rest.max_pets !== undefined) update.max_pets = rest.max_pets;
   if (rest.requires_approval !== undefined)
     update.requires_approval = rest.requires_approval;
   if (rest.active !== undefined) update.active = rest.active;
