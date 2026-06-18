@@ -47,6 +47,14 @@ import { useCellSelection } from "./use-cell-selection";
 /** Vertical pixels per minute of wall-clock time. */
 const PX_PER_MIN = 0.9;
 
+/**
+ * Floor for the SELECTED block's visible height (px). Above this the block scales
+ * with the booking duration so a 30-min booking reads shorter than a 60-min one;
+ * below it (very short durations) the block stays tall enough to show its time
+ * label. The clickable start zones keep a separate 44px tap-target minimum.
+ */
+const MIN_BLOCK_PX = 22;
+
 /** Width of the left hour-label gutter in px. */
 const GUTTER_W = 52;
 
@@ -126,6 +134,10 @@ export function DayTimeline({ className }: { className?: string }) {
 
   // Drag: which candidate is being dragged (startMin offset)
   const [dragPreviewStart, setDragPreviewStart] = useState<number | null>(null);
+  // Hover: nearest candidate under the pointer (drives a single gliding ghost
+  // preview instead of N overlapping per-start hover buttons, which jumped/
+  // trailed as the pointer crossed the stacked zones).
+  const [hoverStart, setHoverStart] = useState<number | null>(null);
   const suppressNextClick = useRef(false);
   // dragEndHandlerRef + installEndHandler + unmount cleanup from shared hook.
   const { dragEndHandlerRef, installEndHandler } = useCellSelection();
@@ -378,6 +390,25 @@ export function DayTimeline({ className }: { className?: string }) {
     ],
   );
 
+  // ── Hover preview (track pointer move → nearest candidate ghost) ──────────
+  // One gliding ghost beats N overlapping hover buttons: no fade-trail as the
+  // pointer crosses stacked zones. setHoverStart no-ops when nearest is
+  // unchanged (React bails), so fast moves don't thrash renders.
+
+  const handleTrackPointerMove = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (!trackBounds || candidateStarts.length === 0 || !trackRef.current) {
+        return;
+      }
+      const rect = trackRef.current.getBoundingClientRect();
+      const nearest = nearestCandidateFromY(e.clientY - rect.top, trackBounds);
+      setHoverStart(nearest);
+    },
+    [trackBounds, candidateStarts, nearestCandidateFromY],
+  );
+
+  const handleTrackPointerLeave = useCallback(() => setHoverStart(null), []);
+
   // ── Keyboard: arrow up/down on the track moves selection ─────────────────
 
   const handleTrackKeyDown = useCallback(
@@ -507,6 +538,8 @@ export function DayTimeline({ className }: { className?: string }) {
           }}
           onClick={handleTrackClick}
           onKeyDown={handleTrackKeyDown}
+          onPointerMove={handleTrackPointerMove}
+          onPointerLeave={handleTrackPointerLeave}
           onDragStart={(e) => e.preventDefault()}
         >
           {/* Free availability blocks — open windows with bookings + their drive
@@ -564,40 +597,21 @@ export function DayTimeline({ className }: { className?: string }) {
             },
           )}
 
-          {/* Candidate start hover zones — thin clickable buttons */}
-          {candidateStarts.map((startMin) => {
-            const topPx = (startMin - minOpen) * PX_PER_MIN;
-            const isActive = startMin === liveStart;
-            return (
-              <button
-                key={startMin}
-                type="button"
-                tabIndex={-1} // track div handles keyboard
-                aria-label={`Start at ${formatMinutes12(startMin)}`}
-                className={cn(
-                  "absolute inset-x-1 cursor-pointer rounded-sm transition-colors duration-100",
-                  "focus-visible:ring-ring focus-visible:ring-1 focus-visible:outline-none",
-                  isActive
-                    ? "pointer-events-none" // block handles its own drag; don't double-fire
-                    : "hover:bg-brand/15 active:bg-brand/25",
-                )}
-                style={{
-                  top: topPx,
-                  height: Math.max(intervalMinutes * PX_PER_MIN, 44), // ≥44px tap target
-                  // visually only a thin affordance, but tap target is full height
-                  minHeight: 44,
-                }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (suppressNextClick.current) {
-                    suppressNextClick.current = false;
-                    return;
-                  }
-                  beginGridDrag(`${dayKey}@${startMin}`);
-                }}
-              />
-            );
-          })}
+          {/* Hover ghost — a single preview block that glides (GPU transform) to
+              the nearest candidate start under the pointer. Selecting is handled
+              by the track's onClick (nearest candidate), so this stays purely
+              visual. Stays live during a block drag; only hidden when it would sit
+              exactly on the current block. */}
+          {hoverStart !== null && hoverStart !== liveStart && (
+            <div
+              className="bg-brand/15 border-brand/40 pointer-events-none absolute inset-x-1 top-0 rounded-md border transition-transform duration-100 ease-out will-change-transform"
+              style={{
+                transform: `translateY(${(hoverStart - minOpen) * PX_PER_MIN}px)`,
+                height: Math.max(intervalMinutes * PX_PER_MIN, MIN_BLOCK_PX),
+              }}
+              aria-hidden="true"
+            />
+          )}
 
           {/* Selected / drag-preview block */}
           {liveStart !== null &&
@@ -608,17 +622,19 @@ export function DayTimeline({ className }: { className?: string }) {
               return (
                 <div
                   className={cn(
-                    "bg-brand text-brand-foreground absolute inset-x-1 rounded-md",
-                    "flex flex-col justify-between px-2.5 py-1.5",
+                    "bg-brand text-brand-foreground absolute inset-x-1 top-0 rounded-md",
+                    "flex flex-col justify-between overflow-hidden px-2.5 py-1",
                     "shadow-sm",
                     "cursor-grab active:cursor-grabbing",
-                    "transition-shadow duration-150",
+                    // Position via GPU transform (composite-only, no per-frame
+                    // layout) with a short glide so 15-min snaps feel smooth
+                    // instead of teleporting.
+                    "transition-[transform,box-shadow] duration-100 ease-out will-change-transform",
                     dragPreviewStart !== null && "shadow-md",
                   )}
                   style={{
-                    top: topPx,
-                    height: heightPx,
-                    minHeight: 44,
+                    transform: `translateY(${topPx}px)`,
+                    height: Math.max(heightPx, MIN_BLOCK_PX),
                     touchAction: "none",
                     userSelect: "none",
                   }}
