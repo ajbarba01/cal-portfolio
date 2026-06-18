@@ -6,14 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FIELD_LIMITS } from "@/lib/field-limits";
 import { Switch } from "@/components/ui/switch";
-import {
-  updateService,
-  type ServiceAdminRow,
-  pricingFields,
-  fieldsToConfig,
-  type PricingField,
-} from "@/features/admin";
-import type { PricingType } from "@/features/pricing";
+import { updateService, type ServiceAdminRow } from "@/features/admin";
 
 // ---------------------------------------------------------------------------
 // Labelled switch row — wraps the shared Switch primitive with its caption
@@ -41,152 +34,6 @@ function SwitchToggle({ checked, onChange, label, disabled }: SwitchProps) {
 }
 
 // ---------------------------------------------------------------------------
-// Unit field row — bordered row with leading $ or trailing unit
-// ---------------------------------------------------------------------------
-
-interface UnitFieldProps {
-  id: string;
-  label: string;
-  leadingUnit?: string;
-  trailingUnit?: string;
-  value: string;
-  onChange: (raw: string) => void;
-}
-
-function UnitField({
-  id,
-  label,
-  leadingUnit,
-  trailingUnit,
-  value,
-  onChange,
-}: UnitFieldProps) {
-  return (
-    <div className="space-y-1">
-      <Label htmlFor={id} className="text-muted-foreground text-xs">
-        {label}
-      </Label>
-      <div className="bg-background flex h-9 items-center gap-1.5 rounded-md border px-2.5">
-        {leadingUnit && (
-          <span className="text-muted-foreground text-sm select-none">
-            {leadingUnit}
-          </span>
-        )}
-        <input
-          id={id}
-          type="number"
-          min={0}
-          step={leadingUnit === "$" ? "0.01" : "1"}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="bg-background min-w-0 flex-1 border-0 text-sm focus:outline-none"
-        />
-        {trailingUnit && (
-          <span className="text-muted-foreground text-xs whitespace-nowrap select-none">
-            {trailingUnit}
-          </span>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Per-field display: converts PricingField → controlled input string
-// ---------------------------------------------------------------------------
-
-function fieldDisplayValue(field: PricingField): string {
-  if (field.kind === "cents") {
-    return (field.value / 100).toFixed(2);
-  }
-  return String(field.value);
-}
-
-function fieldFromDisplay(field: PricingField, raw: string): PricingField {
-  const parsed = parseFloat(raw);
-  if (isNaN(parsed)) return field;
-  if (field.kind === "cents") {
-    return { ...field, value: Math.round(parsed * 100) };
-  }
-  return { ...field, value: Math.round(parsed) };
-}
-
-// ---------------------------------------------------------------------------
-// Pricing fields grid
-// ---------------------------------------------------------------------------
-
-interface PricingFieldsGridProps {
-  serviceId: string;
-  pricingType: PricingType;
-  fields: PricingField[];
-  onChange: (updated: PricingField[]) => void;
-}
-
-function PricingFieldsGrid({
-  serviceId,
-  pricingType,
-  fields,
-  onChange,
-}: PricingFieldsGridProps) {
-  if (pricingType === "meet_greet") {
-    return (
-      <p className="text-muted-foreground text-sm italic">
-        Free — no priced fields.
-      </p>
-    );
-  }
-
-  function handleChange(index: number, raw: string) {
-    const updated = fields.map((f, i) =>
-      i === index ? fieldFromDisplay(f, raw) : f,
-    );
-    onChange(updated);
-  }
-
-  return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-      {fields.map((field, i) => {
-        const inputId = `field-${serviceId}-${field.key}`;
-        if (field.kind === "cents") {
-          return (
-            <UnitField
-              key={field.key}
-              id={inputId}
-              label={field.label}
-              leadingUnit="$"
-              value={fieldDisplayValue(field)}
-              onChange={(raw) => handleChange(i, raw)}
-            />
-          );
-        }
-        if (field.kind === "pct") {
-          return (
-            <UnitField
-              key={field.key}
-              id={inputId}
-              label={field.label}
-              trailingUnit="%"
-              value={fieldDisplayValue(field)}
-              onChange={(raw) => handleChange(i, raw)}
-            />
-          );
-        }
-        // int
-        return (
-          <UnitField
-            key={field.key}
-            id={inputId}
-            label={field.label}
-            value={fieldDisplayValue(field)}
-            onChange={(raw) => handleChange(i, raw)}
-          />
-        );
-      })}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // ServicesClient
 // ---------------------------------------------------------------------------
 
@@ -194,7 +41,6 @@ interface EditState {
   serviceId: string;
   name: string;
   description: string;
-  fields: PricingField[];
   requiresApproval: boolean;
   active: boolean;
 }
@@ -210,10 +56,6 @@ export function ServicesClient({ services }: { services: ServiceAdminRow[] }) {
       serviceId: svc.id,
       name: svc.name,
       description: svc.description ?? "",
-      fields: pricingFields(
-        svc.pricing_type as PricingType,
-        svc.pricing_config as Parameters<typeof pricingFields>[1],
-      ),
       requiresApproval: svc.requires_approval,
       active: svc.active,
     });
@@ -230,18 +72,15 @@ export function ServicesClient({ services }: { services: ServiceAdminRow[] }) {
     if (!editState) return;
     setError(null);
 
-    const config = fieldsToConfig(
-      svc.pricing_type as PricingType,
-      editState.fields,
-      svc.pricing_config as Parameters<typeof fieldsToConfig>[2],
-    );
-
+    // pricing_config intentionally omitted — the seeded {modifiers, constraints}
+    // shape is validated by parsePricingConfig in updateServiceCore; the old
+    // fieldsToConfig output would fail that validation. Phase 4 will rebuild
+    // the editor to emit the correct shape.
     startTransition(async () => {
       const result = await updateService({
         serviceId: svc.id,
         name: editState.name,
         description: editState.description || null,
-        pricing_config: config as Record<string, unknown>,
         requires_approval: editState.requiresApproval,
         active: editState.active,
       });
@@ -305,19 +144,17 @@ export function ServicesClient({ services }: { services: ServiceAdminRow[] }) {
                   />
                 </div>
 
-                {/* Pricing fields */}
+                {/* Pricing — read-only note until Phase 4 modifier-aware editor */}
                 <div className="space-y-2">
                   <p className="text-brand-strong text-xs font-semibold tracking-widest uppercase">
                     Pricing
                   </p>
-                  <PricingFieldsGrid
-                    serviceId={svc.id}
-                    pricingType={svc.pricing_type as PricingType}
-                    fields={editState.fields}
-                    onChange={(fields) =>
-                      setEditState((s) => (s ? { ...s, fields } : s))
-                    }
-                  />
+                  {/* TODO Phase 4: rebuild editor to emit {modifiers, constraints} shape */}
+                  <p className="text-muted-foreground text-sm italic">
+                    Pricing is configured in the seed/migration and isn&apos;t
+                    editable here yet — a modifier-aware editor lands in Phase
+                    4. (Type: {svc.pricing_type})
+                  </p>
                 </div>
 
                 {/* Toggles */}
