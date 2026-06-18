@@ -18,6 +18,7 @@ describe("hourlySchedulerData", () => {
       openWindows: [],
       busy: [],
       durationMin: 30,
+      granularityMin: 15,
       rules,
       myBookings: new Set<string>(),
       premiumDays: new Set<string>(),
@@ -36,6 +37,7 @@ describe("hourlySchedulerData", () => {
       openWindows: [],
       busy: [],
       durationMin: 60,
+      granularityMin: 15,
       rules: {
         bookingOpenMinute: 540,
         bookingCloseMinute: 1020,
@@ -47,5 +49,28 @@ describe("hourlySchedulerData", () => {
       bufferMin: 0,
     });
     expect(data.premiumDays).toBe(premiumDays);
+  });
+});
+
+describe("hourlySchedulerData granularity", () => {
+  it("passes a 5-minute start grid through to availability", () => {
+    const now = new Date("2026-06-20T08:00:00-06:00");
+    const open = {
+      startsAt: new Date("2026-06-20T09:00:00-06:00"),
+      endsAt: new Date("2026-06-20T09:20:00-06:00"),
+    };
+    const data = hourlySchedulerData({
+      now,
+      openWindows: [open],
+      busy: [],
+      durationMin: 15,
+      granularityMin: 5,
+      rules: { hardMaxAdvanceDays: 1, minLeadTimeHours: 0 } as never,
+      myBookings: new Set(),
+      premiumDays: new Set(),
+      bufferMin: 0,
+    });
+    // A 20-min window fitting a 15-min booking on a 5-min grid has a bookable start.
+    expect(data.overnightNights.size).toBeGreaterThan(0);
   });
 });

@@ -8,6 +8,8 @@ export interface HourlySchedulerDataInput {
   openWindows: TimeRange[];
   busy: BusyBlock[];
   durationMin: number;
+  /** Minutes between candidate slot-start times (the start grid). Separate from block length. */
+  granularityMin: number;
   rules: BookingRuleSettings;
   myBookings: Set<string>;
   premiumDays: Set<string>;
@@ -29,6 +31,7 @@ export function hourlySchedulerData({
   openWindows,
   busy,
   durationMin,
+  granularityMin,
   rules,
   myBookings,
   premiumDays,
@@ -48,7 +51,7 @@ export function hourlySchedulerData({
     windows: openWindows,
     busy,
     durationMin,
-    granularityMin: 15,
+    granularityMin,
     leadTimeMs: rules.minLeadTimeHours * 60 * 60 * 1000,
     now,
     bufferMin,

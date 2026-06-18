@@ -120,13 +120,18 @@ export function durationBoundsOf(constraints: Constraints): {
 export type BookingMode = "week-slots" | "month-range";
 
 // Internal helper to avoid inline ternary repetition (mirrors original logic exactly)
-function buildCapabilities(mode: BookingMode, durationMin: number) {
+function buildCapabilities(
+  mode: BookingMode,
+  durationMin: number,
+  startGranularityMin: number,
+) {
   return mode === "month-range"
     ? BOOK_HOUSE_SITTING_CAPABILITIES
     : {
         ...BOOK_WALK_CAPABILITIES,
         weekNavigable: false,
         intervalMinutes: durationMin,
+        startGranularityMin,
       };
 }
 
@@ -381,8 +386,8 @@ export function useBookingScheduler({
 
   // ── Scheduler capabilities + data ────────────────────────────────────────────
   const capabilities = useMemo(
-    () => buildCapabilities(mode, durationMin),
-    [mode, durationMin],
+    () => buildCapabilities(mode, durationMin, service.constraints.intervalMin),
+    [mode, durationMin, service.constraints.intervalMin],
   );
 
   // Hourly month availability: a day is "available" only if it has ≥1 open start
@@ -395,6 +400,7 @@ export function useBookingScheduler({
         openWindows,
         busy: busyRanges,
         durationMin,
+        granularityMin: service.constraints.intervalMin,
         rules,
         myBookings,
         premiumDays,
@@ -422,6 +428,7 @@ export function useBookingScheduler({
     myBookings,
     now,
     viewerDriveBufferMin,
+    service.constraints.intervalMin,
   ]);
 
   // ── Derived booking time ─────────────────────────────────────────────────────

@@ -209,7 +209,7 @@ export function DayTimeline({ className }: { className?: string }) {
     const allStarts = startOptions({
       windows: minuteWindows,
       durationMin: intervalMinutes,
-      granularityMin: 15,
+      granularityMin: capabilities.startGranularityMin ?? 15,
       bufferMin,
     });
     const midnight = denverMidnight(dayKey).getTime();
@@ -222,7 +222,14 @@ export function DayTimeline({ className }: { className?: string }) {
       };
       return !data.busy.some((b) => overlapsHalfOpen(candidateRange, b));
     });
-  }, [dayKey, minuteWindows, intervalMinutes, data.busy, bufferMin]);
+  }, [
+    dayKey,
+    minuteWindows,
+    intervalMinutes,
+    data.busy,
+    bufferMin,
+    capabilities,
+  ]);
 
   // Track vertical span: min open → max close across all minute-windows
   const trackBounds = useMemo<{
