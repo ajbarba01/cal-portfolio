@@ -22,7 +22,7 @@ function preview(over: Partial<BookingQuotePreview> = {}): BookingQuotePreview {
 }
 
 describe("QuotePanel approval reasons", () => {
-  it("renders each typed reason message", () => {
+  it("renders each typed reason message styled by severity", () => {
     render(
       <QuotePanel
         preview={preview({
@@ -33,6 +33,11 @@ describe("QuotePanel approval reasons", () => {
               severity: "info",
             },
             {
+              code: "distance_unlikely",
+              message: "Likely too far.",
+              severity: "warn",
+            },
+            {
               code: "distance_refuse",
               message: "Beyond the service area.",
               severity: "block",
@@ -41,15 +46,32 @@ describe("QuotePanel approval reasons", () => {
         })}
       />,
     );
-    expect(screen.getByText("Cal confirms this personally.")).toBeTruthy();
-    expect(screen.getByText("Beyond the service area.")).toBeTruthy();
+
+    const infoAlert = screen
+      .getByText("Cal confirms this personally.")
+      .closest('[data-slot="alert"]');
+    const warnAlert = screen
+      .getByText("Likely too far.")
+      .closest('[data-slot="alert"]');
+    const blockAlert = screen
+      .getByText("Beyond the service area.")
+      .closest('[data-slot="alert"]');
+
+    expect(infoAlert).toBeInTheDocument();
+    expect(warnAlert).toBeInTheDocument();
+    expect(blockAlert).toBeInTheDocument();
+
+    // severity → Alert variant mapping (classes from src/components/ui/alert.tsx)
+    expect(infoAlert).toHaveClass("text-foreground");
+    expect(warnAlert).toHaveClass("text-warning-foreground");
+    expect(blockAlert).toHaveClass("text-destructive");
   });
 
   it("falls back to the generic line when reasons are empty but approval is required", () => {
     render(<QuotePanel preview={preview({ approvalReasons: [] })} />);
     expect(
       screen.getByText(/Requires Cal.s approval before it is confirmed/i),
-    ).toBeTruthy();
+    ).toBeInTheDocument();
   });
 
   it("shows no approval text when not required and no reasons", () => {
@@ -58,6 +80,8 @@ describe("QuotePanel approval reasons", () => {
         preview={preview({ requiresApproval: false, decision: "auto" })}
       />,
     );
-    expect(screen.queryByText(/Requires Cal.s approval/i)).toBeNull();
+    expect(
+      screen.queryByText(/Requires Cal.s approval/i),
+    ).not.toBeInTheDocument();
   });
 });
