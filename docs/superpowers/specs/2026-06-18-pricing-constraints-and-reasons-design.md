@@ -23,14 +23,14 @@ Source of record for prior phases: `.git/sdd/progress.md`, `docs/superpowers/PRI
 
 Enforcing the seeded constraints diverges from today's hardcodes:
 
-| Service           | Today (hardcoded)         | Seeded constraint | Effect when enforced                   |
-| ----------------- | ------------------------- | ----------------- | -------------------------------------- |
-| house_sitting     | species dog, cat          | all 7 species     | house-sits open to birds/reptiles/etc. |
-| walk              | maxPets unlimited         | maxDogs 2         | walks cap at 2 dogs                    |
-| walk              | duration floor 15, no cap | 30–180 min        | walk length clamped                    |
-| check_in          | duration floor 15, no cap | 15–60 min         | clamped                                |
-| training          | duration floor 15, no cap | 30–60 min         | clamped                                |
-| check_in/training | interval from duration    | intervalMin 5     | finer slot-start grid                  |
+| Service           | Today (hardcoded)         | Seeded constraint | Effect when enforced                                                        |
+| ----------------- | ------------------------- | ----------------- | --------------------------------------------------------------------------- |
+| house_sitting     | species dog, cat          | all 7 species     | **inert** — `pets.species` is a dog/cat enum, so no other species can exist |
+| walk              | maxPets unlimited         | maxDogs 2         | walks cap at 2 dogs                                                         |
+| walk              | duration floor 15, no cap | 30–180 min        | walk length clamped                                                         |
+| check_in          | duration floor 15, no cap | 15–60 min         | clamped                                                                     |
+| training          | duration floor 15, no cap | 30–60 min         | clamped                                                                     |
+| check_in/training | interval from duration    | intervalMin 5     | finer slot-start grid                                                       |
 
 ## Current state (what exists)
 
@@ -96,13 +96,14 @@ them to the hours `NumberStepper` (`min`/`max`), clamping on change. Copy stays 
 **Pet picker (`pet-assignment.tsx`).** Feed `allowedSpecies` and `maxSelect` from
 constraints (already prop-driven). Add **at-cap feedback** — when a toggle is blocked by
 `maxSelect`, show a brief inline notice (e.g. "Up to N dogs per walk") instead of a silent
-no-op. Replace the dog/cat-only `subtitle` with a species-label map covering all 7 species.
+no-op. The dog/cat `subtitle` and `PetAvatar` are left as-is.
 
-**Species expansion (house-sit now admits all 7).** Widen `pet-avatar.tsx` `PetSpecies` to
-the full domain species set (align with `Species` in `modifier-types.ts`) and supply a
-sensible icon per species (lucide: Dog, Cat, Bird, Rabbit/Rat, Fish; reptile/other fall
-back to a neutral glyph). Update `AssignablePet.species` and any mapping that produces it
-so non-dog/cat pets render correctly. This is the largest threaded change in the phase.
+**No species expansion.** `pets.species` is the Postgres enum `pet_species ('dog','cat')`
+(`20260603130000_pets_generalization.sql`) and the creation form/Zod restrict to dog/cat,
+so no other species can exist. House-sit's seeded `allowedSpecies: [all 7]` is therefore
+inert — the picker filter behaves identically to today. We keep the config value
+(authoritative; the P4 editor will surface it) but do NOT widen `PetAvatar`/labels — that
+would be speculative code for data the schema forbids.
 
 ## Testing
 
@@ -126,8 +127,8 @@ so non-dog/cat pets render correctly. This is the largest threaded change in the
 
 ## Risks / notes
 
-- The species expansion touches the server→client pet mapping; verify the DB pet species
-  values map cleanly to the widened `PetSpecies`.
+- House-sit's seeded `allowedSpecies: [all 7]` is inert today (dog/cat enum); enforcing it
+  is a no-op for the picker. Left in config intentionally — do not "fix" it down.
 - Controller policy: the working tree has unrelated uncommitted files (`TEMP.md`,
   `docs/DEV_NOTES.md`, `src/content/marketing.ts`, `SYNC.md`). Stage only this phase's files
   explicitly — never `git commit -am`.
