@@ -35,29 +35,33 @@ insert into settings (
 
 -- Seed: services
 -- House Sitting (resident concurrency)
--- pricing_config shape for house_sitting:
---   base_dog_cents_per_night: 5000   ($50/night if any dog)
---   base_cat_cents_per_night: 3000   ($30/night if cat-only)
---   extra_dog_cents_per_night: 1500  (+$15/night per extra dog)
---   extra_cat_cents_per_night: 1000  (+$10/night per cat)
---   cant_be_left_alone_cents_per_day: 1000  (+$10/day)
---   extra_walk_15min_cents_per_day: 500     (+$5/day per extra 15 min)
---   holiday_cents_per_day: 1000             (+$10/day)
---   kiche_discount_pct: 20                  (20% Kiche discount)
+-- pricing_config: modifier-list shape (see pricing-engine-core spec)
 insert into services (slug, name, pricing_type, pricing_config, default_duration_min, max_pets, concurrency, active, sort_order)
 values (
   'house-sitting',
   'House Sitting',
   'house_sitting',
   '{
-    "base_dog_cents_per_night": 5000,
-    "base_cat_cents_per_night": 3000,
-    "extra_dog_cents_per_night": 1500,
-    "extra_cat_cents_per_night": 1000,
-    "cant_be_left_alone_cents_per_day": 1000,
-    "extra_walk_15min_cents_per_day": 500,
-    "holiday_cents_per_day": 1000,
-    "kiche_discount_pct": 20
+    "modifiers": [
+      { "kind": "base_per_night", "cents": 6000 },
+      { "kind": "flat_per_night_toggle", "id": "cat_only", "label": "Cat-only home", "cents": -2500, "source": { "kind": "condition", "condition": "noDogs" } },
+      { "kind": "flat_per_night_toggle", "id": "puppy_household", "label": "Puppy household", "cents": -1000, "source": { "kind": "condition", "condition": "anyDogUnder6mo" } },
+      { "kind": "tiered_per_unit", "unit": "dog", "tiers": [{ "from": 2, "cents": 1500 }, { "from": 3, "cents": 1000 }] },
+      { "kind": "flat_per_unit", "unit": "cat", "cents": 800 },
+      { "kind": "flat_per_unit", "unit": "other", "cents": 500 },
+      { "kind": "flat_per_night_toggle", "id": "needy", "label": "Needy pet care", "cents": 500, "source": { "kind": "ladder", "input": "needyTier", "maxTier": 4 } },
+      { "kind": "allowance_then_per_unit", "unit": "exercise", "label": "Extra exercise", "freeUnits": 45, "cents": 500, "perScale": "perDogPerDay" },
+      { "kind": "allowance_then_per_unit", "unit": "mile", "label": "Travel", "freeUnits": 5, "cents": 250 },
+      { "kind": "pct_surcharge", "id": "premium", "label": "Premium night (+20%)", "pct": 20, "scope": "perPremiumNight", "condition": "premiumDays" },
+      { "kind": "pct_discount", "id": "long_a", "label": "Long stay (-5%)", "pct": 5, "condition": "nightsOver4" },
+      { "kind": "pct_discount", "id": "long_b", "label": "Extended stay (-5%)", "pct": 5, "condition": "nightsOver6" },
+      { "kind": "pct_discount", "id": "kiche", "label": "Kiche discount (-15%)", "pct": 15, "condition": "always", "manual": true }
+    ],
+    "constraints": {
+      "intervalMin": 15,
+      "allowedSpecies": ["dog", "cat", "bird", "rodent", "reptile", "fish", "other"],
+      "softDistanceWarnMiles": 15
+    }
   }'::jsonb,
   null,
   null,
@@ -67,17 +71,27 @@ values (
 );
 
 -- Check-ins (exclusive concurrency)
--- pricing_config shape for check_in:
---   rate_cents_per_hour: 3000  ($30/hour incl. driving time)
---   minimum_cents: 1500        ($15 minimum)
+-- pricing_config: modifier-list shape (see pricing-engine-core spec)
 insert into services (slug, name, pricing_type, pricing_config, default_duration_min, max_pets, concurrency, active, sort_order)
 values (
   'check-in',
   'Check-In',
   'check_in',
   '{
-    "rate_cents_per_hour": 3000,
-    "minimum_cents": 1500
+    "modifiers": [
+      { "kind": "base_per_hour", "cents": 4500 },
+      { "kind": "min_floor", "cents": 1500 },
+      { "kind": "allowance_then_per_unit", "unit": "mile", "label": "Travel", "freeUnits": 5, "cents": 200 },
+      { "kind": "pct_surcharge", "id": "premium", "label": "Premium day (+20%)", "pct": 20, "scope": "wholeBooking", "condition": "premiumDays" },
+      { "kind": "pct_discount", "id": "recurring", "label": "Recurring discount (-5%)", "pct": 5, "condition": "recurringSeries" },
+      { "kind": "pct_discount", "id": "puppy_training", "label": "Puppy training (-15%)", "pct": 15, "condition": "anyDogUnder6mo" }
+    ],
+    "constraints": {
+      "intervalMin": 5,
+      "minDurationMin": 15,
+      "maxDurationMin": 60,
+      "allowedSpecies": ["dog"]
+    }
   }'::jsonb,
   30,
   null,
@@ -87,19 +101,32 @@ values (
 );
 
 -- Walks (exclusive concurrency)
--- pricing_config shape for walk:
---   rate_cents_per_hour: 2500   ($25/hour)
---   per_dog_cents: 1000         (+$10/dog for behavior)
---   kiche_discount_pct: 25      (25% Kiche discount)
+-- pricing_config: modifier-list shape (see pricing-engine-core spec)
 insert into services (slug, name, pricing_type, pricing_config, default_duration_min, max_pets, concurrency, active, sort_order)
 values (
   'walk',
   'Walk',
   'walk',
   '{
-    "rate_cents_per_hour": 2500,
-    "per_dog_cents": 1000,
-    "kiche_discount_pct": 25
+    "modifiers": [
+      { "kind": "base_per_hour", "cents": 2500 },
+      { "kind": "tiered_per_unit", "unit": "dog", "tiers": [{ "from": 2, "pct": 50 }] },
+      { "kind": "per_hour_addon", "id": "leash_manners", "label": "Leash manners (+$10/h)", "cents": 1000, "optIn": true },
+      { "kind": "allowance_then_per_unit", "unit": "mile", "label": "Travel", "freeUnits": 5, "cents": 200 },
+      { "kind": "min_floor", "cents": 1500 },
+      { "kind": "pct_surcharge", "id": "premium", "label": "Premium day (+20%)", "pct": 20, "scope": "wholeBooking", "condition": "premiumDays" },
+      { "kind": "pct_discount", "id": "recurring", "label": "Recurring discount (-5%)", "pct": 5, "condition": "recurringSeries" },
+      { "kind": "pct_discount", "id": "kiche", "label": "Kiche discount (-15%)", "pct": 15, "condition": "always", "manual": true },
+      { "kind": "pct_discount", "id": "off_leash", "label": "Off-leash discount (-15%)", "pct": 15, "condition": "always", "manual": true },
+      { "kind": "pct_discount", "id": "vetted_2nd_dog", "label": "Vetted 2nd dog (-25%)", "pct": 25, "condition": "always", "manual": true }
+    ],
+    "constraints": {
+      "intervalMin": 15,
+      "minDurationMin": 30,
+      "maxDurationMin": 180,
+      "maxDogs": 2,
+      "allowedSpecies": ["dog"]
+    }
   }'::jsonb,
   60,
   null,
@@ -109,15 +136,28 @@ values (
 );
 
 -- Training (exclusive concurrency, max_pets = 1)
--- pricing_config shape for training:
---   rate_cents_per_hour: 3500  ($35/hour)
+-- pricing_config: modifier-list shape (see pricing-engine-core spec)
 insert into services (slug, name, pricing_type, pricing_config, default_duration_min, max_pets, concurrency, active, sort_order)
 values (
   'training',
   'Training',
   'training',
   '{
-    "rate_cents_per_hour": 3500
+    "modifiers": [
+      { "kind": "base_per_hour", "cents": 2500 },
+      { "kind": "min_floor", "cents": 1500 },
+      { "kind": "allowance_then_per_unit", "unit": "mile", "label": "Travel", "freeUnits": 5, "cents": 150 },
+      { "kind": "pct_surcharge", "id": "premium", "label": "Premium day (+20%)", "pct": 20, "scope": "wholeBooking", "condition": "premiumDays" },
+      { "kind": "pct_discount", "id": "recurring", "label": "Recurring discount (-5%)", "pct": 5, "condition": "recurringSeries" },
+      { "kind": "pct_discount", "id": "puppy_training", "label": "Puppy training (-15%)", "pct": 15, "condition": "anyDogUnder6mo" }
+    ],
+    "constraints": {
+      "intervalMin": 5,
+      "minDurationMin": 30,
+      "maxDurationMin": 60,
+      "maxDogs": 1,
+      "allowedSpecies": ["dog"]
+    }
   }'::jsonb,
   60,
   1,
