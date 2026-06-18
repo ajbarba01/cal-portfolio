@@ -97,10 +97,30 @@ export function QuotePanel({
         </p>
       )}
 
-      {preview.requiresApproval && (
-        <p className="text-foreground/70 mt-2 text-xs italic">
-          Requires Cal&apos;s approval before it is confirmed.
-        </p>
+      {preview.approvalReasons.length > 0 ? (
+        <ul className="mt-3 space-y-2">
+          {preview.approvalReasons.map((reason) => (
+            <li key={reason.code}>
+              <Alert
+                variant={
+                  reason.severity === "block"
+                    ? "error"
+                    : reason.severity === "warn"
+                      ? "warning"
+                      : "info"
+                }
+              >
+                {reason.message}
+              </Alert>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        preview.requiresApproval && (
+          <p className="text-foreground/70 mt-2 text-xs italic">
+            Requires Cal&apos;s approval before it is confirmed.
+          </p>
+        )
       )}
 
       {warnings && warnings.length > 0 && (
