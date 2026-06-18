@@ -47,6 +47,14 @@ import { useCellSelection } from "./use-cell-selection";
 /** Vertical pixels per minute of wall-clock time. */
 const PX_PER_MIN = 0.9;
 
+/**
+ * Floor for the SELECTED block's visible height (px). Above this the block scales
+ * with the booking duration so a 30-min booking reads shorter than a 60-min one;
+ * below it (very short durations) the block stays tall enough to show its time
+ * label. The clickable start zones keep a separate 44px tap-target minimum.
+ */
+const MIN_BLOCK_PX = 22;
+
 /** Width of the left hour-label gutter in px. */
 const GUTTER_W = 52;
 
@@ -609,7 +617,7 @@ export function DayTimeline({ className }: { className?: string }) {
                 <div
                   className={cn(
                     "bg-brand text-brand-foreground absolute inset-x-1 rounded-md",
-                    "flex flex-col justify-between px-2.5 py-1.5",
+                    "flex flex-col justify-between overflow-hidden px-2.5 py-1",
                     "shadow-sm",
                     "cursor-grab active:cursor-grabbing",
                     "transition-shadow duration-150",
@@ -617,8 +625,7 @@ export function DayTimeline({ className }: { className?: string }) {
                   )}
                   style={{
                     top: topPx,
-                    height: heightPx,
-                    minHeight: 44,
+                    height: Math.max(heightPx, MIN_BLOCK_PX),
                     touchAction: "none",
                     userSelect: "none",
                   }}
