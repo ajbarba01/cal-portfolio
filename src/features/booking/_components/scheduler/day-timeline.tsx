@@ -31,7 +31,11 @@ import { cn } from "@/lib/utils";
 import { useScheduler } from "@/features/booking/scheduler-context";
 import { denverMidnight } from "@/features/booking/availability";
 import { overlapsHalfOpen } from "@/features/booking/calendar-model";
-import { startOptions, blockSpan } from "@/features/booking/day-timeline-model";
+import {
+  startOptions,
+  blockSpan,
+  clampRangesToDayMinutes,
+} from "@/features/booking/day-timeline-model";
 import type { MinuteWindow } from "@/features/booking/day-timeline-model";
 import { useCellSelection } from "./use-cell-selection";
 
@@ -126,6 +130,10 @@ export function DayTimeline({ className }: { className?: string }) {
   const { dragEndHandlerRef, installEndHandler } = useCellSelection();
   // Y-coord where the drag block was grabbed (relative to block top), in px
   const dragGrabOffsetPx = useRef(0);
+  // Latest drag-preview start, mirrored in a ref so the drag-end handler can read
+  // it WITHOUT calling beginGridDrag inside a setState updater (which runs during
+  // render → "Cannot update a component while rendering" — same fix as WeekGrid).
+  const dragPreviewStartRef = useRef<number | null>(null);
   // Ref to track container for pointer-coord math
   const trackRef = useRef<HTMLDivElement | null>(null);
 
@@ -145,25 +153,23 @@ export function DayTimeline({ className }: { className?: string }) {
    */
   const minuteWindows = useMemo<MinuteWindow[]>(() => {
     if (!dayKey) return [];
-    const midnight = denverMidnight(dayKey);
-    const dayStart = midnight.getTime();
-    const dayEnd = dayStart + 24 * 60 * 60 * 1000;
-
-    return data.windows
-      .filter(
-        (w) => w.startsAt.getTime() < dayEnd && w.endsAt.getTime() > dayStart,
-      )
-      .map((w) => {
-        // Clamp to the day's [0, 1440] minute range
-        const openMs = Math.max(w.startsAt.getTime(), dayStart);
-        const closeMs = Math.min(w.endsAt.getTime(), dayEnd);
-        // Convert absolute ms to minutes-since-Denver-midnight for this day
-        const openMin = Math.round((openMs - dayStart) / 60_000);
-        const closeMin = Math.round((closeMs - dayStart) / 60_000);
-        return [openMin, closeMin] as MinuteWindow;
-      })
-      .filter(([open, close]) => close > open);
+    return clampRangesToDayMinutes(
+      data.windows,
+      denverMidnight(dayKey).getTime(),
+    );
   }, [dayKey, data.windows]);
+
+  /**
+   * Booked blocks for the selected day: the busy ranges (already widened by the
+   * existing bookings' own drive-time buffers, server-side) intersected with the
+   * day, as [startMin, endMin]. Rendered as a status-booked overlay so the user
+   * SEES occupied time instead of an all-green window (the candidate starts under
+   * these blocks are already filtered out of `candidateStarts`).
+   */
+  const busyBlocks = useMemo<MinuteWindow[]>(() => {
+    if (!dayKey) return [];
+    return clampRangesToDayMinutes(data.busy, denverMidnight(dayKey).getTime());
+  }, [dayKey, data.busy]);
 
   /**
    * Candidate starts from day-timeline-model, then busy-filtered:
@@ -295,6 +301,7 @@ export function DayTimeline({ className }: { className?: string }) {
         const rawY = me.clientY - r.top - dragGrabOffsetPx.current;
         const nearest = nearestCandidateFromY(rawY, trackBounds);
         if (nearest !== null) {
+          dragPreviewStartRef.current = nearest;
           setDragPreviewStart(nearest);
         }
       };
@@ -305,14 +312,16 @@ export function DayTimeline({ className }: { className?: string }) {
         window.removeEventListener("pointermove", onMove);
         dragEndHandlerRef.current = null;
         suppressNextClick.current = true;
-        // Commit to whichever candidate we're at
-        setDragPreviewStart((prev) => {
-          const finalStart = prev ?? liveStart;
-          if (dayKey && finalStart !== null) {
-            beginGridDrag(`${dayKey}@${finalStart}`);
-          }
-          return null;
-        });
+        // Read the final start from the ref, clear the preview, THEN dispatch —
+        // calling beginGridDrag inside a setState updater dispatches to the
+        // Scheduler reducer during render (the "update a component while rendering"
+        // error). Commit outside any updater instead (WeekGrid convention).
+        const finalStart = dragPreviewStartRef.current ?? liveStart;
+        dragPreviewStartRef.current = null;
+        setDragPreviewStart(null);
+        if (dayKey && finalStart !== null) {
+          beginGridDrag(`${dayKey}@${finalStart}`);
+        }
       };
       installEndHandler(endHandler);
     },
@@ -496,6 +505,27 @@ export function DayTimeline({ className }: { className?: string }) {
               aria-hidden="true"
             />
           ))}
+
+          {/* Booked blocks — existing bookings (already widened by their own
+              drive-time buffer server-side) shown over the open band so taken
+              time reads as unavailable instead of green. Clamped to the track. */}
+          {busyBlocks.map(([start, end], i) => {
+            const top = (Math.max(start, minOpen) - minOpen) * PX_PER_MIN;
+            const height =
+              (Math.min(end, maxClose) - Math.max(start, minOpen)) * PX_PER_MIN;
+            if (height <= 0) return null;
+            return (
+              <div
+                key={`busy-${i}`}
+                className="bg-status-booked/85 text-status-booked-foreground pointer-events-none absolute inset-x-0 z-[1] flex items-center justify-center overflow-hidden text-[10px] font-medium"
+                style={{ top, height }}
+                title="Booked"
+                aria-hidden="true"
+              >
+                {height >= 16 ? "Booked" : ""}
+              </div>
+            );
+          })}
 
           {/* Horizontal hour ruled lines */}
           {hourLabels.map((minuteMark) => {

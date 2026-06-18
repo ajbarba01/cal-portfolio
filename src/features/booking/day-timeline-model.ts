@@ -36,3 +36,33 @@ export function blockSpan(
 ): { startMin: number; endMin: number } {
   return { startMin, endMin: startMin + durationMin };
 }
+
+/**
+ * Clamps absolute-instant time ranges to a single calendar day and converts
+ * them to minutes-since-day-start `[startMin, endMin]` windows. Ranges that do
+ * not intersect `[dayStartMs, dayStartMs + 24h)` are dropped; partial overlaps
+ * are clamped to the day. Zero/negative-width results are dropped.
+ *
+ * Pure (#5 ENGINEERING). Shared by the day timeline to derive BOTH the
+ * open-availability bands (from windows) and the booked blocks (from busy
+ * ranges) off the same absolute-instant → day-minute mapping.
+ */
+export function clampRangesToDayMinutes(
+  ranges: { startsAt: Date; endsAt: Date }[],
+  dayStartMs: number,
+): MinuteWindow[] {
+  const dayEndMs = dayStartMs + 24 * 60 * 60 * 1000;
+  return ranges
+    .filter(
+      (r) => r.startsAt.getTime() < dayEndMs && r.endsAt.getTime() > dayStartMs,
+    )
+    .map((r) => {
+      const sMs = Math.max(r.startsAt.getTime(), dayStartMs);
+      const eMs = Math.min(r.endsAt.getTime(), dayEndMs);
+      return [
+        Math.round((sMs - dayStartMs) / 60_000),
+        Math.round((eMs - dayStartMs) / 60_000),
+      ] as MinuteWindow;
+    })
+    .filter(([s, e]) => e > s);
+}

@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { startOptions, blockSpan } from "./day-timeline-model";
+import {
+  startOptions,
+  blockSpan,
+  clampRangesToDayMinutes,
+} from "./day-timeline-model";
+
+const DAY = Date.UTC(2026, 6, 10, 0, 0, 0); // 2026-07-10 00:00 UTC
+const at = (min: number) => new Date(DAY + min * 60_000);
 
 // windows: minute-since-midnight ranges [openMinute, closeMinute)
 describe("startOptions", () => {
@@ -68,5 +75,46 @@ describe("startOptions", () => {
 describe("blockSpan", () => {
   it("returns start/end minutes for a chosen start + duration", () => {
     expect(blockSpan(540, 75)).toEqual({ startMin: 540, endMin: 615 });
+  });
+});
+
+describe("clampRangesToDayMinutes", () => {
+  it("converts a range fully inside the day to [startMin, endMin]", () => {
+    expect(
+      clampRangesToDayMinutes([{ startsAt: at(540), endsAt: at(600) }], DAY),
+    ).toEqual([[540, 600]]);
+  });
+  it("clamps a range that starts before the day to 0", () => {
+    expect(
+      clampRangesToDayMinutes([{ startsAt: at(-120), endsAt: at(60) }], DAY),
+    ).toEqual([[0, 60]]);
+  });
+  it("clamps a range that ends after the day to 1440", () => {
+    expect(
+      clampRangesToDayMinutes([{ startsAt: at(1380), endsAt: at(1560) }], DAY),
+    ).toEqual([[1380, 1440]]);
+  });
+  it("drops a range that does not intersect the day", () => {
+    expect(
+      clampRangesToDayMinutes([{ startsAt: at(1500), endsAt: at(1560) }], DAY),
+    ).toEqual([]);
+    // A range ending exactly at day start is half-open non-overlapping.
+    expect(
+      clampRangesToDayMinutes([{ startsAt: at(-60), endsAt: at(0) }], DAY),
+    ).toEqual([]);
+  });
+  it("maps multiple ranges and preserves order", () => {
+    expect(
+      clampRangesToDayMinutes(
+        [
+          { startsAt: at(540), endsAt: at(600) },
+          { startsAt: at(720), endsAt: at(780) },
+        ],
+        DAY,
+      ),
+    ).toEqual([
+      [540, 600],
+      [720, 780],
+    ]);
   });
 });
