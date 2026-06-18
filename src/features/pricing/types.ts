@@ -14,23 +14,28 @@ export type PricingType =
   | "meet_greet";
 
 // ---------------------------------------------------------------------------
-// Validated config shapes (one per PricingType)
+// Validated config shapes (one per PricingType) — DEPRECATED
+// These per-type config interfaces are preserved for Task-9-pending booking
+// callers that have not yet been migrated to ServicePricingConfig.
+// Do NOT delete until Task 9 confirms all callers are migrated.
 // ---------------------------------------------------------------------------
 
 /**
+ * @deprecated Use `ServicePricingConfig` from `./modifier-types` instead.
  * Validated pricing_config for the meet-and-greet (no priced fields).
- * `Record<never, never>` (an empty object) rather than `interface {}` so it
- * matches what `z.object({}).strict()` infers (single-cast, like the other
- * config types) without imposing a `never` value on every string key the way
- * `Record<string, never>` would — which would break the QuoteInputModifiers
- * intersection in QuoteInput.
  */
 export type MeetGreetConfig = Record<never, never>;
 
-/** Quantities for a meet-and-greet (none — it is free and unpriced). */
+/**
+ * @deprecated Use `ServicePricingConfig` from `./modifier-types` instead.
+ * Quantities for a meet-and-greet (none — it is free and unpriced).
+ */
 export type MeetGreetQuantities = Record<never, never>;
 
-/** Validated pricing_config for house_sitting. */
+/**
+ * @deprecated Use `ServicePricingConfig` from `./modifier-types` instead.
+ * Validated pricing_config for house_sitting.
+ */
 export interface HouseSittingConfig {
   base_dog_cents_per_night: number;
   base_cat_cents_per_night: number;
@@ -42,29 +47,42 @@ export interface HouseSittingConfig {
   kiche_discount_pct: number;
 }
 
-/** Validated pricing_config for check_in. */
+/**
+ * @deprecated Use `ServicePricingConfig` from `./modifier-types` instead.
+ * Validated pricing_config for check_in.
+ */
 export interface CheckInConfig {
   rate_cents_per_hour: number;
   minimum_cents: number;
 }
 
-/** Validated pricing_config for walk. */
+/**
+ * @deprecated Use `ServicePricingConfig` from `./modifier-types` instead.
+ * Validated pricing_config for walk.
+ */
 export interface WalkConfig {
   rate_cents_per_hour: number;
   per_dog_cents: number;
   kiche_discount_pct: number;
 }
 
-/** Validated pricing_config for training. */
+/**
+ * @deprecated Use `ServicePricingConfig` from `./modifier-types` instead.
+ * Validated pricing_config for training.
+ */
 export interface TrainingConfig {
   rate_cents_per_hour: number;
 }
 
 // ---------------------------------------------------------------------------
-// Quote input (discriminated union — no `any`, no stringly dispatch)
+// Deprecated per-type quantity and modifier shapes
+// Kept for Task-9-pending callers. Remove after Task 9 migration.
 // ---------------------------------------------------------------------------
 
-/** Quantities specific to house_sitting bookings. */
+/**
+ * @deprecated Migrate to flat `QuoteInput` from `./modifier-types`.
+ * Quantities specific to house_sitting bookings.
+ */
 export interface HouseSittingQuantities {
   dogs: number;
   cats: number;
@@ -83,7 +101,10 @@ export interface HouseSittingQuantities {
   holidayDays?: number;
 }
 
-/** Quantities specific to check_in bookings. */
+/**
+ * @deprecated Migrate to flat `QuoteInput` from `./modifier-types`.
+ * Quantities specific to check_in bookings.
+ */
 export interface CheckInQuantities {
   hours: number;
   /** Number of premium (holiday) days the service falls on (0 or 1 for sub-24h). Server-derived. */
@@ -92,7 +113,10 @@ export interface CheckInQuantities {
   holidaySurchargeCents?: number;
 }
 
-/** Quantities specific to walk bookings. */
+/**
+ * @deprecated Migrate to flat `QuoteInput` from `./modifier-types`.
+ * Quantities specific to walk bookings.
+ */
 export interface WalkQuantities {
   hours: number;
   dogs: number;
@@ -102,7 +126,10 @@ export interface WalkQuantities {
   holidaySurchargeCents?: number;
 }
 
-/** Quantities specific to training bookings. */
+/**
+ * @deprecated Migrate to flat `QuoteInput` from `./modifier-types`.
+ * Quantities specific to training bookings.
+ */
 export interface TrainingQuantities {
   hours: number;
   /** Number of premium (holiday) days the service falls on (0 or 1 for sub-24h). Server-derived. */
@@ -111,57 +138,14 @@ export interface TrainingQuantities {
   holidaySurchargeCents?: number;
 }
 
-/** Shared modifier fields present on every QuoteInput variant. */
-interface QuoteInputModifiers {
-  /**
-   * Round-trip estimated driving minutes. Used to compute a travel line for
-   * hourly services. Absent (or 0) → no travel charge.
-   */
-  roundTripDriveMinutes?: number;
-  /** True when the booking qualifies for the recurring series discount. */
-  recurringDiscountApplies: boolean;
-  /** The recurring discount percentage (e.g. 10 for −10%). From settings. */
-  recurringDiscountPct: number;
-  /**
-   * Whether Cal has chosen to apply the Kiche discount for this booking.
-   * When true, `quote()` reads `kiche_discount_pct` from the service's
-   * `pricingConfig` and applies it as the final modifier.
-   * Services without `kiche_discount_pct` in their config (check_in, training)
-   * are silently unaffected — no Kiche line is added.
-   * Applied last, after recurring discount.
-   */
-  applyKiche: boolean;
-}
+// ---------------------------------------------------------------------------
+// QuoteInput — now re-exported from modifier-types (flat shape)
+// ---------------------------------------------------------------------------
 
-export type QuoteInput =
-  | ({
-      pricingType: "house_sitting";
-      pricingConfig: HouseSittingConfig;
-    } & HouseSittingQuantities &
-      QuoteInputModifiers)
-  | ({
-      pricingType: "check_in";
-      pricingConfig: CheckInConfig;
-    } & CheckInQuantities &
-      QuoteInputModifiers)
-  | ({
-      pricingType: "walk";
-      pricingConfig: WalkConfig;
-    } & WalkQuantities &
-      QuoteInputModifiers)
-  | ({
-      pricingType: "training";
-      pricingConfig: TrainingConfig;
-    } & TrainingQuantities &
-      QuoteInputModifiers)
-  | ({
-      pricingType: "meet_greet";
-      pricingConfig: MeetGreetConfig;
-    } & MeetGreetQuantities &
-      QuoteInputModifiers);
+export type { QuoteInput } from "./modifier-types";
 
 // ---------------------------------------------------------------------------
-// Quote output
+// Quote output (frozen — do not alter shape)
 // ---------------------------------------------------------------------------
 
 /** One itemized line in a quote breakdown. amountCents may be negative. */
