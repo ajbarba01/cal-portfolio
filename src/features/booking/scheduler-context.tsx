@@ -54,6 +54,13 @@ export interface SchedulerData {
    * its cells (format(date, "yyyy-MM-dd")).
    */
   dimmedDays?: Set<string>;
+  /**
+   * Minutes of drive buffer for the viewer's own candidate; hourly only.
+   * Set by `hourlySchedulerData` from the booking page's viewer buffer so the
+   * day-timeline can read it without re-deriving. Undefined when unused (house
+   * sitting or when no buffer applies).
+   */
+  viewerDriveBufferMin?: number;
 }
 
 export interface SchedulerCallbacks {

@@ -112,6 +112,7 @@ export function MeetGreetScheduler({
         rules,
         myBookings,
         premiumDays: new Set<string>(),
+        bufferMin: 0,
       }),
     [now, openWindows, busyRanges, durationMin, rules, myBookings],
   );

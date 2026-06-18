@@ -11,6 +11,8 @@ export interface HourlySchedulerDataInput {
   rules: BookingRuleSettings;
   myBookings: Set<string>;
   premiumDays: Set<string>;
+  /** Minutes of drive buffer for the viewer's candidate. Defaults to 0. */
+  bufferMin: number;
 }
 
 /**
@@ -30,6 +32,7 @@ export function hourlySchedulerData({
   rules,
   myBookings,
   premiumDays,
+  bufferMin,
 }: HourlySchedulerDataInput): SchedulerData {
   const days: Date[] = [];
   const seen = new Set<string>();
@@ -48,6 +51,7 @@ export function hourlySchedulerData({
     granularityMin: 15,
     leadTimeMs: rules.minLeadTimeHours * 60 * 60 * 1000,
     now,
+    bufferMin,
   });
 
   return {
@@ -59,5 +63,6 @@ export function hourlySchedulerData({
     premiumDays,
     rules,
     now,
+    viewerDriveBufferMin: bufferMin,
   };
 }

@@ -410,6 +410,37 @@ describe("hourlyAvailableDayKeys (U2 lead-time)", () => {
 });
 
 // ---------------------------------------------------------------------------
+// hourlyAvailableDayKeys — bufferMin filtering
+// ---------------------------------------------------------------------------
+
+describe("hourlyAvailableDayKeys (bufferMin)", () => {
+  // 2026-07-10 MDT: midnight = UTC-6 → 06:00Z
+  function denverMidnightMDT2026(day: string): Date {
+    return new Date(`${day}T06:00:00Z`);
+  }
+
+  it("buffer removes a day whose only start no longer fits the window", () => {
+    const day = denverMidnightMDT2026("2026-07-10");
+    const win = {
+      // 9:00–10:30 Denver that day: 9*60=540min, 10.5*60=630min past midnight
+      startsAt: new Date(day.getTime() + 540 * 60_000),
+      endsAt: new Date(day.getTime() + 630 * 60_000),
+    };
+    const base = {
+      days: [day],
+      windows: [win],
+      busy: [],
+      durationMin: 60,
+      granularityMin: 15,
+    };
+    const withNoBuffer = hourlyAvailableDayKeys(base);
+    expect(withNoBuffer.has("2026-07-10")).toBe(true);
+    const withBuffer = hourlyAvailableDayKeys({ ...base, bufferMin: 30 });
+    expect(withBuffer.has("2026-07-10")).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // validateStayRange
 // ---------------------------------------------------------------------------
 
