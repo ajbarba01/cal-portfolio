@@ -583,17 +583,18 @@ export function DayTimeline({ className }: { className?: string }) {
                 tabIndex={-1} // track div handles keyboard
                 aria-label={`Start at ${formatMinutes12(startMin)}`}
                 className={cn(
-                  "absolute inset-x-1 cursor-pointer rounded-sm transition-colors duration-100",
+                  "absolute inset-x-1 cursor-pointer rounded-md transition-colors duration-75 ease-out",
                   "focus-visible:ring-ring focus-visible:ring-1 focus-visible:outline-none",
                   isActive
                     ? "pointer-events-none" // block handles its own drag; don't double-fire
                     : "hover:bg-brand/15 active:bg-brand/25",
                 )}
                 style={{
+                  // Match the block's height so the hover affordance previews the
+                  // booking footprint exactly (and short durations don't overlap
+                  // into a jumpy stack of 44px zones).
                   top: topPx,
-                  height: Math.max(intervalMinutes * PX_PER_MIN, 44), // ≥44px tap target
-                  // visually only a thin affordance, but tap target is full height
-                  minHeight: 44,
+                  height: Math.max(intervalMinutes * PX_PER_MIN, MIN_BLOCK_PX),
                 }}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -616,15 +617,18 @@ export function DayTimeline({ className }: { className?: string }) {
               return (
                 <div
                   className={cn(
-                    "bg-brand text-brand-foreground absolute inset-x-1 rounded-md",
+                    "bg-brand text-brand-foreground absolute inset-x-1 top-0 rounded-md",
                     "flex flex-col justify-between overflow-hidden px-2.5 py-1",
                     "shadow-sm",
                     "cursor-grab active:cursor-grabbing",
-                    "transition-shadow duration-150",
+                    // Position via GPU transform (composite-only, no per-frame
+                    // layout) with a short glide so 15-min snaps feel smooth
+                    // instead of teleporting.
+                    "transition-[transform,box-shadow] duration-100 ease-out will-change-transform",
                     dragPreviewStart !== null && "shadow-md",
                   )}
                   style={{
-                    top: topPx,
+                    transform: `translateY(${topPx}px)`,
                     height: Math.max(heightPx, MIN_BLOCK_PX),
                     touchAction: "none",
                     userSelect: "none",
