@@ -441,6 +441,50 @@ describe("hourlyAvailableDayKeys (bufferMin)", () => {
 });
 
 // ---------------------------------------------------------------------------
+// hourlyAvailableDayKeys — busy-overlap buffer widening
+// ---------------------------------------------------------------------------
+
+describe("hourlyAvailableDayKeys (busy-overlap buffer widening)", () => {
+  // 2026-07-15 MDT: midnight = UTC-6 → 06:00Z
+  const day = new Date("2026-07-15T06:00:00Z");
+
+  // Window: 9:00–10:00 AM Denver MDT = 15:00Z–16:00Z.
+  // With durationMin=60 and granularityMin=60, only one candidate start: 9:00 AM.
+  // Candidate span at buffer=0: [15:00Z, 16:00Z).
+  // Busy range: [16:00Z, 16:30Z) — touches candidate end (half-open), so NO overlap.
+  // At buffer=30 min (bufMs=1_800_000): widened candidate = [14:30Z, 16:30Z).
+  //   overlapsHalfOpen([14:30Z, 16:30Z), [16:00Z, 16:30Z)):
+  //     14:30 < 16:30 (true) AND 16:00 < 16:30 (true) → overlaps → day excluded.
+  const windows = [
+    {
+      startsAt: new Date("2026-07-15T15:00:00Z"), // 9:00 AM Denver MDT
+      endsAt: new Date("2026-07-15T16:00:00Z"), // 10:00 AM Denver MDT
+    },
+  ];
+  const busyRange = {
+    startsAt: new Date("2026-07-15T16:00:00Z"), // 10:00 AM MDT — adjacent to candidate end
+    endsAt: new Date("2026-07-15T16:30:00Z"), // 10:30 AM MDT
+  };
+  const base = {
+    days: [day],
+    windows,
+    busy: [busyRange],
+    durationMin: 60,
+    granularityMin: 60,
+  };
+
+  it("buffer=0: busy range only touches candidate end → no overlap → day IS included", () => {
+    const keys = hourlyAvailableDayKeys(base);
+    expect(keys.has("2026-07-15")).toBe(true);
+  });
+
+  it("buffer=30: widened candidate overlaps the adjacent busy range → day IS excluded", () => {
+    const keys = hourlyAvailableDayKeys({ ...base, bufferMin: 30 });
+    expect(keys.has("2026-07-15")).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // validateStayRange
 // ---------------------------------------------------------------------------
 
