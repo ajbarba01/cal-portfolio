@@ -146,6 +146,47 @@ describe("parsePricingConfig — constraints", () => {
       }),
     ).not.toThrow();
   });
+
+  it("rejects minDurationMin greater than maxDurationMin", () => {
+    expect(() =>
+      parsePricingConfig({
+        modifiers: [],
+        constraints: {
+          intervalMin: 15,
+          minDurationMin: 180,
+          maxDurationMin: 30,
+          allowedSpecies: ["dog"],
+        },
+      }),
+    ).toThrow();
+  });
+
+  it("rejects maxDogs = 0", () => {
+    expect(() =>
+      parsePricingConfig({
+        modifiers: [],
+        constraints: {
+          intervalMin: 15,
+          maxDogs: 0,
+          allowedSpecies: ["dog"],
+        },
+      }),
+    ).toThrow();
+  });
+
+  it("accepts minDurationMin equal to maxDurationMin", () => {
+    expect(() =>
+      parsePricingConfig({
+        modifiers: [],
+        constraints: {
+          intervalMin: 15,
+          minDurationMin: 60,
+          maxDurationMin: 60,
+          allowedSpecies: ["dog"],
+        },
+      }),
+    ).not.toThrow();
+  });
 });
 
 // ---------------------------------------------------------------------------
