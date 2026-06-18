@@ -368,36 +368,38 @@ export function ServiceBookingClient({
             />
           )}
 
-          {/* Receipt + Book. The required-profiles gate is its own step above;
-              here we only show the price (or, while forms are unmet, a pointer
-              back to that step — the quote stays withheld until the gate clears). */}
+          {/* Receipt + Book. The required-profiles gate is its own step above.
+              The price ALWAYS shows once a quote is computed — it does not depend
+              on the forms being complete. While any form is unmet, the Book CTA
+              is disabled and a pointer back to the forms step is shown. */}
           {authState === "ready" && (
             <section aria-labelledby="receipt-heading" aria-live="polite">
               <h2 id="receipt-heading" className="sr-only">
                 Your price
               </h2>
-              {previewMsg && !formsIncomplete && (
+              {previewMsg && (
                 <p role="alert" className="text-destructive mb-3 text-sm">
                   {previewMsg.text}
                 </p>
               )}
-              {formsIncomplete ? (
-                <Surface
-                  variant="plain"
-                  className="text-muted-foreground border-dashed p-6 text-center text-sm"
-                >
-                  Complete the required forms above to see your price and book.
-                </Surface>
-              ) : quote ? (
+              {quote ? (
                 // U1: success renders a terminal panel (early return above),
-                // so the Book CTA always shows alongside a quote here.
-                <QuotePanel
-                  preview={quote}
-                  onBook={handleBook}
-                  bookLabel={isSubmitting ? "Submitting…" : "Book now"}
-                  bookDisabled={!bookEnabled}
-                  showBook
-                />
+                // so the Book CTA always shows alongside a quote here. When forms
+                // are unmet, bookEnabled is false → the CTA is disabled.
+                <>
+                  <QuotePanel
+                    preview={quote}
+                    onBook={handleBook}
+                    bookLabel={isSubmitting ? "Submitting…" : "Book now"}
+                    bookDisabled={!bookEnabled}
+                    showBook
+                  />
+                  {formsIncomplete && (
+                    <p className="text-muted-foreground mt-3 text-sm">
+                      Complete the required forms above to book.
+                    </p>
+                  )}
+                </>
               ) : (
                 <Surface
                   variant="plain"

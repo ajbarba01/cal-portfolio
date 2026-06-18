@@ -38,6 +38,13 @@ export interface BookingQuotePreview {
   approvalReasons: ApprovalReason[];
   /** Warnings for admin-skipped gates (empty under client policy). */
   warnings: string[];
+  /**
+   * Required-profiles checklist for this booking, each tagged complete/stale/
+   * missing. Surfaced alongside the price so the UI can show what's still needed
+   * WITHOUT withholding the receipt — booking is blocked on the client when any
+   * item is not complete, but the quote always renders.
+   */
+  requirements: RequirementItem[];
 }
 
 export type PreviewResult =
@@ -45,7 +52,6 @@ export type PreviewResult =
   | { kind: "refuse"; reason: string }
   | { kind: "blocked_debt"; owedCents: number }
   | { kind: "onboarding_incomplete" }
-  | { kind: "profiles_incomplete"; requirements: RequirementItem[] }
   | { kind: "validation_error"; message: string }
   | { kind: "error"; message: string };
 
@@ -73,6 +79,7 @@ export async function computeBookingQuoteCore(
     decision,
     approvalReasons,
     warnings,
+    requirements,
   } = result.artifacts;
   return {
     kind: "success",
@@ -84,6 +91,7 @@ export async function computeBookingQuoteCore(
       decision,
       approvalReasons,
       warnings,
+      requirements,
     },
   };
 }

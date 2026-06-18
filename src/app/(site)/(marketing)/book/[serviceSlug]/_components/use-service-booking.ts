@@ -117,9 +117,9 @@ export interface UseServiceBookingReturn {
   quote: BookingQuotePreview | null;
   previewMsg: UserMessage | null;
   /**
-   * True when the server returned profiles_incomplete — the client is ready but
-   * one or more required profiles are missing/stale. Renders the requirements
-   * gate instead of the price box.
+   * True when the previewed booking has one or more required profiles missing or
+   * stale (derived from `quote.requirements`). The price box still renders; this
+   * only disables the Book button and shows the inline requirements gate.
    */
   formsIncomplete: boolean;
   /** The unmet (and met) profile requirements backing the gate checklist. */
@@ -298,22 +298,20 @@ export function useServiceBooking({
     canQuoteRef.current = hasSelection && petsOk && authState === "ready";
     runPreviewRef.current = async () => {
       const result = await previewQuote(buildSelectionInput());
-      if (result.kind === "profiles_incomplete") {
-        setQuote(null);
-        setPreviewMsg(null);
-        setFormsIncomplete(true);
-        setProfileRequirements(result.requirements);
-        return;
-      }
-      setFormsIncomplete(false);
-      setProfileRequirements(null);
       const out = previewResultMessage(result);
       if (out.kind === "quote") {
+        // The receipt computes regardless of form state: show the price, then
+        // derive the gate from the requirements that ride along on the preview.
         setQuote(out.preview);
         setPreviewMsg(null);
+        const reqs = out.preview.requirements;
+        setProfileRequirements(reqs);
+        setFormsIncomplete(reqs.some((r) => r.status !== "complete"));
       } else {
         setQuote(null);
         setPreviewMsg(out.message);
+        setFormsIncomplete(false);
+        setProfileRequirements(null);
       }
     };
     clearOnSelectRef.current = () => {
@@ -373,6 +371,13 @@ export function useServiceBooking({
             : [],
         });
       } else {
+        // Backstop: Book is disabled while formsIncomplete, but if a create still
+        // returns profiles_incomplete (e.g. a profile went stale mid-session),
+        // re-surface the gate so the client knows what to finish.
+        if (result.kind === "profiles_incomplete") {
+          setFormsIncomplete(true);
+          setProfileRequirements(result.requirements);
+        }
         const msg = createResultMessage(
           result,
           quote?.requiresApproval ?? true,
@@ -420,6 +425,7 @@ export function useServiceBooking({
     !isSubmitting &&
     !isPreviewing &&
     !submitDone &&
+    !formsIncomplete &&
     (authState !== "ready" || quote !== null);
 
   // Auth-prompt href for guest — login with returnTo so the user lands back here.

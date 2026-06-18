@@ -14,7 +14,10 @@ import {
   type CreateBookingInput,
 } from "./booking-service-shared";
 import type { BookingQuotePreview } from "./quote-core";
-import type { RequirementItem } from "./required-profiles";
+import {
+  requirementsSatisfied,
+  type RequirementItem,
+} from "./required-profiles";
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Types
@@ -71,7 +74,6 @@ export type PreviewEditResult =
   | { kind: "price_locked" }
   | { kind: "blocked_debt"; owedCents: number }
   | { kind: "onboarding_incomplete" }
-  | { kind: "profiles_incomplete"; requirements: RequirementItem[] }
   | { kind: "refuse"; reason: string }
   | { kind: "unavailable"; reason: string }
   | { kind: "validation_error"; message: string }
@@ -220,11 +222,6 @@ export async function editBookingCore(
     return { kind: "blocked_debt", owedCents: artifacts.owedCents };
   if (artifacts.kind === "onboarding_incomplete")
     return { kind: "onboarding_incomplete" };
-  if (artifacts.kind === "profiles_incomplete")
-    return {
-      kind: "profiles_incomplete",
-      requirements: artifacts.requirements,
-    };
 
   const warnings = [...artifacts.artifacts.warnings];
   const {
@@ -232,7 +229,14 @@ export async function editBookingCore(
     quoteInput,
     breakdown,
     requiresApprovalByOccurrence,
+    requirements,
   } = artifacts.artifacts;
+
+  // Required-profiles gate — enforced on COMMIT only (previewEditCore renders the
+  // quote regardless). A client may not save an edit until every required profile
+  // is complete; admin (skipFormsGate) is warn-don't-block.
+  if (!requirementsSatisfied(requirements) && !policy.skipFormsGate)
+    return { kind: "profiles_incomplete", requirements };
 
   // Slot validation (hours/lead/horizon + window-fit), policy-aware.
   const ruleSettings = toRuleSettings(s);
@@ -365,11 +369,6 @@ export async function previewEditCore(
     return { kind: "blocked_debt", owedCents: artifacts.owedCents };
   if (artifacts.kind === "onboarding_incomplete")
     return { kind: "onboarding_incomplete" };
-  if (artifacts.kind === "profiles_incomplete")
-    return {
-      kind: "profiles_incomplete",
-      requirements: artifacts.requirements,
-    };
 
   const {
     settings: s,
@@ -379,6 +378,7 @@ export async function previewEditCore(
     decision,
     approvalReasons,
     warnings,
+    requirements,
   } = artifacts.artifacts;
 
   // Slot/window validation — mirrors editBookingCore (Fix 3). Read-only: no
@@ -411,6 +411,7 @@ export async function previewEditCore(
     decision,
     approvalReasons,
     warnings,
+    requirements,
   };
   // hoisted for callers that need approval without drilling into preview
   return { kind: "preview", preview, requiresApproval };

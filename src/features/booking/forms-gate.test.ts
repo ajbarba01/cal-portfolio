@@ -1,16 +1,22 @@
 /**
- * Unit tests for the required-PROFILES booking gate in computeBookingArtifacts.
+ * Unit tests for the required-PROFILES booking gate.
  *
  * Follows the fake-repo pattern established in
  * src/features/booking/mutations/create-booking.mutation.test.ts.
  * No real DB; all deps are injected vi.fn stubs.
  *
- * Gate rule: a booking requires the reusable profiles its pricing_type's manifest
- * lists (REQUIRED_PROFILES), each complete and fresh (within FRESHNESS_WINDOW_DAYS
- * of `now`). Missing or stale → CLIENT_POLICY blocks with `profiles_incomplete`;
- * ADMIN_POLICY warns instead. Per-pet 'pet' items are vacuous when no pets are
- * assigned, so a walk with owner complete + no pets passes. services.form_key is
- * legacy and no longer consulted.
+ * Gate rule (split across two layers):
+ *   - computeBookingArtifacts ALWAYS computes the quote and surfaces the
+ *     required-profiles checklist as `artifacts.requirements` — the price
+ *     receipt never depends on the forms being complete.
+ *   - The COMMIT cores (createBookingCore / editBookingCore) enforce the gate:
+ *     a missing or stale required profile → CLIENT_POLICY blocks with
+ *     `profiles_incomplete`; ADMIN_POLICY (skipFormsGate) warns instead.
+ *
+ * A profile is complete only when submitted/confirmed within FRESHNESS_WINDOW_DAYS
+ * of `now`. Per-pet 'pet' items are vacuous when no pets are assigned, so a walk
+ * with owner complete + no pets passes. services.form_key is legacy and no longer
+ * consulted.
  */
 
 import { describe, it, expect, vi } from "vitest";
@@ -18,6 +24,7 @@ import {
   computeBookingArtifacts,
   type CreateBookingInput,
 } from "./booking-service-shared";
+import { createBookingCore } from "./create-core";
 import { CLIENT_POLICY, ADMIN_POLICY } from "./mutation-policy";
 import { FRESHNESS_WINDOW_DAYS } from "./required-profiles";
 import type { BookingRepository, SettingsRow } from "./booking-repository";
@@ -145,7 +152,7 @@ function makeRepo(opts: { formStatuses?: FormStatus[] }): BookingRepository {
 // Tests
 // ──────────────────────────────────────────────────────────────────────────────
 
-describe("computeBookingArtifacts — requirements gate", () => {
+describe("computeBookingArtifacts — receipt computes regardless of forms", () => {
   it("passes when every required profile is complete (owner fresh, pet vacuous with no pets)", async () => {
     const repo = makeRepo({ formStatuses: [FRESH_OWNER] });
     const result = await computeBookingArtifacts(
@@ -156,39 +163,41 @@ describe("computeBookingArtifacts — requirements gate", () => {
     expect(result.kind).toBe("success");
   });
 
-  it("returns profiles_incomplete under CLIENT_POLICY when a required profile is missing", async () => {
+  it("still computes the quote under CLIENT_POLICY when a required profile is missing, surfacing it in artifacts.requirements", async () => {
     const repo = makeRepo({ formStatuses: [] });
     const result = await computeBookingArtifacts(
       { repo, now: NOW },
       BASE_INPUT,
       CLIENT_POLICY,
     );
-    expect(result.kind).toBe("profiles_incomplete");
-    if (result.kind === "profiles_incomplete") {
-      expect(result.requirements).toContainEqual({
+    // The price receipt must NOT depend on form state — success, with a quote.
+    expect(result.kind).toBe("success");
+    if (result.kind === "success") {
+      expect(result.artifacts.breakdown.finalCents).toBeGreaterThan(0);
+      expect(result.artifacts.requirements).toContainEqual({
         formKey: "owner",
         status: "missing",
       });
     }
   });
 
-  it("returns profiles_incomplete when a required profile is stale", async () => {
+  it("still computes the quote when a required profile is stale, surfacing it in artifacts.requirements", async () => {
     const repo = makeRepo({ formStatuses: [STALE_OWNER] });
     const result = await computeBookingArtifacts(
       { repo, now: NOW },
       BASE_INPUT,
       CLIENT_POLICY,
     );
-    expect(result.kind).toBe("profiles_incomplete");
-    if (result.kind === "profiles_incomplete") {
-      expect(result.requirements).toContainEqual({
+    expect(result.kind).toBe("success");
+    if (result.kind === "success") {
+      expect(result.artifacts.requirements).toContainEqual({
         formKey: "owner",
         status: "stale",
       });
     }
   });
 
-  it("bypasses the gate under ADMIN_POLICY (warn-don't-block)", async () => {
+  it("warns (warn-don't-block) under ADMIN_POLICY when a required profile is missing", async () => {
     const repo = makeRepo({ formStatuses: [] });
     const result = await computeBookingArtifacts(
       { repo, now: NOW },
@@ -205,5 +214,33 @@ describe("computeBookingArtifacts — requirements gate", () => {
 
   it("sanity-checks the freshness window constant is the agreed 180 days", () => {
     expect(FRESHNESS_WINDOW_DAYS).toBe(180);
+  });
+});
+
+describe("createBookingCore — forms gate enforced on commit", () => {
+  it("blocks with profiles_incomplete under CLIENT_POLICY when a required profile is missing", async () => {
+    const repo = makeRepo({ formStatuses: [] });
+    const result = await createBookingCore(
+      { repo, now: NOW },
+      BASE_INPUT,
+      CLIENT_POLICY,
+    );
+    expect(result.kind).toBe("profiles_incomplete");
+    if (result.kind === "profiles_incomplete") {
+      expect(result.requirements).toContainEqual({
+        formKey: "owner",
+        status: "missing",
+      });
+    }
+  });
+
+  it("blocks with profiles_incomplete under CLIENT_POLICY when a required profile is stale", async () => {
+    const repo = makeRepo({ formStatuses: [STALE_OWNER] });
+    const result = await createBookingCore(
+      { repo, now: NOW },
+      BASE_INPUT,
+      CLIENT_POLICY,
+    );
+    expect(result.kind).toBe("profiles_incomplete");
   });
 });

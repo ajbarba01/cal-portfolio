@@ -113,6 +113,7 @@ describe("previewResultMessage", () => {
       decision: "auto" as const,
       approvalReasons: [],
       warnings: [],
+      requirements: [],
     };
     const result: PreviewActionResult = { kind: "success", preview };
     const out = previewResultMessage(result);

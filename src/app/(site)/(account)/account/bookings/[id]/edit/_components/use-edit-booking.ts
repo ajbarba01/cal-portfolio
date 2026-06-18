@@ -283,14 +283,28 @@ export function useEditBooking({
         patch: patchRef.current,
       });
       switch (result.kind) {
-        case "preview":
+        case "preview": {
+          // The receipt always computes — show the re-quoted price regardless of
+          // form state. If a required profile is missing/stale, keep the price
+          // visible but block Save and point the client to Account → Profiles.
           setQuote(result.preview);
           setApprovalWillReReview(
             result.requiresApproval && initial.wasConfirmed,
           );
-          setErrorMsg(null);
-          setBlocked(false);
+          const formsIncomplete = result.preview.requirements.some(
+            (r) => r.status !== "complete",
+          );
+          if (formsIncomplete) {
+            setErrorMsg(
+              "Complete your required profiles before changing this booking — see Account → Profiles.",
+            );
+            setBlocked(true);
+          } else {
+            setErrorMsg(null);
+            setBlocked(false);
+          }
           break;
+        }
         case "unavailable":
           setQuote(null);
           setApprovalWillReReview(false);
@@ -308,14 +322,6 @@ export function useEditBooking({
           setApprovalWillReReview(false);
           setErrorMsg(
             "This booking is already paid, so its price can't change.",
-          );
-          setBlocked(true);
-          break;
-        case "profiles_incomplete":
-          setQuote(null);
-          setApprovalWillReReview(false);
-          setErrorMsg(
-            "Complete your required profiles before changing this booking — see Account → Profiles.",
           );
           setBlocked(true);
           break;
