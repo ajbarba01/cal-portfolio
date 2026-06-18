@@ -11,7 +11,13 @@ export type {
   ApprovalReason,
   ApprovalReasonCode,
 } from "./distance";
-export { headlineRate, formatCents, pricingBreakdown } from "./display";
+export {
+  headlineRate,
+  formatCents,
+  pricingBreakdown,
+  centsToDollarsNumber,
+  dollarsToCents,
+} from "./display";
 export type { PricingBreakdownRow } from "./display";
 export { defaultGeocoder } from "./geocoding/zip-centroid-geocoder";
 export type { Geocoder } from "./geocoding/geocoder";
