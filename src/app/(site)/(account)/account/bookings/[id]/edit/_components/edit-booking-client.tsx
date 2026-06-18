@@ -87,6 +87,7 @@ export function EditBookingClient({
     mode,
     petAware,
     allowedSpecies,
+    maxPets,
     durationBounds,
     windowsLoading,
     windowsError,
@@ -183,6 +184,7 @@ export function EditBookingClient({
                 selected={selectedPetIds}
                 onChange={onPetIdsChange}
                 onPetAdded={handlePetAdded}
+                maxSelect={maxPets}
               />
             )}
           </section>
