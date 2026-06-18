@@ -160,11 +160,12 @@ export function DayTimeline({ className }: { className?: string }) {
   }, [dayKey, data.windows]);
 
   /**
-   * Booked blocks for the selected day: the busy ranges (already widened by the
-   * existing bookings' own drive-time buffers, server-side) intersected with the
-   * day, as [startMin, endMin]. Rendered as a status-booked overlay so the user
-   * SEES occupied time instead of an all-green window (the candidate starts under
-   * these blocks are already filtered out of `candidateStarts`).
+   * Busy ranges for the selected day: existing bookings (already widened by their
+   * own drive-time buffers, server-side) intersected with the day, as
+   * [startMin, endMin]. Rendered (further widened by the viewer's buffer at the
+   * render site) as unavailable strips so occupied + travel time reads as
+   * not-available instead of green. The candidate starts under these are already
+   * filtered out of `candidateStarts`.
    */
   const busyBlocks = useMemo<MinuteWindow[]>(() => {
     if (!dayKey) return [];
@@ -506,24 +507,29 @@ export function DayTimeline({ className }: { className?: string }) {
             />
           ))}
 
-          {/* Booked blocks — existing bookings (already widened by their own
-              drive-time buffer server-side) shown over the open band so taken
-              time reads as unavailable instead of green. Clamped to the track. */}
+          {/* Unavailable strips — existing bookings (already widened by their own
+              drive-time buffer server-side), further widened by the viewer's own
+              drive buffer so the strip also covers the travel time a new booking
+              would need around this one. Painted in the track's unavailable colour
+              (no badge) so the time simply reads as not made available — carving
+              the green open band. Clamped to the track. */}
           {busyBlocks.map(([start, end], i) => {
-            const top = (Math.max(start, minOpen) - minOpen) * PX_PER_MIN;
+            const blockedStart = start - bufferMin;
+            const blockedEnd = end + bufferMin;
+            const top =
+              (Math.max(blockedStart, minOpen) - minOpen) * PX_PER_MIN;
             const height =
-              (Math.min(end, maxClose) - Math.max(start, minOpen)) * PX_PER_MIN;
+              (Math.min(blockedEnd, maxClose) -
+                Math.max(blockedStart, minOpen)) *
+              PX_PER_MIN;
             if (height <= 0) return null;
             return (
               <div
                 key={`busy-${i}`}
-                className="bg-status-booked/85 text-status-booked-foreground pointer-events-none absolute inset-x-0 z-[1] flex items-center justify-center overflow-hidden text-[10px] font-medium"
+                className="bg-status-unavailable pointer-events-none absolute inset-x-0 z-1"
                 style={{ top, height }}
-                title="Booked"
                 aria-hidden="true"
-              >
-                {height >= 16 ? "Booked" : ""}
-              </div>
+              />
             );
           })}
 
