@@ -4,7 +4,9 @@
 
 ## Where things stand (2026-06-18)
 
-**Phase 1 — Pricing Engine Core: COMPLETE on local `main`, UNPUSHED.** 11 commits, `a79263d..f88e863`.
+**Phase 1 (Pricing Engine Core) + P3 (Constraints + Approval Reasons): COMPLETE on local `main`, UNPUSHED.** P3 adds 11 commits (`1ba8d3f..34dd397`) atop Phase 1; whole branch reviewed, `tsc` clean. The next sections detail Phase 1; P3 specifics are under "Carry-forward phases → P3" below.
+
+**Phase 1 — Pricing Engine Core.** 11 commits, `a79263d..f88e863`.
 
 What landed:
 
@@ -28,15 +30,15 @@ Build: `tsc --noEmit` clean; pricing unit tests 101/101; pre-commit hook passes 
 ## Do next / pending
 
 1. **Prod migration NOT pushed.** Prod Supabase still holds old-shape `pricing_config`; `services-repo` silently skips unparseable rows → the live site would show "services coming soon" and quotes would parse-error. Push `20260618120000_pricing_modifier_config.sql` to the prod project (separate project — only with maintainer ask; see the `deploy-env-topology` memory).
-2. **Maintainer to confirm 3 live behavioral changes** (correct per TEMP/spec, but they change real quote amounts):
-   - house_sitting now bills per-mile travel (5 free, then per-mile) — old model billed $0 for house-sit travel.
-   - needy-pet surcharge + puppy discounts + leash-manners add-on are **dormant** until Phase 2 sources their inputs.
-   - recurring/premium percentages now live in the config; `settings.recurring_discount_pct` / `holiday_surcharge_cents` are vestigial for pricing.
+2. **Maintainer to confirm live behavioral changes before the prod ship** (all accepted in-session; they change what clients see/can book):
+   - _From Phase 1 (quote amounts):_ house_sitting now bills per-mile travel (5 free, then per-mile) — old model billed $0 for house-sit travel; needy-pet surcharge + puppy discounts + leash-manners add-on are **dormant** until Phase 2 sources their inputs; recurring/premium percentages now live in the config (`settings.recurring_discount_pct` / `holiday_surcharge_cents` vestigial for pricing).
+   - _From P3 (what clients can book):_ **walks now cap at 2 dogs** (was unlimited); walk/check_in/training **booking durations are clamped** to seeded min/max (walk 30–180, check_in 15–60, training 30–60); check_in/training get a **finer 5-min slot-start grid**. House-sit's config `allowedSpecies:[all 7]` is intentionally **inert** (pets are dog/cat by DB enum).
 
 ## Carry-forward phases
 
 - **P2 — source the deferred inputs.** `needyTier`, `anyDogUnder6mo`, `leashManners` (and `others`/fish exclusion) are left at defaults in `buildQuoteInput` (`booking-service-shared.ts`). Wire them from pet species/birthdate so the needy/puppy/leash modifiers fire.
-- **P3 — enforce + render.** Enforce `constraints` (intervalMin / min-max duration / maxDogs / allowedSpecies) in the pickers; render `approvalReasons` in `quote-panel.tsx` (carried but not yet shown).
+- **P3 — enforce + render. DONE (local main, unpushed).** Spec `2026-06-18-pricing-constraints-and-reasons-design.md`, plan `2026-06-18-pricing-constraints-and-reasons.md`, ledger `.git/sdd/progress.md`. `approvalReasons` now render in `quote-panel.tsx` by severity; `constraints` carried on `ServiceDetail` and drive allowed-species, pet cap (`maxDogs`), duration clamp, at-cap feedback, and the slot-start grid (`intervalMin`). Added `@testing-library/jest-dom` test infra. tsc clean; per-task + final review done. **Follow-up (I1, maintainer call):** the pet cap (`maxSelect`) is wired only on the public booking surface — admin-create and client-edit don't enforce it (pre-existing gap; admin is intentionally an override surface, so decide whether client-edit should cap). Plus the deferred Minors in the ledger.
+- **P3.1 — pet-cap surface consistency (small).** The `maxSelect` pet cap (`constraints.maxDogs`) is enforced only on the public booking surface (`service-booking-client.tsx` passes `maxSelect={maxPets}`). Admin-create (`use-admin-create-booking.ts` / `admin-create-booking-client.tsx`) and client-edit (`use-edit-booking.ts` / `edit-booking-client.tsx`) don't expose/pass it, so walk's 2-dog cap doesn't apply there. **Client-edit must enforce it.** Admin is an intentional override surface (warn-not-block elsewhere) — decide whether admin caps or stays uncapped. Mirror the `durationBounds` threading pattern (one-line passthrough per hook) + the at-cap notice already in `pet-assignment.tsx`. Pre-existing gap (training's old cap was never enforced there either), so not urgent.
 - **P4 — admin pricing editor.** `/admin/services` pricing fields are currently **disabled** (read-only Phase-4 note); `fieldsToConfig`/`pricingFields` in `pricing-config-fields.ts` are dead. Rebuild the editor to emit `{ modifiers, constraints }`.
 - **Deferred Minors** (OK-to-defer, enumerated in the ledger): schema hardening (`.nonempty()`/`.int()` on tiers/`from`/`pct`/`maxDogs`); `distance_unlikely` can stack after `distance_refuse`; a few test-quality nits; `admin-actions-core` duplicated kiche-toggle computation.
 
