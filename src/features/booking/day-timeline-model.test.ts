@@ -3,6 +3,7 @@ import {
   startOptions,
   blockSpan,
   clampRangesToDayMinutes,
+  subtractBlocked,
 } from "./day-timeline-model";
 
 const DAY = Date.UTC(2026, 6, 10, 0, 0, 0); // 2026-07-10 00:00 UTC
@@ -116,5 +117,44 @@ describe("clampRangesToDayMinutes", () => {
       [540, 600],
       [720, 780],
     ]);
+  });
+});
+
+describe("subtractBlocked", () => {
+  it("returns the whole window when nothing is blocked", () => {
+    expect(subtractBlocked([[540, 660]], [])).toEqual([[540, 660]]);
+  });
+  it("splits a window into two free blocks around a mid booking", () => {
+    // window 9:00–12:00, booking 10:00–10:30 → free [540,600] and [630,720]
+    expect(subtractBlocked([[540, 720]], [[600, 630]])).toEqual([
+      [540, 600],
+      [630, 720],
+    ]);
+  });
+  it("trims the window edges when blocked overlaps an end", () => {
+    expect(subtractBlocked([[540, 660]], [[540, 570]])).toEqual([[570, 660]]);
+    expect(subtractBlocked([[540, 660]], [[630, 660]])).toEqual([[540, 630]]);
+  });
+  it("drops a window fully covered by a block", () => {
+    expect(subtractBlocked([[540, 660]], [[500, 700]])).toEqual([]);
+  });
+  it("merges overlapping blocks (no zero/negative free slivers)", () => {
+    // overlapping blocks 600-640 and 620-660 inside 540-720 → free [540,600],[660,720]
+    expect(
+      subtractBlocked(
+        [[540, 720]],
+        [
+          [600, 640],
+          [620, 660],
+        ],
+      ),
+    ).toEqual([
+      [540, 600],
+      [660, 720],
+    ]);
+  });
+  it("clips blocks to the window before subtracting", () => {
+    // block extends beyond the window on both sides of a gap
+    expect(subtractBlocked([[540, 660]], [[500, 560]])).toEqual([[560, 660]]);
   });
 });

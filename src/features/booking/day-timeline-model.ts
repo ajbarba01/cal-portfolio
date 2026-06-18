@@ -66,3 +66,35 @@ export function clampRangesToDayMinutes(
     })
     .filter(([s, e]) => e > s);
 }
+
+/**
+ * Subtracts `blocked` minute-intervals from each open window, returning the
+ * remaining FREE sub-intervals (sorted, non-overlapping, zero-width dropped).
+ * Overlapping/adjacent blocked intervals are merged via a running cursor.
+ *
+ * Pure (#5 ENGINEERING). Lets the day timeline render availability as discrete
+ * green blocks that split around bookings + their drive buffers, with plain
+ * gaps where time is unavailable.
+ */
+export function subtractBlocked(
+  windows: MinuteWindow[],
+  blocked: MinuteWindow[],
+): MinuteWindow[] {
+  const out: MinuteWindow[] = [];
+  for (const [open, close] of windows) {
+    const cuts = blocked
+      .map(
+        ([bs, be]) => [Math.max(bs, open), Math.min(be, close)] as MinuteWindow,
+      )
+      .filter(([bs, be]) => be > bs)
+      .sort((a, b) => a[0] - b[0]);
+
+    let cursor = open;
+    for (const [bs, be] of cuts) {
+      if (bs > cursor) out.push([cursor, bs]);
+      cursor = Math.max(cursor, be);
+    }
+    if (cursor < close) out.push([cursor, close]);
+  }
+  return out.filter(([s, e]) => e > s).sort((a, b) => a[0] - b[0]);
+}

@@ -35,6 +35,7 @@ import {
   startOptions,
   blockSpan,
   clampRangesToDayMinutes,
+  subtractBlocked,
 } from "@/features/booking/day-timeline-model";
 import type { MinuteWindow } from "@/features/booking/day-timeline-model";
 import { useCellSelection } from "./use-cell-selection";
@@ -171,6 +172,20 @@ export function DayTimeline({ className }: { className?: string }) {
     if (!dayKey) return [];
     return clampRangesToDayMinutes(data.busy, denverMidnight(dayKey).getTime());
   }, [dayKey, data.busy]);
+
+  /**
+   * Free availability blocks: the open windows with the busy ranges removed.
+   * Each busy range is widened by the viewer's own drive buffer so the gap also
+   * reserves the travel time a new booking needs around an existing one. Rendered
+   * as discrete green rounded blocks; the white track between them reads as
+   * unavailable.
+   */
+  const freeBlocks = useMemo<MinuteWindow[]>(() => {
+    const blocked = busyBlocks.map(
+      ([s, e]) => [s - bufferMin, e + bufferMin] as MinuteWindow,
+    );
+    return subtractBlocked(minuteWindows, blocked);
+  }, [minuteWindows, busyBlocks, bufferMin]);
 
   /**
    * Candidate starts from day-timeline-model, then busy-filtered:
@@ -479,7 +494,7 @@ export function DayTimeline({ className }: { className?: string }) {
           className={cn(
             "relative flex-1 rounded-md",
             "border-border border",
-            "bg-status-unavailable overflow-hidden",
+            "bg-card overflow-hidden",
             "cursor-pointer",
             "focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none",
             // No native drag
@@ -494,11 +509,14 @@ export function DayTimeline({ className }: { className?: string }) {
           onKeyDown={handleTrackKeyDown}
           onDragStart={(e) => e.preventDefault()}
         >
-          {/* Open window bands */}
-          {minuteWindows.map(([open, close], i) => (
+          {/* Free availability blocks — open windows with bookings + their drive
+              buffers removed. Rendered as discrete green rounded blocks; the white
+              track showing between them reads as unavailable (Cal isn't free to
+              start there). Candidate starts under a gap are already filtered out. */}
+          {freeBlocks.map(([open, close], i) => (
             <div
               key={i}
-              className="bg-status-available/50 absolute inset-x-0"
+              className="bg-status-available/60 pointer-events-none absolute inset-x-1 rounded-lg"
               style={{
                 top: (open - minOpen) * PX_PER_MIN,
                 height: (close - open) * PX_PER_MIN,
@@ -506,32 +524,6 @@ export function DayTimeline({ className }: { className?: string }) {
               aria-hidden="true"
             />
           ))}
-
-          {/* Unavailable strips — existing bookings (already widened by their own
-              drive-time buffer server-side), further widened by the viewer's own
-              drive buffer so the strip also covers the travel time a new booking
-              would need around this one. Painted in the track's unavailable colour
-              (no badge) so the time simply reads as not made available — carving
-              the green open band. Clamped to the track. */}
-          {busyBlocks.map(([start, end], i) => {
-            const blockedStart = start - bufferMin;
-            const blockedEnd = end + bufferMin;
-            const top =
-              (Math.max(blockedStart, minOpen) - minOpen) * PX_PER_MIN;
-            const height =
-              (Math.min(blockedEnd, maxClose) -
-                Math.max(blockedStart, minOpen)) *
-              PX_PER_MIN;
-            if (height <= 0) return null;
-            return (
-              <div
-                key={`busy-${i}`}
-                className="bg-status-unavailable pointer-events-none absolute inset-x-0 z-1"
-                style={{ top, height }}
-                aria-hidden="true"
-              />
-            );
-          })}
 
           {/* Horizontal hour ruled lines */}
           {hourLabels.map((minuteMark) => {
