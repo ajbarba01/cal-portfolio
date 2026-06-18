@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { driveBufferMinutes } from "./drive-buffer";
+import {
+  driveBufferMinutes,
+  driveBufferMinutesFromMiles,
+} from "./drive-buffer";
 
 const cfg = { roadFactor: 1.3, avgSpeedMph: 30, pct: 120 };
 const origin = { lat: 40.0, lng: -105.0 };
@@ -31,6 +34,28 @@ describe("driveBufferMinutes", () => {
       { lat: 40.2, lng: -105.0 },
       { ...cfg, pct: 200 },
     );
+    expect(b).toBeGreaterThan(a);
+  });
+});
+
+describe("driveBufferMinutesFromMiles", () => {
+  it("returns 0 when miles is null", () => {
+    expect(driveBufferMinutesFromMiles(null, cfg)).toBe(0);
+  });
+
+  it("returns 0 for zero miles", () => {
+    expect(driveBufferMinutesFromMiles(0, cfg)).toBe(0);
+  });
+
+  it("returns a positive rounded integer for positive miles", () => {
+    const buf = driveBufferMinutesFromMiles(10, cfg);
+    expect(buf).toBeGreaterThan(0);
+    expect(Number.isInteger(buf)).toBe(true);
+  });
+
+  it("a higher percentage yields a larger buffer", () => {
+    const a = driveBufferMinutesFromMiles(10, { ...cfg, pct: 100 });
+    const b = driveBufferMinutesFromMiles(10, { ...cfg, pct: 200 });
     expect(b).toBeGreaterThan(a);
   });
 });

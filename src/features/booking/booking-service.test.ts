@@ -38,6 +38,7 @@ import type {
   BookingRepository,
   BookingEditRow,
   BookingInsert,
+  BusyRange,
 } from "./booking-repository";
 import { quote } from "@/features/pricing/quote";
 import type { WalkConfig } from "@/features/pricing/types";
@@ -1159,6 +1160,7 @@ function makeMockRepo(
     openWindows?: { startsAt: Date; endsAt: Date }[];
     profileLatLng?: { lat: number | null; lng: number | null };
     captureInserts?: boolean;
+    activeBusyRanges?: BusyRange[];
   } = {},
 ): {
   repo: BookingRepository;
@@ -1199,6 +1201,8 @@ function makeMockRepo(
       late_cancel_refund_pct: 50,
       no_show_charge_pct: 100,
       holiday_dates: [],
+      holiday_surcharge_cents: 0,
+      drive_buffer_pct: 0,
     })),
     getProfileLatLng: vi.fn(
       async () => opts.profileLatLng ?? { lat: 40.087, lng: -105.27 },
@@ -1218,6 +1222,7 @@ function makeMockRepo(
       },
     ]),
     getOpenWindows: vi.fn(async () => opts.openWindows ?? []),
+    getActiveBusyRanges: vi.fn(async () => opts.activeBusyRanges ?? []),
     insertBookings: vi.fn(async (rows: BookingInsert[]) => {
       if (opts.captureInserts) {
         lastInsertedStatuses = rows.map((r) => r.status as string);
@@ -1484,6 +1489,131 @@ describe("createBookingCore policy-aware", () => {
     expect(result.kind).toBe("success");
     if (result.kind === "success") expect(result.warnings).toEqual([]);
   });
+
+  // 5. Buffer guard (CLIENT_POLICY): buffered candidate overlaps existing booking → unavailable.
+  //    Raw ranges do NOT overlap; buffers make them conflict.
+  //    Candidate: check-in 2026-06-20T17:00–18:00Z (1h)
+  //    Client is ~5mi from origin (lat=40.087, lng=-105.27).
+  //    driveBufferPct=200 → large buffer → makes the padded range wide.
+  //    Existing exclusive booking: ends at 2026-06-20T16:55Z (5 min before candidate start).
+  //    Raw ranges do not overlap; but with a multi-minute buffer they do.
+  it("buffer guard (CLIENT_POLICY): buffered overlap with existing booking → unavailable", async () => {
+    // Existing exclusive booking that ends 5 minutes before the candidate starts.
+    // Raw: [16:00, 16:55) — no raw overlap with candidate [17:00, 18:00).
+    // Existing client is also ~5mi away → its buffer widens [16:00, 16:55) outward.
+    // Candidate buffer also widens [17:00, 18:00) backward — they overlap.
+    const existingBusy: BusyRange = {
+      startsAt: new Date("2026-06-20T16:00:00Z"),
+      endsAt: new Date("2026-06-20T16:55:00Z"),
+      concurrency: "exclusive",
+      clientLat: 40.087, // ~5mi from origin → non-zero existing buffer
+      clientLng: -105.27,
+      pets: [],
+    };
+    const { repo } = makeMockRepo({
+      openWindows: [
+        // Wide window covering both the candidate and its buffered span.
+        {
+          startsAt: new Date("2026-06-20T00:00:00Z"),
+          endsAt: new Date("2026-06-21T00:00:00Z"),
+        },
+      ],
+      // drive_buffer_pct is in the settings stub (default 0) — override via a
+      // custom settings mock so the buffer is large enough to trigger conflict.
+      // We patch getSettings to return drive_buffer_pct=200.
+      activeBusyRanges: [existingBusy],
+    });
+    // Override settings to have a large buffer pct.
+    (repo.getSettings as ReturnType<typeof vi.fn>).mockResolvedValue({
+      origin_lat: 40.015,
+      origin_lng: -105.27,
+      road_factor: 1.3,
+      avg_speed_mph: 30,
+      auto_approve_threshold_miles: 8,
+      hard_cutoff_miles: 50,
+      gate_use_road_miles: false,
+      booking_open_minute: 0,
+      booking_close_minute: 1440,
+      min_lead_time_hours: 0,
+      auto_confirm_horizon_days: 30,
+      hard_max_advance_days: 365,
+      recurrence_generation_horizon_days: 42,
+      recurring_discount_pct: 10,
+      recurring_min_occurrences: 3,
+      cancellation_full_refund_hours: 48,
+      late_cancel_refund_pct: 50,
+      no_show_charge_pct: 100,
+      holiday_dates: [],
+      holiday_surcharge_cents: 0,
+      drive_buffer_pct: 200,
+    });
+
+    const result = await createBookingCore(
+      { repo, now: CREATE_POLICY_NOW },
+      validClientInput,
+      CLIENT_POLICY,
+    );
+    expect(result.kind).toBe("unavailable");
+    if (result.kind === "unavailable") {
+      expect(result.reason).toMatch(/travel time/i);
+    }
+  });
+
+  // 6. Buffer guard (ADMIN_POLICY): same scenario → success with a warning (warn-don't-block).
+  it("buffer guard (ADMIN_POLICY): buffered overlap downgrades to warning, not block", async () => {
+    const existingBusy: BusyRange = {
+      startsAt: new Date("2026-06-20T16:00:00Z"),
+      endsAt: new Date("2026-06-20T16:55:00Z"),
+      concurrency: "exclusive",
+      clientLat: 40.087,
+      clientLng: -105.27,
+      pets: [],
+    };
+    const { repo } = makeMockRepo({
+      openWindows: [
+        {
+          startsAt: new Date("2026-06-20T00:00:00Z"),
+          endsAt: new Date("2026-06-21T00:00:00Z"),
+        },
+      ],
+      activeBusyRanges: [existingBusy],
+    });
+    (repo.getSettings as ReturnType<typeof vi.fn>).mockResolvedValue({
+      origin_lat: 40.015,
+      origin_lng: -105.27,
+      road_factor: 1.3,
+      avg_speed_mph: 30,
+      auto_approve_threshold_miles: 8,
+      hard_cutoff_miles: 50,
+      gate_use_road_miles: false,
+      booking_open_minute: 0,
+      booking_close_minute: 1440,
+      min_lead_time_hours: 0,
+      auto_confirm_horizon_days: 30,
+      hard_max_advance_days: 365,
+      recurrence_generation_horizon_days: 42,
+      recurring_discount_pct: 10,
+      recurring_min_occurrences: 3,
+      cancellation_full_refund_hours: 48,
+      late_cancel_refund_pct: 50,
+      no_show_charge_pct: 100,
+      holiday_dates: [],
+      holiday_surcharge_cents: 0,
+      drive_buffer_pct: 200,
+    });
+
+    const result = await createBookingCore(
+      { repo, now: CREATE_POLICY_NOW },
+      validClientInput,
+      ADMIN_POLICY,
+    );
+    expect(result.kind).toBe("success");
+    if (result.kind === "success") {
+      expect(result.warnings.some((w) => /drive-time spacing/i.test(w))).toBe(
+        true,
+      );
+    }
+  });
 });
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -1514,6 +1644,8 @@ const PREVIEW_SETTINGS = {
   late_cancel_refund_pct: 50,
   no_show_charge_pct: 100,
   holiday_dates: [],
+  holiday_surcharge_cents: 0,
+  drive_buffer_pct: 0,
 };
 
 function previewBaseRow(over: Partial<BookingEditRow> = {}): BookingEditRow {

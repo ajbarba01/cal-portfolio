@@ -18,6 +18,22 @@ export interface DriveBufferConfig {
 }
 
 /**
+ * One-way blocking buffer in WHOLE minutes from a pre-computed distance.
+ * Returns 0 when `miles` is null (no coords — degrade gracefully).
+ */
+export function driveBufferMinutesFromMiles(
+  miles: number | null,
+  cfg: DriveBufferConfig,
+): number {
+  if (miles === null) return 0;
+  const oneWayMin = estimateDrivingMinutes(miles, {
+    roadFactor: cfg.roadFactor,
+    avgSpeedMph: cfg.avgSpeedMph,
+  });
+  return Math.round((oneWayMin * cfg.pct) / 100);
+}
+
+/**
  * One-way blocking buffer in WHOLE minutes. Returns 0 when the client has no
  * coordinates (degrade gracefully — the booking routes to manual approval).
  */
@@ -28,9 +44,5 @@ export function driveBufferMinutes(
 ): number {
   if (client.lat === null || client.lng === null) return 0;
   const miles = haversineMiles(origin, { lat: client.lat, lng: client.lng });
-  const oneWayMin = estimateDrivingMinutes(miles, {
-    roadFactor: cfg.roadFactor,
-    avgSpeedMph: cfg.avgSpeedMph,
-  });
-  return Math.round((oneWayMin * cfg.pct) / 100);
+  return driveBufferMinutesFromMiles(miles, cfg);
 }

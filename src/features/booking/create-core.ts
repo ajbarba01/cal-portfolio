@@ -15,6 +15,11 @@ import {
   type BookingServiceDeps,
   type CreateBookingInput,
 } from "./booking-service-shared";
+import {
+  driveBufferMinutes,
+  driveBufferMinutesFromMiles,
+} from "./drive-buffer";
+import { overlapsHalfOpen } from "./calendar-model";
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Result type
@@ -138,6 +143,74 @@ export async function createBookingCore(
           kind: "unavailable",
           reason: `Occurrence at ${occStart.toISOString()} does not fall within any open availability window.`,
         };
+      }
+    }
+  }
+
+  // 7b. Drive-time spacing buffer guard (policy-aware).
+  // Ensures each occurrence has enough travel time before/after relative to
+  // all same-class active bookings. House-sitting (resident) is excluded —
+  // it is a stay, not a round-trip visit, so no drive-time buffer applies.
+  //
+  // Candidate buffer: 0 for house_sitting, else derived from distanceMiles.
+  // Existing buffers: each existing booking widens by ITS own buffer
+  // (resident existing → 0, exclusive → computed from client coords).
+  const driveCfg = {
+    roadFactor: settings.road_factor,
+    avgSpeedMph: settings.avg_speed_mph,
+    pct: settings.drive_buffer_pct,
+  };
+  const origin = { lat: settings.origin_lat, lng: settings.origin_lng };
+  const candBufMin =
+    service.pricing_type === "house_sitting"
+      ? 0
+      : driveBufferMinutesFromMiles(result.artifacts.distanceMiles, driveCfg);
+
+  if (candBufMin > 0) {
+    // Only fetch existing bookings when the candidate has a non-zero buffer.
+    // A zero-buffer candidate can never conflict on buffer grounds alone.
+    const existing = await repo.getActiveBusyRanges(now, service.concurrency);
+    const widenedExisting = existing.map((e) => {
+      const eBufMin =
+        e.concurrency === "resident"
+          ? 0
+          : driveBufferMinutes(
+              origin,
+              { lat: e.clientLat, lng: e.clientLng },
+              driveCfg,
+            );
+      const eBufMs = eBufMin * 60_000;
+      return {
+        startsAt: new Date(e.startsAt.getTime() - eBufMs),
+        endsAt: new Date(e.endsAt.getTime() + eBufMs),
+      };
+    });
+
+    const bufMs = candBufMin * 60_000;
+    for (const occStart of occurrences) {
+      const occEnd = new Date(occStart.getTime() + durationMs);
+      const bufferedCandidate = {
+        startsAt: new Date(occStart.getTime() - bufMs),
+        endsAt: new Date(occEnd.getTime() + bufMs),
+      };
+
+      const windowOk = fitsWindow(bufferedCandidate, openWindows);
+      const overlapOk = !widenedExisting.some((we) =>
+        overlapsHalfOpen(bufferedCandidate, we),
+      );
+
+      if (!windowOk || !overlapOk) {
+        if (policy.skipBufferGuard) {
+          warnings.push(
+            `Occurrence at ${occStart.toISOString()} conflicts with drive-time spacing.`,
+          );
+        } else {
+          return {
+            kind: "unavailable",
+            reason:
+              "That time doesn't leave enough travel time around another booking. Please pick another slot.",
+          };
+        }
       }
     }
   }
