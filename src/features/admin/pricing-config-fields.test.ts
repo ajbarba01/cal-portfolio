@@ -1,211 +1,196 @@
-/**
- * Tests for pricingFields and fieldsToConfig.
- */
-
 import { describe, expect, it } from "vitest";
 import {
-  pricingFields,
-  fieldsToConfig,
-  type PricingField,
+  deriveEditableFields,
+  setLeaf,
+  validateEditableFields,
 } from "./pricing-config-fields";
-import type {
-  WalkConfig,
-  HouseSittingConfig,
-  CheckInConfig,
-  TrainingConfig,
-  MeetGreetConfig,
-} from "@/features/pricing";
+import type { ServicePricingConfig } from "@/features/pricing";
 
-// ---------------------------------------------------------------------------
-// pricingFields
-// ---------------------------------------------------------------------------
+const WALK: ServicePricingConfig = {
+  modifiers: [
+    { kind: "base_per_hour", cents: 2500 },
+    { kind: "tiered_per_unit", unit: "dog", tiers: [{ from: 2, pct: 50 }] },
+    {
+      kind: "per_hour_addon",
+      id: "leash_manners",
+      label: "Leash manners (+$10/h)",
+      cents: 1000,
+      optIn: true,
+    },
+    {
+      kind: "allowance_then_per_unit",
+      unit: "mile",
+      label: "Travel",
+      freeUnits: 5,
+      cents: 200,
+    },
+    { kind: "min_floor", cents: 1500 },
+    {
+      kind: "pct_discount",
+      id: "kiche",
+      label: "Kiche discount (-15%)",
+      pct: 15,
+      condition: "always",
+      manual: true,
+    },
+  ],
+  constraints: {
+    intervalMin: 15,
+    minDurationMin: 30,
+    maxDurationMin: 180,
+    maxDogs: 2,
+    allowedSpecies: ["dog"],
+  },
+};
 
-describe("pricingFields — walk", () => {
-  const cfg: WalkConfig = {
-    rate_cents_per_hour: 4500,
-    per_dog_cents: 1000,
-    kiche_discount_pct: 15,
-  };
+const HOUSE_SIT: ServicePricingConfig = {
+  modifiers: [
+    { kind: "base_per_night", cents: 6000 },
+    {
+      kind: "flat_per_night_toggle",
+      id: "cat_only",
+      label: "Cat-only home",
+      cents: -2500,
+      source: { kind: "condition", condition: "noDogs" },
+    },
+    { kind: "flat_per_unit", unit: "cat", cents: 800 },
+  ],
+  constraints: {
+    intervalMin: 15,
+    allowedSpecies: ["dog", "cat", "bird"],
+    softDistanceWarnMiles: 15,
+  },
+};
 
-  it("returns 3 fields in the expected order", () => {
-    const fields = pricingFields("walk", cfg);
-    expect(fields).toHaveLength(3);
-    expect(fields.map((f) => f.key)).toEqual([
-      "rate_cents_per_hour",
-      "per_dog_cents",
-      "kiche_discount_pct",
-    ]);
+const MEET_GREET: ServicePricingConfig = {
+  modifiers: [],
+  constraints: { intervalMin: 15, allowedSpecies: ["dog", "cat"] },
+};
+
+describe("deriveEditableFields — modifier value leaves", () => {
+  it("emits the base rate as a cents field addressed by index", () => {
+    const fields = deriveEditableFields(WALK);
+    const base = fields.find((f) => f.path === "m.0.cents");
+    expect(base).toMatchObject({ kind: "cents", value: 2500, group: "rates" });
   });
 
-  it("assigns correct kinds", () => {
-    const fields = pricingFields("walk", cfg);
-    expect(fields[0].kind).toBe("cents");
-    expect(fields[1].kind).toBe("cents");
-    expect(fields[2].kind).toBe("pct");
+  it("emits a tier pct leaf addressed by tier index", () => {
+    const fields = deriveEditableFields(WALK);
+    const tier = fields.find((f) => f.path === "m.1.tiers.0.pct");
+    expect(tier).toMatchObject({ kind: "pct", value: 50, min: 0, max: 100 });
   });
 
-  it("carries the config values", () => {
-    const fields = pricingFields("walk", cfg);
-    expect(fields[0].value).toBe(4500);
-    expect(fields[1].value).toBe(1000);
-    expect(fields[2].value).toBe(15);
+  it("emits both leaves of allowance_then_per_unit", () => {
+    const fields = deriveEditableFields(WALK);
+    expect(fields.find((f) => f.path === "m.3.freeUnits")).toMatchObject({
+      kind: "int",
+      value: 5,
+    });
+    expect(fields.find((f) => f.path === "m.3.cents")).toMatchObject({
+      kind: "cents",
+      value: 200,
+    });
   });
 
-  it("has non-empty friendly labels", () => {
-    const fields = pricingFields("walk", cfg);
-    for (const f of fields) {
-      expect(f.label.length).toBeGreaterThan(0);
-    }
-  });
-});
-
-describe("pricingFields — house_sitting", () => {
-  const cfg: HouseSittingConfig = {
-    base_dog_cents_per_night: 7500,
-    base_cat_cents_per_night: 5000,
-    extra_dog_cents_per_night: 1500,
-    extra_cat_cents_per_night: 1000,
-    cant_be_left_alone_cents_per_day: 2000,
-    extra_walk_15min_cents_per_day: 500,
-    holiday_cents_per_day: 3000,
-    kiche_discount_pct: 10,
-  };
-
-  it("returns 8 fields", () => {
-    expect(pricingFields("house_sitting", cfg)).toHaveLength(8);
+  it("marks discount cents as allowNegative", () => {
+    const fields = deriveEditableFields(HOUSE_SIT);
+    const catOnly = fields.find((f) => f.path === "m.1.cents");
+    expect(catOnly).toMatchObject({ value: -2500, allowNegative: true });
+    const catFlat = fields.find((f) => f.path === "m.2.cents");
+    expect(catFlat?.allowNegative).toBe(true);
   });
 
-  it("has kiche_discount_pct as pct kind", () => {
-    const fields = pricingFields("house_sitting", cfg);
-    const kiche = fields.find((f) => f.key === "kiche_discount_pct");
-    expect(kiche?.kind).toBe("pct");
-  });
-
-  it("all other fields are cents kind", () => {
-    const fields = pricingFields("house_sitting", cfg);
-    const nonPct = fields.filter((f) => f.key !== "kiche_discount_pct");
-    for (const f of nonPct) {
-      expect(f.kind).toBe("cents");
-    }
-  });
-});
-
-describe("pricingFields — check_in", () => {
-  const cfg: CheckInConfig = { rate_cents_per_hour: 3000, minimum_cents: 5000 };
-
-  it("returns 2 fields", () => {
-    expect(pricingFields("check_in", cfg)).toHaveLength(2);
-  });
-
-  it("both are cents kind", () => {
-    const fields = pricingFields("check_in", cfg);
-    for (const f of fields) expect(f.kind).toBe("cents");
-  });
-});
-
-describe("pricingFields — training", () => {
-  const cfg: TrainingConfig = { rate_cents_per_hour: 6000 };
-
-  it("returns 1 field of cents kind", () => {
-    const fields = pricingFields("training", cfg);
-    expect(fields).toHaveLength(1);
-    expect(fields[0].kind).toBe("cents");
+  it("never emits structure/identity as a field", () => {
+    const paths = deriveEditableFields(WALK).map((f) => f.path);
+    expect(paths.some((p) => p.endsWith(".from"))).toBe(false);
+    expect(paths).not.toContain("m.0.kind");
   });
 });
 
-describe("pricingFields — meet_greet", () => {
-  it("returns empty array", () => {
-    const cfg: MeetGreetConfig = {};
-    expect(pricingFields("meet_greet", cfg)).toEqual([]);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// fieldsToConfig
-// ---------------------------------------------------------------------------
-
-describe("fieldsToConfig — walk", () => {
-  const cfg: WalkConfig = {
-    rate_cents_per_hour: 4500,
-    per_dog_cents: 1000,
-    kiche_discount_pct: 15,
-  };
-
-  it("rebuilds config matching original", () => {
-    const fields = pricingFields("walk", cfg);
-    expect(fieldsToConfig("walk", fields, cfg)).toEqual(cfg);
-  });
-
-  it("reflects mutated field values", () => {
-    const fields = pricingFields("walk", cfg);
-    const mutated: PricingField[] = fields.map((f) =>
-      f.key === "rate_cents_per_hour" ? { ...f, value: 5000 } : f,
+describe("deriveEditableFields — constraints", () => {
+  it("emits present numeric constraints in the limits group", () => {
+    const fields = deriveEditableFields(WALK).filter(
+      (f) => f.group === "limits",
     );
-    const result = fieldsToConfig("walk", mutated, cfg);
-    expect((result as WalkConfig).rate_cents_per_hour).toBe(5000);
+    const byPath = Object.fromEntries(fields.map((f) => [f.path, f]));
+    expect(byPath["c.intervalMin"]).toMatchObject({ value: 15, min: 1 });
+    expect(byPath["c.minDurationMin"]).toMatchObject({ value: 30 });
+    expect(byPath["c.maxDurationMin"]).toMatchObject({ value: 180 });
+    expect(byPath["c.maxDogs"]).toMatchObject({ value: 2, min: 1 });
+  });
+
+  it("omits absent constraints (no maxDogs / durations on house-sit)", () => {
+    const paths = deriveEditableFields(HOUSE_SIT).map((f) => f.path);
+    expect(paths).not.toContain("c.maxDogs");
+    expect(paths).not.toContain("c.minDurationMin");
+    expect(paths).toContain("c.softDistanceWarnMiles");
+  });
+
+  it("meet_greet yields no rate fields", () => {
+    const fields = deriveEditableFields(MEET_GREET);
+    expect(fields.filter((f) => f.group === "rates")).toHaveLength(0);
   });
 });
 
-describe("fieldsToConfig — house_sitting round-trip", () => {
-  const cfg: HouseSittingConfig = {
-    base_dog_cents_per_night: 7500,
-    base_cat_cents_per_night: 5000,
-    extra_dog_cents_per_night: 1500,
-    extra_cat_cents_per_night: 1000,
-    cant_be_left_alone_cents_per_day: 2000,
-    extra_walk_15min_cents_per_day: 500,
-    holiday_cents_per_day: 3000,
-    kiche_discount_pct: 10,
-  };
+describe("setLeaf — immutable single-leaf updates", () => {
+  it("updates a modifier cents leaf without mutating the input", () => {
+    const next = setLeaf(WALK, "m.0.cents", 3000);
+    expect((next.modifiers[0] as { cents: number }).cents).toBe(3000);
+    expect((WALK.modifiers[0] as { cents: number }).cents).toBe(2500);
+  });
 
-  it("round-trips perfectly", () => {
+  it("rounds cents but keeps pct as entered", () => {
     expect(
-      fieldsToConfig("house_sitting", pricingFields("house_sitting", cfg), cfg),
-    ).toEqual(cfg);
+      (setLeaf(WALK, "m.0.cents", 2999.6).modifiers[0] as { cents: number })
+        .cents,
+    ).toBe(3000);
+    const tierMod = setLeaf(WALK, "m.1.tiers.0.pct", 40).modifiers[1] as {
+      tiers: { pct: number }[];
+    };
+    expect(tierMod.tiers[0].pct).toBe(40);
+  });
+
+  it("updates a constraint leaf", () => {
+    expect(setLeaf(WALK, "c.maxDogs", 3).constraints.maxDogs).toBe(3);
+  });
+
+  it("preserves ids/sources/structure of untouched modifiers", () => {
+    const next = setLeaf(HOUSE_SIT, "m.0.cents", 7000);
+    expect(next.modifiers[1]).toEqual(HOUSE_SIT.modifiers[1]);
+  });
+
+  it("throws on an unknown path", () => {
+    expect(() => setLeaf(WALK, "m.0.bogus", 1)).toThrow();
+    expect(() => setLeaf(WALK, "x.y", 1)).toThrow();
   });
 });
 
-describe("fieldsToConfig — check_in round-trip", () => {
-  const cfg: CheckInConfig = { rate_cents_per_hour: 3000, minimum_cents: 5000 };
+describe("validateEditableFields", () => {
+  it("returns no errors for a valid config", () => {
+    expect(validateEditableFields(WALK, 60)).toEqual({});
+  });
 
-  it("round-trips perfectly", () => {
+  it("flags below-min values", () => {
+    const bad = setLeaf(WALK, "c.maxDogs", 0);
+    expect(validateEditableFields(bad, 60)["c.maxDogs"]).toBeDefined();
+  });
+
+  it("flags min duration greater than max duration", () => {
+    const bad = setLeaf(WALK, "c.minDurationMin", 200);
+    expect(validateEditableFields(bad, 60)["c.maxDurationMin"]).toBeDefined();
+  });
+
+  it("flags a NaN value (empty input)", () => {
+    const bad = setLeaf(WALK, "m.0.cents", NaN);
+    expect(validateEditableFields(bad, 60)["m.0.cents"]).toBeDefined();
+  });
+
+  it("flags a missing/too-small default duration", () => {
     expect(
-      fieldsToConfig("check_in", pricingFields("check_in", cfg), cfg),
-    ).toEqual(cfg);
-  });
-});
-
-describe("fieldsToConfig — training round-trip", () => {
-  const cfg: TrainingConfig = { rate_cents_per_hour: 6000 };
-
-  it("round-trips perfectly", () => {
+      validateEditableFields(WALK, null)["col.defaultDurationMin"],
+    ).toBeDefined();
     expect(
-      fieldsToConfig("training", pricingFields("training", cfg), cfg),
-    ).toEqual(cfg);
-  });
-});
-
-describe("fieldsToConfig — meet_greet round-trip", () => {
-  it("returns empty config for meet_greet", () => {
-    const cfg: MeetGreetConfig = {};
-    expect(fieldsToConfig("meet_greet", [], cfg)).toEqual({});
-  });
-});
-
-describe("fieldsToConfig — unknown-key pass-through", () => {
-  it("preserves keys not in the known field set", () => {
-    // Simulate a config that has an extra key not covered by schema
-    const cfg = {
-      rate_cents_per_hour: 3000,
-      minimum_cents: 5000,
-      future_key: 42,
-    } as unknown as CheckInConfig;
-    const fields = pricingFields("check_in", cfg);
-    // fields only yields the 2 known keys; future_key should pass through
-    const result = fieldsToConfig("check_in", fields, cfg) as Record<
-      string,
-      unknown
-    >;
-    expect(result.future_key).toBe(42);
+      validateEditableFields(WALK, 0)["col.defaultDurationMin"],
+    ).toBeDefined();
   });
 });
