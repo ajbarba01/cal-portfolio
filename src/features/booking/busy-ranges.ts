@@ -21,6 +21,8 @@ import {
   type BookingRepository,
   type ConcurrencyClass,
 } from "./booking-repository";
+import { driveBufferMinutes, type DriveBufferConfig } from "./drive-buffer";
+import type { LatLng } from "@/lib/haversine";
 
 const SIGNED_URL_TTL_SECONDS = 60 * 60;
 
@@ -34,25 +36,45 @@ export interface PublicBusyRange {
 /**
  * Core (DI-testable): maps identity-free repo busy ranges to the public shape,
  * resolving each pet photo path to a signed URL via the injected signer.
+ *
+ * Each time-based booking is widened by the one-way drive-time buffer between
+ * Cal's origin and the booking owner's location. House-sitting (concurrency
+ * "resident") is excluded — Cal is on-site and no round-trip is needed.
+ *
+ * The drive coordinates are used server-side only and collapse into the
+ * widened startsAt/endsAt. PublicBusyRange never carries lat/lng/concurrency.
  */
 export async function getPublicBusyRangesCore(
   repo: Pick<BookingRepository, "getActiveBusyRanges">,
   signPhoto: (path: string) => Promise<string | null>,
   now: Date,
   concurrency: ConcurrencyClass | null,
+  origin: LatLng,
+  bufferCfg: DriveBufferConfig,
 ): Promise<PublicBusyRange[]> {
   const ranges = await repo.getActiveBusyRanges(now, concurrency);
   return Promise.all(
-    ranges.map(async (r) => ({
-      startsAt: r.startsAt.toISOString(),
-      endsAt: r.endsAt.toISOString(),
-      pets: await Promise.all(
-        r.pets.map(async (p) => ({
-          species: p.species,
-          photoUrl: p.photoPath ? await signPhoto(p.photoPath) : null,
-        })),
-      ),
-    })),
+    ranges.map(async (r) => {
+      const bufMin =
+        r.concurrency === "resident"
+          ? 0
+          : driveBufferMinutes(
+              origin,
+              { lat: r.clientLat, lng: r.clientLng },
+              bufferCfg,
+            );
+      const bufMs = bufMin * 60_000;
+      return {
+        startsAt: new Date(r.startsAt.getTime() - bufMs).toISOString(),
+        endsAt: new Date(r.endsAt.getTime() + bufMs).toISOString(),
+        pets: await Promise.all(
+          r.pets.map(async (p) => ({
+            species: p.species,
+            photoUrl: p.photoPath ? await signPhoto(p.photoPath) : null,
+          })),
+        ),
+      };
+    }),
   );
 }
 
@@ -72,6 +94,17 @@ export async function getPublicBusyRanges(
     concurrency = service?.concurrency ?? null;
   }
 
+  const settings = await repo.getSettings();
+  const origin: LatLng = {
+    lat: settings.origin_lat,
+    lng: settings.origin_lng,
+  };
+  const bufferCfg: DriveBufferConfig = {
+    roadFactor: settings.road_factor,
+    avgSpeedMph: settings.avg_speed_mph,
+    pct: settings.drive_buffer_pct,
+  };
+
   const signPhoto = async (path: string): Promise<string | null> => {
     const { data } = await svc.storage
       .from("pet-photos")
@@ -79,5 +112,12 @@ export async function getPublicBusyRanges(
     return data?.signedUrl ?? null;
   };
 
-  return getPublicBusyRangesCore(repo, signPhoto, new Date(), concurrency);
+  return getPublicBusyRangesCore(
+    repo,
+    signPhoto,
+    new Date(),
+    concurrency,
+    origin,
+    bufferCfg,
+  );
 }
