@@ -115,6 +115,7 @@ export function DayTimeline({ className }: { className?: string }) {
   const { capabilities, data, selection } = useScheduler();
   const { state, beginGridDrag, clearDays } = selection;
   const intervalMinutes = capabilities.intervalMinutes ?? 60;
+  const bufferMin = data.viewerDriveBufferMin ?? 0;
 
   // ── All hooks (unconditional — WeekGrid pattern) ──────────────────────────
 
@@ -175,17 +176,19 @@ export function DayTimeline({ className }: { className?: string }) {
       windows: minuteWindows,
       durationMin: intervalMinutes,
       granularityMin: 15,
+      bufferMin,
     });
     const midnight = denverMidnight(dayKey).getTime();
     return allStarts.filter((startMin) => {
       const { endMin } = blockSpan(startMin, intervalMinutes);
+      const bufMs = bufferMin * 60_000;
       const candidateRange = {
-        startsAt: new Date(midnight + startMin * 60_000),
-        endsAt: new Date(midnight + endMin * 60_000),
+        startsAt: new Date(midnight + startMin * 60_000 - bufMs),
+        endsAt: new Date(midnight + endMin * 60_000 + bufMs),
       };
       return !data.busy.some((b) => overlapsHalfOpen(candidateRange, b));
     });
-  }, [dayKey, minuteWindows, intervalMinutes, data.busy]);
+  }, [dayKey, minuteWindows, intervalMinutes, data.busy, bufferMin]);
 
   // Track vertical span: min open → max close across all minute-windows
   const trackBounds = useMemo<{
