@@ -114,6 +114,7 @@ export { quantityStateFromQuoteInputs } from "./quantity-state-from-quote-inputs
 
 // service-detail
 export type { ServiceDetail } from "./service-detail";
+export { DEFAULT_CONSTRAINTS } from "./service-detail";
 
 // services-repo
 export { listActiveServices } from "./services-repo";

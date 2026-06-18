@@ -65,6 +65,7 @@ vi.mock("@/features/booking/index.client", async (importActual) => {
 // denverMidnight is the REAL helper (importActual spread keeps it un-mocked) —
 // used to compute the expected derived instant in the debounce/derivation test.
 import { denverMidnight } from "@/features/booking/index.client";
+import { DEFAULT_CONSTRAINTS } from "@/features/booking";
 import { useServiceBooking } from "./use-service-booking";
 import type { UseServiceBookingInput } from "./use-service-booking";
 
@@ -87,6 +88,7 @@ function walkInput(
       description: null,
       pricingType: "walk",
       defaultDurationMin: 60,
+      constraints: DEFAULT_CONSTRAINTS,
     },
     rules: RULES,
     initialBusy: [],
@@ -107,6 +109,7 @@ function meetGreetInput(): UseServiceBookingInput {
       description: null,
       pricingType: "meet_greet",
       defaultDurationMin: 30,
+      constraints: DEFAULT_CONSTRAINTS,
     },
   });
 }

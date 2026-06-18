@@ -13,6 +13,7 @@ import {
   serviceSupportsKiche,
   kichePreview,
   EDITABLE_STATUSES,
+  DEFAULT_CONSTRAINTS,
   type ServiceDetail,
   type AssignablePet,
   type PetSpecies,
@@ -20,6 +21,7 @@ import {
 import { EditBookingClient } from "@/app/(site)/(account)/account/bookings/[id]/edit/_components/edit-booking-client";
 import { AdminKicheControl } from "./_components/admin-kiche-control";
 import type { PricingType } from "@/features/pricing";
+import { parsePricingConfig } from "@/features/pricing";
 
 const SIGNED_URL_TTL_SECONDS = 60 * 60;
 
@@ -59,10 +61,19 @@ export default async function AdminEditBookingPage({
 
   const { data: serviceRow } = await svc
     .from("services")
-    .select("id, slug, name, description, pricing_type, default_duration_min")
+    .select(
+      "id, slug, name, description, pricing_type, pricing_config, default_duration_min",
+    )
     .eq("slug", booking.service_slug)
     .single();
   if (!serviceRow) redirect(`/admin/clients/${clientId}`);
+
+  let constraints = DEFAULT_CONSTRAINTS;
+  try {
+    constraints = parsePricingConfig(serviceRow.pricing_config).constraints;
+  } catch {
+    // keep DEFAULT_CONSTRAINTS — never crash on bad config
+  }
 
   const service: ServiceDetail = {
     slug: serviceRow.slug as string,
@@ -76,6 +87,7 @@ export default async function AdminEditBookingPage({
       typeof serviceRow.default_duration_min === "number"
         ? serviceRow.default_duration_min
         : null,
+    constraints,
   };
 
   const { data: feeRow } = await svc

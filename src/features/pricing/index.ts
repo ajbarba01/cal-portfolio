@@ -25,4 +25,4 @@ export type {
   TrainingConfig,
   MeetGreetConfig,
 } from "./types";
-export type { ServicePricingConfig } from "./modifier-types";
+export type { ServicePricingConfig, Constraints } from "./modifier-types";

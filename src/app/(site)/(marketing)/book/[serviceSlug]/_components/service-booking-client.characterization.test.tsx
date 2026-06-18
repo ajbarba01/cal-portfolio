@@ -58,6 +58,7 @@ vi.mock("@/features/booking/index.client", async (importActual) => {
 });
 
 import { ServiceBookingClient } from "./service-booking-client";
+import { DEFAULT_CONSTRAINTS } from "@/features/booking";
 
 const RULES = {
   bookingOpenMinute: 480,
@@ -72,6 +73,7 @@ const WALK_SERVICE = {
   description: null,
   pricingType: "walk" as const,
   defaultDurationMin: 60,
+  constraints: DEFAULT_CONSTRAINTS,
 };
 
 describe("ServiceBookingClient (characterization)", () => {
