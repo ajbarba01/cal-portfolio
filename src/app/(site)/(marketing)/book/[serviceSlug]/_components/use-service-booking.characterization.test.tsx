@@ -66,6 +66,7 @@ vi.mock("@/features/booking/index.client", async (importActual) => {
 // used to compute the expected derived instant in the debounce/derivation test.
 import { denverMidnight } from "@/features/booking/index.client";
 import { DEFAULT_CONSTRAINTS } from "@/features/booking";
+import type { Constraints } from "@/features/pricing";
 import { useServiceBooking } from "./use-service-booking";
 import type { UseServiceBookingInput } from "./use-service-booking";
 
@@ -78,6 +79,15 @@ const RULES = {
   hardMaxAdvanceDays: 90,
 };
 
+/** Realistic walk constraints: dog-only, 30–180 min, max 2 dogs, 15-min grid. */
+const WALK_CONSTRAINTS: Constraints = {
+  intervalMin: 15,
+  minDurationMin: 30,
+  maxDurationMin: 180,
+  maxDogs: 2,
+  allowedSpecies: ["dog"],
+};
+
 function walkInput(
   overrides?: Partial<UseServiceBookingInput>,
 ): UseServiceBookingInput {
@@ -88,7 +98,7 @@ function walkInput(
       description: null,
       pricingType: "walk",
       defaultDurationMin: 60,
-      constraints: DEFAULT_CONSTRAINTS,
+      constraints: WALK_CONSTRAINTS,
     },
     rules: RULES,
     initialBusy: [],
