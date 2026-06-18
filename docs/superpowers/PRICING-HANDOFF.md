@@ -4,7 +4,9 @@
 
 ## Where things stand (2026-06-18)
 
-**Phase 1 — Pricing Engine Core: COMPLETE on local `main`, UNPUSHED.** 11 commits, `a79263d..f88e863`.
+**Phase 1 (Pricing Engine Core) + P3 (Constraints + Approval Reasons): COMPLETE on local `main`, UNPUSHED.** P3 adds 11 commits (`1ba8d3f..34dd397`) atop Phase 1; whole branch reviewed, `tsc` clean. The next sections detail Phase 1; P3 specifics are under "Carry-forward phases → P3" below.
+
+**Phase 1 — Pricing Engine Core.** 11 commits, `a79263d..f88e863`.
 
 What landed:
 
@@ -36,6 +38,7 @@ Build: `tsc --noEmit` clean; pricing unit tests 101/101; pre-commit hook passes 
 
 - **P2 — source the deferred inputs.** `needyTier`, `anyDogUnder6mo`, `leashManners` (and `others`/fish exclusion) are left at defaults in `buildQuoteInput` (`booking-service-shared.ts`). Wire them from pet species/birthdate so the needy/puppy/leash modifiers fire.
 - **P3 — enforce + render. DONE (local main, unpushed).** Spec `2026-06-18-pricing-constraints-and-reasons-design.md`, plan `2026-06-18-pricing-constraints-and-reasons.md`, ledger `.git/sdd/progress.md`. `approvalReasons` now render in `quote-panel.tsx` by severity; `constraints` carried on `ServiceDetail` and drive allowed-species, pet cap (`maxDogs`), duration clamp, at-cap feedback, and the slot-start grid (`intervalMin`). Added `@testing-library/jest-dom` test infra. tsc clean; per-task + final review done. **Follow-up (I1, maintainer call):** the pet cap (`maxSelect`) is wired only on the public booking surface — admin-create and client-edit don't enforce it (pre-existing gap; admin is intentionally an override surface, so decide whether client-edit should cap). Plus the deferred Minors in the ledger.
+- **P3.1 — pet-cap surface consistency (small).** The `maxSelect` pet cap (`constraints.maxDogs`) is enforced only on the public booking surface (`service-booking-client.tsx` passes `maxSelect={maxPets}`). Admin-create (`use-admin-create-booking.ts` / `admin-create-booking-client.tsx`) and client-edit (`use-edit-booking.ts` / `edit-booking-client.tsx`) don't expose/pass it, so walk's 2-dog cap doesn't apply there. **Client-edit must enforce it.** Admin is an intentional override surface (warn-not-block elsewhere) — decide whether admin caps or stays uncapped. Mirror the `durationBounds` threading pattern (one-line passthrough per hook) + the at-cap notice already in `pet-assignment.tsx`. Pre-existing gap (training's old cap was never enforced there either), so not urgent.
 - **P4 — admin pricing editor.** `/admin/services` pricing fields are currently **disabled** (read-only Phase-4 note); `fieldsToConfig`/`pricingFields` in `pricing-config-fields.ts` are dead. Rebuild the editor to emit `{ modifiers, constraints }`.
 - **Deferred Minors** (OK-to-defer, enumerated in the ledger): schema hardening (`.nonempty()`/`.int()` on tiers/`from`/`pct`/`maxDogs`); `distance_unlikely` can stack after `distance_refuse`; a few test-quality nits; `admin-actions-core` duplicated kiche-toggle computation.
 
