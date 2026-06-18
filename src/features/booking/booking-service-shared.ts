@@ -10,6 +10,8 @@ import { haversineMiles } from "@/lib/haversine";
 import { deriveApprovalWithReasons } from "@/features/pricing";
 import type { ApprovalReason } from "@/features/pricing";
 import { deriveTimeApproval } from "./time-gate";
+import { needyTierFromHoursAway } from "./needy-tier";
+import { isUnderSixMonths } from "./puppy-age";
 import { quote } from "@/features/pricing";
 import { parsePricingConfig } from "@/features/pricing";
 import { expandOccurrences } from "./recurrence";
@@ -222,6 +224,7 @@ const houseSittingQuantitiesSchema = z.object({
   nights: z.number().positive(),
   cantBeLeftAloneDays: z.number().int().min(0).optional(),
   walkMinutesPerDay: z.number().min(0).optional(),
+  maxHoursAway: z.number().min(0).optional(),
   holidayDays: z.number().int().min(0).optional(),
 });
 
@@ -235,6 +238,7 @@ const checkInQuantitiesSchema = z.object({
 const walkQuantitiesSchema = z.object({
   hours: z.number().positive(),
   dogs: z.number().int().min(1),
+  leashManners: z.boolean().optional(),
   // Server-injected after Zod parse — accepted here so buildQuoteInput can propagate them.
   holidayDays: z.number().int().min(0).optional(),
   holidaySurchargeCents: z.number().int().nonnegative().optional(),
@@ -338,8 +342,9 @@ export function parseQuantities(
  *
  * `premiumNights` (server-derived holiday-day count) and `billableMiles`
  * (road-adjusted one-way miles) are passed explicitly — the engine derives the
- * premium surcharge and travel line from them. needyTier / anyDogUnder6mo /
- * leashManners are left unset (Phase 2 sources them).
+ * premium surcharge and travel line from them. needyTier (house-sit, from
+ * maxHoursAway), leashManners (walk), and anyDogUnder6mo (server-derived) are
+ * now sourced here.
  *
  * Guarantee: `finalCents` is always a non-negative integer for valid input.
  */
@@ -358,6 +363,8 @@ export function buildQuoteInput(opts: {
    * passes the existing booking's kiche_applied so a re-quote preserves it.
    */
   applyKiche: boolean;
+  /** Server-derived: any assigned dog under 6 months at the booking start. */
+  anyDogUnder6mo: boolean;
 }): QuoteInput {
   const q = opts.quantities;
 
@@ -366,6 +373,7 @@ export function buildQuoteInput(opts: {
     premiumNights: opts.premiumNights,
     billableMiles: opts.billableMiles,
     recurringSeries: opts.recurringSeries,
+    anyDogUnder6mo: opts.anyDogUnder6mo,
     enabledManualIds: opts.applyKiche ? ["kiche"] : [],
   };
 
@@ -377,10 +385,16 @@ export function buildQuoteInput(opts: {
         cats: q.data.cats,
         nights: q.data.nights,
         exerciseMinutesPerDay: q.data.walkMinutesPerDay,
+        needyTier: needyTierFromHoursAway(q.data.maxHoursAway),
       };
 
     case "walk":
-      return { ...base, hours: q.data.hours, dogs: q.data.dogs };
+      return {
+        ...base,
+        hours: q.data.hours,
+        dogs: q.data.dogs,
+        leashManners: q.data.leashManners ?? false,
+      };
 
     case "check_in":
     case "training":
@@ -573,7 +587,11 @@ export async function computeBookingArtifacts(
     service.pricing_type === "check_in" ||
     service.pricing_type === "training";
 
-  let ownedPets: { id: string; species: PetSpecies }[] = [];
+  let ownedPets: {
+    id: string;
+    species: PetSpecies;
+    birthdate: string | null;
+  }[] = [];
   if (petAware && petIds.length > 0) {
     ownedPets = await repo.getPetsByIds(input.userId, petIds);
     if (ownedPets.length !== petIds.length) {
@@ -754,6 +772,12 @@ export async function computeBookingArtifacts(
   const billableMiles =
     distanceMiles !== null ? distanceMiles * settings.road_factor : 0;
 
+  // Puppy modifiers fire when any assigned DOG is under 6 months at the stay
+  // start. Derived server-side from the owned pets' birthdates (never client input).
+  const anyDogUnder6mo = ownedPets.some(
+    (p) => p.species === "dog" && isUnderSixMonths(p.birthdate, input.startsAt),
+  );
+
   const quoteInput = buildQuoteInput({
     config: pricingConfig,
     quantities,
@@ -761,6 +785,7 @@ export async function computeBookingArtifacts(
     premiumNights,
     recurringSeries: recurringDiscountApplies,
     applyKiche: opts?.applyKiche ?? false,
+    anyDogUnder6mo,
   });
 
   const breakdown = quote(quoteInput);

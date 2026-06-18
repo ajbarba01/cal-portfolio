@@ -316,6 +316,7 @@ export type PetSpeciesDb = "dog" | "cat";
 export interface PetRef {
   id: string;
   species: PetSpeciesDb;
+  birthdate: string | null;
 }
 
 /** One form_responses row reduced to what the requirement gate needs. */
@@ -999,17 +1000,20 @@ export function createSupabaseBookingRepository(
       if (petIds.length === 0) return [];
       const { data, error } = await client
         .from("pets")
-        .select("id, species")
+        .select("id, species, birthdate")
         .eq("client_id", userId)
         .in("id", petIds);
 
       if (error) {
         throw new Error(`Failed to load pets: ${error.message}`);
       }
-      return (data ?? []).map((r: { id: string; species: string }) => ({
-        id: r.id,
-        species: r.species as PetSpeciesDb,
-      }));
+      return (data ?? []).map(
+        (r: { id: string; species: string; birthdate: string | null }) => ({
+          id: r.id,
+          species: r.species as PetSpeciesDb,
+          birthdate: r.birthdate ?? null,
+        }),
+      );
     },
 
     async insertBookingPets(bookingIds, petIds) {
