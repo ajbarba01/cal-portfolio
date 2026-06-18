@@ -44,6 +44,26 @@ describe("startOptions", () => {
       }),
     ).toEqual([]);
   });
+  it("buffer shrinks the window on both ends", () => {
+    // Window 9:00–11:00 (540–660), 60-min duration, 15-min granularity.
+    // No buffer: starts 540,555,570,585,600.
+    expect(
+      startOptions({
+        windows: [[540, 660]],
+        durationMin: 60,
+        granularityMin: 15,
+      }),
+    ).toEqual([540, 555, 570, 585, 600]);
+    // 30-min buffer: earliest start 570 (540+30), latest end ≤ 660−30=630 → last start 570.
+    expect(
+      startOptions({
+        windows: [[540, 660]],
+        durationMin: 60,
+        granularityMin: 15,
+        bufferMin: 30,
+      }),
+    ).toEqual([570]);
+  });
 });
 describe("blockSpan", () => {
   it("returns start/end minutes for a chosen start + duration", () => {
