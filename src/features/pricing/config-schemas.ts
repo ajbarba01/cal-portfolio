@@ -178,14 +178,36 @@ const modifierSchema = z.discriminatedUnion("kind", [
 // Constraints schema
 // ---------------------------------------------------------------------------
 
-const constraintsSchema = z.object({
-  intervalMin: positiveIntSchema,
-  minDurationMin: nonNegSchema.optional(),
-  maxDurationMin: nonNegSchema.optional(),
-  maxDogs: nonNegSchema.optional(),
-  allowedSpecies: z.array(speciesSchema).nonempty(),
-  softDistanceWarnMiles: nonNegSchema.optional(),
-});
+const constraintsSchema = z
+  .object({
+    intervalMin: positiveIntSchema,
+    minDurationMin: nonNegSchema.optional(),
+    maxDurationMin: nonNegSchema.optional(),
+    maxDogs: nonNegSchema.optional(),
+    allowedSpecies: z.array(speciesSchema).nonempty(),
+    softDistanceWarnMiles: nonNegSchema.optional(),
+  })
+  .superRefine((c, ctx) => {
+    if (
+      c.minDurationMin !== undefined &&
+      c.maxDurationMin !== undefined &&
+      c.minDurationMin > c.maxDurationMin
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["maxDurationMin"],
+        message:
+          "maxDurationMin must be greater than or equal to minDurationMin",
+      });
+    }
+    if (c.maxDogs !== undefined && c.maxDogs < 1) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["maxDogs"],
+        message: "maxDogs must be at least 1",
+      });
+    }
+  });
 
 // ---------------------------------------------------------------------------
 // Top-level ServicePricingConfig schema

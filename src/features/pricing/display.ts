@@ -20,6 +20,19 @@ export function formatCents(cents: number): string {
     : `$${dollars.toFixed(2)}`;
 }
 
+/**
+ * Integer cents → a plain dollar number for an editable numeric input.
+ * (Use formatCents for display strings; this is for <input type="number">.)
+ */
+export function centsToDollarsNumber(cents: number): number {
+  return cents / 100;
+}
+
+/** Dollar input → exact integer cents (round-trips 2-dp without float drift). */
+export function dollarsToCents(dollars: number): number {
+  return Math.round(dollars * 100);
+}
+
 /** One row of a service's marketing pricing breakdown ("how it's priced"). */
 export interface PricingBreakdownRow {
   label: string;

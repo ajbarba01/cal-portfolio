@@ -4,7 +4,13 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { formatCents, headlineRate, pricingBreakdown } from "./display";
+import {
+  formatCents,
+  headlineRate,
+  pricingBreakdown,
+  centsToDollarsNumber,
+  dollarsToCents,
+} from "./display";
 import type { ServicePricingConfig } from "./modifier-types";
 
 // ---------------------------------------------------------------------------
@@ -236,5 +242,24 @@ describe("pricingBreakdown — walk", () => {
     const rows = pricingBreakdown(WALK);
     const dogTier = rows.find((r) => r.label === "Each additional dog");
     expect(dogTier).toBeDefined();
+  });
+});
+
+describe("centsToDollarsNumber", () => {
+  it("converts integer cents to a dollar number", () => {
+    expect(centsToDollarsNumber(1999)).toBe(19.99);
+    expect(centsToDollarsNumber(2500)).toBe(25);
+    expect(centsToDollarsNumber(0)).toBe(0);
+    expect(centsToDollarsNumber(-2500)).toBe(-25);
+  });
+});
+
+describe("dollarsToCents", () => {
+  it("rounds dollar input to exact integer cents", () => {
+    expect(dollarsToCents(19.99)).toBe(1999);
+    expect(dollarsToCents(25)).toBe(2500);
+    expect(dollarsToCents(0.1)).toBe(10);
+    expect(dollarsToCents(-25)).toBe(-2500);
+    expect(dollarsToCents(0)).toBe(0);
   });
 });
