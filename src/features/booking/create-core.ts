@@ -6,7 +6,10 @@ import type { BookingStatusDb } from "./booking-repository";
 import type { MutationPolicy } from "./mutation-policy";
 import { CLIENT_POLICY } from "./mutation-policy";
 import { transition } from "./state-machine";
-import type { RequirementItem } from "./required-profiles";
+import {
+  requirementsSatisfied,
+  type RequirementItem,
+} from "./required-profiles";
 import {
   computeBookingArtifacts,
   toRuleSettings,
@@ -81,9 +84,6 @@ export async function createBookingCore(
   if (result.kind === "onboarding_incomplete") {
     return { kind: "onboarding_incomplete" };
   }
-  if (result.kind === "profiles_incomplete") {
-    return { kind: "profiles_incomplete", requirements: result.requirements };
-  }
 
   const { repo, now } = deps;
   const {
@@ -93,7 +93,16 @@ export async function createBookingCore(
     breakdown,
     occurrences,
     requiresApprovalByOccurrence,
+    requirements,
   } = result.artifacts;
+
+  // Required-profiles gate — enforced on COMMIT only (the quote/receipt computes
+  // regardless; see computeBookingArtifacts). A client may not actually book
+  // until every required profile is complete and fresh; admin (skipFormsGate) is
+  // warn-don't-block (the warning is already folded into artifacts.warnings).
+  if (!requirementsSatisfied(requirements) && !policy.skipFormsGate) {
+    return { kind: "profiles_incomplete", requirements };
+  }
   // userId / startsAt / endsAt come from the already-validated parsed input (A16).
   const { input } = result.artifacts;
   const durationMs = input.endsAt.getTime() - input.startsAt.getTime();

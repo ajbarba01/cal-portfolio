@@ -433,6 +433,14 @@ export interface BookingQuoteArtifacts {
   /** Human-readable warnings for admin-skipped gates (empty under client policy). */
   warnings: string[];
   /**
+   * The required-profiles checklist for this booking (REQUIRED_PROFILES manifest
+   * × assigned pets), each tagged complete/stale/missing. ALWAYS surfaced so the
+   * receipt computes regardless of form state; the create/edit cores enforce it
+   * on COMMIT (client policy blocks, admin warns). See the forms-gate note in
+   * computeBookingArtifacts.
+   */
+  requirements: RequirementItem[];
+  /**
    * The validated + coerced create input (schema output: startsAt/endsAt are
    * Dates). Surfaced so create-core reuses it instead of re-parsing (A16).
    */
@@ -444,7 +452,6 @@ export type ArtifactsResult =
   | { kind: "refuse"; reason: string }
   | { kind: "blocked_debt"; owedCents: number }
   | { kind: "onboarding_incomplete" }
-  | { kind: "profiles_incomplete"; requirements: RequirementItem[] }
   | { kind: "validation_error"; message: string }
   | { kind: "error"; message: string };
 
@@ -609,16 +616,18 @@ export async function computeBookingArtifacts(
     petForms,
     now: deps.now,
   });
-  if (!requirementsSatisfied(requirements)) {
-    if (policy.skipFormsGate) {
-      const unmet = requirements
-        .filter((r) => r.status !== "complete")
-        .map((r) => `${r.formKey}:${r.status}`)
-        .join(", ");
-      warnings.push(`Client profiles incomplete (${unmet}).`);
-    } else {
-      return { kind: "profiles_incomplete", requirements };
-    }
+  // Forms gate is enforced on COMMIT (create/edit cores), NOT here: the price
+  // receipt must compute regardless of form state so the client can see what a
+  // booking costs while they complete the required profiles. We always surface
+  // `requirements` in the artifacts; the commit cores block on them under client
+  // policy. Admin (skipFormsGate) is warn-don't-block, so emit the warning now —
+  // it rides along on both the admin preview and the admin create.
+  if (!requirementsSatisfied(requirements) && policy.skipFormsGate) {
+    const unmet = requirements
+      .filter((r) => r.status !== "complete")
+      .map((r) => `${r.formKey}:${r.status}`)
+      .join(", ");
+    warnings.push(`Client profiles incomplete (${unmet}).`);
   }
 
   // Derive pet-aware counts (server-trusted) only for the two headcount-priced
@@ -770,6 +779,7 @@ export async function computeBookingArtifacts(
       decision,
       approvalReasons,
       warnings,
+      requirements,
       input,
     },
   };

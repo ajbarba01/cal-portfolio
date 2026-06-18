@@ -199,14 +199,10 @@ export function previewResultMessage(
         },
       };
 
-    case "profiles_incomplete":
-      return {
-        kind: "message",
-        message: {
-          tone: "info",
-          text: "Complete your required profiles before booking.",
-        },
-      };
+    // NOTE: no `profiles_incomplete` case — the preview no longer withholds the
+    // quote for incomplete forms. The requirements ride along on the successful
+    // preview (`preview.requirements`); the UI shows the price and blocks the
+    // Book button until they're complete.
 
     case "validation_error":
       return {
