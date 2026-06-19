@@ -6,6 +6,7 @@
 import Image from "next/image";
 import { MarketingHero } from "@/components/marketing/marketing-hero";
 import { MarketingCopy } from "@/components/marketing/marketing-copy";
+import type { CopyId } from "@/content/marketing";
 import placeholders from "@/content/image-placeholders.json";
 import { PageContainer } from "@/components/layout/page-container";
 import { Reveal, RevealGroup } from "@/components/effects/reveal";
@@ -30,7 +31,24 @@ const bioParagraphs = [
   "about.bio.p4",
 ] as const;
 
+// Named client references, published per client as consent is granted. Contact
+// info is never shown (privacy) — it's available on request via the intro line.
+// Flip a client to `consented: true` only once they've approved publishing.
+const references = [
+  { id: "about.references.1", consented: false },
+  { id: "about.references.2", consented: false },
+  { id: "about.references.3", consented: false },
+  { id: "about.references.4", consented: false },
+  { id: "about.references.5", consented: true },
+  { id: "about.references.6", consented: false },
+  { id: "about.references.7", consented: true },
+  { id: "about.references.8", consented: false },
+] as const satisfies readonly { id: CopyId; consented: boolean }[];
+
 export default function AboutPage() {
+  const consentedRefs = references.filter((ref) => ref.consented);
+  const pendingRefs = references.length - consentedRefs.length;
+
   return (
     <>
       <JsonLd
@@ -175,11 +193,10 @@ export default function AboutPage() {
         </PageContainer>
       </section>
 
-      {/* References — section-alt band. The named-client list (about.references
-          intro + about.references.1–8) stays withheld pending each client's
-          permission to publish (2026-06-10); the copy is kept in marketing.ts.
-          Restore the intro + real names in place of the placeholder chips once
-          consent is granted. */}
+      {/* References — section-alt band. Named clients (about.references.1–8) are
+          published per client as consent is granted (the `references` map above);
+          contact info is never shown — it's available on request via the intro.
+          Clients without consent surface only as a muted "more coming" cue. */}
       <section
         aria-labelledby="references-heading"
         className="bg-section-alt panel-ombre"
@@ -197,18 +214,32 @@ export default function AboutPage() {
               as="p"
               className="text-muted-foreground mt-3 leading-relaxed"
             >
-              <MarketingCopy id="about.references.pending" />
+              <MarketingCopy
+                id={
+                  consentedRefs.length > 0
+                    ? "about.references"
+                    : "about.references.pending"
+                }
+              />
             </Reveal>
             <ul role="list" className="mt-6 flex flex-wrap gap-2.5">
-              {Array.from({ length: 6 }).map((_, i) => (
+              {consentedRefs.map((ref) => (
                 <Reveal
                   as="li"
-                  key={i}
+                  key={ref.id}
                   className="bg-sidebar-active text-brand-strong rounded-full px-4 py-2 text-sm font-medium"
                 >
-                  Client reference
+                  <MarketingCopy id={ref.id} />
                 </Reveal>
               ))}
+              {pendingRefs > 0 && (
+                <Reveal
+                  as="li"
+                  className="border-border text-muted-foreground rounded-full border border-dashed px-4 py-2 text-sm font-medium"
+                >
+                  More coming soon
+                </Reveal>
+              )}
             </ul>
           </RevealGroup>
         </PageContainer>

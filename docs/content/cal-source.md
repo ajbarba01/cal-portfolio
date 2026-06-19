@@ -22,6 +22,12 @@ Pet care on the Front Range
 Highly individualized drop-in visits, walks, house sitting, and training from a local animal-lover
 ```
 
+### home.why.header
+
+```
+Why should pet parents choose me?
+```
+
 ### home.trust.1.title
 
 ```
@@ -62,6 +68,12 @@ I've been working in the pet care industry since 2021 and have cared for hundred
 
 ```
 Think we might be a good fit?
+```
+
+### home.cta.body
+
+```
+See services and pricing below
 ```
 
 ### about.summary
@@ -106,7 +118,23 @@ Every pet has different needs, and every household has different routines, prefe
 Whether I'm taking your dog on a walk, stopping by for a visit, or caring for your pets and your home while you're away, I aim to provide the same level of attention, reliability, and compassion that I would want for my own animals.
 ```
 
-> **Withheld from site (2026-06-10).** The named-client references below (intro + `about.references.1–8`) are not rendered on the About page yet — awaiting each client's permission to publish. Copy is captured here and remains in `marketing.ts`; the page shows placeholder text. Restore the intro + list once consent is granted.
+### about.quote.text
+
+```
+"The least I can do is speak out for those who cannot speak for themselves."
+```
+
+### about.quote.author
+
+```
+Dr. Jane Goodall
+```
+
+> Favorite-quote epigraph (2026-06-19). Cal supplied the line as `"The least I can do is speak out for those who cannot speak for themselves." - Dr. Jane Goodall`. Real attributed quotation (public-fact). Split across the two slots; the page renders the opening `"` glyph and the `—` separator, so live strings drop the wrapping quotes (text) and leading dash (author). See ledger.
+
+> **References consent (2026-06-19).** Cal marked two existing references ready to publish: `Abby D.M. — 208 943 1003` and `Madeleine K.G. — 720 388 0092` (initials + phone supplied privately; map to `about.references.5` "Abby and Sloane" and `about.references.7` "Madeleine, Apollo, Anabella"). Consent recorded; phone numbers NOT published (privacy, per existing policy). No site change yet — the full references list stays withheld until the remaining clients consent.
+
+> **Per-client consent reveal (updated 2026-06-19).** The named-client references below (intro + `about.references.1–8`) publish **per client as consent is granted** — driven by the `references` consent map in `about/page.tsx`. Consented clients render as named chips; the rest surface only as a muted "more coming" cue, and the intro line covers contact-on-request. As of 2026-06-19, `about.references.5` (Abby) and `.7` (Madeleine) are consented; the other six await permission. (Supersedes the 2026-06-10 all-or-nothing withhold.)
 
 ### about.references
 
@@ -162,6 +190,14 @@ Madeleine, apollo, anabella (phone number and/or email)
 
 ```
 Bugaboo (phone number and/or email)
+```
+
+## Reviews page
+
+### reviews.purpose
+
+```
+Feedback from pet-parents
 ```
 
 ## Resources page
