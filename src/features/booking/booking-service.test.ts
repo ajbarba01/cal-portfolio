@@ -26,6 +26,7 @@ import {
   createBookingCore,
   cancelBookingCore,
   computeBookingQuoteCore,
+  computeBookingArtifacts,
   markNoShowCore,
   settleDebtCore,
   previewEditCore,
@@ -1902,5 +1903,149 @@ describe("previewEditCore", () => {
       },
     );
     expect(result.kind).toBe("unavailable");
+  });
+});
+
+// ──────────────────────────────────────────────────────────────────────────────
+// computeBookingArtifacts — house-sitting always requires approval
+// ──────────────────────────────────────────────────────────────────────────────
+
+describe("computeBookingArtifacts — house-sitting approval gate", () => {
+  /**
+   * House-sitting service with requires_approval=false.
+   * A client within the auto-approve distance threshold would normally
+   * auto-confirm. The house-sitting rule must override this.
+   */
+  const HOUSE_SIT_NOW = new Date("2026-06-10T12:00:00Z");
+  const HOUSE_SIT_USER = "b0000000-0000-4000-8000-000000000001";
+
+  /** House-sitting service row: requires_approval explicitly false. */
+  const houseSittingService = {
+    id: "svc-house-sit",
+    slug: "house-sitting",
+    pricing_type: "house_sitting" as const,
+    pricing_config: {
+      modifiers: [
+        { kind: "base_per_night", cents: 6000 },
+        {
+          kind: "tiered_per_unit",
+          unit: "dog",
+          tiers: [{ from: 2, cents: 1500 }],
+        },
+        { kind: "flat_per_unit", unit: "cat", cents: 800 },
+        {
+          kind: "allowance_then_per_unit",
+          unit: "mile",
+          label: "Travel",
+          freeUnits: 5,
+          cents: 250,
+        },
+      ],
+      constraints: { intervalMin: 60, allowedSpecies: ["dog", "cat"] },
+    },
+    concurrency: "resident" as const,
+    requires_approval: false, // explicitly off — the house-sit rule must override
+    form_key: null,
+  };
+
+  function makeHouseSitRepo(): BookingRepository {
+    return {
+      getOutstandingDebtCents: vi.fn(async () => 0),
+      getOnboardingStatus: vi.fn(async () => "approved" as const),
+      hasActiveBookingForServiceSlug: vi.fn(async () => false),
+      getServiceBySlug: vi.fn(async () => houseSittingService),
+      getSettings: vi.fn(async () => ({
+        origin_lat: 40.015,
+        origin_lng: -105.27,
+        road_factor: 1.3,
+        avg_speed_mph: 30,
+        auto_approve_threshold_miles: 8,
+        hard_cutoff_miles: 50,
+        gate_use_road_miles: false,
+        booking_open_minute: 0,
+        booking_close_minute: 1440,
+        min_lead_time_hours: 0,
+        auto_confirm_horizon_days: 30,
+        hard_max_advance_days: 365,
+        recurrence_generation_horizon_days: 42,
+        recurring_discount_pct: 10,
+        recurring_min_occurrences: 3,
+        cancellation_full_refund_hours: 48,
+        late_cancel_refund_pct: 50,
+        no_show_charge_pct: 100,
+        holiday_dates: [],
+        holiday_surcharge_cents: 0,
+        drive_buffer_pct: 0,
+      })),
+      // Near-client: ~5 mi from origin — within the 8 mi auto-approve threshold.
+      getProfileLatLng: vi.fn(async () => ({
+        lat: NEAR_LAT,
+        lng: NEAR_LNG,
+      })),
+      getPetsByIds: vi.fn(async () => []),
+      getFormStatuses: vi.fn(async () => [
+        { formKey: "owner", petId: null, submittedAt: "2026-06-10T00:00:00Z" },
+        {
+          formKey: "home_access",
+          petId: null,
+          submittedAt: "2026-06-10T00:00:00Z",
+        },
+        {
+          formKey: "home_sitting",
+          petId: null,
+          submittedAt: "2026-06-10T00:00:00Z",
+        },
+      ]),
+      getOpenWindows: vi.fn(async () => []),
+      getActiveBusyRanges: vi.fn(async () => []),
+      insertBookings: vi.fn(async () => ["bk-hs-1"]),
+      insertBookingPets: vi.fn(async () => {}),
+      insertSeries: vi.fn(async () => "series-hs-1"),
+      deleteSeries: vi.fn(async () => {}),
+      getServiceById: vi.fn(),
+      getBookingById: vi.fn(),
+      updateBookingStatus: vi.fn(),
+      getBookingTimes: vi.fn(),
+      updateBookingTimes: vi.fn(),
+      getActiveSeries: vi.fn(),
+      getMaterializedOccurrenceStarts: vi.fn(),
+      getBookingWithPayments: vi.fn(),
+      insertDebit: vi.fn(),
+      settleDebit: vi.fn(),
+      getActiveBusyRangesEnriched: vi.fn(),
+      getBookingForEdit: vi.fn(),
+      updateBookingEdited: vi.fn(),
+      swapBookingPets: vi.fn(),
+      appendSeriesSkip: vi.fn(),
+      hasFormResponse: vi.fn(async () => true),
+    } as unknown as BookingRepository;
+  }
+
+  it("house-sitting always requires approval regardless of the service flag", async () => {
+    // The client is near (<8 mi), so distance alone would auto-approve.
+    // The service has requires_approval=false, so the service flag alone would auto-approve.
+    // The house-sitting rule must force requiresApproval=true regardless.
+    const repo = makeHouseSitRepo();
+    const result = await computeBookingArtifacts(
+      { repo, now: HOUSE_SIT_NOW },
+      {
+        userId: HOUSE_SIT_USER,
+        serviceSlug: "house-sitting",
+        startsAt: new Date("2026-06-20T17:00:00Z"),
+        endsAt: new Date("2026-06-22T17:00:00Z"), // 2-night stay
+        quantities: { dogs: 1, cats: 0, nights: 2 },
+        recurringRule: null,
+      },
+      CLIENT_POLICY,
+    );
+
+    expect(result.kind).toBe("success");
+    if (result.kind !== "success") return;
+    expect(result.artifacts.requiresApproval).toBe(true);
+    expect(
+      result.artifacts.approvalReasons.some(
+        (r) => r.code === "service_manual_only",
+      ),
+    ).toBe(true);
   });
 });

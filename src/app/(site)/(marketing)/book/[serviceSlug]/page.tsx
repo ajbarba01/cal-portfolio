@@ -28,6 +28,7 @@ import {
   ServiceBookingClient,
   type AuthState,
 } from "./_components/service-booking-client";
+import { ServiceSwitcher } from "@/components/ui/service-switcher";
 import { EXPENSE_AUTH_KIND } from "@/features/accounts";
 import type { PricingType } from "@/features/pricing";
 import { parsePricingConfig } from "@/features/pricing";
@@ -140,7 +141,10 @@ export default async function ServiceBookingPage({
   // Denver day-keys where this client already has an active booking for THIS
   // service — drives the "your booking" dot on the month grid (e.g. recurring walks).
   let myBookingDayKeys: string[] = [];
-  const formResponses: Record<string, { data: Record<string, unknown> }> = {};
+  const formResponses: Record<
+    string,
+    { data: Record<string, unknown>; submittedAt: string | null }
+  > = {};
   let acceptedAuthVersion: string | null = null;
   let acceptedAuthAt: string | null = null;
   let viewerDriveBufferMin = 0;
@@ -244,7 +248,7 @@ export default async function ServiceBookingPage({
       authState === "ready"
         ? svc
             .from("form_responses")
-            .select("form_key, pet_id, data")
+            .select("form_key, pet_id, data, submitted_at")
             .eq("client_id", user.id)
         : Promise.resolve({ data: null, error: null }),
       authState === "ready"
@@ -269,6 +273,7 @@ export default async function ServiceBookingPage({
         : (r.form_key as string);
       formResponses[key] = {
         data: (r.data ?? {}) as Record<string, unknown>,
+        submittedAt: (r.submitted_at as string | null) ?? null,
       };
     }
 
@@ -313,36 +318,15 @@ export default async function ServiceBookingPage({
             </Link>
           </Reveal>
           {/* Cross-nav: hop between services without going back to the index. */}
-          {siblingServices.length > 1 ? (
-            <Reveal
-              as="nav"
-              aria-label="Other services"
-              className="mt-3 mb-6 flex flex-wrap gap-2"
-            >
-              {siblingServices.map((s) =>
-                s.slug === service.slug ? (
-                  <span
-                    key={s.slug}
-                    aria-current="page"
-                    className="bg-brand text-brand-foreground rounded-full px-3 py-1 text-xs font-medium"
-                  >
-                    {s.name}
-                  </span>
-                ) : (
-                  <Link
-                    key={s.slug}
-                    href={`/book/${s.slug}`}
-                    className="bg-sidebar-active text-brand-strong rounded-full px-3 py-1 text-xs font-medium transition-colors duration-200 ease-out hover:bg-[color-mix(in_oklab,var(--brand)_14%,var(--sidebar-active))]"
-                  >
-                    {s.name}
-                  </Link>
-                ),
-              )}
+          {siblingServices.length > 1 && (
+            <Reveal className="mt-3 mb-6">
+              <ServiceSwitcher
+                services={siblingServices}
+                activeSlug={service.slug}
+              />
             </Reveal>
-          ) : (
-            <div className="mb-6" />
           )}
-          <Reveal as="h1" className="mb-1 text-2xl font-semibold">
+          <Reveal as="h1" className="font-heading mb-1 text-2xl font-semibold">
             {service.name}
           </Reveal>
           {service.description && (

@@ -22,8 +22,8 @@ import {
   PetAssignment,
   QuantityForm,
   QuotePanel,
+  petStepHeading,
 } from "@/features/booking/index.client";
-import { Surface } from "@/components/ui/surface";
 import type {
   BookingRuleSettings,
   PublicBusyRange,
@@ -70,6 +70,7 @@ export function AdminCreateBookingClient({
     mode,
     petAware,
     allowedSpecies,
+    maxPets,
     supportsRecurring,
     durationBounds,
     windowsLoading,
@@ -114,6 +115,12 @@ export function AdminCreateBookingClient({
     pets,
   });
 
+  const { label: petSectionLabel, hint: petCapHint } = petStepHeading({
+    pricingType: service.pricingType,
+    allowedSpecies,
+    maxPets,
+  });
+
   return (
     <BookingFlow
       flow={{
@@ -151,8 +158,9 @@ export function AdminCreateBookingClient({
           <section aria-labelledby="pets-heading">
             <BookingFlowStepHead
               num={2}
-              label="Which pets?"
+              label={petSectionLabel}
               labelId="pets-heading"
+              hint={petCapHint}
             />
             <PetAssignment
               pets={pets}
@@ -160,6 +168,7 @@ export function AdminCreateBookingClient({
               selected={selectedPetIds}
               onChange={onPetIdsChange}
               onPetAdded={handlePetAdded}
+              maxSelect={maxPets}
             />
           </section>
         )
@@ -241,14 +250,11 @@ export function AdminCreateBookingClient({
               }
             />
           ) : (
-            <Surface
-              variant="plain"
-              className="text-muted-foreground border-dashed p-6 text-center text-sm"
-            >
+            <p className="text-muted-foreground py-6 text-center text-sm">
               {isPreviewing
                 ? "Calculating…"
-                : "Select a day and time to see the price."}
-            </Surface>
+                : "Fill out the above details to see the price."}
+            </p>
           )}
         </section>
       }

@@ -12,7 +12,7 @@ const BASE_INITIAL: EditPatchInitial = {
   startsAtIso: START_ISO,
   endsAtIso: END_ISO,
   petIds: ["pet-1", "pet-2"],
-  quantities: { type: "walk", qty: { hours: 1 } },
+  quantities: { type: "walk", qty: { hours: 1, leashManners: false } },
   comments: "hello",
 };
 
@@ -25,7 +25,7 @@ const HS_INITIAL: EditPatchInitial = {
   petIds: ["pet-1"],
   quantities: {
     type: "house_sitting",
-    qty: { cantBeLeftAloneDays: 0, walkMinutesPerDay: 0 },
+    qty: { walkMinutesPerDay: 0, maxHoursAway: 8 },
   },
   comments: "",
 };
@@ -34,7 +34,7 @@ const BASE_CURRENT: EditPatchCurrent = {
   startsAt: new Date(START_ISO),
   endsAt: new Date(END_ISO),
   selectedPetIds: ["pet-1", "pet-2"],
-  quantities: { type: "walk", qty: { hours: 1 } },
+  quantities: { type: "walk", qty: { hours: 1, leashManners: false } },
   nights: null,
   comments: "hello",
   petAware: true,
@@ -90,9 +90,9 @@ describe("diffBookingPatch", () => {
   it("includes quantities when they change", () => {
     const patch = diffBookingPatch(BASE_INITIAL, {
       ...BASE_CURRENT,
-      quantities: { type: "walk", qty: { hours: 2 } },
+      quantities: { type: "walk", qty: { hours: 2, leashManners: false } },
     });
-    expect(patch.quantities).toEqual({ hours: 2 });
+    expect(patch.quantities).toEqual({ hours: 2, leashManners: false });
   });
 
   it("includes comments when they change", () => {
@@ -117,7 +117,11 @@ describe("diffBookingPatch", () => {
       selectedPetIds: ["pet-1"],
       quantities: {
         type: "house_sitting",
-        qty: { cantBeLeftAloneDays: 0, walkMinutesPerDay: 0, holidayDays: 0 },
+        qty: {
+          walkMinutesPerDay: 0,
+          maxHoursAway: 8,
+          holidayDays: 0,
+        },
       },
       nights: 5,
       comments: "",
@@ -139,7 +143,11 @@ describe("diffBookingPatch", () => {
       selectedPetIds: ["pet-1"],
       quantities: {
         type: "house_sitting",
-        qty: { cantBeLeftAloneDays: 0, walkMinutesPerDay: 0, holidayDays: 0 },
+        qty: {
+          walkMinutesPerDay: 0,
+          maxHoursAway: 8,
+          holidayDays: 0,
+        },
       },
       nights: 3,
       comments: "",
@@ -149,7 +157,7 @@ describe("diffBookingPatch", () => {
   });
 
   it("U24: overnight extras change without date change includes quantities with initial nights", () => {
-    // User adds 1 cantBeLeftAloneDays. Dates unchanged → nights stays 3.
+    // User changes walkMinutesPerDay. Dates unchanged → nights stays 3.
     // patch.quantities must NOT contain nights: 0 (old bug: current.nights was null).
     const patch = diffBookingPatch(HS_INITIAL, {
       startsAt: new Date(HS_START_ISO),
@@ -157,7 +165,7 @@ describe("diffBookingPatch", () => {
       selectedPetIds: ["pet-1"],
       quantities: {
         type: "house_sitting",
-        qty: { cantBeLeftAloneDays: 1, walkMinutesPerDay: 0 },
+        qty: { walkMinutesPerDay: 30, maxHoursAway: 8 },
       },
       nights: 3,
       comments: "",
@@ -166,7 +174,7 @@ describe("diffBookingPatch", () => {
     expect(patch.quantities).toBeDefined();
     // nights must be the real initial nights (3), NOT 0
     expect(patch.quantities?.nights).toBe(3);
-    expect(patch.quantities?.cantBeLeftAloneDays).toBe(1);
+    expect(patch.quantities?.walkMinutesPerDay).toBe(30);
   });
 
   it("includes all changed dimensions in a combined change", () => {
@@ -177,13 +185,13 @@ describe("diffBookingPatch", () => {
       startsAt: newStart,
       endsAt: newEnd,
       selectedPetIds: ["pet-3"],
-      quantities: { type: "walk", qty: { hours: 2 } },
+      quantities: { type: "walk", qty: { hours: 2, leashManners: false } },
       comments: "combined",
     });
     expect(patch.startsAt).toEqual(newStart);
     expect(patch.endsAt).toEqual(newEnd);
     expect(patch.petIds).toEqual(["pet-3"]);
-    expect(patch.quantities).toEqual({ hours: 2 });
+    expect(patch.quantities).toEqual({ hours: 2, leashManners: false });
     expect(patch.comments).toBe("combined");
   });
 });

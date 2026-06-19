@@ -5,6 +5,7 @@
 import type { BookingStatusDb, BookingEditRow } from "./booking-repository";
 import type { MutationPolicy } from "./mutation-policy";
 import { transition } from "./state-machine";
+import { representativeHoursFromNeedyTier } from "./needy-tier";
 import {
   computeBookingArtifacts,
   toRuleSettings,
@@ -86,17 +87,16 @@ export type PreviewEditResult =
 /** Extract the raw quantity record from a stored QuoteInput jsonb. */
 function quantitiesFromQuoteInputs(qi: unknown): Record<string, unknown> {
   const q = (qi ?? {}) as Record<string, unknown>;
-  const keys = [
-    "dogs",
-    "cats",
-    "nights",
-    "hours",
-    "cantBeLeftAloneDays",
-    "walkMinutesPerDay",
-    "holidayDays",
-  ];
+  const keys = ["dogs", "cats", "nights", "hours", "holidayDays"];
   const out: Record<string, unknown> = {};
   for (const k of keys) if (q[k] !== undefined) out[k] = q[k];
+  // needyTier (house-sit) is stored on the QuoteInput; re-express it as the
+  // maxHoursAway the quantity schema understands (price-exact: re-quote yields
+  // the same tier).
+  if (typeof q.needyTier === "number")
+    out.maxHoursAway = representativeHoursFromNeedyTier(q.needyTier);
+  // leashManners (walk) round-trips directly.
+  if (typeof q.leashManners === "boolean") out.leashManners = q.leashManners;
   return out;
 }
 

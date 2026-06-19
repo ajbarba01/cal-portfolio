@@ -39,8 +39,10 @@ export type {
   RequirementItem,
   RequirementStatus,
   RequiredFormKey,
+  AccountFormKey,
+  PetFormKey,
 } from "./required-profiles";
-export { servicesRequiring } from "./required-profiles";
+export { bookingRequirements, servicesRequiring } from "./required-profiles";
 
 // booking-repository (types only — repo factory is server-only surface)
 export { onboardingStatusSchema } from "./booking-repository";
@@ -131,6 +133,9 @@ export * from "./meet-greet-upcoming";
 
 // booking-form-data (type only — loader is server-only, EXCLUDED)
 export type { BookingFormData } from "./booking-form-data";
+
+// pet-step heading helper
+export { petStepHeading } from "./pet-step-heading";
 
 // client-can-edit
 export { clientCanEditBooking, editLockCopy } from "./client-can-edit";

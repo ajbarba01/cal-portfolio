@@ -365,6 +365,7 @@ export function BookingFlow({
           )}
           {!windowsLoading && !windowsError && mode === "week-slots" && (
             <Scheduler
+              bare
               capabilities={capabilities}
               data={schedulerData}
               onSelectionChange={onSelectionChange}
@@ -393,6 +394,7 @@ export function BookingFlow({
                 {monthRangeIntro}
               </p>
               <Scheduler
+                bare
                 capabilities={capabilities}
                 data={schedulerData}
                 onSelectionChange={onSelectionChange}

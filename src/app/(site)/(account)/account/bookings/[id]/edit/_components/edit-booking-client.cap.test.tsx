@@ -100,7 +100,7 @@ describe("EditBookingClient pet cap", () => {
           startsAtIso: "2026-07-01T15:00:00.000Z",
           endsAtIso: "2026-07-01T16:00:00.000Z",
           petIds: ["a", "b"],
-          quantities: { type: "walk", qty: { hours: 1 } },
+          quantities: { type: "walk", qty: { hours: 1, leashManners: false } },
           comments: "",
           wasConfirmed: false,
           isSeriesOccurrence: false,

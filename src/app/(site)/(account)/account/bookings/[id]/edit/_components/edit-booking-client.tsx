@@ -17,7 +17,6 @@
  */
 
 import { Lock } from "lucide-react";
-import { Surface } from "@/components/ui/surface";
 import { Alert } from "@/components/ui/alert";
 import {
   BookingFlow,
@@ -26,6 +25,7 @@ import {
   PetAssignment,
   QuantityForm,
   QuotePanel,
+  petStepHeading,
 } from "@/features/booking/index.client";
 import type {
   BookingRuleSettings,
@@ -127,6 +127,12 @@ export function EditBookingClient({
     admin,
   });
 
+  const { label: petSectionLabel, hint: petCapHint } = petStepHeading({
+    pricingType: service.pricingType,
+    allowedSpecies,
+    maxPets,
+  });
+
   return (
     <BookingFlow
       flow={{
@@ -169,8 +175,9 @@ export function EditBookingClient({
           <section aria-labelledby="pets-heading">
             <BookingFlowStepHead
               num={step2Label}
-              label="Which pets?"
+              label={petSectionLabel}
               labelId="pets-heading"
+              hint={petCapHint}
             />
             {admin?.paidLock ? (
               <Alert variant="info" icon={Lock}>
@@ -263,16 +270,13 @@ export function EditBookingClient({
               showBook
             />
           ) : (
-            <Surface
-              variant="plain"
-              className="text-muted-foreground border-dashed p-6 text-center text-sm"
-            >
+            <p className="text-muted-foreground py-6 text-center text-sm">
               {isPreviewing
                 ? "Calculating…"
                 : patchEmpty
                   ? "Change a detail above to see your updated price."
                   : "Adjust your selection to see your updated price."}
-            </Surface>
+            </p>
           )}
         </section>
       }
