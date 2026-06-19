@@ -16,6 +16,7 @@ import {
   type AccountBookingPet,
   type AccountBookingQuoteInputs,
 } from "./_components/account-bookings-client";
+import { firstRelated } from "./_components/normalize-related";
 
 interface PaymentRow {
   amount_cents: number;
@@ -38,7 +39,12 @@ interface RawBookingRow {
   status: BookingStatusDb;
   final_cents: number;
   payments: PaymentRow[];
-  services: { name: string; slug: string }[] | null;
+  // Supabase nests this to-one relationship as an object, though the generated
+  // types widen it to an array — accept both and collapse with `firstRelated`.
+  services:
+    | { name: string; slug: string }
+    | { name: string; slug: string }[]
+    | null;
   booking_pets: BookingPetRow[] | null;
   quote_inputs: AccountBookingQuoteInputs | null;
 }
@@ -92,18 +98,21 @@ export default async function BookingsPage() {
   ]);
 
   const raw = (bookings as RawBookingRow[]) ?? [];
-  const rows: AccountBookingRow[] = raw.map((b) => ({
-    id: b.id,
-    starts_at: b.starts_at,
-    ends_at: b.ends_at,
-    status: b.status,
-    final_cents: b.final_cents,
-    paid_cents: paidCents(b.payments),
-    service_name: b.services?.[0]?.name ?? "Service",
-    service_slug: b.services?.[0]?.slug ?? "",
-    pets: parsePets(b.booking_pets),
-    quoteInputs: b.quote_inputs ?? undefined,
-  }));
+  const rows: AccountBookingRow[] = raw.map((b) => {
+    const service = firstRelated(b.services);
+    return {
+      id: b.id,
+      starts_at: b.starts_at,
+      ends_at: b.ends_at,
+      status: b.status,
+      final_cents: b.final_cents,
+      paid_cents: paidCents(b.payments),
+      service_name: service?.name ?? "Service",
+      service_slug: service?.slug ?? "",
+      pets: parsePets(b.booking_pets),
+      quoteInputs: b.quote_inputs ?? undefined,
+    };
+  });
 
   return (
     <PageContainer width="app">
