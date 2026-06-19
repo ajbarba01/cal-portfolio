@@ -17,7 +17,6 @@
  */
 
 import { Lock } from "lucide-react";
-import { Surface } from "@/components/ui/surface";
 import { Alert } from "@/components/ui/alert";
 import {
   BookingFlow,
@@ -271,16 +270,13 @@ export function EditBookingClient({
               showBook
             />
           ) : (
-            <Surface
-              variant="plain"
-              className="text-muted-foreground border-dashed p-6 text-center text-sm"
-            >
+            <p className="text-muted-foreground py-6 text-center text-sm">
               {isPreviewing
                 ? "Calculating…"
                 : patchEmpty
                   ? "Change a detail above to see your updated price."
                   : "Adjust your selection to see your updated price."}
-            </Surface>
+            </p>
           )}
         </section>
       }

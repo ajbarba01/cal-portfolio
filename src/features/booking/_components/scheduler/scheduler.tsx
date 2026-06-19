@@ -47,6 +47,12 @@ export interface SchedulerProps {
    * step shell) → plain, so rings never nest.
    */
   outlined?: boolean;
+  /**
+   * Render the scheduler with NO outer card chrome (no border/background) — for
+   * use INSIDE a step shell that already provides the card, so the calendar reads
+   * as flush content rather than a nested card. Mutually exclusive with `outlined`.
+   */
+  bare?: boolean;
   children: ReactNode;
 }
 
@@ -61,6 +67,7 @@ export function Scheduler({
   onSelectionChange,
   initialSlot,
   outlined = false,
+  bare = false,
   children,
 }: SchedulerProps) {
   const todayKey = denverDayKey(data.now);
@@ -85,6 +92,13 @@ export function Scheduler({
     [selection, capabilities, data, callbacks],
   );
 
+  if (bare) {
+    return (
+      <SchedulerProvider value={value}>
+        <div className="min-w-0">{children}</div>
+      </SchedulerProvider>
+    );
+  }
   return (
     <SchedulerProvider value={value}>
       {/* Outlined = the Scheduler is the outermost panel (account read-only

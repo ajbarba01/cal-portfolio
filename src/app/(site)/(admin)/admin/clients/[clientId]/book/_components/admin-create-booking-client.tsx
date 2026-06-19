@@ -24,7 +24,6 @@ import {
   QuotePanel,
   petStepHeading,
 } from "@/features/booking/index.client";
-import { Surface } from "@/components/ui/surface";
 import type {
   BookingRuleSettings,
   PublicBusyRange,
@@ -251,14 +250,11 @@ export function AdminCreateBookingClient({
               }
             />
           ) : (
-            <Surface
-              variant="plain"
-              className="text-muted-foreground border-dashed p-6 text-center text-sm"
-            >
+            <p className="text-muted-foreground py-6 text-center text-sm">
               {isPreviewing
                 ? "Calculating…"
                 : "Fill out the above details to see the price."}
-            </Surface>
+            </p>
           )}
         </section>
       }

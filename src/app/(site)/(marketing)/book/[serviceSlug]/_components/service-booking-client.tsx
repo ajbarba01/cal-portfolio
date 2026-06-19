@@ -409,14 +409,11 @@ export function ServiceBookingClient({
                   )}
                 </>
               ) : (
-                <Surface
-                  variant="plain"
-                  className="text-muted-foreground border-dashed p-6 text-center text-sm"
-                >
+                <p className="text-muted-foreground py-6 text-center text-sm">
                   {isPreviewing
                     ? "Calculating…"
                     : "Fill out the above details to see your price."}
-                </Surface>
+                </p>
               )}
             </section>
           )}

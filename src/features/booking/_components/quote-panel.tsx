@@ -6,7 +6,6 @@ import type { ReactNode } from "react";
 import type { BookingQuotePreview } from "@/features/booking/booking-service";
 import { centsToDollars } from "@/features/booking/format-money";
 import { Button } from "@/components/ui/button";
-import { Surface } from "@/components/ui/surface";
 import { Alert } from "@/components/ui/alert";
 
 interface QuotePanelProps {
@@ -38,12 +37,7 @@ export function QuotePanel({
   footer,
 }: QuotePanelProps) {
   return (
-    <Surface
-      as="section"
-      variant="plain"
-      aria-label="Price estimate"
-      className="p-4"
-    >
+    <section aria-label="Price estimate" className="min-w-0">
       {/* live indicator — the receipt auto-updates as the selection changes */}
       <span className="bg-brand/15 text-brand-strong mb-3 inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[0.7rem] font-semibold tracking-wide">
         <span aria-hidden="true" className="bg-brand size-1.5 rounded-full" />
@@ -148,6 +142,6 @@ export function QuotePanel({
           {bookLabel}
         </Button>
       )}
-    </Surface>
+    </section>
   );
 }
