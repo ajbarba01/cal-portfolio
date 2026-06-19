@@ -340,7 +340,6 @@ const HOUSE_SITTING_SEED: unknown = {
       label: "Extra exercise",
       freeUnits: 45,
       cents: 500,
-      perScale: "perDogPerDay",
     },
     {
       kind: "allowance_then_per_unit",

@@ -44,7 +44,6 @@ export type Modifier =
       label: string;
       freeUnits: number;
       cents: number;
-      perScale?: "perDogPerDay";
     }
   | {
       kind: "pct_surcharge";

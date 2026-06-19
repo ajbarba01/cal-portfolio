@@ -163,7 +163,40 @@ describe("evaluate full pipeline (golden)", () => {
     });
     expect(r.finalCents).toBe(r.lines.reduce((a, l) => a + l.amountCents, 0));
   });
-  it("housesit golden 5nt 2 dogs(1 puppy) ex60 1premiumNight 8mi → 37800", () => {
+  it("extra exercise is per-night, independent of dog count", () => {
+    const CFG: ServicePricingConfig = {
+      modifiers: [
+        { kind: "base_per_night", cents: 6000 },
+        {
+          kind: "allowance_then_per_unit",
+          unit: "exercise",
+          label: "Extra exercise",
+          freeUnits: 45,
+          cents: 500,
+        },
+      ],
+      constraints: { intervalMin: 15, allowedSpecies: ["dog", "cat"] },
+    };
+    // 60 min/day → 1 paid 15-min block over the 45-min allowance; 2 nights.
+    // 1 block × $5 × 2 nights = $10, regardless of how many dogs.
+    const oneDog = evaluate(CFG, {
+      config: CFG,
+      dogs: 1,
+      nights: 2,
+      exerciseMinutesPerDay: 60,
+    });
+    const threeDogs = evaluate(CFG, {
+      config: CFG,
+      dogs: 3,
+      nights: 2,
+      exerciseMinutesPerDay: 60,
+    });
+    const exLine = (r: typeof oneDog) =>
+      r.lines.find((l) => l.label === "Extra exercise")?.amountCents;
+    expect(exLine(oneDog)).toBe(1000);
+    expect(exLine(threeDogs)).toBe(1000);
+  });
+  it("housesit golden 5nt 2 dogs(1 puppy) ex60 1premiumNight 8mi → 35330", () => {
     const HS2: ServicePricingConfig = {
       modifiers: [
         { kind: "base_per_night", cents: 6000 },
@@ -188,7 +221,6 @@ describe("evaluate full pipeline (golden)", () => {
           label: "Extra exercise",
           freeUnits: 45,
           cents: 500,
-          perScale: "perDogPerDay",
         },
         {
           kind: "pct_surcharge",
@@ -224,6 +256,6 @@ describe("evaluate full pipeline (golden)", () => {
       premiumNights: 1,
       billableMiles: 8,
     });
-    expect(r.finalCents).toBe(37800);
+    expect(r.finalCents).toBe(35330);
   });
 });
