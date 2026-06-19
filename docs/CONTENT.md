@@ -49,6 +49,7 @@
 - Colorado only; no towns/cities/neighborhoods. Region terms like "Front Range" flagged for confirmation.
 - Never invent services, claims, philosophy, or biographical detail — Cal supplies all substance.
 - Public emergency resources (ASPCA, 24/7 vet ER) allowed as real `public-fact` entries.
+- **POV.** Marketing copy in `marketing.ts` is **Cal's first person**; non-marketing/system text is **third person** about Cal ("Cal will get back to you"). Client-signed consent and Cal-signed emails are exceptions. Full rule + surfaces in DESIGN.md ("Point of view").
 
 ## Edge cases
 
@@ -63,4 +64,4 @@
 
 ---
 
-_Last reviewed: 2026-06-10_
+_Last reviewed: 2026-06-19_ (added POV guardrail: marketing first person, system text third person; client-consent + email exceptions — full rule in DESIGN.md)
