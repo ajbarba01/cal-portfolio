@@ -111,23 +111,28 @@ function StepperField({
   onChange: (v: number) => void;
 }) {
   return (
-    <div className="flex flex-col gap-1.5">
+    // h-full + bottom-pinned stepper: grid cells in the same row stretch to the
+    // tallest, so the stepper sits at the bottom and lines up with its neighbors
+    // regardless of how many lines each description wraps to.
+    <div className="flex h-full flex-col gap-1.5">
       <label htmlFor={id} className="text-foreground text-sm font-medium">
         {label}
       </label>
       <p className="text-muted-foreground text-xs leading-relaxed">
         {description}
       </p>
-      <NumberStepper
-        id={id}
-        ariaLabel={label}
-        value={value}
-        min={min ?? 0}
-        max={max}
-        step={step ?? 1}
-        unit={unit}
-        onChange={onChange}
-      />
+      <div className="mt-auto pt-0.5">
+        <NumberStepper
+          id={id}
+          ariaLabel={label}
+          value={value}
+          min={min ?? 0}
+          max={max}
+          step={step ?? 1}
+          unit={unit}
+          onChange={onChange}
+        />
+      </div>
     </div>
   );
 }
