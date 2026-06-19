@@ -25,6 +25,7 @@ import {
   PetAssignment,
   QuantityForm,
   QuotePanel,
+  petStepHeading,
 } from "@/features/booking/index.client";
 import { Surface } from "@/components/ui/surface";
 import type {
@@ -161,9 +162,12 @@ export function ServiceBookingClient({
 
   // Pet-step heading adapts to the service: "dog" when only dogs are eligible,
   // singular when at most one may be selected (training is a single-dog session).
-  const petNoun =
-    allowedSpecies.length === 1 && allowedSpecies[0] === "dog" ? "dog" : "pet";
-  const petSectionLabel = `Which ${maxPets === 1 ? petNoun : `${petNoun}s`}?`;
+  // Walk services surface the cap as a hint ("up to N").
+  const { label: petSectionLabel, hint: petCapHint } = petStepHeading({
+    pricingType: service.pricingType,
+    allowedSpecies,
+    maxPets,
+  });
 
   // U1: terminal success state — the panel replaces the flow until the user
   // starts over ("Book another") or leaves for /account/bookings.
@@ -211,6 +215,7 @@ export function ServiceBookingClient({
               num={petStepLabel}
               label={petSectionLabel}
               labelId="pets-heading"
+              hint={petCapHint}
             />
             {authState === "ready" ? (
               <PetAssignment

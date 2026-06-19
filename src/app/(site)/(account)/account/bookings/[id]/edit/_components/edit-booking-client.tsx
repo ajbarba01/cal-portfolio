@@ -26,6 +26,7 @@ import {
   PetAssignment,
   QuantityForm,
   QuotePanel,
+  petStepHeading,
 } from "@/features/booking/index.client";
 import type {
   BookingRuleSettings,
@@ -127,6 +128,12 @@ export function EditBookingClient({
     admin,
   });
 
+  const { label: petSectionLabel, hint: petCapHint } = petStepHeading({
+    pricingType: service.pricingType,
+    allowedSpecies,
+    maxPets,
+  });
+
   return (
     <BookingFlow
       flow={{
@@ -169,8 +176,9 @@ export function EditBookingClient({
           <section aria-labelledby="pets-heading">
             <BookingFlowStepHead
               num={step2Label}
-              label="Which pets?"
+              label={petSectionLabel}
               labelId="pets-heading"
+              hint={petCapHint}
             />
             {admin?.paidLock ? (
               <Alert variant="info" icon={Lock}>

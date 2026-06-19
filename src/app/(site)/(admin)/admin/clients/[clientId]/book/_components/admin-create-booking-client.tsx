@@ -22,6 +22,7 @@ import {
   PetAssignment,
   QuantityForm,
   QuotePanel,
+  petStepHeading,
 } from "@/features/booking/index.client";
 import { Surface } from "@/components/ui/surface";
 import type {
@@ -70,6 +71,7 @@ export function AdminCreateBookingClient({
     mode,
     petAware,
     allowedSpecies,
+    maxPets,
     supportsRecurring,
     durationBounds,
     windowsLoading,
@@ -114,6 +116,12 @@ export function AdminCreateBookingClient({
     pets,
   });
 
+  const { label: petSectionLabel, hint: petCapHint } = petStepHeading({
+    pricingType: service.pricingType,
+    allowedSpecies,
+    maxPets,
+  });
+
   return (
     <BookingFlow
       flow={{
@@ -151,8 +159,9 @@ export function AdminCreateBookingClient({
           <section aria-labelledby="pets-heading">
             <BookingFlowStepHead
               num={2}
-              label="Which pets?"
+              label={petSectionLabel}
               labelId="pets-heading"
+              hint={petCapHint}
             />
             <PetAssignment
               pets={pets}
@@ -160,6 +169,7 @@ export function AdminCreateBookingClient({
               selected={selectedPetIds}
               onChange={onPetIdsChange}
               onPetAdded={handlePetAdded}
+              maxSelect={maxPets}
             />
           </section>
         )

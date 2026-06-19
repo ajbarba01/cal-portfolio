@@ -62,6 +62,7 @@ export interface UseAdminCreateBookingReturn {
   mode: "week-slots" | "month-range";
   petAware: boolean;
   allowedSpecies: PetSpecies[];
+  maxPets: number | null;
   supportsRecurring: boolean;
   durationBounds: { minHours: number; maxHours?: number };
 
@@ -174,6 +175,7 @@ export function useAdminCreateBooking({
   const {
     petAware,
     allowedSpecies,
+    maxPets,
     supportsRecurring,
     durationBounds,
     windowsLoading,
@@ -330,6 +332,7 @@ export function useAdminCreateBooking({
     mode,
     petAware,
     allowedSpecies,
+    maxPets,
     supportsRecurring,
     durationBounds,
     windowsLoading,
