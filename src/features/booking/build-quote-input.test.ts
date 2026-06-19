@@ -30,6 +30,7 @@ describe("buildQuoteInput", () => {
       premiumNights: 2,
       recurringSeries: true,
       applyKiche: false,
+      anyDogUnder6mo: false,
     });
 
     expect(qi.config).toBe(HS_CONFIG);
@@ -55,6 +56,7 @@ describe("buildQuoteInput", () => {
       premiumNights: 0,
       recurringSeries: false,
       applyKiche: true,
+      anyDogUnder6mo: false,
     });
 
     expect(qi.hours).toBe(1);
@@ -73,6 +75,7 @@ describe("buildQuoteInput", () => {
       premiumNights: 0,
       recurringSeries: false,
       applyKiche: false,
+      anyDogUnder6mo: false,
     });
 
     expect(qi.hours).toBe(2);
@@ -90,11 +93,62 @@ describe("buildQuoteInput", () => {
       premiumNights: 0,
       recurringSeries: false,
       applyKiche: false,
+      anyDogUnder6mo: false,
     });
 
     expect(qi.dogs).toBeUndefined();
     expect(qi.hours).toBeUndefined();
     expect(qi.nights).toBeUndefined();
     expect(qi.enabledManualIds).toEqual([]);
+  });
+
+  it("house_sitting: derives needyTier from maxHoursAway and carries anyDogUnder6mo", () => {
+    const qi = buildQuoteInput({
+      config: HS_CONFIG,
+      quantities: {
+        pricingType: "house_sitting",
+        data: { dogs: 1, cats: 0, nights: 2, maxHoursAway: 3 },
+      },
+      billableMiles: 0,
+      premiumNights: 0,
+      recurringSeries: false,
+      applyKiche: false,
+      anyDogUnder6mo: true,
+    });
+    expect(qi.needyTier).toBe(3); // [2,4) → tier 3
+    expect(qi.anyDogUnder6mo).toBe(true);
+  });
+
+  it("house_sitting: needyTier defaults to 0 when maxHoursAway is absent or >= 8", () => {
+    const qi = buildQuoteInput({
+      config: HS_CONFIG,
+      quantities: {
+        pricingType: "house_sitting",
+        data: { dogs: 1, cats: 0, nights: 2 },
+      },
+      billableMiles: 0,
+      premiumNights: 0,
+      recurringSeries: false,
+      applyKiche: false,
+      anyDogUnder6mo: false,
+    });
+    expect(qi.needyTier).toBe(0);
+    expect(qi.anyDogUnder6mo).toBe(false);
+  });
+
+  it("walk: carries leashManners opt-in", () => {
+    const qi = buildQuoteInput({
+      config: WALK_CONFIG,
+      quantities: {
+        pricingType: "walk",
+        data: { hours: 1, dogs: 1, leashManners: true },
+      },
+      billableMiles: 0,
+      premiumNights: 0,
+      recurringSeries: false,
+      applyKiche: false,
+      anyDogUnder6mo: false,
+    });
+    expect(qi.leashManners).toBe(true);
   });
 });
