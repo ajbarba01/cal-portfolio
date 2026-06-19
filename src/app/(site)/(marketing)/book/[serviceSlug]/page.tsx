@@ -312,9 +312,9 @@ export default async function ServiceBookingPage({
           <Reveal>
             <Link
               href="/services"
-              className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs font-medium tracking-wide uppercase"
+              className="text-muted-foreground hover:text-foreground inline-block text-sm"
             >
-              Services
+              ← All services
             </Link>
           </Reveal>
           {/* Cross-nav: hop between services without going back to the index. */}
