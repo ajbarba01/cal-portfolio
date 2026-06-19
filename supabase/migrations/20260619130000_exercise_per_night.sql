@@ -8,8 +8,9 @@ set pricing_config = jsonb_set(
   pricing_config,
   '{modifiers}',
   (
-    select jsonb_agg(elem - 'perScale')
-    from jsonb_array_elements(pricing_config -> 'modifiers') as elem
+    select jsonb_agg(elem - 'perScale' order by ord)
+    from jsonb_array_elements(pricing_config -> 'modifiers')
+      with ordinality as t(elem, ord)
   )
 )
 where pricing_config ? 'modifiers'
