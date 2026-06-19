@@ -11,6 +11,7 @@ import { deriveApprovalWithReasons } from "@/features/pricing";
 import type { ApprovalReason } from "@/features/pricing";
 import { deriveTimeApproval } from "./time-gate";
 import { needyTierFromHoursAway } from "./needy-tier";
+import { isUnderSixMonths } from "./puppy-age";
 import { quote } from "@/features/pricing";
 import { parsePricingConfig } from "@/features/pricing";
 import { expandOccurrences } from "./recurrence";
@@ -586,7 +587,11 @@ export async function computeBookingArtifacts(
     service.pricing_type === "check_in" ||
     service.pricing_type === "training";
 
-  let ownedPets: { id: string; species: PetSpecies }[] = [];
+  let ownedPets: {
+    id: string;
+    species: PetSpecies;
+    birthdate: string | null;
+  }[] = [];
   if (petAware && petIds.length > 0) {
     ownedPets = await repo.getPetsByIds(input.userId, petIds);
     if (ownedPets.length !== petIds.length) {
@@ -767,6 +772,12 @@ export async function computeBookingArtifacts(
   const billableMiles =
     distanceMiles !== null ? distanceMiles * settings.road_factor : 0;
 
+  // Puppy modifiers fire when any assigned DOG is under 6 months at the stay
+  // start. Derived server-side from the owned pets' birthdates (never client input).
+  const anyDogUnder6mo = ownedPets.some(
+    (p) => p.species === "dog" && isUnderSixMonths(p.birthdate, input.startsAt),
+  );
+
   const quoteInput = buildQuoteInput({
     config: pricingConfig,
     quantities,
@@ -774,7 +785,7 @@ export async function computeBookingArtifacts(
     premiumNights,
     recurringSeries: recurringDiscountApplies,
     applyKiche: opts?.applyKiche ?? false,
-    anyDogUnder6mo: false, // TODO(task-4): replace with real derivation from assigned pets + booking start
+    anyDogUnder6mo,
   });
 
   const breakdown = quote(quoteInput);
