@@ -140,7 +140,10 @@ export default async function ServiceBookingPage({
   // Denver day-keys where this client already has an active booking for THIS
   // service — drives the "your booking" dot on the month grid (e.g. recurring walks).
   let myBookingDayKeys: string[] = [];
-  const formResponses: Record<string, { data: Record<string, unknown> }> = {};
+  const formResponses: Record<
+    string,
+    { data: Record<string, unknown>; submittedAt: string | null }
+  > = {};
   let acceptedAuthVersion: string | null = null;
   let acceptedAuthAt: string | null = null;
   let viewerDriveBufferMin = 0;
@@ -244,7 +247,7 @@ export default async function ServiceBookingPage({
       authState === "ready"
         ? svc
             .from("form_responses")
-            .select("form_key, pet_id, data")
+            .select("form_key, pet_id, data, submitted_at")
             .eq("client_id", user.id)
         : Promise.resolve({ data: null, error: null }),
       authState === "ready"
@@ -269,6 +272,7 @@ export default async function ServiceBookingPage({
         : (r.form_key as string);
       formResponses[key] = {
         data: (r.data ?? {}) as Record<string, unknown>,
+        submittedAt: (r.submitted_at as string | null) ?? null,
       };
     }
 

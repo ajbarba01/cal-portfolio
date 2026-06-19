@@ -79,7 +79,10 @@ interface ServiceBookingClientProps {
   /** Denver day-keys where this client already has an active booking (your-booking dot). */
   myBookingDayKeys: string[];
   /** Server-loaded form responses keyed by form_key (account) or `${form_key}:${pet_id}` (pet). */
-  formResponses: Record<string, { data: Record<string, unknown> }>;
+  formResponses: Record<
+    string,
+    { data: Record<string, unknown>; submittedAt: string | null }
+  >;
   /** Latest accepted expense-auth version (null = never accepted). */
   acceptedAuthVersion: string | null;
   /** ISO timestamp of the acceptance (null = never accepted). */
@@ -157,6 +160,7 @@ export function ServiceBookingClient({
     pets,
     initialSelection,
     myBookingDayKeys,
+    formResponses,
     viewerDriveBufferMin,
   });
 
@@ -276,26 +280,7 @@ export function ServiceBookingClient({
               label="Required forms"
               labelId="forms-heading"
             />
-            {formsIncomplete ? (
-              <RequirementsGate
-                requirements={profileRequirements ?? []}
-                pets={pets}
-                formResponses={formResponses}
-                auth={{
-                  acceptedVersion: acceptedAuthVersion,
-                  acceptedAt: acceptedAuthAt,
-                  currentVersion: EXPENSE_AUTH_VERSION,
-                  text: EXPENSE_AUTH_TEXT,
-                  onAccept: (name) =>
-                    acceptAuthorization({
-                      kind: EXPENSE_AUTH_KIND,
-                      version: EXPENSE_AUTH_VERSION,
-                      acceptedName: name,
-                    }),
-                }}
-                onSaved={refreshRequirements}
-              />
-            ) : quote ? (
+            {profileRequirements.length === 0 ? (
               <p className="text-status-available-foreground inline-flex items-center gap-1.5 text-sm font-medium">
                 <Check
                   className="size-4"
@@ -305,10 +290,37 @@ export function ServiceBookingClient({
                 Your forms are up to date.
               </p>
             ) : (
-              <p className="text-muted-foreground text-sm">
-                Pick a date and time and we&apos;ll list any forms Cal needs for
-                this booking.
-              </p>
+              <>
+                {!formsIncomplete && (
+                  <p className="text-status-available-foreground mb-3 inline-flex items-center gap-1.5 text-sm font-medium">
+                    <Check
+                      className="size-4"
+                      strokeWidth={2.5}
+                      aria-hidden="true"
+                    />
+                    Your forms are up to date.
+                  </p>
+                )}
+                <RequirementsGate
+                  requirements={profileRequirements}
+                  pets={pets}
+                  formResponses={formResponses}
+                  auth={{
+                    acceptedVersion: acceptedAuthVersion,
+                    acceptedAt: acceptedAuthAt,
+                    currentVersion: EXPENSE_AUTH_VERSION,
+                    text: EXPENSE_AUTH_TEXT,
+                    onAccept: (name) =>
+                      acceptAuthorization({
+                        kind: EXPENSE_AUTH_KIND,
+                        version: EXPENSE_AUTH_VERSION,
+                        acceptedName: name,
+                      }),
+                  }}
+                  onSaved={refreshRequirements}
+                  allComplete={!formsIncomplete}
+                />
+              </>
             )}
           </section>
         ) : (
@@ -500,19 +512,26 @@ function RequirementsGate({
   formResponses,
   auth,
   onSaved,
+  allComplete,
 }: {
   requirements: RequirementItem[];
   pets: AssignablePet[];
-  formResponses: Record<string, { data: Record<string, unknown> }>;
+  formResponses: Record<
+    string,
+    { data: Record<string, unknown>; submittedAt: string | null }
+  >;
   auth: AuthConfig;
   onSaved: () => void;
+  allComplete?: boolean;
 }) {
   return (
     <>
-      <p className="text-muted-foreground mb-3 text-sm">
-        So Cal has what&apos;s needed to care for your pets. Complete or
-        reconfirm these to finish booking.
-      </p>
+      {!allComplete && (
+        <p className="text-muted-foreground mb-3 text-sm">
+          So Cal has what&apos;s needed to care for your pets. Complete or
+          reconfirm these to finish booking.
+        </p>
+      )}
       <div className="border-border divide-border divide-y rounded-xl border">
         {requirements.map((item) => {
           const scopeKey = item.petId

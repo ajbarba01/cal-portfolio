@@ -82,6 +82,11 @@ const WALK_SERVICE: ServiceDetail = {
   },
 };
 
+// A recent timestamp well within the 180-day freshness window.
+const FRESH_AT = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+const DOG_PET_ID = "pet-dog-001";
+
 describe("ServiceBookingClient (characterization)", () => {
   it("renders the stepped flow for a ready, pet-aware viewer (calendar, pets, details)", () => {
     render(
@@ -139,6 +144,50 @@ describe("ServiceBookingClient (characterization)", () => {
     // The price prompt / receipt is gated away for guests.
     expect(
       screen.queryByText(/Select a day and time to see your price\./i),
+    ).toBeNull();
+  });
+
+  it("shows form rows and 'up to date' before any date is chosen when all forms are complete", () => {
+    // Walk service: owner + pet_care + pet_walk (dog-only) per assigned pet.
+    const formResponses = {
+      owner: { data: {}, submittedAt: FRESH_AT },
+      [`pet_care:${DOG_PET_ID}`]: { data: {}, submittedAt: FRESH_AT },
+      [`pet_walk:${DOG_PET_ID}`]: { data: {}, submittedAt: FRESH_AT },
+    };
+    const dogPet = {
+      id: DOG_PET_ID,
+      name: "Biscuit",
+      species: "dog" as const,
+      breed: null,
+      notes: null,
+      photoUrl: null,
+    };
+
+    render(
+      <ServiceBookingClient
+        service={WALK_SERVICE}
+        rules={RULES}
+        initialBusy={[]}
+        authState="ready"
+        pets={[dogPet]}
+        initialSelection={{ start: null, end: null, petIds: [DOG_PET_ID] }}
+        myBookingDayKeys={[]}
+        formResponses={formResponses}
+        acceptedAuthVersion={null}
+        acceptedAuthAt={null}
+        viewerDriveBufferMin={0}
+      />,
+    );
+
+    // Form rows render before any date is selected.
+    expect(
+      screen.getByRole("heading", { name: /Required forms/i }),
+    ).toBeTruthy();
+    // "Up to date" success line appears because all forms are complete.
+    expect(screen.getByText(/Your forms are up to date\./i)).toBeTruthy();
+    // The "pick a date" placeholder copy is gone — forms show without a date.
+    expect(
+      screen.queryByText(/Pick a date and time and we'll list any forms/i),
     ).toBeNull();
   });
 });

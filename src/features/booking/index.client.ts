@@ -39,8 +39,10 @@ export type {
   RequirementItem,
   RequirementStatus,
   RequiredFormKey,
+  AccountFormKey,
+  PetFormKey,
 } from "./required-profiles";
-export { servicesRequiring } from "./required-profiles";
+export { bookingRequirements, servicesRequiring } from "./required-profiles";
 
 // booking-repository (types only — repo factory is server-only surface)
 export { onboardingStatusSchema } from "./booking-repository";

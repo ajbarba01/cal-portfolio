@@ -17,6 +17,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
+  bookingRequirements,
   useBookingScheduler,
   useAvailability,
   useBusyRanges,
@@ -41,9 +42,11 @@ import type {
   ServiceDetail,
   UseBookingSchedulerReturn,
   validateStayRange,
+  RequirementItem,
+  AccountFormKey,
+  PetFormKey,
 } from "@/features/booking/index.client";
 import type { Pet } from "@/features/accounts";
-import type { RequirementItem } from "@/features/booking/index.client";
 import { useToast } from "@/components/feedback/toast";
 import type { DateRange } from "@/components/ui/calendar";
 import {
@@ -65,6 +68,11 @@ export interface UseServiceBookingInput {
   pets: AssignablePet[];
   initialSelection: InitialSelection;
   myBookingDayKeys: string[];
+  /** Server-loaded form responses (keyed by form_key or `${form_key}:${pet_id}`). */
+  formResponses?: Record<
+    string,
+    { data: Record<string, unknown>; submittedAt: string | null }
+  >;
   /** Viewer's one-way drive buffer in whole minutes (0 = unknown / guest). */
   viewerDriveBufferMin?: number;
 }
@@ -118,13 +126,12 @@ export interface UseServiceBookingReturn {
   quote: BookingQuotePreview | null;
   previewMsg: UserMessage | null;
   /**
-   * True when the previewed booking has one or more required profiles missing or
-   * stale (derived from `quote.requirements`). The price box still renders; this
-   * only disables the Book button and shows the inline requirements gate.
+   * True when any required profile is missing or stale — computed client-side
+   * from pet selection + form timestamps, independent of the quote.
    */
   formsIncomplete: boolean;
-  /** The unmet (and met) profile requirements backing the gate checklist. */
-  profileRequirements: RequirementItem[] | null;
+  /** All profile requirements for the current selection (empty when auth !== "ready"). */
+  profileRequirements: RequirementItem[];
   isPreviewing: boolean;
   isSubmitting: boolean;
   submitDone: boolean;
@@ -176,6 +183,7 @@ export function useServiceBooking({
   pets,
   initialSelection,
   myBookingDayKeys,
+  formResponses = {},
   viewerDriveBufferMin = 0,
 }: UseServiceBookingInput): UseServiceBookingReturn {
   const router = useRouter();
@@ -223,10 +231,6 @@ export function useServiceBooking({
   // Consent only — never affects the quote, so it's omitted from the preview input.
   const [kicheWelcome, setKicheWelcome] = useState(true);
   const [previewMsg, setPreviewMsg] = useState<UserMessage | null>(null);
-  const [formsIncomplete, setFormsIncomplete] = useState(false);
-  const [profileRequirements, setProfileRequirements] = useState<
-    RequirementItem[] | null
-  >(null);
   // U1: success snapshot — non-null is the flow's terminal state.
   const [success, setSuccess] = useState<BookingSuccessInfo | null>(null);
   const submitDone = success !== null;
@@ -290,6 +294,45 @@ export function useServiceBooking({
     onOccurrenceCountChange,
   } = sched;
 
+  // ── Client-side requirements gate — driven by pet selection + timestamps ────
+  // Mirrors the server's computeBookingArtifacts shape so the display gate is
+  // always current: no date/quote needed. After a form save, refreshRequirements
+  // calls router.refresh() so the page re-fetches submitted_at from the server.
+  const profileRequirements: RequirementItem[] = useMemo(() => {
+    if (authState !== "ready") return [];
+    const assignedPets = pets
+      .filter((p) => selectedPetIds.includes(p.id))
+      .map((p) => ({ id: p.id, name: p.name, species: p.species }));
+
+    const accountForms: Partial<Record<AccountFormKey, string | null>> = {
+      owner: formResponses["owner"]?.submittedAt ?? null,
+      home_access: formResponses["home_access"]?.submittedAt ?? null,
+      home_sitting: formResponses["home_sitting"]?.submittedAt ?? null,
+    };
+    const petForms: Record<
+      string,
+      Partial<Record<PetFormKey, string | null>>
+    > = {};
+    for (const p of assignedPets) {
+      petForms[p.id] = {
+        pet_care: formResponses[`pet_care:${p.id}`]?.submittedAt ?? null,
+        pet_walk: formResponses[`pet_walk:${p.id}`]?.submittedAt ?? null,
+      };
+    }
+    return bookingRequirements({
+      pricingType: service.pricingType,
+      assignedPets,
+      accountForms,
+      petForms,
+      now: new Date(),
+    });
+  }, [authState, pets, selectedPetIds, formResponses, service.pricingType]);
+
+  const formsIncomplete = useMemo(
+    () => profileRequirements.some((r) => r.status !== "complete"),
+    [profileRequirements],
+  );
+
   // ── Service-specific gate + preview/clear bodies, fed via refs ─────────────
   // Ref-only effect (no setState) — the repo's react-hooks/refs rule forbids
   // assigning ref.current during render. Runs synchronously after commit, well
@@ -302,31 +345,22 @@ export function useServiceBooking({
       const result = await previewQuote(buildSelectionInput());
       const out = previewResultMessage(result);
       if (out.kind === "quote") {
-        // The receipt computes regardless of form state: show the price, then
-        // derive the gate from the requirements that ride along on the preview.
+        // The receipt computes regardless of form state: show the price.
+        // Requirements are now derived client-side from pet selection + timestamps.
         setQuote(out.preview);
         setPreviewMsg(null);
-        const reqs = out.preview.requirements;
-        setProfileRequirements(reqs);
-        setFormsIncomplete(reqs.some((r) => r.status !== "complete"));
       } else {
         setQuote(null);
         setPreviewMsg(out.message);
-        setFormsIncomplete(false);
-        setProfileRequirements(null);
       }
     };
     clearOnSelectRef.current = () => {
       setQuote(null);
       setPreviewMsg(null);
-      setFormsIncomplete(false);
-      setProfileRequirements(null);
     };
     clearOnIdleRef.current = () => {
       setQuote(null);
       setPreviewMsg(null);
-      setFormsIncomplete(false);
-      setProfileRequirements(null);
     };
   });
 
@@ -375,10 +409,10 @@ export function useServiceBooking({
       } else {
         // Backstop: Book is disabled while formsIncomplete, but if a create still
         // returns profiles_incomplete (e.g. a profile went stale mid-session),
-        // re-surface the gate so the client knows what to finish.
+        // toast informs the user; router.refresh() re-fetches timestamps so
+        // the derived gate re-evaluates automatically.
         if (result.kind === "profiles_incomplete") {
-          setFormsIncomplete(true);
-          setProfileRequirements(result.requirements);
+          router.refresh();
         }
         const msg = createResultMessage(
           result,
@@ -396,15 +430,13 @@ export function useServiceBooking({
   }
 
   function refreshRequirements() {
-    void runPreviewRef.current();
+    router.refresh();
   }
 
   function resetFlow() {
     resetScheduler();
     setQuote(null);
     setPreviewMsg(null);
-    setFormsIncomplete(false);
-    setProfileRequirements(null);
     setSuccess(null);
     setComments("");
     setKicheWelcome(true);
