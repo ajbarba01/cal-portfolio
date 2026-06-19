@@ -74,6 +74,15 @@ import type { usePremiumDays } from "./use-premium-days";
 import type { DateRange } from "@/components/ui/calendar";
 import type { Constraints } from "@/features/pricing";
 
+/**
+ * Master switch for the weekly-recurrence UI on the create surfaces (public +
+ * admin). Off for the MVP: the recurring backend (rule build, series-cron,
+ * settings) stays intact and dormant — `recurringOn` simply never flips true
+ * without the controls — so re-enabling the feature is flipping this one flag.
+ * Surfaces gate BOTH the step render and its step-number increment on this.
+ */
+export const RECURRING_UI_ENABLED = false;
+
 // ── Local date helpers (browser-local calendar keys; layout, not business rules) ──
 
 function pad(n: number): string {
