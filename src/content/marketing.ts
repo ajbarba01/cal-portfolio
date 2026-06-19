@@ -31,7 +31,7 @@ export const copy = {
   "home.cta.body": "[[BODY: short prompt to book]]",
 
   // About — src/app/(marketing)/about/page.tsx
-  "about.summary": "Hi! I'm Cal.",
+  "about.summary": "And Kiche!",
   "about.bio.p1":
     "I recently graduated from Colorado College with a degree in Anthropology and currently live in Lakewood—though I also spend time in Boulder and throughout the Front Range.",
   "about.bio.p2":

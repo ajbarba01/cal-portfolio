@@ -1,25 +1,23 @@
 ## now
 
 - ensure owing system
-- email system omg
-- what pronouns are being used? most of the site its like Cal is speaking directly to the user but there some text when it says like "Cal will get back to you soon"
-- premium days only appearing for house sitting
-- SOE google search console
-- admin test descriptions
-- remove repeat weekly probably
+- email system and notification settings for admin and maybe user?
+- finish cal's marketing text
+- add all rover reviews (from cal)
 
-- 120% (configurable) drive time booked before or after
-- unavailable times should not show up green
-- clicking on the scheduler is finicky
+- stripe deployment
 
 ## NOT MVP
 
+- not sure cal discounts are showing up
 - site logo + wordmark typeface (included in seo)
 - paw print effect
 - enter site page
 - maybe: try making some sections or areas a window to the page bg
 - onboarding styling: why is there page below the footer, the page width changes from step to 1 to 2
 - edit booking does not take up proper width
+- timeline selector should show your bookings as grayed out (brown) blocks
+- repeating bookings system
 
 ## Notes for the other project
 
