@@ -5,6 +5,9 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { abbreviateAuthorName } from "./display-name";
+
+export type ReviewSource = "native" | "rover";
 
 export interface PublishedReview {
   id: string;
@@ -12,6 +15,7 @@ export interface PublishedReview {
   rating: number;
   body: string;
   created_at: string;
+  source: ReviewSource;
 }
 
 /**
@@ -23,7 +27,7 @@ export async function listPublishedReviews(
 ): Promise<PublishedReview[]> {
   const { data, error } = await supabase
     .from("reviews")
-    .select("id, author_name, rating, body, created_at")
+    .select("id, author_name, rating, body, created_at, source")
     .eq("status", "published")
     .order("created_at", { ascending: false });
 
@@ -31,9 +35,12 @@ export async function listPublishedReviews(
 
   return data.map((row) => ({
     id: row.id as string,
-    author_name: row.author_name as string,
+    // Public surfaces (wall + SEO JSON-LD) only ever see first name + last
+    // initial — full surnames never leave this read boundary.
+    author_name: abbreviateAuthorName(row.author_name as string),
     rating: row.rating as number,
     body: row.body as string,
     created_at: row.created_at as string,
+    source: row.source as ReviewSource,
   }));
 }

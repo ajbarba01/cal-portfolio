@@ -14,6 +14,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "db:seed": "tsx --env-file=.env.local scripts/db-seed/index.ts",
+    "rover:sync": "tsx --env-file=.env.local scripts/rover-sync/index.ts",
+    "rover:sync:prod": "tsx --env-file=.env.production.local scripts/rover-sync/index.ts",
     "gallery:sync": "tsx scripts/gallery-sync/index.ts",
     "prepare": "husky"
   },

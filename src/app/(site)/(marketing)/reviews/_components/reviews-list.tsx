@@ -8,7 +8,7 @@
  */
 
 import { useMemo, useState } from "react";
-import { Star } from "lucide-react";
+import { Star, PawPrint, ExternalLink } from "lucide-react";
 
 import {
   Multiswitch,
@@ -17,16 +17,49 @@ import {
 import { Pagination } from "@/components/ui/pagination";
 import { ResultCount } from "@/components/ui/result-count";
 import { ShimmerCard } from "@/components/ui/shimmer-card";
+import { TextLink } from "@/components/ui/text-link";
 import { Reveal } from "@/components/effects/reveal";
 import { paginate } from "@/lib/pagination";
 import type { PublishedReview } from "@/features/reviews";
+import { ROVER_PROFILE_URL } from "@/content/rover-reviews";
 import { StarRating } from "./review-form";
 
 const PAGE_SIZE = 6;
 
 type RatingFilter = "all" | "5" | "4" | "3" | "2" | "1";
 
+// The acknowledgement band carries the only color cue for an imported review:
+// a soft-green strip (the theme's status-available green, on-palette, no foreign
+// brand color) full-bleeding to the card edges along the bottom. Theme-aware —
+// mixes into the dark card on dark mode.
+const ROVER_BAND =
+  "bg-[color-mix(in_oklab,var(--status-available)_38%,var(--card))]";
+
+/** Attribution footer for an imported Rover review: source line + the one link. */
+function RoverAttribution() {
+  return (
+    <footer
+      className={`rounded-b-card border-border/60 -mx-5 mt-1 -mb-5 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t px-5 py-3 ${ROVER_BAND}`}
+    >
+      <span className="text-foreground inline-flex items-center gap-1.5 text-xs font-medium">
+        <PawPrint aria-hidden="true" className="size-3.5" />
+        Originally reviewed on Rover
+      </span>
+      <TextLink
+        href={ROVER_PROFILE_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-1 text-xs"
+      >
+        View on Rover
+        <ExternalLink aria-hidden="true" className="size-3" />
+      </TextLink>
+    </footer>
+  );
+}
+
 function ReviewCard({ review }: { review: PublishedReview }) {
+  const isRover = review.source === "rover";
   const date = new Date(review.created_at).toLocaleDateString("en-US", {
     year: "numeric",
     month: "long",
@@ -48,6 +81,7 @@ function ReviewCard({ review }: { review: PublishedReview }) {
       <p className="text-muted-foreground text-sm leading-relaxed">
         {review.body}
       </p>
+      {isRover ? <RoverAttribution /> : null}
     </ShimmerCard>
   );
 }
