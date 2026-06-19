@@ -1,14 +1,25 @@
 /**
- * Pure inverse of `quantitiesToRecord` — rebuilds a `QuantityState` from a
- * stored `quote_inputs` jsonb so the edit form can seed its inputs. `nights`
- * (house-sitting) is intentionally ignored here: it is re-derived from the
- * selected date range, exactly as the create flow does.
+ * Pure inverse of `quantitiesToRecord` — rebuilds a `QuantityState` from a stored
+ * jsonb so the edit form can seed its inputs. Handles both shapes the input can
+ * take: the raw `quantitiesToRecord` record (carries `maxHoursAway` /
+ * `leashManners`) and the persisted `QuoteInput` (carries `needyTier` /
+ * `leashManners`). `nights` (house-sitting) is ignored — re-derived from the date
+ * range, as the create flow does.
  */
 import type { PricingType } from "@/features/pricing";
 import type { QuantityState } from "@/features/booking/_components/quantity-forms";
+import { representativeHoursFromNeedyTier } from "./needy-tier";
 
 function num(v: unknown, fallback: number): number {
   return typeof v === "number" && Number.isFinite(v) ? v : fallback;
+}
+
+function reconstructMaxHoursAway(q: Record<string, unknown>): number {
+  if (typeof q.maxHoursAway === "number" && Number.isFinite(q.maxHoursAway))
+    return q.maxHoursAway;
+  if (typeof q.needyTier === "number" && Number.isFinite(q.needyTier))
+    return representativeHoursFromNeedyTier(q.needyTier);
+  return 8;
 }
 
 export function quantityStateFromQuoteInputs(
@@ -23,8 +34,7 @@ export function quantityStateFromQuoteInputs(
         qty: {
           cantBeLeftAloneDays: num(q.cantBeLeftAloneDays, 0),
           walkMinutesPerDay: num(q.walkMinutesPerDay, 0),
-          maxHoursAway: num(q.maxHoursAway, 8),
-          // holidayDays omitted — server-derived; not seeded into the edit form.
+          maxHoursAway: reconstructMaxHoursAway(q),
         },
       };
     case "check_in":

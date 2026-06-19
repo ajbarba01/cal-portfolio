@@ -3,14 +3,10 @@ import { quantityStateFromQuoteInputs } from "./quantity-state-from-quote-inputs
 import { quantitiesToRecord } from "@/features/booking/_components/quantity-forms";
 
 describe("quantityStateFromQuoteInputs", () => {
-  it("round-trips house_sitting add-ons (nights and holidayDays ignored — server-derived)", () => {
-    // holidayDays is no longer user-supplied; the form state only carries
-    // cantBeLeftAloneDays + walkMinutesPerDay + maxHoursAway. The stored record may
-    // contain a legacy holidayDays field but quantityStateFromQuoteInputs no longer
-    // reads it (the server will recompute from dates on the next re-quote).
+  it("round-trips house_sitting add-ons including maxHoursAway", () => {
     const state = {
       type: "house_sitting" as const,
-      qty: { cantBeLeftAloneDays: 2, walkMinutesPerDay: 30, maxHoursAway: 8 },
+      qty: { cantBeLeftAloneDays: 2, walkMinutesPerDay: 30, maxHoursAway: 5 },
     };
     const record = quantitiesToRecord(state, 4);
     expect(quantityStateFromQuoteInputs("house_sitting", record)).toEqual(
@@ -18,7 +14,20 @@ describe("quantityStateFromQuoteInputs", () => {
     );
   });
 
-  it("defaults missing house_sitting add-ons to 0 / 8", () => {
+  it("reconstructs maxHoursAway from a stored needyTier (price-exact bucket)", () => {
+    // Stored QuoteInput shape: carries needyTier, not the raw hours.
+    expect(
+      quantityStateFromQuoteInputs("house_sitting", {
+        nights: 3,
+        needyTier: 3,
+      }),
+    ).toEqual({
+      type: "house_sitting",
+      qty: { cantBeLeftAloneDays: 0, walkMinutesPerDay: 0, maxHoursAway: 3 },
+    });
+  });
+
+  it("defaults missing house_sitting add-ons (maxHoursAway → 8 = no surcharge)", () => {
     expect(
       quantityStateFromQuoteInputs("house_sitting", { nights: 3 }),
     ).toEqual({
@@ -27,22 +36,24 @@ describe("quantityStateFromQuoteInputs", () => {
     });
   });
 
-  it("round-trips hours-based services", () => {
+  it("round-trips walk leashManners", () => {
+    const state = {
+      type: "walk" as const,
+      qty: { hours: 2, leashManners: true },
+    };
+    const record = quantitiesToRecord(state, null);
+    expect(quantityStateFromQuoteInputs("walk", record)).toEqual(state);
+  });
+
+  it("round-trips check_in / training hours", () => {
     for (const type of ["check_in", "training"] as const) {
       const state = { type, qty: { hours: 2 } };
       const record = quantitiesToRecord(state, null);
       expect(quantityStateFromQuoteInputs(type, record)).toEqual(state);
     }
-    // walk includes leashManners
-    const walkState = {
-      type: "walk" as const,
-      qty: { hours: 2, leashManners: false },
-    };
-    const record = quantitiesToRecord(walkState, null);
-    expect(quantityStateFromQuoteInputs("walk", record)).toEqual(walkState);
   });
 
-  it("defaults hours to 1 and leashManners to false when absent", () => {
+  it("defaults walk hours to 1 and leashManners to false when absent", () => {
     expect(quantityStateFromQuoteInputs("walk", {})).toEqual({
       type: "walk",
       qty: { hours: 1, leashManners: false },
