@@ -453,6 +453,7 @@ describe("trimWindowCore (block-out of removed portion)", () => {
 
 describe("updateServiceCore", () => {
   let walkServiceId: string;
+  let originalWalkDescription: string | null = null;
 
   beforeAll(async () => {
     const result = await listServicesCore(adminDeps());
@@ -460,6 +461,23 @@ describe("updateServiceCore", () => {
     const walk = result.services.find((s) => s.slug === "walk");
     if (!walk) throw new Error("walk service not found");
     walkServiceId = walk.id;
+
+    // Capture the seeded description so the "valid update persists" test can be
+    // rolled back — otherwise its write leaks into the shared DB and surfaces as
+    // "Admin test description …" on the live /book/walk page.
+    const { data } = await serviceClient
+      .from("services")
+      .select("description")
+      .eq("id", walkServiceId)
+      .single();
+    originalWalkDescription = (data?.description as string | null) ?? null;
+  });
+
+  afterAll(async () => {
+    await serviceClient
+      .from("services")
+      .update({ description: originalWalkDescription })
+      .eq("id", walkServiceId);
   });
 
   it("non-admin → forbidden", async () => {
