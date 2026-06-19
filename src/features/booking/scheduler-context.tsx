@@ -48,6 +48,13 @@ export interface SchedulerData {
   /** Day-keys that carry a premium (holiday) surcharge (admin only). */
   premiumDays?: Set<string>;
   /**
+   * Day-keys that have at least one intraday availability window (admin
+   * availability painter). MonthGrid renders these green even when the day is
+   * not an overnight night — so a day reads "available" if it's overnight-bookable
+   * OR has open walk hours. Undefined elsewhere → no change.
+   */
+  windowDays?: Set<string>;
+  /**
    * Day-keys to render de-emphasized (hatched) — the search-greys context cue
    * in the admin Bookings hub. When undefined (public booking + availability),
    * MonthGrid renders identically to before. Keyed the same way MonthGrid keys

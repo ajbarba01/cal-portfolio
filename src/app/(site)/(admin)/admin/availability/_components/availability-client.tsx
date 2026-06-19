@@ -1,36 +1,38 @@
 "use client";
 
 /**
- * AvailabilityClient — Cal's availability painting surface, built on the shared
- * compound <Scheduler>. PAINT-ONLY: this page creates/removes availability
- * windows and toggles overnight nights + premium days. It does NOT moderate
- * bookings — clicking a booked cell opens a READ-ONLY inspect card that links
- * out to the Bookings hub (where moderation lives) and the client record.
+ * AvailabilityClient — Cal's availability editing surface, built on the shared
+ * compound <Scheduler>. ONE DAY AT A TIME: pick a day on the month calendar,
+ * then paint its intraday walk windows on the <Scheduler.DayPainter> timeline
+ * and flip its overnight + premium status with per-day toggles.
  *
- * Cancel-by-blocking: painting booked time unavailable is destructive, so the
- * removal callbacks intercept any affected bookings, pop a confirm listing each
- * one at a 100% (Cal-initiated) refund, then cancel each via cancelBooking
- * before applying the block. Empty time blocks silently.
+ * PAINT-ONLY: this page creates/removes availability windows and toggles
+ * overnight nights + premium days. It does NOT moderate bookings. Booked days
+ * are ordinary selectable days — the booking renders on the timeline for
+ * awareness only.
  *
- * Server data (windows, busy, nights, rules) flows straight from props —
- * server actions revalidate this route, so there is no client copy to drift.
+ * Cancel-by-blocking: painting booked time unavailable (or turning an overnight
+ * night off under a stay) is destructive, so the removal callbacks intercept any
+ * affected bookings, pop a confirm listing each at a 100% (Cal-initiated) refund,
+ * then cancel each via cancelBooking before applying the block. Empty time
+ * blocks silently.
+ *
+ * Server data (windows, busy, nights, rules) flows straight from props — server
+ * actions revalidate this route, so there is no client copy to drift.
  *
  * Scheduler callbacks deliberately do NOT route through router.refresh(): each
- * server action revalidatePath()s "/admin/availability", refreshing this
- * route's RSC data within the same transition. They return the action result
- * directly so the Scheduler can surface conflicts/feedback.
+ * server action revalidatePath()s "/admin/availability", refreshing this route's
+ * RSC data within the same transition. They return the action result directly so
+ * the DayPainter can surface conflicts/feedback.
  */
 
-import { useState, useMemo, useEffect, useOptimistic } from "react";
-import Link from "next/link";
-import { ArrowRight, ExternalLink, X } from "lucide-react";
+import { useMemo, useOptimistic, useTransition } from "react";
 import {
-  useScheduler,
   denverMidnight,
   denverDayKey,
   denverMinutesSinceMidnight,
   cancelBooking,
-  PetAvatar,
+  useScheduler,
   Scheduler,
   ADMIN_CAPABILITIES,
 } from "@/features/booking/index.client";
@@ -49,7 +51,8 @@ import {
 } from "@/features/admin";
 import type { AvailabilityWindow, AdminBusyRangeView } from "@/features/admin";
 import { useConfirm } from "@/components/feedback/confirm-dialog";
-import { Surface } from "@/components/ui/surface";
+import { Switch } from "@/components/ui/switch";
+import { Star } from "lucide-react";
 
 const DENVER_TZ = "America/Denver";
 
@@ -63,41 +66,11 @@ function toBusyBlock(b: AdminBusyRangeView): BusyBlock {
   };
 }
 
-const STATUS_LABELS: Record<string, string> = {
-  pending_approval: "Pending approval",
-  confirmed: "Confirmed",
-  completed: "Completed",
-  cancelled: "Cancelled",
-  declined: "Declined",
-  no_show: "No-show",
-};
-
-function humanizeStatus(status: string): string {
-  return STATUS_LABELS[status] ?? status;
-}
-
 function dollars(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
-/** "Tue, Jun 7, 2:00 – 2:30 PM" (Denver). */
-function denverRange(startIso: string, endIso: string): string {
-  const date = new Date(startIso).toLocaleDateString("en-US", {
-    timeZone: DENVER_TZ,
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  });
-  const fmtTime = (iso: string) =>
-    new Date(iso).toLocaleTimeString("en-US", {
-      timeZone: DENVER_TZ,
-      hour: "numeric",
-      minute: "2-digit",
-    });
-  return `${date}, ${fmtTime(startIso)} – ${fmtTime(endIso)}`;
-}
-
-/** "Jane Doe · Dog Walk · 2:00 PM" — one line per affected booking in the confirm. */
+/** "Jane Doe · 2:00 PM" — one line per affected booking in the confirm. */
 function affectedLabel(b: AdminBusyRangeView): string {
   const time = new Date(b.startsAt).toLocaleTimeString("en-US", {
     timeZone: DENVER_TZ,
@@ -108,17 +81,27 @@ function affectedLabel(b: AdminBusyRangeView): string {
   return `${who} · ${time}`;
 }
 
+/** "Wednesday, Jun 3" (Denver) for the day-panel header. */
+function denverDayLabel(dayKey: string): string {
+  return denverMidnight(dayKey).toLocaleDateString("en-US", {
+    timeZone: DENVER_TZ,
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+  });
+}
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Optimistic availability windows
 // ──────────────────────────────────────────────────────────────────────────────
 //
-// "Mark available/unavailable" hits the server then revalidates — the grid only
-// repaints once that round-trip lands, so the commit felt laggy. We mirror the
-// mutation onto the local `windows` array via useOptimistic so the WeekGrid
-// fills flip instantly; when the refreshed server data arrives it becomes the
-// new base and the optimistic layer dissolves into it. On failure (e.g. a
-// booking conflict refuses the removal) the transition ends without a refresh,
-// so the optimistic op auto-reverts.
+// "Mark available/unavailable" hits the server then revalidates — the timeline
+// only repaints once that round-trip lands, so the commit felt laggy. We mirror
+// the mutation onto the local `windows` array via useOptimistic so the bands flip
+// instantly; when the refreshed server data arrives it becomes the new base and
+// the optimistic layer dissolves into it. On failure (e.g. a booking conflict
+// refuses the removal) the transition ends without a refresh, so the optimistic
+// op auto-reverts.
 
 const MS_PER_MINUTE = 60_000;
 
@@ -202,117 +185,131 @@ function bookingsInWindowSlice(
   });
 }
 
+const MS_PER_DAY = 86_400_000;
+
 /**
  * Bookings affected by turning OFF the given overnight nights: any active
- * booking whose start day-key is one of the targeted nights (Denver).
+ * RESIDENT (overnight) stay that OVERLAPS one of the targeted nights — not just
+ * stays that start on it, so untoggling a night in the middle of a multi-night
+ * sit is still gated. Intraday walk bookings are excluded (untoggling overnight
+ * availability never cancels a walk).
  */
 function bookingsOnNights(
   busy: AdminBusyRangeView[],
   nights: string[],
 ): AdminBusyRangeView[] {
-  const targeted = new Set(nights);
-  return busy.filter((b) => targeted.has(denverDayKey(new Date(b.startsAt))));
+  return busy.filter((b) => {
+    const start = new Date(b.startsAt);
+    const end = new Date(b.endsAt);
+    // Resident stay = spans more than one Denver day.
+    const isResident =
+      denverDayKey(start) !== denverDayKey(new Date(end.getTime() - 1));
+    if (!isResident) return false;
+    return nights.some((night) => {
+      const ns = denverMidnight(night).getTime();
+      return start.getTime() < ns + MS_PER_DAY && end.getTime() > ns;
+    });
+  });
 }
+
+// ──────────────────────────────────────────────────────────────────────────────
+// DayControls — selected-day header + per-day overnight / premium toggles
+// ──────────────────────────────────────────────────────────────────────────────
 
 /**
- * InspectBridge — relays the Scheduler's in-context `inspectedBookingId` to the
- * outside `selectedBookingId` state that drives the inspect card. Rendered as a
- * child of <Scheduler> so it can read context. Consumes the inspection as a
- * one-shot pulse (clears it), so re-clicking the same booking re-opens.
+ * Reads the single selected day from context and exposes its overnight + premium
+ * status as toggles. Each calls the context callback for just that day (the
+ * callbacks own the optimistic flip + cancel-gate). Disabled until a day is
+ * picked.
  */
-function InspectBridge({ onInspect }: { onInspect: (id: string) => void }) {
-  const { selection } = useScheduler();
-  const id = selection.inspectedBookingId;
-  const clear = selection.clearInspection;
-  useEffect(() => {
-    if (id) {
-      onInspect(id);
-      clear();
-    }
-  }, [id, onInspect, clear]);
-  return null;
-}
+function DayControls() {
+  const { selection, data, callbacks } = useScheduler();
 
-// ──────────────────────────────────────────────────────────────────────────────
-// Read-only inspect card
-// ──────────────────────────────────────────────────────────────────────────────
+  const dayKey =
+    selection.state.selectedDays.size > 0
+      ? [...selection.state.selectedDays][0]
+      : null;
 
-function InspectCard({
-  booking,
-  onClose,
-}: {
-  booking: AdminBusyRangeView;
-  onClose: () => void;
-}) {
+  const overnightOn = dayKey ? data.overnightNights.has(dayKey) : false;
+  const premiumOn = dayKey ? (data.premiumDays?.has(dayKey) ?? false) : false;
+  const disabled = dayKey === null;
+
+  // The callbacks own their own optimistic flip + transition (and the cancel
+  // confirm for overnight-off), so just fire them.
+  function toggleOvernight(on: boolean) {
+    if (!dayKey) return;
+    void callbacks.setOvernightNightsBatch?.({ nights: [dayKey], on });
+  }
+
+  function togglePremium(on: boolean) {
+    if (!dayKey) return;
+    void callbacks.setPremiumDaysBatch?.({ dayKeys: [dayKey], on });
+  }
+
   return (
-    <Surface
-      as="section"
-      variant="plain"
-      aria-label="Booking details"
-      className="p-4"
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex flex-col gap-1">
-          <h2 className="text-foreground text-sm font-semibold">
-            {booking.clientName ?? "Unknown client"}
-          </h2>
-          <p className="text-muted-foreground text-xs">
-            {humanizeStatus(booking.status)}
-          </p>
-          <p className="text-muted-foreground text-xs">
-            {denverRange(booking.startsAt, booking.endsAt)}
-          </p>
+    <div className="flex flex-col gap-4">
+      <div>
+        <h2 className="font-heading text-foreground text-base font-medium">
+          {dayKey ? denverDayLabel(dayKey) : "Select a day"}
+        </h2>
+        <p className="text-muted-foreground text-xs">
+          {dayKey
+            ? "Paint walk hours below; set overnight & premium for this day."
+            : "Pick a day on the calendar to edit its availability."}
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-between gap-3">
+          <label
+            htmlFor="toggle-overnight"
+            className="text-foreground text-sm font-medium"
+          >
+            Overnight available
+            <span className="text-muted-foreground block text-xs font-normal">
+              House-sitting stays this night
+            </span>
+          </label>
+          <Switch
+            id="toggle-overnight"
+            checked={overnightOn}
+            onCheckedChange={toggleOvernight}
+            disabled={disabled}
+          />
         </div>
-        <button
-          type="button"
-          aria-label="Close booking details"
-          onClick={onClose}
-          className="text-muted-foreground hover:text-foreground focus-visible:ring-ring rounded focus-visible:ring-2 focus-visible:outline-none"
-        >
-          <X className="size-4" aria-hidden="true" />
-        </button>
-      </div>
 
-      {booking.pets.length > 0 && (
-        <ul className="mt-3 flex flex-col gap-2">
-          {booking.pets.map((p) => (
-            <li key={p.id} className="flex items-center gap-2 text-xs">
-              <PetAvatar
-                name={p.name}
-                species={p.species}
-                photoUrl={p.photoUrl}
-                size={28}
+        <div className="flex items-center justify-between gap-3">
+          <label
+            htmlFor="toggle-premium"
+            className="text-foreground text-sm font-medium"
+          >
+            <span className="inline-flex items-center gap-1">
+              <Star
+                aria-hidden="true"
+                size={14}
+                className="text-warning-foreground fill-current"
               />
-              <span className="text-foreground">{p.name}</span>
-              <span className="text-muted-foreground">({p.species})</span>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <div className="mt-4 flex flex-wrap gap-4 text-sm">
-        <Link
-          href={`/admin/bookings?booking=${booking.bookingId}`}
-          className="text-brand-strong hover:text-foreground focus-visible:ring-ring inline-flex items-center gap-1 rounded font-medium focus-visible:ring-2 focus-visible:outline-none"
-        >
-          Manage on Bookings
-          <ArrowRight className="size-4" aria-hidden="true" />
-        </Link>
-        <Link
-          href={`/admin/clients/${booking.clientId}`}
-          className="text-brand-strong hover:text-foreground focus-visible:ring-ring inline-flex items-center gap-1 rounded font-medium focus-visible:ring-2 focus-visible:outline-none"
-        >
-          View client
-          <ExternalLink className="size-4" aria-hidden="true" />
-        </Link>
+              Premium day
+            </span>
+            <span className="text-muted-foreground block text-xs font-normal">
+              Holiday surcharge applies
+            </span>
+          </label>
+          <Switch
+            id="toggle-premium"
+            checked={premiumOn}
+            onCheckedChange={togglePremium}
+            disabled={disabled}
+          />
+        </div>
       </div>
-
-      <p className="text-muted-foreground mt-3 text-xs">
-        Availability is paint-only — moderation lives on Bookings.
-      </p>
-    </Surface>
+    </div>
   );
 }
+
+// ──────────────────────────────────────────────────────────────────────────────
+// AvailabilityClient
+// ──────────────────────────────────────────────────────────────────────────────
 
 export function AvailabilityClient({
   initialWindows,
@@ -337,15 +334,15 @@ export function AvailabilityClient({
    */
   nowIso: string;
 }) {
-  const [selectedBookingId, setSelectedBookingId] = useState<string | null>(
-    null,
-  );
   const { confirm, dialog } = useConfirm();
+  // Single owner of the optimistic-mutation transition. EVERY useOptimistic
+  // dispatch below runs inside startMutation so it's valid whether it fires
+  // directly or from the cancel-confirm dialog's click handler (which is outside
+  // any caller transition — dispatching there without this would throw, hang the
+  // confirm, and strand the UI).
+  const [, startMutation] = useTransition();
 
-  const selectedBooking =
-    initialBusy.find((b) => b.bookingId === selectedBookingId) ?? null;
-
-  // Server windows as TimeRanges; the optimistic layer flips fills instantly and
+  // Server windows as TimeRanges; the optimistic layer flips bands instantly and
   // dissolves when the refreshed `initialWindows` becomes the new base.
   const serverWindows = useMemo<TimeRange[]>(
     () =>
@@ -393,10 +390,19 @@ export function AvailabilityClient({
     },
   );
 
+  // Day-keys that have any intraday window — drives the month's green fill so a
+  // day reads available if it's overnight-bookable OR has open walk hours.
+  const windowDays = useMemo(() => {
+    const s = new Set<string>();
+    for (const w of optimisticWindows) s.add(denverDayKey(w.startsAt));
+    return s;
+  }, [optimisticWindows]);
+
   const data: SchedulerData = useMemo(
     () => ({
       overnightNights: optimisticNights,
       windows: optimisticWindows,
+      windowDays,
       busy: initialBusy.map(toBusyBlock),
       // AdminBusyRangeView has no concurrency class, so we pass all admin busy
       // here too; this slightly over-marks non-resident days in the month
@@ -404,15 +410,16 @@ export function AvailabilityClient({
       // add class to narrow this.
       busyResident: initialBusy.map(toBusyBlock),
       // ADMIN parity (U2): lead-time greying is a client-booking affordance —
-      // it must never grey days on Cal's availability-painting calendar (and
-      // ADMIN_POLICY skips the lead-time guard anyway). Zero it here; all
-      // other rules stay live from settings.
+      // it must never grey days on Cal's availability calendar (and ADMIN_POLICY
+      // skips the lead-time guard anyway). Zero it here; all other rules stay
+      // live from settings.
       rules: { ...rules, minLeadTimeHours: 0 },
       now: new Date(nowIso),
       premiumDays: optimisticPremiumDays,
     }),
     [
       optimisticWindows,
+      windowDays,
       optimisticNights,
       optimisticPremiumDays,
       initialBusy,
@@ -479,15 +486,19 @@ export function AvailabilityClient({
   const callbacks: SchedulerCallbacks = useMemo(
     () => ({
       createWindowsBatch: async (input) => {
-        // Optimistic add — synthesize the day windows so the grid flips green
-        // before the server round-trip lands. Runs inside WeekActions' transition.
-        applyOptimisticWindow({
-          type: "add",
-          ranges: input.dayKeys.map((k) =>
-            dayWindow(k, input.openMinute, input.closeMinute),
-          ),
+        // Optimistic add — synthesize the day windows so the bands appear before
+        // the server round-trip lands. Optimistic + server both inside the
+        // transition so the optimistic state holds until revalidation arrives.
+        startMutation(async () => {
+          applyOptimisticWindow({
+            type: "add",
+            ranges: input.dayKeys.map((k) =>
+              dayWindow(k, input.openMinute, input.closeMinute),
+            ),
+          });
+          await createWindowsBatch(input);
         });
-        return createWindowsBatch(input);
+        return { kind: "success" };
       },
       setWindowUnavailable: async (input) => {
         // Cancel-by-blocking: if any booking overlaps the slice, confirm +
@@ -498,27 +509,36 @@ export function AvailabilityClient({
           input.fromMinute,
           input.toMinute,
         );
-        const result = await blockWithCancelGate(affected, async () => {
+        const apply = async () => {
           // Optimistic removal — interval-subtract the slice. Reverts if the
-          // server refuses (booking conflict) since revalidation won't fire.
-          applyOptimisticWindow({
-            type: "subtract",
-            dayKey: input.dayKey,
-            fromMinute: input.fromMinute,
-            toMinute: input.toMinute,
+          // server refuses since revalidation won't fire. Wrapped in the
+          // transition so it's valid even when fired from the confirm dialog.
+          startMutation(async () => {
+            applyOptimisticWindow({
+              type: "subtract",
+              dayKey: input.dayKey,
+              fromMinute: input.fromMinute,
+              toMinute: input.toMinute,
+            });
+            await setWindowUnavailable(input);
           });
-          return setWindowUnavailable(input);
-        });
-        // Declining the confirm = no block: report success so the Scheduler
-        // treats it as a no-op rather than an error.
-        return result ?? { kind: "success" };
+          return { kind: "success" } as const;
+        };
+        const result = await blockWithCancelGate(affected, apply);
+        // Declining the confirm leaves the window untouched. Report a NON-success
+        // so the painter knows the removal didn't apply and snaps the window back
+        // (and skips the paired create when this removal is half of a move).
+        return result ?? { kind: "conflict", bookings: [] };
       },
       setOvernightNightsBatch: async (input) => {
         // Turning nights OFF can strand bookings on those nights → gate it.
         // Turning ON never destroys anything → apply directly.
         const apply = async () => {
-          applyOptimisticNights({ nights: input.nights, on: input.on });
-          return setOvernightNightsBatch(input);
+          startMutation(async () => {
+            applyOptimisticNights({ nights: input.nights, on: input.on });
+            await setOvernightNightsBatch(input);
+          });
+          return { kind: "success" } as const;
         };
         if (input.on) {
           return apply();
@@ -529,14 +549,18 @@ export function AvailabilityClient({
       },
       setPremiumDaysBatch: async (input) => {
         // Optimistic ★ flip; reverts if server write fails.
-        applyOptimisticPremiumDays({ dayKeys: input.dayKeys, on: input.on });
-        return setPremiumDaysBatch(input.dayKeys, input.on);
+        startMutation(async () => {
+          applyOptimisticPremiumDays({ dayKeys: input.dayKeys, on: input.on });
+          await setPremiumDaysBatch(input.dayKeys, input.on);
+        });
+        return { kind: "success" };
       },
     }),
     // blockWithCancelGate/confirm are stable enough across renders; initialBusy
     // is the affected-booking source and must stay fresh.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [
+      startMutation,
       applyOptimisticWindow,
       applyOptimisticNights,
       applyOptimisticPremiumDays,
@@ -551,27 +575,20 @@ export function AvailabilityClient({
         data={data}
         callbacks={callbacks}
       >
-        <InspectBridge onInspect={setSelectedBookingId} />
-        <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
+        <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-3">
             <Scheduler.MonthGrid />
-            <Scheduler.SelectionSummary />
             <Scheduler.Legend />
           </div>
-          <Scheduler.DayPanel />
-        </div>
-        <div className="mt-6 grid gap-4 lg:grid-cols-[1fr_16rem]">
-          <Scheduler.WeekGrid />
-          <Scheduler.WeekActions />
+          <section
+            aria-label="Selected day availability"
+            className="border-border flex flex-col gap-5 border-t pt-6"
+          >
+            <DayControls />
+            <Scheduler.DayPainter />
+          </section>
         </div>
       </Scheduler>
-
-      {selectedBooking && (
-        <InspectCard
-          booking={selectedBooking}
-          onClose={() => setSelectedBookingId(null)}
-        />
-      )}
 
       {dialog}
     </div>
