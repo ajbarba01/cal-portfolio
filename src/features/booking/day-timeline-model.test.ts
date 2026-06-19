@@ -4,6 +4,8 @@ import {
   blockSpan,
   clampRangesToDayMinutes,
   subtractBlocked,
+  mergeWindows,
+  snapMinute,
 } from "./day-timeline-model";
 
 const DAY = Date.UTC(2026, 6, 10, 0, 0, 0); // 2026-07-10 00:00 UTC
@@ -156,5 +158,62 @@ describe("subtractBlocked", () => {
   it("clips blocks to the window before subtracting", () => {
     // block extends beyond the window on both sides of a gap
     expect(subtractBlocked([[540, 660]], [[500, 560]])).toEqual([[560, 660]]);
+  });
+});
+
+describe("mergeWindows", () => {
+  it("returns a single window unchanged", () => {
+    expect(mergeWindows([[540, 660]])).toEqual([[540, 660]]);
+  });
+  it("merges overlapping windows", () => {
+    expect(
+      mergeWindows([
+        [540, 660],
+        [600, 720],
+      ]),
+    ).toEqual([[540, 720]]);
+  });
+  it("merges adjacent (touching) windows into one span", () => {
+    // 9:00–10:00 + 10:00–11:00 → 9:00–11:00 (Cal reasons in spans, not rows)
+    expect(
+      mergeWindows([
+        [540, 600],
+        [600, 660],
+      ]),
+    ).toEqual([[540, 660]]);
+  });
+  it("keeps a gap between non-touching windows", () => {
+    expect(
+      mergeWindows([
+        [540, 600],
+        [630, 690],
+      ]),
+    ).toEqual([
+      [540, 600],
+      [630, 690],
+    ]);
+  });
+  it("sorts unordered input and drops zero/negative-width", () => {
+    expect(
+      mergeWindows([
+        [630, 690],
+        [540, 600],
+        [700, 700],
+      ]),
+    ).toEqual([
+      [540, 600],
+      [630, 690],
+    ]);
+  });
+});
+
+describe("snapMinute", () => {
+  it("rounds to the nearest granularity step", () => {
+    expect(snapMinute(547, 15, 0, 1440)).toBe(540);
+    expect(snapMinute(553, 15, 0, 1440)).toBe(555);
+  });
+  it("clamps below min and above max", () => {
+    expect(snapMinute(-30, 15, 360, 1260)).toBe(360);
+    expect(snapMinute(1500, 15, 360, 1260)).toBe(1260);
   });
 });

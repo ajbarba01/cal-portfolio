@@ -41,10 +41,18 @@ export interface SchedulerCapabilities {
   startGranularityMin?: number;
 }
 
-/** Admin view: full multi-select + free intraday painting, overnight, editable. */
+/**
+ * Admin availability view: ONE day at a time. Selecting a day loads it into the
+ * DayPainter (a vertical timeline that paints intraday windows at 15-min
+ * granularity); overnight + premium are per-day toggles on the selected day.
+ * Booked days are normal selectable days — the booking just renders for
+ * awareness, and blocking time it overlaps fires the cancel-and-refund confirm.
+ */
 export const ADMIN_CAPABILITIES: SchedulerCapabilities = {
-  daySelection: "multi",
+  daySelection: "single",
   intraday: "free-paint",
+  intervalMinutes: 15,
+  startGranularityMin: 15,
   overnight: true,
   editable: true,
   weekNavigable: true,

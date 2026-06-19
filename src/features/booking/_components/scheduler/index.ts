@@ -13,24 +13,20 @@
 import { Scheduler as SchedulerRoot } from "./scheduler";
 import { SelectionSummary } from "./selection-summary";
 import { MonthGrid } from "./month-grid";
-import { DayPanel } from "./day-panel";
-import { WeekGrid } from "./week-grid";
-import { WeekActions } from "./week-actions";
 import { Legend } from "./legend";
 import { BookingDetailsPanel } from "./booking-details-panel";
 import { ClearDates } from "./clear-dates";
 import { DayTimeline } from "./day-timeline";
+import { DayPainter } from "./day-painter";
 
 export const Scheduler = Object.assign(SchedulerRoot, {
   SelectionSummary,
   MonthGrid,
-  DayPanel,
-  WeekGrid,
-  WeekActions,
   Legend,
   BookingDetailsPanel,
   ClearDates,
   DayTimeline,
+  DayPainter,
 });
 
 // Re-export prop types consumers need when wiring data/callbacks from outside.

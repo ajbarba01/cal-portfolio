@@ -403,19 +403,30 @@ export function MonthGrid({ className }: { className?: string }) {
   // ── Classification ────────────────────────────────────────────────────────
   const days = useMemo(() => {
     const keys = monthDayKeys(userMonth);
-    return deriveBookableDays({
+    const derived = deriveBookableDays({
       days: keys.map((k) => denverMidnight(k)),
       overnightNights: data.overnightNights,
       busyResident: data.busyResident,
       rules: data.rules,
       now: data.now,
     });
+    // windowDays (admin availability): a day with open walk hours reads green
+    // too, not just overnight nights. Only upgrades days that are otherwise
+    // out-of-window — past/too-far/busy precedence is preserved.
+    const windowDays = data.windowDays;
+    if (!windowDays || windowDays.size === 0) return derived;
+    return derived.map((d) =>
+      d.state === "out-of-window" && windowDays.has(d.dayKey)
+        ? { ...d, state: "available" as const }
+        : d,
+    );
   }, [
     userMonth,
     data.overnightNights,
     data.busyResident,
     data.rules,
     data.now,
+    data.windowDays,
   ]);
 
   const byKey = useMemo(() => new Map(days.map((d) => [d.dayKey, d])), [days]);
@@ -483,14 +494,23 @@ export function MonthGrid({ className }: { className?: string }) {
     (dayKey: string): CellKind => {
       const da = byKey.get(dayKey);
       if (!da) return "inert";
-      if (da.state === "busy") return "booked";
+      if (da.state === "busy") {
+        // Availability painter (editable, NOT inspect): a booked day is a normal
+        // selectable day — selecting it loads the day into the painter with the
+        // booking drawn for awareness; blocking time it overlaps fires the
+        // cancel-and-refund confirm. Inspect contexts (Bookings hub / account)
+        // keep booked → inspect; public booking presets leave it disabled.
+        return capabilities.editable && !capabilities.inspectable
+          ? "selectable"
+          : "booked";
+      }
       if (da.state === "past") return "inert";
       // available + out-of-window are selectable (admin may book out-of-window);
       // for non-editable views isDisabled gates non-available cells already.
       if (!capabilities.editable && da.state !== "available") return "inert";
       return "selectable";
     },
-    [byKey, capabilities.editable],
+    [byKey, capabilities.editable, capabilities.inspectable],
   );
 
   // ── Per-cell composed visuals ─────────────────────────────────────────────
