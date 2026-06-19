@@ -28,6 +28,7 @@ import {
   ServiceBookingClient,
   type AuthState,
 } from "./_components/service-booking-client";
+import { ServiceSwitcher } from "@/components/ui/service-switcher";
 import { EXPENSE_AUTH_KIND } from "@/features/accounts";
 import type { PricingType } from "@/features/pricing";
 import { parsePricingConfig } from "@/features/pricing";
@@ -311,42 +312,21 @@ export default async function ServiceBookingPage({
           <Reveal>
             <Link
               href="/services"
-              className="text-muted-foreground hover:text-foreground inline-block text-sm"
+              className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs font-medium tracking-wide uppercase"
             >
-              ← All services
+              Services
             </Link>
           </Reveal>
           {/* Cross-nav: hop between services without going back to the index. */}
-          {siblingServices.length > 1 ? (
-            <Reveal
-              as="nav"
-              aria-label="Other services"
-              className="mt-3 mb-6 flex flex-wrap gap-2"
-            >
-              {siblingServices.map((s) =>
-                s.slug === service.slug ? (
-                  <span
-                    key={s.slug}
-                    aria-current="page"
-                    className="bg-brand text-brand-foreground rounded-full px-3 py-1 text-xs font-medium"
-                  >
-                    {s.name}
-                  </span>
-                ) : (
-                  <Link
-                    key={s.slug}
-                    href={`/book/${s.slug}`}
-                    className="bg-sidebar-active text-brand-strong rounded-full px-3 py-1 text-xs font-medium transition-colors duration-200 ease-out hover:bg-[color-mix(in_oklab,var(--brand)_14%,var(--sidebar-active))]"
-                  >
-                    {s.name}
-                  </Link>
-                ),
-              )}
+          {siblingServices.length > 1 && (
+            <Reveal className="mt-3 mb-6">
+              <ServiceSwitcher
+                services={siblingServices}
+                activeSlug={service.slug}
+              />
             </Reveal>
-          ) : (
-            <div className="mb-6" />
           )}
-          <Reveal as="h1" className="mb-1 text-2xl font-semibold">
+          <Reveal as="h1" className="font-heading mb-1 text-2xl font-semibold">
             {service.name}
           </Reveal>
           {service.description && (

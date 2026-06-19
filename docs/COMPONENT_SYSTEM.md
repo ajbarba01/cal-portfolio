@@ -64,23 +64,24 @@ sanctioned card lift is `ShimmerCard`'s opt-in `hoverLift` (the service cards).
 
 ## Registry — when to use which
 
-| Need                              | Use                                     | Notes                                          |
-| --------------------------------- | --------------------------------------- | ---------------------------------------------- |
-| on/off boolean (settings, flags)  | `Switch`                                | not a form-value picker                        |
-| boolean in a form / row-select    | `Checkbox`                              | native input, custom paint                     |
-| single-select among a few options | `RadioGroup`                            | a **form value**                               |
-| filter / view toggle (page state) | `Multiswitch`                           | **not** a form value                           |
-| number with a unit ($, %)         | `UnitInput`                             |                                                |
-| integer with steppers             | `NumberStepper`                         |                                                |
-| small status / label pill         | `Badge`                                 | variants incl. `outline` chip; sizes `sm`/`md` |
-| inline notice within a page       | `Alert`                                 | info / warning / success / error               |
-| empty / error / loading panel     | `EmptyState` / `ErrorState` / `Spinner` | see FRONTEND.md feedback taxonomy              |
-| inline link / textual CTA         | `TextLink`                              | the one clay link style                        |
-| titled group of form fields       | `FormSection`                           | emphasis Surface, not fieldset/legend          |
-| live length count on a long field | `CharCounter`                           | long textareas only; `maxLength` = server cap  |
-| section intro (eyebrow + heading) | `SectionHeader`                         | reuses `Eyebrow`                               |
-| stat / receipt line               | `StatDisplay`                           | `stacked` or `receipt`                         |
-| page title / subtitle / actions   | `PageHeader`                            | a layout shell (FRONTEND.md)                   |
+| Need                              | Use                                     | Notes                                                                                                            |
+| --------------------------------- | --------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| on/off boolean (settings, flags)  | `Switch`                                | not a form-value picker                                                                                          |
+| boolean in a form / row-select    | `Checkbox`                              | native input, custom paint                                                                                       |
+| single-select among a few options | `RadioGroup`                            | a **form value**                                                                                                 |
+| filter / view toggle (page state) | `Multiswitch`                           | **not** a form value                                                                                             |
+| booking-page service nav          | `ServiceSwitcher`                       | link-based segmented control; each segment is a `<Link>` to `/book/[slug]`; active carries `aria-current="page"` |
+| number with a unit ($, %)         | `UnitInput`                             |                                                                                                                  |
+| integer with steppers             | `NumberStepper`                         |                                                                                                                  |
+| small status / label pill         | `Badge`                                 | variants incl. `outline` chip; sizes `sm`/`md`                                                                   |
+| inline notice within a page       | `Alert`                                 | info / warning / success / error                                                                                 |
+| empty / error / loading panel     | `EmptyState` / `ErrorState` / `Spinner` | see FRONTEND.md feedback taxonomy                                                                                |
+| inline link / textual CTA         | `TextLink`                              | the one clay link style                                                                                          |
+| titled group of form fields       | `FormSection`                           | emphasis Surface, not fieldset/legend                                                                            |
+| live length count on a long field | `CharCounter`                           | long textareas only; `maxLength` = server cap                                                                    |
+| section intro (eyebrow + heading) | `SectionHeader`                         | reuses `Eyebrow`                                                                                                 |
+| stat / receipt line               | `StatDisplay`                           | `stacked` or `receipt`                                                                                           |
+| page title / subtitle / actions   | `PageHeader`                            | a layout shell (FRONTEND.md)                                                                                     |
 
 Buttons: exactly one `brand` primary per view — see FRONTEND.md "Button hierarchy".
 
