@@ -36,6 +36,18 @@
 - transforms: none
 - notes: -
 
+### home.why.header
+
+- status: placed
+- provenance: cal-verbatim
+- consumed-by: src/app/(marketing)/page.tsx
+- applied-from: |
+  Why should pet parents choose me?
+- live-text: |
+  Why should pet parents choose me?
+- transforms: none
+- notes: replaced "[[HEADER: why-Cal section]]" placeholder (no prior ledger entry). First-person POV — within DESIGN.md guardrails (2026-06-19).
+
 ### home.trust.1.title
 
 - status: placed
@@ -119,6 +131,18 @@
   Think we might be a good fit?
 - transforms: none
 - notes: -
+
+### home.cta.body
+
+- status: placed
+- provenance: cal-verbatim
+- consumed-by: src/app/(marketing)/page.tsx
+- applied-from: |
+  See services and pricing below
+- live-text: |
+  See services and pricing below
+- transforms: none
+- notes: replaced "[[BODY: short prompt to book]]" placeholder (no prior ledger entry) (2026-06-19).
 
 ### about.summary
 
@@ -204,17 +228,41 @@
 - transforms: none
 - notes: -
 
+### about.quote.text
+
+- status: placed
+- provenance: public-fact
+- consumed-by: src/app/(site)/(marketing)/about/page.tsx
+- applied-from: |
+  "The least I can do is speak out for those who cannot speak for themselves."
+- live-text: |
+  The least I can do is speak out for those who cannot speak for themselves.
+- transforms: punctuation — stripped the wrapping double-quotes; the page renders the opening `&ldquo;` glyph in chrome (auto-allowed). Dropped trailing U+2060 word-joiner from Cal's dump.
+- notes: replaced "[[BODY: a quote Cal likes…]]" placeholder (no prior entry). Real attributed quotation Cal selected (Jane Goodall) — public-fact, not a claim about Cal (2026-06-19).
+
+### about.quote.author
+
+- status: placed
+- provenance: public-fact
+- consumed-by: src/app/(site)/(marketing)/about/page.tsx
+- applied-from: |
+  Dr. Jane Goodall
+- live-text: |
+  Dr. Jane Goodall
+- transforms: punctuation — stripped the leading "- " separator from Cal's "…themselves." - Dr. Jane Goodall; the page renders the `&mdash;` before the author (auto-allowed).
+- notes: replaced "[[Quote author]]" placeholder (no prior entry) (2026-06-19).
+
 ### about.references
 
-- status: withheld
+- status: placed
 - provenance: cal-verbatim
-- consumed-by: (none — withheld from site 2026-06-10; placeholder rendered in about/page.tsx)
+- consumed-by: src/app/(site)/(marketing)/about/page.tsx (rendered when ≥1 client is consented; else falls back to about.references.pending)
 - applied-from: |
   The following clients have graciously agreed to serve as references. Please feel free to reach out if you have any questions about their experience working with me.
 - live-text: |
   The following clients have graciously agreed to serve as references. Please feel free to reach out if you have any questions about their experience working with me.
 - transforms: none
-- notes: slot repurposed from a placeholder "pointer to reviews page" to the references-list intro. Named clients live in about.references.1–8. Cal's directive "Most reviews taken from Rover (rover link/integration/screenshots?)" is an open implementation question, not copy — surfaced in report, not placed. **Withheld from site 2026-06-10:** intro + about.references.1–8 not rendered, awaiting client permission to publish; copy retained in registry, page shows placeholder. Restore intro + <ul> in about/page.tsx when consent granted. Same applies to about.references.1–8 below (each still marked `placed` in registry but not consumed).
+- notes: slot repurposed from a placeholder "pointer to reviews page" to the references-list intro. Named clients live in about.references.1–8. Cal's directive "Most reviews taken from Rover (rover link/integration/screenshots?)" is an open implementation question, not copy — surfaced in report, not placed. **Per-client consent reveal (2026-06-19, supersedes the 2026-06-10 all-or-nothing withhold):** publication is gated by the `references` consent map in about/page.tsx. This intro renders once ≥1 client is consented (else about.references.pending shows); consented clients render as named chips, unconsented ones surface only as a muted "more coming" chip. Currently consented: about.references.5, .7 — see those entries.
 
 ### about.references.1
 
@@ -274,7 +322,7 @@
 - live-text: |
   Abby and Sloane
 - transforms: capitalization "sloane" → "Sloane" (auto); agent-resolved — stripped "(phone number and/or email)" directive, contact NOT published (available on request), user-confirmed 2026-06-09.
-- notes: -
+- notes: ✅ consent to publish granted 2026-06-19 ("Abby D.M." — phone 208 943 1003 supplied privately, NOT published). Still not rendered: the whole references list stays withheld until the remaining clients consent.
 
 ### about.references.6
 
@@ -298,7 +346,7 @@
 - live-text: |
   Madeleine, Apollo, Anabella
 - transforms: capitalization "apollo"/"anabella" → "Apollo"/"Anabella" (auto); agent-resolved — stripped "(phone number and/or email)" directive, contact NOT published (available on request), user-confirmed 2026-06-09.
-- notes: -
+- notes: ✅ consent to publish granted 2026-06-19 ("Madeleine K.G." — phone 720 388 0092 supplied privately, NOT published). Still not rendered: the whole references list stays withheld until the remaining clients consent.
 
 ### about.references.8
 
@@ -311,6 +359,18 @@
   Bugaboo
 - transforms: agent-resolved — stripped "(phone number and/or email)" directive; contact NOT published (available on request), user-confirmed 2026-06-09.
 - notes: -
+
+### reviews.purpose
+
+- status: placed
+- provenance: cal-verbatim
+- consumed-by: src/app/(marketing)/reviews/page.tsx
+- applied-from: |
+  Feedback from pet-parents
+- live-text: |
+  Feedback from pet-parents
+- transforms: none
+- notes: replaced "[[BODY: reviews section purpose]]" placeholder (no prior ledger entry). From Cal's References-page "Body" (2026-06-19).
 
 ### resources.intro
 

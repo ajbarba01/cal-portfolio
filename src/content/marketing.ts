@@ -17,7 +17,7 @@ export const copy = {
   "home.hero.hook": "Reliable pet care on the Front Range",
   "home.hero.body":
     "Highly individualized drop-in visits, walks, house sitting, and training from a local animal-lover",
-  "home.why.header": "[[HEADER: why-Cal section]]",
+  "home.why.header": "Why should pet parents choose me?",
   "home.trust.1.title": "Safety first",
   "home.trust.1.body":
     "Through my experiences as an EMT, Wilderness First Responder (WFR), and veterinary shadow, I've learned a great deal about pet safety, health, and risk prevention. I incorporate this knowledge into every walk, visit, and house sit, helping keep pets safe, healthy, and happy. I also hope to help pet owners learn more about keeping their animals safe through the [resources](/resources) available on this site.",
@@ -28,7 +28,7 @@ export const copy = {
   "home.trust.3.body":
     "I've been working in the pet care industry since 2021 and have cared for hundreds of animals with a wide range of personalities, ages, and needs. While most of my experience is with large-breed dogs, I've worked with all kinds of pets—from chickens and tortoises to senior Chihuahuas and energetic puppies. Every animal is different, and I enjoy getting to know each one as an individual.",
   "home.cta.header": "Think we might be a good fit?",
-  "home.cta.body": "[[BODY: short prompt to book]]",
+  "home.cta.body": "See services and pricing below",
 
   // About — src/app/(marketing)/about/page.tsx
   "about.summary": "And Kiche!",
@@ -62,8 +62,8 @@ export const copy = {
   // Favorite-quote epigraph (a line Cal likes — NOT a client testimonial),
   // shown just before References.
   "about.quote.text":
-    "[[BODY: a quote Cal likes — about animals, care, or the outdoors]]",
-  "about.quote.author": "[[Quote author]]",
+    "The least I can do is speak out for those who cannot speak for themselves.",
+  "about.quote.author": "Dr. Jane Goodall",
   // Caption for the offset bio photo.
   "about.bio.photo.caption": "[[Caption: what this photo shows]]",
   // Shown while the real reference names below stay withheld pending consent.
@@ -97,7 +97,7 @@ export const copy = {
     "Unfortunately, I'm unable to care for clients' pets in my own home at this time due to housing restrictions and the needs of my own dog. I am, however, happy to take your pup on walks, hikes, and other adventures outside of your home!",
 
   // Reviews — src/app/(marketing)/reviews/page.tsx
-  "reviews.purpose": "[[BODY: reviews section purpose]]",
+  "reviews.purpose": "Feedback from pet-parents",
 
   // Resources — src/app/(marketing)/resources/page.tsx
   // Names link to the external URL Cal supplied; href lives in the page data, the
