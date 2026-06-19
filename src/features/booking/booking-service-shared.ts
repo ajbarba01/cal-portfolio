@@ -685,7 +685,10 @@ export async function computeBookingArtifacts(
     hardCutoffMiles: settings.hard_cutoff_miles,
     useRoadMiles: settings.gate_use_road_miles,
     roadFactor: settings.road_factor,
-    requiresApproval: !!service.requires_approval,
+    // House-sits are always personally confirmed by Cal — non-overridable, so the
+    // per-service flag can never accidentally auto-approve an overnight stay.
+    requiresApproval:
+      !!service.requires_approval || service.pricing_type === "house_sitting",
     locationKnown,
     softDistanceWarnMiles: pricingConfig.constraints.softDistanceWarnMiles,
   });
