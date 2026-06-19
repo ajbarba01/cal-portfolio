@@ -274,8 +274,12 @@ Marketing copy Cal must write is stubbed with double-square-bracket markers. Kee
   - `[[HEADER: purpose]]` — section/card/page header
   - `[[BODY: what this paragraph should cover]]` — paragraph copy
   - `[[Item N: what it is]]` — list/card/FAQ/resource stub
-- **Header rules:** basic, descriptive noun phrases. No first-person, no quirky/pushy phrasing. ✗ "Pricing flexibility matters to me." → ✓ "Sliding cost scale". If unsure, write `[[HEADER: purpose]]`.
+- **Header rules:** basic, descriptive noun phrases. No first-person, no quirky/pushy phrasing. ✗ "Pricing flexibility matters to me." → ✓ "Sliding cost scale". If unsure, write `[[HEADER: purpose]]`. (POV note below is about body prose, not headers.)
 - **Body rules:** describe purpose only. No invented service claims, philosophy, or biographical detail — Cal supplies all of that.
+- **Point of view (POV) — load-bearing.** Two registers, by surface:
+  - **Marketing body copy = Cal's first person.** Everything in `src/content/marketing.ts` (home, about, services, reviews, resources, gallery, contact intro/FAQ, long-form service detail) speaks as Cal: "I've cared for hundreds of animals", "I usually reply within a day". This is Cal's voice; never describe Cal in third person here.
+  - **Non-marketing / system text = third person about Cal.** Booking flow, account, onboarding, admin, toasts, errors, status lines, quote panels, form hints — refer to Cal in third person: "Cal will get back to you", "pending Cal's approval", "contact Cal", "Notes for Cal". This text is the system speaking to the client, not Cal.
+  - **Exceptions (intentional, do not "fix"):** (1) **Client-signed consent** stays the _client's_ first person — `EXPENSE_AUTH_TEXT` ("I authorize Cal to seek veterinary treatment…") is the client speaking, correct as-is. (2) **Transactional emails** (`src/features/notifications/emails.ts`) are personal correspondence signed "— Cal Barba" → Cal's first person is allowed ("I refund you in full").
 - **Example items:** for resource/FAQ/testimonial arrays, always use stubs (`[[Resource 1: name]]`); never invent examples.
 - **Locations:** Colorado only. No towns/cities/neighborhoods in copy, alt text, or addresses.
 - **Don't assume Cal's services or audience-facing voice** — overnight stays, meet-and-greets, cat care, medication handling, sliding-scale philosophy, background, etc. all placeholdered until Cal confirms.
@@ -283,5 +287,6 @@ Marketing copy Cal must write is stubbed with double-square-bracket markers. Kee
 
 ---
 
-_Last reviewed: 2026-06-16_ (split intake forms: five active keys `owner`, `home_access`, `home_sitting`, `pet_care`, `pet_walk`; `pet_walk` dog-only; pet-aware services listed with headcount-vs-hours pricing distinction; requirement manifest updated; legacy `home`/`pet` keys retired)
+_Last reviewed: 2026-06-19_ (copy POV rule: marketing body = Cal first person, non-marketing/system = third person about Cal; client-consent + transactional-email exceptions)
+_Earlier: 2026-06-16_ (split intake forms: five active keys `owner`, `home_access`, `home_sitting`, `pet_care`, `pet_walk`; `pet_walk` dog-only; pet-aware services listed with headcount-vs-hours pricing distinction; requirement manifest updated; legacy `home`/`pet` keys retired)
 _Earlier: 2026-06-10_ (meet & greet onboarding gate: `onboarding_status`, `meet_greet` service; meet-greet de-listed + scheduled inline in onboarding, `/book/meet-greet` retired, admin status dropdown; added `booking_series.skipped_starts` EXDATE column; in-place booking-edit spine: `editBookingCore` + `MutationPolicy`)

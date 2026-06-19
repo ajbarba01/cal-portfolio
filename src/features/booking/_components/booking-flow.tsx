@@ -29,7 +29,9 @@
  *                       GatePanels, admin/edit's footer + warnings + deltas).
  *
  * Layout contract (SP6 visual contract, signed off 2026-06-11):
- *   - Stacked single column, max-w-xl (~36rem), all viewports — no side receipt.
+ *   - Stacked single column, max-w-2xl (~42rem), all viewports — no side receipt.
+ *     All four surfaces (public create, public/admin edit, admin create) share
+ *     this width; pages wrap their breadcrumb + heading in the same max-w-2xl.
  *   - Step 1 (calendar) and caller-supplied steps 2–4 each rendered inside a
  *     step-card shell (rounded card + numbered clay disc + Fraunces heading).
  *   - Summary card inline after the steps: existing receipt slot + U6 policy line.
@@ -345,7 +347,7 @@ export function BookingFlow({
   } = flow;
 
   return (
-    <div className="mx-auto flex w-full max-w-xl min-w-0 flex-col gap-5 pb-12">
+    <div className="mx-auto flex w-full max-w-2xl min-w-0 flex-col gap-5 pb-12">
       {header}
 
       {/* Step 1 — calendar, fully owned by BookingFlow */}

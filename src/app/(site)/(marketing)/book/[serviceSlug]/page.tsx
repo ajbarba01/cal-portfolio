@@ -308,7 +308,7 @@ export default async function ServiceBookingPage({
         })}
       />
       <main className="px-4 py-12">
-        <RevealGroup className="mx-auto mb-8 w-full max-w-xl">
+        <RevealGroup className="mx-auto mb-8 w-full max-w-2xl">
           <Reveal>
             <Link
               href="/services"
