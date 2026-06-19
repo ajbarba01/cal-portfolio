@@ -50,9 +50,14 @@ const petSchema = z.object({
   species: z.enum(["dog", "cat"]).default("dog"),
   breed: z.string().max(FIELD_LIMITS.shortText).optional(),
   notes: z.string().max(FIELD_LIMITS.note).optional(),
+  birthdate: z
+    .string()
+    .date()
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
 });
 
-const PET_COLUMNS = "id, name, species, breed, notes, photo_url";
+const PET_COLUMNS = "id, name, species, breed, notes, birthdate, photo_url";
 
 // ─── adminCreatePet ───────────────────────────────────────────────────────────
 
@@ -88,6 +93,7 @@ export async function adminCreatePetCore(
       species: parsed.data.species,
       breed: parsed.data.breed ?? null,
       notes: parsed.data.notes ?? null,
+      birthdate: parsed.data.birthdate ?? null,
     })
     .select(PET_COLUMNS)
     .single();
@@ -149,6 +155,7 @@ export async function adminUpdatePetCore(
       species: parsed.data.species,
       breed: parsed.data.breed ?? null,
       notes: parsed.data.notes ?? null,
+      birthdate: parsed.data.birthdate ?? null,
     })
     // SECURITY: scoped to petId AND clientId — belt-and-suspenders so an admin
     // cannot update a pet belonging to a different client.
