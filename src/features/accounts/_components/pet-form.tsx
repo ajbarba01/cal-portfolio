@@ -70,6 +70,7 @@ export function PetForm({ initial, onSaved, onCancel, actions }: PetFormProps) {
     species: initial?.species ?? "dog",
     breed: initial?.breed ?? "",
     notes: initial?.notes ?? "",
+    birthdate: initial?.birthdate ?? "",
   });
   const [error, setError] = useState<string | null>(null);
   const [croppedPhoto, setCroppedPhoto] = useState<Blob | null>(null);
@@ -101,6 +102,7 @@ export function PetForm({ initial, onSaved, onCancel, actions }: PetFormProps) {
           species: values.species,
           breed: values.breed ?? null,
           notes: values.notes ?? null,
+          birthdate: values.birthdate ?? null,
         };
       } else {
         const result = await resolvedActions.create(values);
@@ -163,6 +165,15 @@ export function PetForm({ initial, onSaved, onCancel, actions }: PetFormProps) {
         maxLength={FIELD_LIMITS.shortText}
         value={values.breed ?? ""}
         onChange={(e) => set("breed", e.target.value)}
+        autoComplete="off"
+      />
+
+      <FormField
+        label="Birth date"
+        name="birthdate"
+        type="date"
+        value={values.birthdate ?? ""}
+        onChange={(e) => set("birthdate", e.target.value)}
         autoComplete="off"
       />
 
