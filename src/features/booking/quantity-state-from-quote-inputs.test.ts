@@ -6,7 +6,7 @@ describe("quantityStateFromQuoteInputs", () => {
   it("round-trips house_sitting add-ons including maxHoursAway", () => {
     const state = {
       type: "house_sitting" as const,
-      qty: { cantBeLeftAloneDays: 2, walkMinutesPerDay: 30, maxHoursAway: 5 },
+      qty: { walkMinutesPerDay: 30, maxHoursAway: 5 },
     };
     const record = quantitiesToRecord(state, 4);
     expect(quantityStateFromQuoteInputs("house_sitting", record)).toEqual(
@@ -23,7 +23,7 @@ describe("quantityStateFromQuoteInputs", () => {
       }),
     ).toEqual({
       type: "house_sitting",
-      qty: { cantBeLeftAloneDays: 0, walkMinutesPerDay: 0, maxHoursAway: 3 },
+      qty: { walkMinutesPerDay: 0, maxHoursAway: 3 },
     });
   });
 
@@ -32,7 +32,7 @@ describe("quantityStateFromQuoteInputs", () => {
       quantityStateFromQuoteInputs("house_sitting", { nights: 3 }),
     ).toEqual({
       type: "house_sitting",
-      qty: { cantBeLeftAloneDays: 0, walkMinutesPerDay: 0, maxHoursAway: 8 },
+      qty: { walkMinutesPerDay: 0, maxHoursAway: 8 },
     });
   });
 

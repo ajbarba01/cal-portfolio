@@ -14,7 +14,6 @@ import type { PricingType } from "@/features/pricing";
 // ── State shapes ────────────────────────────────────────────────────────────
 
 export interface HouseSittingExtras {
-  cantBeLeftAloneDays: number;
   walkMinutesPerDay: number;
   /** Max hours Cal can be away per day → drives the needy-care surcharge tier. */
   maxHoursAway: number;
@@ -46,7 +45,7 @@ export function defaultQuantities(pricingType: PricingType): QuantityState {
     case "house_sitting":
       return {
         type: "house_sitting",
-        qty: { cantBeLeftAloneDays: 0, walkMinutesPerDay: 0, maxHoursAway: 8 },
+        qty: { walkMinutesPerDay: 0, maxHoursAway: 8 },
       };
     case "check_in":
       return { type: "check_in", qty: { hours: 1 } };
@@ -71,8 +70,6 @@ export function quantitiesToRecord(
   switch (qs.type) {
     case "house_sitting": {
       const rec: Record<string, unknown> = { nights: nights ?? 0 };
-      if (qs.qty.cantBeLeftAloneDays > 0)
-        rec.cantBeLeftAloneDays = qs.qty.cantBeLeftAloneDays;
       if (qs.qty.walkMinutesPerDay > 0)
         rec.walkMinutesPerDay = qs.qty.walkMinutesPerDay;
       rec.maxHoursAway = qs.qty.maxHoursAway;
@@ -195,15 +192,6 @@ export function QuantityForm({
         <legend className="col-span-full mb-2 text-sm font-medium">
           Stay add-ons
         </legend>
-        <StepperField
-          id="hs-cant-alone"
-          label="Can't-be-left-alone days"
-          description="Days your pet shouldn't be left alone — Cal stays on-site those days."
-          value={qty.cantBeLeftAloneDays}
-          min={0}
-          unit="days"
-          onChange={(v) => set({ cantBeLeftAloneDays: Math.round(v) })}
-        />
         <StepperField
           id="hs-walk-min"
           label="Walk time per day"

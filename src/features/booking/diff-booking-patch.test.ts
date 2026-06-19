@@ -25,7 +25,7 @@ const HS_INITIAL: EditPatchInitial = {
   petIds: ["pet-1"],
   quantities: {
     type: "house_sitting",
-    qty: { cantBeLeftAloneDays: 0, walkMinutesPerDay: 0, maxHoursAway: 8 },
+    qty: { walkMinutesPerDay: 0, maxHoursAway: 8 },
   },
   comments: "",
 };
@@ -118,7 +118,6 @@ describe("diffBookingPatch", () => {
       quantities: {
         type: "house_sitting",
         qty: {
-          cantBeLeftAloneDays: 0,
           walkMinutesPerDay: 0,
           maxHoursAway: 8,
           holidayDays: 0,
@@ -145,7 +144,6 @@ describe("diffBookingPatch", () => {
       quantities: {
         type: "house_sitting",
         qty: {
-          cantBeLeftAloneDays: 0,
           walkMinutesPerDay: 0,
           maxHoursAway: 8,
           holidayDays: 0,
@@ -159,7 +157,7 @@ describe("diffBookingPatch", () => {
   });
 
   it("U24: overnight extras change without date change includes quantities with initial nights", () => {
-    // User adds 1 cantBeLeftAloneDays. Dates unchanged → nights stays 3.
+    // User changes walkMinutesPerDay. Dates unchanged → nights stays 3.
     // patch.quantities must NOT contain nights: 0 (old bug: current.nights was null).
     const patch = diffBookingPatch(HS_INITIAL, {
       startsAt: new Date(HS_START_ISO),
@@ -167,7 +165,7 @@ describe("diffBookingPatch", () => {
       selectedPetIds: ["pet-1"],
       quantities: {
         type: "house_sitting",
-        qty: { cantBeLeftAloneDays: 1, walkMinutesPerDay: 0, maxHoursAway: 8 },
+        qty: { walkMinutesPerDay: 30, maxHoursAway: 8 },
       },
       nights: 3,
       comments: "",
@@ -176,7 +174,7 @@ describe("diffBookingPatch", () => {
     expect(patch.quantities).toBeDefined();
     // nights must be the real initial nights (3), NOT 0
     expect(patch.quantities?.nights).toBe(3);
-    expect(patch.quantities?.cantBeLeftAloneDays).toBe(1);
+    expect(patch.quantities?.walkMinutesPerDay).toBe(30);
   });
 
   it("includes all changed dimensions in a combined change", () => {

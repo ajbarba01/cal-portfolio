@@ -32,7 +32,6 @@ export function quantityStateFromQuoteInputs(
       return {
         type: "house_sitting",
         qty: {
-          cantBeLeftAloneDays: num(q.cantBeLeftAloneDays, 0),
           walkMinutesPerDay: num(q.walkMinutesPerDay, 0),
           maxHoursAway: reconstructMaxHoursAway(q),
         },

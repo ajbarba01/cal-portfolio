@@ -41,7 +41,6 @@ export interface HouseSittingConfig {
   base_cat_cents_per_night: number;
   extra_dog_cents_per_night: number;
   extra_cat_cents_per_night: number;
-  cant_be_left_alone_cents_per_day: number;
   extra_walk_15min_cents_per_day: number;
   holiday_cents_per_day: number;
   kiche_discount_pct: number;
@@ -88,8 +87,6 @@ export interface HouseSittingQuantities {
   cats: number;
   /** May be fractional (partial stay = % of a 24h night). */
   nights: number;
-  /** Total days the dog cannot be left alone (≥6 h). */
-  cantBeLeftAloneDays?: number;
   /**
    * Requested walk minutes per day for this stay.
    * 45 min/day is included at no charge; `quote()` computes extra 15-min blocks

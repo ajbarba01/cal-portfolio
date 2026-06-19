@@ -222,7 +222,6 @@ const houseSittingQuantitiesSchema = z.object({
   dogs: z.number().int().min(0),
   cats: z.number().int().min(0),
   nights: z.number().positive(),
-  cantBeLeftAloneDays: z.number().int().min(0).optional(),
   walkMinutesPerDay: z.number().min(0).optional(),
   maxHoursAway: z.number().min(0).optional(),
   holidayDays: z.number().int().min(0).optional(),
