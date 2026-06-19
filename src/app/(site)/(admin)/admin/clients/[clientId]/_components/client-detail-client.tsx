@@ -186,6 +186,7 @@ export function ClientDetailClient({ client }: { client: ClientDetailView }) {
     species: p.species,
     breed: p.breed,
     notes: p.notes,
+    birthdate: p.birthdate,
     photo_url: null, // photo_url not surfaced on ClientPet; photoUrl is the signed URL
     photoUrl: p.photoUrl,
   }));

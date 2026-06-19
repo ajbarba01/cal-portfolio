@@ -118,6 +118,7 @@ export interface ClientPet {
   species: "dog" | "cat";
   breed: string | null;
   notes: string | null;
+  birthdate: string | null;
   photoUrl: string | null;
 }
 
@@ -198,7 +199,7 @@ export async function getClientDetailCore(
 
   const { data: pets } = await serviceClient
     .from("pets")
-    .select("id, name, species, breed, notes, photo_url")
+    .select("id, name, species, breed, notes, birthdate, photo_url")
     .eq("client_id", clientId)
     .order("created_at", { ascending: true });
 
@@ -215,6 +216,7 @@ export async function getClientDetailCore(
       species: pet.species as "dog" | "cat",
       breed: (pet.breed as string | null) ?? null,
       notes: (pet.notes as string | null) ?? null,
+      birthdate: (pet.birthdate as string | null) ?? null,
       photoUrl: pet.photo_url ? await signPhoto(pet.photo_url as string) : null,
     })),
   );

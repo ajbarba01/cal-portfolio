@@ -33,6 +33,11 @@ const petSchema = z.object({
   species: z.enum(["dog", "cat"]).default("dog"),
   breed: z.string().max(FIELD_LIMITS.shortText).optional(),
   notes: z.string().max(FIELD_LIMITS.note).optional(),
+  birthdate: z
+    .string()
+    .date()
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
 });
 
 export type PetInput = z.infer<typeof petSchema>;
@@ -43,6 +48,7 @@ export interface Pet {
   species: "dog" | "cat";
   breed: string | null;
   notes: string | null;
+  birthdate: string | null;
   photo_url: string | null;
 }
 
@@ -139,7 +145,7 @@ export async function changePassword(
 
 // ─── Pets ─────────────────────────────────────────────────────────────────────
 
-const PET_COLUMNS = "id, name, species, breed, notes, photo_url";
+const PET_COLUMNS = "id, name, species, breed, notes, birthdate, photo_url";
 
 /**
  * Core: create pet via a session-scoped client. Returns the inserted row so the
@@ -168,6 +174,7 @@ export async function runCreatePet(
       species: parsed.data.species,
       breed: parsed.data.breed ?? null,
       notes: parsed.data.notes ?? null,
+      birthdate: parsed.data.birthdate ?? null,
     })
     .select(PET_COLUMNS)
     .single();
@@ -209,6 +216,7 @@ export async function runUpdatePet(
       species: parsed.data.species,
       breed: parsed.data.breed ?? null,
       notes: parsed.data.notes ?? null,
+      birthdate: parsed.data.birthdate ?? null,
     })
     .eq("id", petId)
     .eq("client_id", userId); // belt-and-suspenders alongside RLS
