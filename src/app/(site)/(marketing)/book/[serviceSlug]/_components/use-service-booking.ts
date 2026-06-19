@@ -10,8 +10,9 @@
  * its quote gate (auth-aware), its book/submit handler, and its return-shape extras.
  *
  * The component calls this hook and wires its return value to JSX/props.
- * Zero behavior change: same public input/return interface, same effect bodies,
- * same dependency arrays, same handler logic as before the extraction.
+ * The required-forms gate is derived client-side from pet selection + form
+ * freshness timestamps (not the price quote), so it reacts to pet changes with
+ * no date selected; the server stays authoritative at create time.
  */
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";

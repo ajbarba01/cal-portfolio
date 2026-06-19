@@ -6,7 +6,8 @@ import { cn } from "@/lib/utils";
  * matches the Multiswitch track (muted track, hairline border, control radius)
  * but each segment is a real <Link> to /book/[slug] — route nav, not stateful
  * toggle — so it works without JS and is keyboard/SEO-friendly. The active
- * service is a filled brand segment carrying aria-current.
+ * service is a filled brand <span> carrying aria-current (not a self-link, so it
+ * isn't a no-op nav target — mirrors Multiswitch's selected-segment semantics).
  *
  * Mobile: the track uses `flex-wrap` so segments wrap at narrow viewports. We
  * drop `controlBox.md`'s fixed-height class and instead use `rounded-control`
@@ -31,18 +32,25 @@ export function ServiceSwitcher({
     >
       {services.map((s) => {
         const isActive = s.slug === activeSlug;
-        return (
+        // Match Multiswitch segment geometry + focus ring. No shadow — active
+        // state is conveyed by the brand fill, not elevation.
+        const segment =
+          "inline-flex items-center rounded-md px-3 py-1.5 text-sm font-semibold transition-colors";
+        return isActive ? (
+          <span
+            key={s.slug}
+            aria-current="page"
+            className={cn(segment, "bg-brand text-brand-foreground")}
+          >
+            {s.name}
+          </span>
+        ) : (
           <Link
             key={s.slug}
             href={`/book/${s.slug}`}
-            aria-current={isActive ? "page" : undefined}
             className={cn(
-              // Match Multiswitch segment geometry + focus ring. No shadow —
-              // active state is conveyed by the brand fill, not elevation.
-              "focus-visible:ring-ring inline-flex items-center rounded-md px-3 py-1.5 text-sm font-semibold transition-colors focus-visible:ring-2 focus-visible:outline-none",
-              isActive
-                ? "bg-brand text-brand-foreground"
-                : "text-muted-foreground hover:text-foreground",
+              segment,
+              "focus-visible:ring-ring text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:outline-none",
             )}
           >
             {s.name}
