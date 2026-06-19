@@ -111,7 +111,7 @@ describe("ServiceBookingClient (characterization)", () => {
 
     // No selection yet → empty price prompt, no Book CTA.
     expect(
-      screen.getByText(/Select a day and time to see your price\./i),
+      screen.getByText(/Fill out the above details to see your price\./i),
     ).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Book now/i })).toBeNull();
   });

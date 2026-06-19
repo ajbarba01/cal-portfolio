@@ -247,7 +247,7 @@ export function AdminCreateBookingClient({
             >
               {isPreviewing
                 ? "Calculating…"
-                : "Select a day and time to see the price."}
+                : "Fill out the above details to see the price."}
             </Surface>
           )}
         </section>

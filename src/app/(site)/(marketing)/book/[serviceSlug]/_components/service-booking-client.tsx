@@ -410,7 +410,7 @@ export function ServiceBookingClient({
                 >
                   {isPreviewing
                     ? "Calculating…"
-                    : "Select a day and time to see your price."}
+                    : "Fill out the above details to see your price."}
                 </Surface>
               )}
             </section>
