@@ -91,11 +91,11 @@ export function evaluate(
       const perDay = i.exerciseMinutesPerDay ?? 0;
       const blocks = Math.max(0, Math.ceil((perDay - mod.freeUnits) / 15));
       const days = Math.ceil(nights);
-      const scale = mod.perScale === "perDogPerDay" ? Math.max(1, dogs) : 1;
+      // Extra exercise is a per-night add-on for the stay, not per pet.
       if (blocks > 0 && days > 0)
         lines.push({
           label: mod.label,
-          amountCents: round(blocks * mod.cents * days * scale),
+          amountCents: round(blocks * mod.cents * days),
         });
     }
   }

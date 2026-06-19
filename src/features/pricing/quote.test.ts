@@ -52,7 +52,6 @@ const HS_CFG: ServicePricingConfig = {
       label: "Extra exercise",
       freeUnits: 45,
       cents: 500,
-      perScale: "perDogPerDay",
     },
     {
       kind: "pct_surcharge",

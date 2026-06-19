@@ -8,7 +8,8 @@
  *   - Calls previewQuoteForClient / createBookingForClient (admin actions).
  *   - Admin identity header + force-confirm checkbox in the QuotePanel footer.
  *   - On success, redirects to /admin/clients/[clientId].
- *   - Recurring is fully supported (same RecurringControls as public flow).
+ *   - Recurring backend is wired (same RecurringControls as public flow) but the
+ *     UI is gated off for the MVP via RECURRING_UI_ENABLED.
  *
  * All state/effects/handlers live in useAdminCreateBooking; this component is
  * a thin wiring layer. See use-admin-create-booking.ts for full logic documentation.
@@ -23,6 +24,7 @@ import {
   QuantityForm,
   QuotePanel,
   petStepHeading,
+  RECURRING_UI_ENABLED,
 } from "@/features/booking/index.client";
 import type {
   BookingRuleSettings,
@@ -190,7 +192,8 @@ export function AdminCreateBookingClient({
         </section>
       }
       extraSection={
-        supportsRecurring && (
+        supportsRecurring &&
+        RECURRING_UI_ENABLED && (
           <section aria-labelledby="recur-heading">
             <BookingFlowStepHead
               num={step4Label}
@@ -210,7 +213,9 @@ export function AdminCreateBookingClient({
       notesSection={
         <NotesForCalSection
           id="admin-create-comments"
-          num={supportsRecurring ? step5Label : step4Label}
+          num={
+            supportsRecurring && RECURRING_UI_ENABLED ? step5Label : step4Label
+          }
           value={comments}
           onChange={onCommentsChange}
           placeholder="Anything Cal should know about this booking?"

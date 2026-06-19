@@ -30,6 +30,7 @@ import {
   previewQuote,
   createBooking,
   defaultQuantities,
+  RECURRING_UI_ENABLED,
 } from "@/features/booking/index.client";
 import type {
   SchedulerData,
@@ -482,7 +483,8 @@ export function useServiceBooking({
   let stepCounter = 1;
   const petStepLabel = petAware ? String(++stepCounter) : "";
   const detailsStepLabel = String(++stepCounter);
-  const recurringStepLabel = supportsRecurring ? String(++stepCounter) : "";
+  const recurringStepLabel =
+    supportsRecurring && RECURRING_UI_ENABLED ? String(++stepCounter) : "";
   const formsStepLabel = String(++stepCounter);
   const notesStepLabel = String(++stepCounter);
 

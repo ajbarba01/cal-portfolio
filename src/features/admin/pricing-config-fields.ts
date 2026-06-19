@@ -4,7 +4,7 @@
  * deriveEditableFields turns a ServicePricingConfig into an ordered list of
  * editable NUMERIC-LEAF fields (cents / pct / freeUnits / tier values) plus the
  * present numeric constraints. Structure/identity (kind, id, label, unit,
- * condition, source, manual, optIn, perScale, tiers[i].from) is never emitted —
+ * condition, source, manual, optIn, tiers[i].from) is never emitted —
  * the editor changes values only. setLeaf writes one addressed leaf back
  * immutably; validateEditableFields runs the admin-facing guards.
  *

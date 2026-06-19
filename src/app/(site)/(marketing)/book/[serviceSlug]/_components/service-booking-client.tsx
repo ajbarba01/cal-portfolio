@@ -26,6 +26,7 @@ import {
   QuantityForm,
   QuotePanel,
   petStepHeading,
+  RECURRING_UI_ENABLED,
 } from "@/features/booking/index.client";
 import { Surface } from "@/components/ui/surface";
 import type {
@@ -255,7 +256,8 @@ export function ServiceBookingClient({
         </section>
       }
       extraSection={
-        supportsRecurring && (
+        supportsRecurring &&
+        RECURRING_UI_ENABLED && (
           <section aria-labelledby="recur-heading">
             <BookingFlowStepHead
               num={recurringStepLabel}

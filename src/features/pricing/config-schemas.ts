@@ -131,7 +131,6 @@ const allowanceThenPerUnitSchema = z.object({
   label: z.string(),
   freeUnits: z.number(),
   cents: rateCentsSchema,
-  perScale: z.literal("perDogPerDay").optional(),
 });
 
 const pctSurchargeSchema = z.object({

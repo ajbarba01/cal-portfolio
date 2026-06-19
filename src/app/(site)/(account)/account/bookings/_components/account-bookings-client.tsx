@@ -4,8 +4,8 @@
  * AccountBookingsClient — the client-facing "your bookings" hub.
  *
  * Modeled off the admin Bookings hub (BookingsCalendarClient): one shared filter
- * bar (status + service Selects, search, Calendar ⇄ List multiswitch, result
- * count) driving two views. The calendar is read-only (Scheduler INSPECT preset)
+ * bar (status + service Selects, Calendar ⇄ List multiswitch, result count)
+ * driving two views. The calendar is read-only (Scheduler INSPECT preset)
  * and shows ONLY this client's booked days as blue cells — non-booked days carry
  * no availability, so they render neutral and only booked days are clickable.
  * The list view is the shared one-per-row rect with the client's self-service
@@ -22,7 +22,6 @@ import { Surface } from "@/components/ui/surface";
 import { Multiswitch } from "@/components/ui/multiswitch";
 import { Pagination } from "@/components/ui/pagination";
 import { ResultCount } from "@/components/ui/result-count";
-import { SearchField } from "@/components/ui/search-field";
 import {
   Select,
   SelectContent,
@@ -311,7 +310,6 @@ export function AccountBookingsClient({
   const [view, setView] = useState<View>("calendar");
   const [status, setStatus] = useState("all");
   const [service, setService] = useState("all");
-  const [query, setQuery] = useState("");
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [page, setPage] = useState(1);
 
@@ -323,19 +321,14 @@ export function AccountBookingsClient({
 
   // Newest-first filtered set drives both views.
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
     return bookings
       .filter((b) => {
         if (status !== "all" && b.status !== status) return false;
         if (service !== "all" && b.service_name !== service) return false;
-        if (!q) return true;
-        return (
-          b.service_name.toLowerCase().includes(q) ||
-          statusMeta(b.status).label.toLowerCase().includes(q)
-        );
+        return true;
       })
       .sort((a, b) => b.starts_at.localeCompare(a.starts_at));
-  }, [bookings, status, service, query]);
+  }, [bookings, status, service]);
 
   // Read-only calendar: only this client's booked days; no availability.
   // myBookings signals MonthGrid to tint these cells in muted clay (sidebar-active)
@@ -384,10 +377,6 @@ export function AccountBookingsClient({
     setService(next);
     setPage(1);
   }
-  function changeQuery(next: string) {
-    setQuery(next);
-    setPage(1);
-  }
 
   const statusLabel =
     STATUS_OPTIONS.find((o) => o.value === status)?.label ?? "All statuses";
@@ -433,14 +422,6 @@ export function AccountBookingsClient({
             ))}
           </SelectContent>
         </Select>
-
-        <SearchField
-          value={query}
-          onValueChange={changeQuery}
-          placeholder="Search your bookings…"
-          ariaLabel="Search your bookings"
-          className="max-w-64"
-        />
 
         <Multiswitch
           options={VIEW_OPTIONS}

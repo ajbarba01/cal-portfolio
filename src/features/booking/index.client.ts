@@ -176,7 +176,11 @@ export { diffBookingPatch } from "./diff-booking-patch";
 export { useScheduler } from "./scheduler-context";
 
 // use-booking-scheduler — shared scheduler substrate for the three booking surfaces.
-export { useBookingScheduler, localDateFromKey } from "./use-booking-scheduler";
+export {
+  useBookingScheduler,
+  localDateFromKey,
+  RECURRING_UI_ENABLED,
+} from "./use-booking-scheduler";
 export type {
   BookingMode,
   BookingSelectionInput,
