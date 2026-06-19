@@ -23,13 +23,20 @@ export function quantityStateFromQuoteInputs(
         qty: {
           cantBeLeftAloneDays: num(q.cantBeLeftAloneDays, 0),
           walkMinutesPerDay: num(q.walkMinutesPerDay, 0),
+          maxHoursAway: num(q.maxHoursAway, 8),
           // holidayDays omitted — server-derived; not seeded into the edit form.
         },
       };
     case "check_in":
       return { type: "check_in", qty: { hours: num(q.hours, 1) } };
     case "walk":
-      return { type: "walk", qty: { hours: num(q.hours, 1) } };
+      return {
+        type: "walk",
+        qty: {
+          hours: num(q.hours, 1),
+          leashManners: q.leashManners === true,
+        },
+      };
     case "training":
       return { type: "training", qty: { hours: num(q.hours, 1) } };
     case "meet_greet":

@@ -16,6 +16,8 @@ import type { PricingType } from "@/features/pricing";
 export interface HouseSittingExtras {
   cantBeLeftAloneDays: number;
   walkMinutesPerDay: number;
+  /** Max hours Cal can be away per day → drives the needy-care surcharge tier. */
+  maxHoursAway: number;
   /**
    * @deprecated Server-derived from booking dates + settings.holiday_dates.
    * Kept in the type for back-compat with stored quote_inputs. The UI no longer
@@ -28,10 +30,14 @@ export interface HoursQty {
   hours: number;
 }
 
+export interface WalkQty extends HoursQty {
+  leashManners: boolean;
+}
+
 export type QuantityState =
   | { type: "house_sitting"; qty: HouseSittingExtras }
   | { type: "check_in"; qty: HoursQty }
-  | { type: "walk"; qty: HoursQty }
+  | { type: "walk"; qty: WalkQty }
   | { type: "training"; qty: HoursQty }
   | { type: "meet_greet"; qty: Record<never, never> };
 
@@ -40,12 +46,12 @@ export function defaultQuantities(pricingType: PricingType): QuantityState {
     case "house_sitting":
       return {
         type: "house_sitting",
-        qty: { cantBeLeftAloneDays: 0, walkMinutesPerDay: 0 },
+        qty: { cantBeLeftAloneDays: 0, walkMinutesPerDay: 0, maxHoursAway: 8 },
       };
     case "check_in":
       return { type: "check_in", qty: { hours: 1 } };
     case "walk":
-      return { type: "walk", qty: { hours: 1 } };
+      return { type: "walk", qty: { hours: 1, leashManners: false } };
     case "training":
       return { type: "training", qty: { hours: 1 } };
     case "meet_greet":
@@ -69,13 +75,15 @@ export function quantitiesToRecord(
         rec.cantBeLeftAloneDays = qs.qty.cantBeLeftAloneDays;
       if (qs.qty.walkMinutesPerDay > 0)
         rec.walkMinutesPerDay = qs.qty.walkMinutesPerDay;
+      rec.maxHoursAway = qs.qty.maxHoursAway;
       // holidayDays intentionally omitted — server derives from dates.
       return rec;
     }
     case "check_in":
     case "training":
-    case "walk":
       return { hours: qs.qty.hours };
+    case "walk":
+      return { hours: qs.qty.hours, leashManners: qs.qty.leashManners };
     case "meet_greet":
       return {};
   }
@@ -206,6 +214,16 @@ export function QuantityForm({
           unit="min"
           onChange={(v) => set({ walkMinutesPerDay: v })}
         />
+        <StepperField
+          id="hs-max-away"
+          label="Max hours Cal can be away"
+          description="Longest stretch Cal can step out each day. Lower means more on-site attention — and a small needy-care surcharge."
+          value={qty.maxHoursAway}
+          min={0}
+          max={24}
+          unit="hr"
+          onChange={(v) => set({ maxHoursAway: Math.round(v) })}
+        />
         {/* Premium days (holiday surcharge) are server-derived from booking
             dates + admin-configured premium day settings — no manual input. */}
         {kiche && (
@@ -258,9 +276,36 @@ export function QuantityForm({
         onChange={(v) => {
           const lo = minHours ?? 0.25;
           const clamped = Math.min(Math.max(v, lo), maxHours ?? v);
-          onChange({ type: state.type, qty: { hours: clamped } });
+          if (state.type === "walk") {
+            onChange({
+              type: "walk",
+              qty: { ...state.qty, hours: clamped },
+            });
+          } else {
+            onChange({ type: state.type, qty: { hours: clamped } });
+          }
         }}
       />
+      {state.type === "walk" && (
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-foreground text-sm font-medium">Leash manners</p>
+            <p className="text-muted-foreground text-xs leading-relaxed">
+              Focused leash-manners training during the walk (+$10/hr).
+            </p>
+          </div>
+          <Switch
+            checked={state.qty.leashManners}
+            onCheckedChange={(v) =>
+              onChange({
+                type: "walk",
+                qty: { ...state.qty, leashManners: v },
+              })
+            }
+            aria-label="Add leash manners training"
+          />
+        </div>
+      )}
       {/* walk supports Kiche; check_in / training never carry a Kiche rate. */}
       {kiche && state.type === "walk" && (
         <KicheWelcomeRow welcome={kiche.welcome} onChange={kiche.onChange} />
