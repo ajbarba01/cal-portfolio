@@ -65,7 +65,7 @@ export const copy = {
     "The least I can do is speak out for those who cannot speak for themselves.",
   "about.quote.author": "Dr. Jane Goodall",
   // Caption for the offset bio photo.
-  "about.bio.photo.caption": "[[Caption: what this photo shows]]",
+  "about.bio.photo.caption": "Kiche and her sister Harper having a playdate",
   // Shown while the real reference names below stay withheld pending consent.
   "about.references.pending":
     "References from past clients are coming soon. In the meantime, reach out and I'll gladly put you in touch.",
@@ -83,10 +83,9 @@ export const copy = {
   "about.references.8": "Bugaboo",
 
   // Services — src/app/(marketing)/services/page.tsx
-  "services.hero.eyebrow": "[[LABEL: services page eyebrow]]",
-  "services.hero.title": "[[HEADER: services page headline]]",
-  "services.overview": "[[BODY: services overview]]",
-  "services.featured.badge": "[[LABEL: featured service badge]]",
+  "services.hero.title": "Services",
+  "services.overview":
+    "Drop-in visits, walks, house sitting, and training—each tailored to your pet's needs.",
   "services.pricing.header": "Pricing Flexibility Available",
   "services.pricing.body":
     "To accommodate different financial situations, I offer a limited number of free or discounted slots. Please reach out if this is something you're interested in.",
@@ -151,8 +150,7 @@ export const copy = {
     "Please let me know if there are other resources you think I should share. I'm always learning, and I'd love to continue expanding this list with helpful information!",
 
   // Gallery — src/app/(marketing)/gallery/page.tsx
-  "gallery.eyebrow": "[[HEADER: gallery eyebrow]]",
-  "gallery.body": "[[BODY: one line about the photos]]",
+  "gallery.body": "A few of the animals I've had the pleasure of caring for.",
 
   // Contact — src/app/(marketing)/contact/page.tsx
   // No subtitle: Cal dropped it ("actually i don't think we need this") — 2026-06-09.
@@ -175,13 +173,7 @@ export const copy = {
   "service.walk.card.body": "Walks, hikes, runs/jogs, or other adventures",
   "service.training.card.body": "Puppy training or basic obedience",
   "service.meet_greet.card.body":
-    "[[BODY: short meet-and-greet service description]]",
-
-  // Service category labels (eyebrow on the /services index rows)
-  "service.house_sitting.category": "[[LABEL: house-sitting category]]",
-  "service.check_in.category": "[[LABEL: check-in category]]",
-  "service.walk.category": "[[LABEL: walk category]]",
-  "service.training.category": "[[LABEL: training category]]",
+    "A free, in-person introduction before your first booking.",
 
   // Long-form service detail — src/app/(marketing)/book/[serviceSlug]/page.tsx
   "service.house_sitting.detail.lede":
@@ -207,10 +199,10 @@ export const copy = {
     "Walks are scheduled in 15-minute increments and can be tailored to your dog's individual needs and energy level. Whether your pup prefers a leisurely neighborhood stroll or a more vigorous outing, I'm happy to adapt the outing accordingly.",
   "service.walk.detail.body":
     "For dogs who enjoy a little extra adventure, I can also provide hikes and other outings that may involve transportation by car. I'm also more than happy to jog or run dogs when weather, health, and fitness levels permit!\n\nOff-leash outings are offered cautiously and on a case-by-case basis.",
-  "service.walk.included.1": "[[LABEL: walk included item 1]]",
-  "service.walk.included.2": "[[LABEL: walk included item 2]]",
-  "service.walk.included.3": "[[LABEL: walk included item 3]]",
-  "service.walk.included.4": "[[LABEL: walk included item 4]]",
+  "service.walk.included.1": "Exercise tailored to your dog's energy level",
+  "service.walk.included.2": "Car transport for outings",
+  "service.walk.included.3": "Leash manners training",
+  "service.walk.included.4": "Off-leash time on a case-by-case basis",
   "service.training.detail.lede":
     "Currently, I offer two types of training: puppy training and basic obedience.",
   "service.training.detail.body":
@@ -218,8 +210,8 @@ export const copy = {
   "service.training.included.1":
     "Customized training plan based on your dog's needs",
   "service.training.included.2": "Unlimited Q&A support between sessions",
-  "service.training.included.3": "[[LABEL: training included item 3]]",
-  "service.training.included.4": "[[LABEL: training included item 4]]",
+  "service.training.included.3": "Positive-reinforcement approach",
+  "service.training.included.4": "Support for anxious and reactive dogs",
 } as const;
 
 /** Every stable copy ID known to the registry. */

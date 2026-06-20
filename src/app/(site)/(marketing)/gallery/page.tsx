@@ -4,7 +4,6 @@
  */
 import { PageContainer } from "@/components/layout/page-container";
 import { Reveal, RevealGroup } from "@/components/effects/reveal";
-import { Eyebrow } from "@/components/marketing/eyebrow";
 import { getGalleryImages } from "@/features/gallery";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { GalleryGrid } from "./_components/gallery-grid";
@@ -36,11 +35,6 @@ export default async function GalleryPage() {
       />
       <PageContainer width="app" className="py-12 sm:py-16">
         <RevealGroup className="mb-8">
-          <Reveal>
-            <Eyebrow>
-              <MarketingCopy id="gallery.eyebrow" />
-            </Eyebrow>
-          </Reveal>
           <Reveal
             as="h1"
             className="font-heading mt-2 text-4xl font-bold tracking-tight"

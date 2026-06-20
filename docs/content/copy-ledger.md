@@ -1082,3 +1082,126 @@
 - applied-from: —
 - live-text: —
 - transforms: agent-resolved — Cal's directive "actually i don't think we need this" → subtitle slot dropped from marketing.ts + the `subtitle` prop removed from contact/page.tsx. Header + contact form retained (user-confirmed 2026-06-09). Was the "[[BODY: what the contact form is for]]" placeholder; no prior ledger entry.
+
+> **Placeholder cleanup batch (2026-06-20, Alex-directed).** Resolved the
+> remaining `[[ ]]` stubs. None had a prior ledger entry. No Cal source dump —
+> these are structural chrome or Alex-set substance, so provenance is
+> `agent-resolved`; substance slots flagged for Cal's verbatim confirm later.
+
+### gallery.eyebrow
+
+- status: dropped
+- provenance: placeholder
+- consumed-by: — (slot removed)
+- applied-from: —
+- live-text: —
+- transforms: agent-resolved — Alex-directed drop; slot removed from marketing.ts + `<Eyebrow>` block + import removed from gallery/page.tsx. Was "[[HEADER: gallery eyebrow]]"; no prior entry.
+
+### gallery.body
+
+- status: placed
+- provenance: agent-resolved
+- consumed-by: src/app/(site)/(marketing)/gallery/page.tsx
+- applied-from: — (no Cal source; Alex-approved phrasing)
+- live-text: |
+  A few of the animals I've had the pleasure of caring for.
+- transforms: agent-resolved — Alex-approved gallery one-liner. Replaced "[[BODY: one line about the photos]]"; no prior entry.
+- notes: ⚠ pending Cal verbatim confirm.
+
+### services.hero.eyebrow
+
+- status: dropped
+- provenance: placeholder
+- consumed-by: — (slot removed)
+- applied-from: —
+- live-text: —
+- transforms: agent-resolved — Alex-directed drop; slot removed + `<Eyebrow>` hero block removed from services/page.tsx (the page's other `<Eyebrow>` — "What's included" — is a hardcoded label, retained). Was "[[LABEL: services page eyebrow]]"; no prior entry.
+
+### services.hero.title
+
+- status: placed
+- provenance: agent-resolved
+- consumed-by: src/app/(site)/(marketing)/services/page.tsx
+- applied-from: — (structural label, Alex-set)
+- live-text: |
+  Services
+- transforms: agent-resolved — plain page heading (Alex-set). Replaced "[[HEADER: services page headline]]"; no prior entry.
+- notes: -
+
+### services.overview
+
+- status: placed
+- provenance: agent-resolved
+- consumed-by: src/app/(site)/(marketing)/services/page.tsx
+- applied-from: — (no Cal source; mirrors home.hero.body, Alex-approved)
+- live-text: |
+  Drop-in visits, walks, house sitting, and training—each tailored to your pet's needs.
+- transforms: agent-resolved — Alex-approved; phrasing mirrors home.hero.body, all four services already public. Replaced "[[BODY: services overview]]"; no prior entry.
+- notes: ⚠ low-risk substance; pending Cal verbatim confirm.
+
+### services.featured.badge
+
+- status: dropped
+- provenance: placeholder
+- consumed-by: — (slot removed)
+- applied-from: —
+- live-text: —
+- transforms: agent-resolved — Alex-directed drop (with the category labels). Slot removed + the `badge: index === 0 ? …` wiring removed from services/page.tsx; the `badge` field + kicker markup pruned from service-tabs.tsx. Was "[[LABEL: featured service badge]]"; no prior entry.
+
+### service.house_sitting.category / service.check_in.category / service.walk.category / service.training.category
+
+- status: dropped
+- provenance: placeholder
+- consumed-by: — (slots removed)
+- applied-from: —
+- live-text: —
+- transforms: agent-resolved — Alex-directed drop; all 4 category-label slots removed plus their `serviceCategoryCopyId` + `CATEGORY_COPY` wiring (service-card-display.ts) and the barrel export (booking/index.ts). Rendered as an uppercase kicker that merely echoed the service name. Were "[[LABEL: … category]]"; no prior entries.
+
+### about.bio.photo.caption
+
+- status: placed
+- provenance: agent-resolved
+- consumed-by: src/app/(site)/(marketing)/about/page.tsx
+- applied-from: — (Alex-supplied)
+- live-text: |
+  Kiche and her sister Harper having a playdate
+- transforms: agent-resolved — Alex-supplied caption. Replaced "[[Caption: what this photo shows]]"; no prior entry.
+- notes: ⚠ pending Cal verbatim confirm (names a specific photo).
+
+### service.meet_greet.card.body
+
+- status: placed
+- provenance: agent-resolved
+- consumed-by: src/features/booking/service-card-display.ts
+- applied-from: |
+  A free, in-person introduction before your first booking.
+- live-text: |
+  A free, in-person introduction before your first booking.
+- transforms: agent-resolved — mirrors the meet-greet DB seed description (seed_meet_greet_service.sql). Dormant fallback: the live card reads the DB `description`; this only fires if that is blank. Replaced "[[BODY: short meet-and-greet service description]]"; no prior entry.
+- notes: keep in sync with the seed text if either changes.
+
+### service.walk.included.1 / .2 / .3 / .4
+
+- status: placed
+- provenance: agent-resolved
+- consumed-by: src/app/(site)/(marketing)/services/page.tsx
+- applied-from: — (1/2/4 derived from service.walk.detail.body; 3 agent-added)
+- live-text: |
+  1: Exercise tailored to your dog's energy level
+  2: Car transport for outings
+  3: Leash manners training
+  4: Off-leash time on a case-by-case basis
+- transforms: agent-resolved — "what's included" bullets. .1/.2/.4 paraphrase lines already in Cal's walk.detail.body; .3 (Alex-set) is not traceable to that source. Replaced "[[LABEL: walk included item N]]"; no prior entries.
+- notes: ⚠ substance; pending Cal confirm — especially .3 (leash manners), the only bullet with no source line.
+
+### service.training.included.3 / .4
+
+- status: placed
+- provenance: agent-resolved
+- consumed-by: src/app/(site)/(marketing)/services/page.tsx
+- applied-from: — (derived from service.training.detail.body)
+- live-text: |
+  3: Positive-reinforcement approach
+  4: Support for anxious and reactive dogs
+- transforms: agent-resolved — extend the existing .1/.2 bullets; both paraphrase lines in Cal's training.detail.body (positive reinforcement; anxious/reactive dogs). Replaced "[[LABEL: training included item N]]"; no prior entries.
+- notes: ⚠ substance; pending Cal confirm.
