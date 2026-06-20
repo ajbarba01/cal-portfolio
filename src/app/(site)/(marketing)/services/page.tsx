@@ -24,7 +24,6 @@ import { ShimmerCard } from "@/components/ui/shimmer-card";
 import { createStaticClient } from "@/lib/supabase/static";
 import {
   listActiveServices,
-  serviceCategoryCopyId,
   serviceDetailLedeCopyId,
   serviceDetailBodyCopyId,
   serviceIncludedCopyIds,
@@ -32,7 +31,7 @@ import {
 } from "@/features/booking";
 import { headlineRate, pricingBreakdown } from "@/features/pricing";
 import { getServiceImages, type ServiceImage } from "@/features/gallery";
-import { copy, type CopyId } from "@/content/marketing";
+import { type CopyId } from "@/content/marketing";
 import { cn } from "@/lib/utils";
 import {
   FaqAccordion,
@@ -157,15 +156,11 @@ function ServiceDetail({
 
 function toItem(
   service: PublicService,
-  index: number,
   photos: readonly ServiceImage[],
 ): ServiceTabItem {
-  const categoryId = serviceCategoryCopyId(service.pricingType);
   return {
     slug: service.slug,
     name: service.name,
-    category: categoryId ? copy[categoryId] : null,
-    badge: index === 0 ? copy["services.featured.badge"] : null,
     detail: <ServiceDetail service={service} photos={photos} />,
   };
 }
@@ -187,7 +182,7 @@ export default async function ServicesPage() {
     services.map((service) => getServiceImages(service.slug)),
   );
   const items = services.map((service, index) =>
-    toItem(service, index, photoLists[index]),
+    toItem(service, photoLists[index]),
   );
 
   return (
@@ -205,11 +200,6 @@ export default async function ServicesPage() {
       >
         <PageContainer width="app" className="pt-10 pb-6 sm:pt-14 sm:pb-8">
           <RevealGroup className="text-center">
-            <Reveal>
-              <Eyebrow>
-                <MarketingCopy id="services.hero.eyebrow" />
-              </Eyebrow>
-            </Reveal>
             <Reveal
               as="h1"
               id="services-heading"

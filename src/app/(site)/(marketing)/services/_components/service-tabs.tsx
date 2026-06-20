@@ -10,10 +10,6 @@ import * as React from "react";
 export interface ServiceTabItem {
   slug: string;
   name: string;
-  /** Category eyebrow text, or null. */
-  category: string | null;
-  /** Featured badge text, or null. */
-  badge: string | null;
   detail: React.ReactNode;
 }
 
@@ -77,24 +73,6 @@ export function ServiceTabs({ items }: { items: ServiceTabItem[] }) {
                     : "text-muted-foreground bg-section-alt hover:text-foreground border-transparent hover:bg-[color-mix(in_oklab,var(--brand)_12%,var(--section-alt))]",
                 ].join(" ")}
               >
-                {item.category || item.badge ? (
-                  <span
-                    className={[
-                      "flex items-center gap-1.5 text-[0.64rem] font-semibold tracking-[0.13em] uppercase",
-                      selected
-                        ? "text-brand-strong"
-                        : "text-muted-foreground/80",
-                    ].join(" ")}
-                  >
-                    {item.badge ? (
-                      <span
-                        aria-hidden="true"
-                        className="bg-brand size-1.5 rounded-full"
-                      />
-                    ) : null}
-                    {item.category}
-                  </span>
-                ) : null}
                 <span
                   className={[
                     "font-heading text-[1.15rem] leading-tight",
@@ -121,17 +99,7 @@ export function ServiceTabs({ items }: { items: ServiceTabItem[] }) {
               aria-labelledby={`tab-${item.slug}`}
               hidden={!selected}
             >
-              <div className="mb-5 flex flex-wrap items-baseline gap-x-4 gap-y-1">
-                {item.category || item.badge ? (
-                  <p className="text-brand-strong flex w-full items-center gap-2.5 text-xs font-semibold tracking-[0.14em] uppercase">
-                    {item.category}
-                    {item.badge ? (
-                      <span className="bg-brand text-brand-foreground rounded-full px-2 py-0.5 text-[0.58rem] tracking-[0.1em]">
-                        {item.badge}
-                      </span>
-                    ) : null}
-                  </p>
-                ) : null}
+              <div className="mb-5">
                 <h2 className="font-heading text-3xl leading-tight font-semibold tracking-tight sm:text-4xl">
                   {item.name}
                 </h2>

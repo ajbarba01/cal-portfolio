@@ -79,17 +79,6 @@ function isPublicPricingType(t: PricingType): t is PublicPricingType {
   return (PUBLIC_PRICING_TYPES as readonly string[]).includes(t);
 }
 
-/** Category eyebrow copy ID for a service's index row (null for meet-and-greet). */
-const CATEGORY_COPY: Record<PublicPricingType, CopyId> = {
-  house_sitting: "service.house_sitting.category",
-  check_in: "service.check_in.category",
-  walk: "service.walk.category",
-  training: "service.training.category",
-};
-export function serviceCategoryCopyId(pricingType: PricingType): CopyId | null {
-  return isPublicPricingType(pricingType) ? CATEGORY_COPY[pricingType] : null;
-}
-
 /** Long-form lede copy ID for a service's booking page (null for meet-and-greet). */
 const DETAIL_LEDE_COPY: Record<PublicPricingType, CopyId> = {
   house_sitting: "service.house_sitting.detail.lede",
