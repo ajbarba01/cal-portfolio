@@ -211,7 +211,7 @@ function LedgerSection({
     >
       <PageContainer width={width} className="py-12 sm:py-16">
         <RevealGroup className="flex flex-col gap-4 lg:flex-row lg:gap-12">
-          <Reveal className="lg:sticky lg:top-8 lg:w-56 lg:shrink-0 lg:self-start">
+          <Reveal className="lg:sticky lg:top-[calc(var(--site-header-h)+2rem)] lg:w-56 lg:shrink-0 lg:self-start">
             <h2
               id={`${id}-heading`}
               className="font-heading text-2xl font-semibold tracking-tight sm:text-3xl"

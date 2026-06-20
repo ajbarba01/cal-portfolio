@@ -117,7 +117,7 @@ function ServiceDetail({
         </div>
 
         {/* Receipt — the only white card; clay outline ring on hover, no shadow. */}
-        <aside className="lg:sticky lg:top-6 lg:self-start">
+        <aside className="lg:sticky lg:top-[calc(var(--site-header-h)+1.5rem)] lg:self-start">
           <ShimmerCard className="p-5">
             <p className="font-heading text-foreground text-2xl leading-none">
               {rate}
