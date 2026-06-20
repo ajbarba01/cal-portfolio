@@ -7,12 +7,11 @@ import {
   useStripe,
   useElements,
 } from "@stripe/react-stripe-js";
+import type { Stripe } from "@stripe/stripe-js";
 import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/feedback/toast";
 import { getStripe, paymentAppearance } from "@/lib/stripe/browser";
-
-const stripePromise = getStripe();
 
 export function PrepayDialog({
   open,
@@ -27,19 +26,35 @@ export function PrepayDialog({
   amountLabel: string;
   onPaid: () => void;
 }) {
+  // Resolve the Stripe singleton lazily and defensively: a missing publishable
+  // key must disable Prepay, never throw at module load and crash the whole
+  // bookings page (getStripe throws when NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY is
+  // unset). useState's lazy initializer runs once.
+  const [stripePromise] = useState<Promise<Stripe | null> | null>(() => {
+    try {
+      return getStripe();
+    } catch {
+      return null;
+    }
+  });
+
   return (
     <Dialog
       open={open}
       onOpenChange={onOpenChange}
       title={`Pay ${amountLabel}`}
     >
-      {clientSecret ? (
+      {clientSecret && stripePromise ? (
         <Elements
           stripe={stripePromise}
           options={{ clientSecret, appearance: paymentAppearance }}
         >
           <PrepayForm onPaid={onPaid} onOpenChange={onOpenChange} />
         </Elements>
+      ) : clientSecret ? (
+        <p className="text-destructive mt-2 text-sm">
+          Online payment is temporarily unavailable. Please try again later.
+        </p>
       ) : null}
     </Dialog>
   );
