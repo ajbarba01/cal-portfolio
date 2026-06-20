@@ -22,7 +22,7 @@ export type ReviewStatus = "pending" | "published" | "rejected";
 
 export interface ReviewRow {
   id: string;
-  client_id: string;
+  client_id: string | null;
   author_name: string;
   rating: number;
   body: string;
@@ -33,7 +33,7 @@ export interface ReviewRow {
 /** Parse review rows at the DB edge (ENGINEERING #11). */
 const reviewRowSchema = z.object({
   id: z.string(),
-  client_id: z.string(),
+  client_id: z.string().nullable(),
   author_name: z.string(),
   rating: z.number(),
   body: z.string(),
