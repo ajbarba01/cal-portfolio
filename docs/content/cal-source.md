@@ -376,6 +376,33 @@ Please let me know if there are other resources you think I should share. I'm al
 
 > Service summaries, long-form detail, "what's included" bullets, and the sliding-scale statement captured 2026-06-16. Cal's training long-form carries his own subsection labels ("Puppy Training", "Basic Obedience"); these render as `## ` subheads in `service.training.detail.body` (structural markup recorded in the ledger, not Cal's punctuation). Action notes (e.g. `(hyperlinked)`) and the truncated housesitting bullet are kept verbatim here; their resolutions live in the ledger.
 
+### services.notice.lede
+
+> Time-bound availability notice captured 2026-06-20; Cal expects to remove it after 2026-09-01. Raw inputs below; live string is a user-confirmed third-person composition (reason + date), tracked in the ledger.
+
+```
+Until September 1, I'm assuming I can't…
+[reason supplied 2026-06-20: I'm recovering from a broken leg]
+```
+
+### services.notice.1
+
+```
+Travel more than one mile for a booking
+```
+
+### services.notice.2
+
+```
+Do walks longer than 15 min for dogs over 40lbs
+```
+
+### services.notice.3
+
+```
+Housesit for dogs over 40lbs unless they don't need walks over 15 min at a time
+```
+
 ### services.pricing.header
 
 ```
