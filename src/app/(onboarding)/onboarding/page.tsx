@@ -121,7 +121,7 @@ export default async function OnboardingPage({
 
   if (status === "info_pending") {
     return (
-      <PageContainer width="read" className="py-10">
+      <PageContainer className="max-w-2xl py-10">
         <BackToSite className="mb-6" />
         <StepBar step={1} />
         <PageHeader
@@ -136,7 +136,7 @@ export default async function OnboardingPage({
   if (status === "meet_greet_pending") {
     if (!meetGreetFormData || !meetGreetFormData.ok) {
       return (
-        <PageContainer width="app" className="py-10">
+        <PageContainer className="max-w-2xl py-10">
           <BackToSite className="mb-6" />
           <StepBar step={2} />
           <p className="text-destructive">
@@ -146,7 +146,7 @@ export default async function OnboardingPage({
       );
     }
     return (
-      <PageContainer width="app" className="py-10">
+      <PageContainer className="max-w-2xl py-10">
         <BackToSite className="mb-6" />
         <StepBar step={2} />
         <PageHeader
