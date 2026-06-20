@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { STICKY_NAV } from "@/components/layout/sticky-nav";
 
 /**
  * Highlight style for the cursor surface. Flip this one value to switch the look
@@ -70,8 +71,32 @@ export function CursorRing({
     // pointermove fired just before exit may have a frame still queued, and
     // without this it would run after the hide and re-reveal the frozen ring.
     let leftWindow = false;
-    // Cached on scroll/resize so the per-move path never re-measures the DOM.
+    // Re-measured on scroll/resize/rebuild so the per-move path never touches the
+    // DOM. The header is sticky, so its links stay at viewport-top while the page
+    // scrolls — their DOCUMENT-space centers therefore shift every scroll frame and
+    // must be re-cached there (a static header could cache once, but sticky can't).
     let linkCenters: { el: HTMLElement; cx: number; cy: number }[] = [];
+    // True while a viewport-fixed glow band for the sticky header is layered into
+    // the mask (STICKY_NAV on, no modal open). It re-reveals the ring over the
+    // navbar even when a hero photo scrolls behind it — the document-space photo
+    // hole would otherwise land under the pinned bar and cut the glow. Drives the
+    // second mask-position (fixed at 0,0) so scrolling never shifts the band.
+    let bandActive = false;
+    const measureLinks = () => {
+      const sx = window.scrollX;
+      const sy = window.scrollY;
+      linkCenters = [];
+      for (const el of host.querySelectorAll<HTMLElement>(
+        "[data-spotlight-link]",
+      )) {
+        const r = el.getBoundingClientRect();
+        linkCenters.push({
+          el,
+          cx: r.left + sx + r.width / 2,
+          cy: r.top + sy + r.height / 2,
+        });
+      }
+    };
 
     const setMaskProp = (prop: string, val: string) => {
       overlay.style.setProperty(prop, val);
@@ -82,12 +107,16 @@ export function CursorRing({
     // overlay. This is the entire per-scroll mask cost: a compositor-only
     // mask-position shift — no re-encode, no async image decode, so no flicker.
     const paintMaskPosition = () => {
-      setMaskProp("mask-position", `${-window.scrollX}px ${-window.scrollY}px`);
+      const main = `${-window.scrollX}px ${-window.scrollY}px`;
+      // Layer 1 (content mask) tracks scroll; layer 2 (header band) is pinned to
+      // the viewport, so it never shifts.
+      setMaskProp("mask-position", bandActive ? `${main}, 0px 0px` : main);
     };
 
     // Proximity underline pass. Cursor + link centers are both in document space,
-    // so this stays correct at any scroll offset (and the non-sticky header's
-    // links relax as they scroll away, since the doc-space cursor moves off them).
+    // so this stays correct at any scroll offset — the sticky header's link centers
+    // are re-measured each scroll frame (see measureLinks) so they track the band
+    // as it pins to the viewport top.
     const paintUnderlines = () => {
       const dx = lastX + window.scrollX;
       const dy = lastY + window.scrollY;
@@ -192,22 +221,41 @@ export function CursorRing({
         `</svg>`;
 
       const url = `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
-      setMaskProp("mask-image", url);
+
+      // Sticky-header glow band (layer 2). A viewport-fixed white rect over the
+      // pinned bar, UNION-composited with the content mask so the ring re-reveals
+      // on the navbar regardless of the photo holes behind it. Skipped in modal
+      // mode (the bar sits behind the dim). It's expressed in viewport space and
+      // never scroll-shifts, so unlike the content mask it re-encodes only on
+      // resize/relayout — not per scroll frame — so no decode flicker. Just two
+      // layers, well short of the per-photo composite chain Blink mis-handles.
+      const headerEl = host.querySelector("header");
+      bandActive = STICKY_NAV && !modals.length && headerEl !== null;
+      if (bandActive && headerEl) {
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        const h = headerEl.getBoundingClientRect();
+        const bandSvg =
+          `<svg xmlns='http://www.w3.org/2000/svg' width='${vw}' height='${vh}'>` +
+          `<rect x='${h.left.toFixed(1)}' y='${h.top.toFixed(1)}' width='${h.width.toFixed(1)}' height='${h.height.toFixed(1)}' fill='#fff'/>` +
+          `</svg>`;
+        const bandUrl = `url("data:image/svg+xml,${encodeURIComponent(bandSvg)}")`;
+        setMaskProp("mask-image", `${url}, ${bandUrl}`);
+        setMaskProp("mask-size", `${dw}px ${dh}px, ${vw}px ${vh}px`);
+        // Union the layers. Standard keyword is `add`; WebKit's equivalent is the
+        // (differently named) `source-over`, so these can't share setMaskProp.
+        overlay.style.setProperty("mask-composite", "add");
+        overlay.style.setProperty("-webkit-mask-composite", "source-over");
+      } else {
+        setMaskProp("mask-image", url);
+        setMaskProp("mask-size", `${dw}px ${dh}px`);
+        overlay.style.removeProperty("mask-composite");
+        overlay.style.removeProperty("-webkit-mask-composite");
+      }
       setMaskProp("mask-repeat", "no-repeat");
-      setMaskProp("mask-size", `${dw}px ${dh}px`);
       paintMaskPosition();
 
-      linkCenters = [];
-      for (const el of host.querySelectorAll<HTMLElement>(
-        "[data-spotlight-link]",
-      )) {
-        const r = el.getBoundingClientRect();
-        linkCenters.push({
-          el,
-          cx: r.left + sx + r.width / 2,
-          cy: r.top + sy + r.height / 2,
-        });
-      }
+      measureLinks();
     };
 
     const movePointer = () => {
@@ -277,6 +325,10 @@ export function CursorRing({
     // underlines. No DOM reads, no mask-image reassignment, no full rebuild.
     const onScrollFrame = () => {
       scrollFrame = 0;
+      // Reads before writes: re-measure the sticky links (layout read) first, then
+      // shift the mask + repaint underlines (style writes) so we don't force a
+      // second layout flush mid-frame.
+      measureLinks();
       paintMaskPosition();
       paintUnderlines();
     };

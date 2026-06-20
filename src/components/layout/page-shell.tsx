@@ -2,6 +2,8 @@ import * as React from "react";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "./site-footer";
 import { CursorRing } from "@/components/effects/cursor-ring";
+import { STICKY_NAV } from "./sticky-nav";
+import { HeaderHeightVar } from "./header-height-var";
 
 /**
  * The "sheet on a desk" shell, rendered ONCE by the (site) layout and preserved
@@ -18,6 +20,7 @@ export function PageShell({ children }: { children: React.ReactNode }) {
             gutters stay untinted) with hero photos [data-ring-exclude] cut out. */}
         <CursorRing />
         <SiteHeader />
+        {STICKY_NAV && <HeaderHeightVar />}
         {children}
         <SiteFooter />
       </div>

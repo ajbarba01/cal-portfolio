@@ -15,6 +15,8 @@
 import { HeaderAuthClient } from "./header-auth-client";
 import { SiteNavTabs } from "./site-nav";
 import type { NavItem } from "@/components/layout/nav-config";
+import { STICKY_NAV } from "@/components/layout/sticky-nav";
+import { cn } from "@/lib/utils";
 
 const navLinks: NavItem[] = [
   { href: "/", label: "Home" },
@@ -33,7 +35,12 @@ const navLinks: NavItem[] = [
  */
 export function SiteHeader() {
   return (
-    <header className="bg-card border-border border-b">
+    <header
+      className={cn(
+        "bg-card border-border border-b",
+        STICKY_NAV && "sticky top-0 z-30",
+      )}
+    >
       {/* No overflow-hidden here: the AccountMenu hover dropdown hangs below the
           header and must stay visible; single-row layout is guaranteed by the
           min-w-0 grid cells, not by clipping. */}

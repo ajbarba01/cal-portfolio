@@ -76,7 +76,7 @@ export function AppShell({
   return (
     <div className="flex flex-1">
       <aside className="border-border bg-sidebar hidden w-60 shrink-0 border-r md:block">
-        <div className="sticky top-0 h-dvh overflow-y-auto py-3">
+        <div className="sticky top-(--site-header-h) h-[calc(100dvh-var(--site-header-h))] overflow-y-auto py-3">
           {/* Only the admin zone defers data (attention badges) — wrap that in
               Suspense so badge counts stream in without blocking. The account
               zone has no async data: render the sidebar directly so it doesn't

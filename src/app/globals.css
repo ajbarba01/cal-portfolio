@@ -83,6 +83,10 @@
 }
 
 :root {
+  /* Height of the pinned global header, published by HeaderHeightVar when
+     STICKY_NAV is on (0 otherwise). Sticky elements below the bar offset by it. */
+  --site-header-h: 0px;
+
   /* ── 1. Primitive palette (swap here to re-palette) ──────────────── */
   /* Warm neutrals — "sand/stone/cream" */
   --sand-0: #ffffff;
