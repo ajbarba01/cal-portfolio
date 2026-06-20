@@ -86,6 +86,13 @@ export const copy = {
   "services.hero.title": "Services",
   "services.overview":
     "Drop-in visits, walks, house sitting, and training—each tailored to your pet's needs.",
+  // Temporary availability notice — time-bound (remove after 2026-09-01).
+  "services.notice.lede":
+    "I'm recovering from a broken leg, so until September 1 I can't:",
+  "services.notice.1": "Travel more than one mile for a booking",
+  "services.notice.2": "Do walks longer than 15 min for dogs over 40lbs",
+  "services.notice.3":
+    "Housesit for dogs over 40lbs unless they don't need walks over 15 min at a time",
   "services.pricing.header": "Pricing Flexibility Available",
   "services.pricing.body":
     "To accommodate different financial situations, I offer a limited number of free or discounted slots. Please reach out if this is something you're interested in.",

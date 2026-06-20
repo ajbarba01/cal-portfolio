@@ -714,6 +714,55 @@
 
 > Service copy placed 2026-06-16 (copy-sync from SYNC.md). Cal's text did not map 1-1 to the single-paragraph `detail.body` slot, so the services tab panel was restructured: `detail.body` now renders multi-paragraph block content with `## ` subheads via the new `MarketingProse` component (`src/components/marketing/marketing-prose.tsx`), used in `services/page.tsx`. Still-placeholder service slots (no source in the dump): `services.hero.{eyebrow,title}`, `services.overview`, `services.featured.badge`, `service.*.category` (×4), `service.meet_greet.card.body`, `service.training.included.{3,4}`, `service.walk.included.{1,2,3,4}`.
 
+### services.notice.lede
+
+- status: placed
+- provenance: cal-confirmed-edit
+- consumed-by: src/app/(site)/(marketing)/services/page.tsx
+- applied-from: |
+  Until September 1, I'm assuming I can't…
+  [reason supplied 2026-06-20: I'm recovering from a broken leg]
+- live-text: |
+  I'm recovering from a broken leg, so until September 1 I can't:
+- transforms: reason composition (2026-06-20). "I'm assuming I can't…" → "…so until September 1 I can't:" (drops the hedge + ellipsis, adds colon to lead the list) and prepends the user-supplied reason "I'm recovering from a broken leg". First person, per the marketing POV guardrail (user briefly tried third person then reverted).
+- notes: ⏳ time-bound notice — Cal expects to remove after 2026-09-01. New IDs (services.notice.lede + .1/.2/.3), user-confirmed mapping 2026-06-20. Renders as its own full-width band (soft bg-brand tint, hairline top/bottom) above the service tabs as a left-aligned stack: "Limited availability" eyebrow (Info icon), lede, then .1/.2/.3 constraints with brand-tinted dash markers.
+
+### services.notice.1
+
+- status: placed
+- provenance: cal-verbatim
+- consumed-by: src/app/(site)/(marketing)/services/page.tsx
+- applied-from: |
+  Travel more than one mile for a booking
+- live-text: |
+  Travel more than one mile for a booking
+- transforms: none
+- notes: see services.notice.lede (time-bound, remove after 2026-09-01).
+
+### services.notice.2
+
+- status: placed
+- provenance: cal-verbatim
+- consumed-by: src/app/(site)/(marketing)/services/page.tsx
+- applied-from: |
+  Do walks longer than 15 min for dogs over 40lbs
+- live-text: |
+  Do walks longer than 15 min for dogs over 40lbs
+- transforms: none
+- notes: see services.notice.lede (time-bound, remove after 2026-09-01).
+
+### services.notice.3
+
+- status: placed
+- provenance: cal-verbatim
+- consumed-by: src/app/(site)/(marketing)/services/page.tsx
+- applied-from: |
+  Housesit for dogs over 40lbs unless they don't need walks over 15 min at a time
+- live-text: |
+  Housesit for dogs over 40lbs unless they don't need walks over 15 min at a time
+- transforms: none
+- notes: see services.notice.lede (time-bound, remove after 2026-09-01).
+
 ### services.pricing.header
 
 - status: placed
