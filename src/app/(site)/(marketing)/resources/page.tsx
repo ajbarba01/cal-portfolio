@@ -373,9 +373,6 @@ export default function ResourcesPage() {
         width="read"
       >
         <TopicChips topics={toolsTopics} />
-        <p className="text-muted-foreground mt-4 text-sm italic">
-          Write-ups in progress — these become links as I finish each one.
-        </p>
       </LedgerSection>
 
       {/* Enrichment — base band (distinct from Tools). */}
@@ -386,9 +383,6 @@ export default function ResourcesPage() {
         width="read"
       >
         <TopicChips topics={enrichmentTopics} />
-        <p className="text-muted-foreground mt-4 text-sm italic">
-          Write-ups in progress — these become links as I finish each one.
-        </p>
       </LedgerSection>
 
       {/* Closing sign-off — alt band (Enrichment is base, so this keeps the
