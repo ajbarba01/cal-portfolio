@@ -396,7 +396,7 @@ const HOUSE_SITTING_SEED: unknown = {
 
 const CHECK_IN_SEED: unknown = {
   modifiers: [
-    { kind: "base_per_hour", cents: 4500 },
+    { kind: "base_per_hour", cents: 2500 },
     { kind: "min_floor", cents: 1500 },
     {
       kind: "allowance_then_per_unit",
@@ -419,13 +419,6 @@ const CHECK_IN_SEED: unknown = {
       label: "Recurring discount (-5%)",
       pct: 5,
       condition: "recurringSeries",
-    },
-    {
-      kind: "pct_discount",
-      id: "puppy_training",
-      label: "Puppy training (-15%)",
-      pct: 15,
-      condition: "anyDogUnder6mo",
     },
   ],
   constraints: {
@@ -506,7 +499,7 @@ const WALK_SEED: unknown = {
 
 const TRAINING_SEED: unknown = {
   modifiers: [
-    { kind: "base_per_hour", cents: 2500 },
+    { kind: "base_per_hour", cents: 4500 },
     { kind: "min_floor", cents: 1500 },
     {
       kind: "allowance_then_per_unit",
@@ -565,9 +558,9 @@ describe("parsePricingConfig — seeded JSON round-trips", () => {
     expect(cfg.constraints.allowedSpecies).toContain("bird");
   });
 
-  it("check_in: parses without throw, 6 modifiers, base_per_hour first", () => {
+  it("check_in: parses without throw, 5 modifiers, base_per_hour first", () => {
     const cfg = parsePricingConfig(CHECK_IN_SEED) as ServicePricingConfig;
-    expect(cfg.modifiers.length).toBe(6);
+    expect(cfg.modifiers.length).toBe(5);
     expect(cfg.modifiers[0].kind).toBe("base_per_hour");
     expect(cfg.constraints.minDurationMin).toBe(15);
     expect(cfg.constraints.maxDurationMin).toBe(60);

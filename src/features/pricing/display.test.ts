@@ -117,7 +117,7 @@ const WALK: ServicePricingConfig = {
   },
 };
 
-const CHECK_IN: ServicePricingConfig = {
+const TRAINING: ServicePricingConfig = {
   modifiers: [{ kind: "base_per_hour", cents: 4500 }],
   constraints: { intervalMin: 15, allowedSpecies: ["dog", "cat"] },
 };
@@ -140,8 +140,8 @@ describe("headlineRate", () => {
     expect(headlineRate(WALK)).toBe("$25 / hour");
   });
 
-  it("base_per_hour (check_in 4500) → '$45 / hour'", () => {
-    expect(headlineRate(CHECK_IN)).toBe("$45 / hour");
+  it("base_per_hour (training 4500) → '$45 / hour'", () => {
+    expect(headlineRate(TRAINING)).toBe("$45 / hour");
   });
 
   it("empty modifiers → 'Free'", () => {
