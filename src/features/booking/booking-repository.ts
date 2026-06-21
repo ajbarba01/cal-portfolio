@@ -13,6 +13,7 @@
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { PricingType } from "@/features/pricing";
+import { denverDayKey } from "./availability";
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Row shapes (typed explicitly — no generated DB types to avoid coupling)
@@ -205,6 +206,11 @@ const bookingSeriesRowSchema = z.object({
 const availabilityWindowRowSchema = z.object({
   starts_at: z.string().datetime({ offset: true }),
   ends_at: z.string().datetime({ offset: true }),
+});
+
+/** Parsed and validated overnight_nights row (Denver day-key "YYYY-MM-DD"). */
+const overnightNightRowSchema = z.object({
+  night: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
 });
 
 export interface BookingRow {
@@ -485,6 +491,8 @@ export interface BookingRepository {
     status: BookingStatusDb;
     startsAt: Date;
     endsAt: Date;
+    /** Service pricing type — drives which availability model gates the new slot. */
+    pricingType: PricingType;
   } | null>;
 
   /**
@@ -501,6 +509,14 @@ export interface BookingRepository {
    * Returns an empty array when no windows are defined.
    */
   getOpenWindows(now: Date): Promise<{ startsAt: Date; endsAt: Date }[]>;
+
+  /**
+   * Fetch the set of overnight-bookable nights (Denver day-keys "YYYY-MM-DD")
+   * from `overnight_nights` whose night is today (Denver) or later. Sole source
+   * of truth for house_sitting availability (see migration 20260603140000).
+   * `now` is injected (no clock read inside the repo). Empty set when none.
+   */
+  getOpenNights(now: Date): Promise<Set<string>>;
 
   /** Insert a booking_series rule. Returns the generated id. */
   insertSeries(row: BookingSeriesInsert): Promise<string>;
@@ -786,7 +802,9 @@ export function createSupabaseBookingRepository(
     async getBookingTimes(id) {
       const { data, error } = await client
         .from("bookings")
-        .select("id, client_id, status, starts_at, ends_at")
+        .select(
+          "id, client_id, status, starts_at, ends_at, services(pricing_type)",
+        )
         .eq("id", id)
         .single();
 
@@ -795,12 +813,20 @@ export function createSupabaseBookingRepository(
         throw new Error(`Failed to load booking '${id}': ${error.message}`);
       }
 
+      // PostgREST returns the joined service as an object or single-element array
+      // depending on cardinality hint — normalize (mirrors getBookingForEdit).
+      const svc = Array.isArray(data.services)
+        ? data.services[0]
+        : data.services;
+      if (!svc) throw new Error(`Booking '${id}' has no service`);
+
       return {
         id: data.id as string,
         client_id: data.client_id as string,
         status: data.status as BookingStatusDb,
         startsAt: new Date(data.starts_at as string),
         endsAt: new Date(data.ends_at as string),
+        pricingType: (svc as { pricing_type: PricingType }).pricing_type,
       };
     },
 
@@ -849,6 +875,34 @@ export function createSupabaseBookingRepository(
           endsAt: new Date(parsed.data.ends_at),
         };
       });
+    },
+
+    async getOpenNights(now: Date) {
+      // Today (Denver) or later — a past night can't host a future stay. The
+      // `night` column is a DATE; Postgres compares "YYYY-MM-DD" lexically,
+      // which matches chronological order for ISO dates.
+      const todayKey = denverDayKey(now);
+      const { data, error } = await client
+        .from("overnight_nights")
+        .select("night")
+        .gte("night", todayKey);
+
+      if (error) {
+        throw new Error(`Failed to load overnight nights: ${error.message}`);
+      }
+
+      const out = new Set<string>();
+      if (!data) return out;
+      for (const row of data as unknown[]) {
+        const parsed = overnightNightRowSchema.safeParse(row);
+        if (!parsed.success) {
+          throw new Error(
+            `overnight_nights row has unexpected DB shape: ${parsed.error.message}`,
+          );
+        }
+        out.add(parsed.data.night);
+      }
+      return out;
     },
 
     async insertSeries(row) {

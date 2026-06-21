@@ -1,4 +1,6 @@
+import { Suspense } from "react";
 import { PageShell } from "@/components/layout/page-shell";
+import { VerifiedToast } from "./_components/verified-toast";
 
 /**
  * Onboarding zone — a pre-account gate, intentionally OUTSIDE the account
@@ -11,5 +13,12 @@ export default function OnboardingLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <PageShell>{children}</PageShell>;
+  return (
+    <PageShell>
+      <Suspense fallback={null}>
+        <VerifiedToast />
+      </Suspense>
+      {children}
+    </PageShell>
+  );
 }

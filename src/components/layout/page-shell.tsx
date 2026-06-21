@@ -1,7 +1,7 @@
 import * as React from "react";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "./site-footer";
-import { CursorRing } from "@/components/effects/cursor-ring";
+// import { CursorRing } from "@/components/effects/cursor-ring"; // temporarily disabled
 import { STICKY_NAV } from "./sticky-nav";
 import { HeaderHeightVar } from "./header-height-var";
 
@@ -17,8 +17,9 @@ export function PageShell({ children }: { children: React.ReactNode }) {
     <div className="relative flex min-h-dvh flex-col">
       <div className="bg-background panel-ombre dark:border-border relative mx-auto flex w-full max-w-6xl flex-1 flex-col sm:shadow-[0_4px_40px_-8px_rgba(28,24,19,0.16)] dark:shadow-none dark:sm:border-x">
         {/* Site-wide cursor glow, masked to this sheet (so the textured canvas
-            gutters stay untinted) with hero photos [data-ring-exclude] cut out. */}
-        <CursorRing />
+            gutters stay untinted) with hero photos [data-ring-exclude] cut out.
+            Temporarily disabled — re-enable by uncommenting. */}
+        {/* <CursorRing /> */}
         <SiteHeader />
         {STICKY_NAV && <HeaderHeightVar />}
         {children}

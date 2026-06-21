@@ -105,6 +105,45 @@ export function fitsWindow(
 }
 
 // ---------------------------------------------------------------------------
+// fitsOvernightNights
+// ---------------------------------------------------------------------------
+
+/**
+ * Overnight (house_sitting) availability guard — the server-side mirror of the
+ * calendar's `validateStayRange` night check. A multi-day stay is ONE occurrence
+ * with a multi-day span, so it can never sit inside a single intraday
+ * `availability_window`; overnight stays are instead gated per night by the
+ * `overnight_nights` table (see migration 20260603140000). This is the sole
+ * source of truth for when overnight stays are bookable.
+ *
+ * Returns true iff EVERY night Cal sleeps over — the Denver calendar days in
+ * `[startsAt's day, endsAt's day)` — is present in `overnightNights`. Comparison
+ * is by Denver day-key (not raw instant) so the checkout-day morning does NOT
+ * count as a required night: a one-night stay D→D+1 only needs night D.
+ *
+ * Empty set, zero-length/inverted span, or any missing night → false.
+ */
+export function fitsOvernightNights(
+  candidate: TimeRange,
+  overnightNights: Set<string>,
+): boolean {
+  const checkoutKey = denverDayKey(candidate.endsAt);
+  let key = denverDayKey(candidate.startsAt);
+  // Need at least one night: the first night's day must precede the checkout day.
+  if (key >= checkoutKey) return false;
+  while (key < checkoutKey) {
+    if (!overnightNights.has(key)) return false;
+    // Advance one Denver calendar day (DST-safe via denverMidnight).
+    const [y, m, d] = key.split("-").map((n) => parseInt(n, 10));
+    const next = denverMidnight(
+      `${String(y).padStart(4, "0")}-${String(m).padStart(2, "0")}-${String(d + 1).padStart(2, "0")}`,
+    );
+    key = denverDayKey(next);
+  }
+  return true;
+}
+
+// ---------------------------------------------------------------------------
 // Denver hour helper
 // ---------------------------------------------------------------------------
 

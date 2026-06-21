@@ -18,7 +18,6 @@ import { Pagination } from "@/components/ui/pagination";
 import { ResultCount } from "@/components/ui/result-count";
 import { ShimmerCard } from "@/components/ui/shimmer-card";
 import { TextLink } from "@/components/ui/text-link";
-import { Reveal } from "@/components/effects/reveal";
 import { paginate } from "@/lib/pagination";
 import type { PublishedReview } from "@/features/reviews";
 import { ROVER_PROFILE_URL } from "@/content/rover-reviews";
@@ -140,12 +139,11 @@ export function ReviewsList({ reviews }: { reviews: PublishedReview[] }) {
         </p>
       ) : (
         <ul className="flex flex-col gap-4" role="list">
-          {view.items.map((review, i) => (
-            // Standalone Reveal (not a group): the list changes per page, so each
-            // card fades in on mount with a small source-order stagger.
-            <Reveal as="li" key={review.id} delay={i * 40}>
+          {view.items.map((review) => (
+            // Render instantly — no mount fade — on first load and page switch.
+            <li key={review.id}>
               <ReviewCard review={review} />
-            </Reveal>
+            </li>
           ))}
         </ul>
       )}

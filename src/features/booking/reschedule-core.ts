@@ -7,7 +7,7 @@ import { deriveTimeApproval } from "./time-gate";
 import {
   toRuleSettings,
   passesGuards,
-  fitsWindow,
+  slotIsAvailable,
   type BookingServiceDeps,
 } from "./booking-service-shared";
 
@@ -93,11 +93,16 @@ export async function rescheduleBookingCore(
         "The selected time does not meet booking rules (hours-of-day, lead time, or max advance).",
     };
   }
-  const openWindows = await repo.getOpenWindows(now);
-  if (!fitsWindow({ startsAt, endsAt }, openWindows)) {
+  // Availability containment, gated by service type (window vs overnight nights).
+  if (
+    !(await slotIsAvailable(repo, now, booking.pricingType, {
+      startsAt,
+      endsAt,
+    }))
+  ) {
     return {
       kind: "unavailable",
-      reason: "The selected time is not within an open availability window.",
+      reason: "The selected time is not within Cal's availability.",
     };
   }
 

@@ -25,6 +25,7 @@ import {
   seriesQualifiesForRecurringDiscount,
   passesGuards,
   fitsWindow,
+  fitsOvernightNights,
   denverDayKey,
   denverMidnight,
 } from "./availability";
@@ -39,9 +40,10 @@ import type {
   QuoteInput,
   QuoteBreakdown,
   ServicePricingConfig,
+  PricingType,
 } from "@/features/pricing";
 import type { RecurrenceRule } from "./recurrence";
-import type { BookingRuleSettings } from "./availability";
+import type { BookingRuleSettings, TimeRange } from "./availability";
 
 export const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -815,7 +817,30 @@ export async function computeBookingArtifacts(
 // Re-export CLIENT_POLICY so cores can default to it without a direct import.
 export { CLIENT_POLICY };
 // Re-export fitsWindow / passesGuards / BookingRuleSettings consumed by multiple cores.
-export { fitsWindow, passesGuards };
+export { fitsWindow, fitsOvernightNights, passesGuards };
+
+/**
+ * Single-slot availability check, gated by service type — the shared primitive
+ * for edit/reschedule (createBookingCore inlines the equivalent so it can fetch
+ * once and loop over a series + reuse the window list for its drive-buffer guard).
+ *
+ * - house_sitting → a multi-day stay can never fit an intraday window; every
+ *   covered night must be in `overnight_nights` (the sole source of truth, see
+ *   migration 20260603140000).
+ * - all other (time-based) services → the slot must fit inside an open
+ *   `availability_window`.
+ */
+export async function slotIsAvailable(
+  repo: BookingRepository,
+  now: Date,
+  pricingType: PricingType,
+  slot: TimeRange,
+): Promise<boolean> {
+  if (pricingType === "house_sitting") {
+    return fitsOvernightNights(slot, await repo.getOpenNights(now));
+  }
+  return fitsWindow(slot, await repo.getOpenWindows(now));
+}
 export type { BookingRuleSettings };
 
 // ──────────────────────────────────────────────────────────────────────────────

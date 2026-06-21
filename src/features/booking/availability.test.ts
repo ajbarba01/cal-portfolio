@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   fitsWindow,
+  fitsOvernightNights,
   passesGuards,
   seriesQualifiesForRecurringDiscount,
   denverDayKey,
@@ -70,6 +71,52 @@ describe("fitsWindow", () => {
     const window2 = makeRange("2025-03-02T10:00:00Z", "2025-03-02T18:00:00Z");
     const candidate = makeRange("2025-03-02T11:00:00Z", "2025-03-02T14:00:00Z");
     expect(fitsWindow(candidate, [window, window2])).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// fitsOvernightNights
+// ---------------------------------------------------------------------------
+
+describe("fitsOvernightNights", () => {
+  // House_sitting candidates are anchored at the Denver open minute (e.g. 6:30am
+  // = 12:30Z in June/MDT). Each night [check-in day, check-out day) must be in
+  // the set; the check-out morning is NOT a required night.
+  const nights = (...keys: string[]) => new Set(keys);
+
+  it("returns true when every covered night is bookable", () => {
+    // 3-night stay: nights 06-27, 06-28, 06-29 (check out 06-30 morning).
+    const candidate = makeRange("2026-06-27T12:30:00Z", "2026-06-30T12:30:00Z");
+    expect(
+      fitsOvernightNights(
+        candidate,
+        nights("2026-06-27", "2026-06-28", "2026-06-29"),
+      ),
+    ).toBe(true);
+  });
+
+  it("does NOT require the check-out day as a night (one-night stay)", () => {
+    // D→D+1: only night 06-27 needed; 06-28 absent from the set is fine.
+    const candidate = makeRange("2026-06-27T12:30:00Z", "2026-06-28T12:30:00Z");
+    expect(fitsOvernightNights(candidate, nights("2026-06-27"))).toBe(true);
+  });
+
+  it("returns false when any covered night is missing", () => {
+    const candidate = makeRange("2026-06-27T12:30:00Z", "2026-06-30T12:30:00Z");
+    // Middle night 06-28 not published.
+    expect(
+      fitsOvernightNights(candidate, nights("2026-06-27", "2026-06-29")),
+    ).toBe(false);
+  });
+
+  it("returns false for an empty night set", () => {
+    const candidate = makeRange("2026-06-27T12:30:00Z", "2026-06-28T12:30:00Z");
+    expect(fitsOvernightNights(candidate, nights())).toBe(false);
+  });
+
+  it("returns false for a zero-length (same-day) span", () => {
+    const candidate = makeRange("2026-06-27T12:30:00Z", "2026-06-27T12:30:00Z");
+    expect(fitsOvernightNights(candidate, nights("2026-06-27"))).toBe(false);
   });
 });
 

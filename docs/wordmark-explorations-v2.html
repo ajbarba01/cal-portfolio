@@ -1,0 +1,554 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cal Barba — Wordmark v2 · Editorial + Refined Script</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,300..900,0..100,0..1;1,9..144,300..900,0..100,0..1&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Cormorant+Garamond:ital,wght@0,300..700;1,300..700&family=DM+Serif+Display:ital@0;1&family=EB+Garamond:ital,wght@0,400..800;1,400..800&family=Italiana&family=Parisienne&family=Italianno&family=Pinyon+Script&family=Tangerine:wght@400;700&family=Great+Vibes&family=Allura&family=Niconne&family=Sacramento&family=Alex+Brush&family=Mr+Dafoe&family=Public+Sans:ital,wght@0,100..900;1,100..900&display=swap"
+      rel="stylesheet"
+    />
+
+    <style>
+      /* ── Live "Trail" tokens (src/app/globals.css) ───────────────────── */
+      :root {
+        --sand-0: #ffffff;
+        --sand-50: #faf6f0;
+        --sand-100: #f2ece1;
+        --sand-200: #e7decf;
+        --sand-400: #b6a88f;
+        --sand-500: #6e6354;
+        --sand-800: #322b22;
+        --sand-900: #2b2520;
+        --sand-925: #241f19;
+        --sand-950: #1c1813;
+
+        --clay-fill: #ae5a35;
+        --clay-strong: #8a4226;
+        --clay-light: #e5946b;
+
+        --page-bg: var(--sand-50);
+        --page-fg: var(--sand-900);
+        --card-bg: var(--sand-0);
+        --muted-fg: var(--sand-500);
+        --line: var(--sand-200);
+        --brand-text: var(--clay-strong);
+      }
+      [data-theme="dark"] {
+        --page-bg: var(--sand-950);
+        --page-fg: var(--sand-50);
+        --card-bg: var(--sand-925);
+        --muted-fg: var(--sand-400);
+        --line: rgba(255, 255, 255, 0.1);
+        --brand-text: var(--clay-light);
+      }
+
+      * { box-sizing: border-box; }
+      html { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+      body {
+        margin: 0;
+        background: var(--page-bg);
+        color: var(--page-fg);
+        font-family: "Public Sans", system-ui, sans-serif;
+        line-height: 1.5;
+        transition: background 0.25s ease, color 0.25s ease;
+      }
+      .wrap {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: clamp(2rem, 5vw, 5rem) clamp(1.25rem, 4vw, 3rem) 6rem;
+      }
+
+      .topbar {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-bottom: 3.5rem;
+      }
+      .kicker {
+        font-size: 0.72rem;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: var(--brand-text);
+        font-weight: 600;
+        margin: 0 0 0.6rem;
+      }
+      .doc-title {
+        font-family: "Fraunces", serif;
+        font-optical-sizing: auto;
+        font-weight: 600;
+        font-size: clamp(1.9rem, 4vw, 2.8rem);
+        line-height: 1.05;
+        margin: 0;
+        max-width: 24ch;
+      }
+      .lede {
+        color: var(--muted-fg);
+        max-width: 62ch;
+        margin: 1rem 0 0;
+        font-size: 1.02rem;
+      }
+      .theme-toggle {
+        appearance: none;
+        border: 1px solid var(--line);
+        background: var(--card-bg);
+        color: var(--page-fg);
+        font: inherit;
+        font-size: 0.8rem;
+        font-weight: 600;
+        padding: 0.55rem 1rem;
+        border-radius: 999px;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: border-color 0.2s ease;
+      }
+      .theme-toggle:hover { border-color: var(--brand-text); }
+      .theme-toggle:focus-visible { outline: 2px solid var(--clay-strong); outline-offset: 2px; }
+
+      /* ── Hero / recommendation ───────────────────────────────────────── */
+      .hero {
+        border: 1px solid var(--line);
+        border-radius: 28px;
+        background: var(--card-bg);
+        padding: clamp(2rem, 5vw, 3.5rem);
+        margin-bottom: 4rem;
+        position: relative;
+        overflow: hidden;
+      }
+      .hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(120% 80% at 15% -10%, rgba(174, 90, 53, 0.12), transparent 55%);
+        pointer-events: none;
+      }
+      .hero-tag {
+        position: relative;
+        font-size: 0.7rem;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        font-weight: 700;
+        color: var(--brand-text);
+        margin: 0 0 1.25rem;
+      }
+      /* The lockup: refined script name + Fraunces-italic surname feel */
+      .hero-mark {
+        position: relative;
+        font-family: "Parisienne", cursive;
+        font-size: clamp(4rem, 13vw, 9rem);
+        line-height: 0.95;
+        margin: 0;
+        color: var(--page-fg);
+      }
+      .hero-sub {
+        position: relative;
+        font-family: "Public Sans", sans-serif;
+        text-transform: uppercase;
+        letter-spacing: 0.36em;
+        font-size: clamp(0.62rem, 1.6vw, 0.8rem);
+        font-weight: 600;
+        color: var(--muted-fg);
+        margin: 0.6rem 0 0 0.3rem;
+      }
+      .hero-note {
+        position: relative;
+        margin: 2rem 0 0;
+        max-width: 64ch;
+        color: var(--muted-fg);
+        font-size: 0.98rem;
+      }
+      .hero-note strong { color: var(--page-fg); font-weight: 600; }
+
+      /* Two in-context header bars, to judge at real nav scale */
+      .navrow {
+        position: relative;
+        display: grid;
+        gap: 1rem;
+        margin-top: 2.25rem;
+      }
+      .navbar-demo {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 0.85rem 1.4rem;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: var(--page-bg);
+      }
+      .navbar-demo .nav-mark { font-size: 2.1rem; line-height: 1; }
+      .navbar-demo .nm-parisienne { font-family: "Parisienne", cursive; }
+      .navbar-demo .nm-fraunces {
+        font-family: "Fraunces", serif;
+        font-style: italic;
+        font-weight: 600;
+        font-size: 1.5rem;
+        font-variation-settings: "opsz" 144, "SOFT" 40, "WONK" 1;
+      }
+      .navbar-demo nav {
+        display: flex;
+        gap: 1.4rem;
+        font-size: 0.82rem;
+        color: var(--muted-fg);
+        font-weight: 500;
+        align-items: center;
+      }
+      .navbar-demo .nav-cta {
+        background: var(--clay-fill);
+        color: #fff;
+        padding: 0.45rem 0.95rem;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        font-weight: 600;
+      }
+
+      /* ── Sections ────────────────────────────────────────────────────── */
+      .section-head {
+        display: flex;
+        align-items: baseline;
+        gap: 1rem;
+        margin: 0 0 0.4rem;
+        padding-top: 1rem;
+      }
+      .section-index {
+        font-family: "Fraunces", serif;
+        font-weight: 600;
+        font-size: 1rem;
+        color: var(--brand-text);
+        font-variant-numeric: tabular-nums;
+      }
+      .section-title {
+        font-family: "Fraunces", serif;
+        font-weight: 600;
+        font-size: clamp(1.3rem, 3vw, 1.7rem);
+        margin: 0;
+      }
+      .section-desc {
+        color: var(--muted-fg);
+        margin: 0.3rem 0 2rem 2rem;
+        max-width: 64ch;
+        font-size: 0.95rem;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+        gap: 1.1rem;
+        margin-bottom: 4rem;
+      }
+      .card {
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: var(--card-bg);
+        padding: 1.7rem 1.7rem 1.4rem;
+        display: flex;
+        flex-direction: column;
+        min-height: 210px;
+      }
+      .card .mark {
+        font-size: clamp(2.6rem, 6vw, 3.6rem);
+        line-height: 1.05;
+        margin: 0 0 auto;
+        color: var(--page-fg);
+        word-break: break-word;
+      }
+      .card .meta {
+        margin-top: 1.5rem;
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 0.75rem;
+        border-top: 1px solid var(--line);
+        padding-top: 0.85rem;
+      }
+      .card .font-name { font-weight: 600; font-size: 0.82rem; }
+      .card .font-note {
+        color: var(--muted-fg);
+        font-size: 0.78rem;
+        text-align: right;
+        max-width: 58%;
+      }
+      .card.pick {
+        border-color: var(--clay-fill);
+        box-shadow: inset 0 0 0 1px var(--clay-fill);
+      }
+      .pick-flag {
+        align-self: flex-start;
+        font-size: 0.62rem;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        font-weight: 700;
+        color: #fff;
+        background: var(--clay-fill);
+        padding: 0.18rem 0.5rem;
+        border-radius: 999px;
+        margin-bottom: 1rem;
+      }
+
+      /* ── Refined scripts (connected calligraphy / signature) ─────────── */
+      .f-parisienne { font-family: "Parisienne", cursive; }
+      .f-italianno  { font-family: "Italianno", cursive; font-size: clamp(3.4rem, 8vw, 4.6rem) !important; }
+      .f-pinyon     { font-family: "Pinyon Script", cursive; }
+      .f-tangerine  { font-family: "Tangerine", cursive; font-weight: 700; font-size: clamp(3.6rem, 9vw, 5rem) !important; }
+      .f-greatvibes { font-family: "Great Vibes", cursive; }
+      .f-allura     { font-family: "Allura", cursive; font-size: clamp(3rem, 7vw, 4.2rem) !important; }
+      .f-niconne    { font-family: "Niconne", cursive; }
+      .f-sacramento { font-family: "Sacramento", cursive; }
+      .f-alexbrush  { font-family: "Alex Brush", cursive; font-size: clamp(3rem, 7vw, 4.2rem) !important; }
+      .f-mrdafoe    { font-family: "Mr Dafoe", cursive; }
+
+      /* ── Editorial serif WITH script flow (italic / calligraphic) ────── */
+      .f-fraunces-i {
+        font-family: "Fraunces", serif;
+        font-style: italic;
+        font-weight: 600;
+        font-variation-settings: "opsz" 144, "SOFT" 40, "WONK" 1;
+      }
+      .f-fraunces-i-black {
+        font-family: "Fraunces", serif;
+        font-style: italic;
+        font-weight: 800;
+        font-variation-settings: "opsz" 144, "SOFT" 20, "WONK" 1;
+        letter-spacing: -0.01em;
+      }
+      .f-playfair-i { font-family: "Playfair Display", serif; font-style: italic; font-weight: 600; }
+      .f-cormorant-i { font-family: "Cormorant Garamond", serif; font-style: italic; font-weight: 600; }
+      .f-ebgaramond-i { font-family: "EB Garamond", serif; font-style: italic; font-weight: 600; }
+      .f-dmserif-i { font-family: "DM Serif Display", serif; font-style: italic; }
+      .f-italiana { font-family: "Italiana", serif; letter-spacing: 0.01em; }
+
+      footer {
+        color: var(--muted-fg);
+        font-size: 0.82rem;
+        border-top: 1px solid var(--line);
+        padding-top: 1.5rem;
+      }
+      footer code {
+        font-family: ui-monospace, monospace;
+        background: var(--sand-100);
+        padding: 0.1rem 0.35rem;
+        border-radius: 4px;
+        color: var(--page-fg);
+      }
+      [data-theme="dark"] footer code { background: var(--sand-800); }
+
+      @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+    </style>
+  </head>
+
+  <body data-theme="light">
+    <div class="wrap">
+      <div class="topbar">
+        <div>
+          <p class="kicker">Wordmark study · v2 · refined script</p>
+          <h1 class="doc-title">Editorial, with a calligraphic hand</h1>
+          <p class="lede">
+            v1's hands ran too casual — felt-tip, not a brand. This pass keeps
+            the editorial register but adds genuine <em>script</em>: connected
+            calligraphy and high-contrast italic serifs. Nothing here is a
+            marker. Pair every candidate with clipped Public Sans caps for the
+            descriptor so the flourish stays pure signature.
+          </p>
+        </div>
+        <button class="theme-toggle" id="themeBtn" type="button">Switch to dark</button>
+      </div>
+
+      <!-- ── RECOMMENDATION ──────────────────────────────────────────── -->
+      <section class="hero">
+        <p class="hero-tag">My pick — refined script, not a marker</p>
+        <p class="hero-mark f-parisienne">Cal Barba</p>
+        <p class="hero-sub">Dog Walking &amp; House Sitting</p>
+        <p class="hero-note">
+          <strong>Parisienne.</strong> A connected copperplate-style hand — it
+          flows like a real signature but the strokes are modulated and
+          disciplined, so it reads premium where Caveat read cheap. It still
+          feels personal (the whole point for a solo keeper), keeps full
+          legibility down to nav size, and the thin-to-thick contrast rhymes
+          with Fraunces' own high-contrast serifs — the two share a voice. If you
+          want the wordmark to be pure house type instead,
+          <strong>Fraunces italic</strong> (second bar below) is the on-brand
+          companion — same calligraphic lean, zero new font to load.
+        </p>
+
+        <div class="navrow">
+          <div class="navbar-demo">
+            <span class="nav-mark nm-parisienne">Cal Barba</span>
+            <nav>
+              <span>Services</span><span>About</span><span>Reviews</span>
+              <span class="nav-cta">Book</span>
+            </nav>
+          </div>
+          <div class="navbar-demo">
+            <span class="nav-mark nm-fraunces">Cal Barba</span>
+            <nav>
+              <span>Services</span><span>About</span><span>Reviews</span>
+              <span class="nav-cta">Book</span>
+            </nav>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── 01 · Refined scripts ────────────────────────────────────── -->
+      <div class="section-head">
+        <span class="section-index">01</span>
+        <h2 class="section-title">Refined script — connected calligraphy</h2>
+      </div>
+      <p class="section-desc">
+        Modulated, formal hands with real stroke contrast. Ordered roughly
+        warmest/most-legible → most ornamental. The ornamental end is dressier
+        (boutique / wedding-adjacent) — choose by how formal Cal wants to read.
+      </p>
+      <div class="grid">
+        <div class="card pick">
+          <span class="pick-flag">Recommended</span>
+          <p class="mark f-parisienne">Cal Barba</p>
+          <div class="meta">
+            <span class="font-name">Parisienne</span>
+            <span class="font-note">Copperplate flow, legible, warm-premium</span>
+          </div>
+        </div>
+        <div class="card">
+          <p class="mark f-niconne">Cal Barba</p>
+          <div class="meta">
+            <span class="font-name">Niconne</span>
+            <span class="font-note">Semi-script, modern, most legible small</span>
+          </div>
+        </div>
+        <div class="card">
+          <p class="mark f-mrdafoe">Cal Barba</p>
+          <div class="meta">
+            <span class="font-name">Mr Dafoe</span>
+            <span class="font-note">Retro penmanship — confident, characterful</span>
+          </div>
+        </div>
+        <div class="card">
+          <p class="mark f-italianno">Cal Barba</p>
+          <div class="meta">
+            <span class="font-name">Italianno</span>
+            <span class="font-note">Flowing calligraphy, generous, elegant</span>
+          </div>
+        </div>
+        <div class="card">
+          <p class="mark f-greatvibes">Cal Barba</p>
+          <div class="meta">
+            <span class="font-name">Great Vibes</span>
+            <span class="font-note">Even connected script — clean, classic</span>
+          </div>
+        </div>
+        <div class="card">
+          <p class="mark f-alexbrush">Cal Barba</p>
+          <div class="meta">
+            <span class="font-name">Alex Brush</span>
+            <span class="font-note">Pointed-brush calligraphy — a little energy</span>
+          </div>
+        </div>
+        <div class="card">
+          <p class="mark f-allura">Cal Barba</p>
+          <div class="meta">
+            <span class="font-name">Allura</span>
+            <span class="font-note">Graceful, light — softly feminine</span>
+          </div>
+        </div>
+        <div class="card">
+          <p class="mark f-tangerine">Cal Barba</p>
+          <div class="meta">
+            <span class="font-name">Tangerine</span>
+            <span class="font-note">Classic formal calligraphy, delicate</span>
+          </div>
+        </div>
+        <div class="card">
+          <p class="mark f-pinyon">Cal Barba</p>
+          <div class="meta">
+            <span class="font-name">Pinyon Script</span>
+            <span class="font-note">Most ornamental — full copperplate</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── 02 · Editorial serif with flow ──────────────────────────── -->
+      <div class="section-head">
+        <span class="section-index">02</span>
+        <h2 class="section-title">Editorial serif — italic, with a swing</h2>
+      </div>
+      <p class="section-desc">
+        The type-led path you liked, pushed toward script via italics and
+        high-contrast calligraphic serifs. Less "signature," more "masthead with
+        personality" — and the Fraunces options need no new font at all.
+      </p>
+      <div class="grid">
+        <div class="card">
+          <p class="mark f-fraunces-i">Cal Barba</p>
+          <div class="meta">
+            <span class="font-name">Fraunces italic · soft</span>
+            <span class="font-note">House face, calligraphic lean — top pick</span>
+          </div>
+        </div>
+        <div class="card">
+          <p class="mark f-fraunces-i-black">Cal Barba</p>
+          <div class="meta">
+            <span class="font-name">Fraunces italic · black</span>
+            <span class="font-note">Same face, louder & more display</span>
+          </div>
+        </div>
+        <div class="card">
+          <p class="mark f-playfair-i">Cal Barba</p>
+          <div class="meta">
+            <span class="font-name">Playfair Display italic</span>
+            <span class="font-note">High contrast, elegant swash terminals</span>
+          </div>
+        </div>
+        <div class="card">
+          <p class="mark f-cormorant-i">Cal Barba</p>
+          <div class="meta">
+            <span class="font-name">Cormorant Garamond italic</span>
+            <span class="font-note">Airy, fashion-grade, refined</span>
+          </div>
+        </div>
+        <div class="card">
+          <p class="mark f-ebgaramond-i">Cal Barba</p>
+          <div class="meta">
+            <span class="font-name">EB Garamond italic</span>
+            <span class="font-note">Bookish, gentle, understated</span>
+          </div>
+        </div>
+        <div class="card">
+          <p class="mark f-dmserif-i">Cal Barba</p>
+          <div class="meta">
+            <span class="font-name">DM Serif Display italic</span>
+            <span class="font-note">Dramatic, dense, very display</span>
+          </div>
+        </div>
+        <div class="card">
+          <p class="mark f-italiana">Cal Barba</p>
+          <div class="meta">
+            <span class="font-name">Italiana</span>
+            <span class="font-note">Upright but elegant — couture roman</span>
+          </div>
+        </div>
+      </div>
+
+      <footer>
+        Tokens from <code>src/app/globals.css</code> · all Google Fonts
+        (self-hostable via <code>next/font</code>). Pick a lane and I'll lock the
+        winner into the header + a <code>--font-wordmark</code> token. v1 (casual
+        hands) is still at <code>docs/wordmark-explorations.html</code> for
+        reference.
+      </footer>
+    </div>
+
+    <script>
+      const btn = document.getElementById("themeBtn");
+      const body = document.body;
+      btn.addEventListener("click", () => {
+        const dark = body.getAttribute("data-theme") === "dark";
+        body.setAttribute("data-theme", dark ? "light" : "dark");
+        btn.textContent = dark ? "Switch to dark" : "Switch to light";
+      });
+    </script>
+  </body>
+</html>

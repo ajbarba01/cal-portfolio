@@ -1948,7 +1948,9 @@ describe("computeBookingArtifacts — house-sitting approval gate", () => {
     form_key: null,
   };
 
-  function makeHouseSitRepo(): BookingRepository {
+  function makeHouseSitRepo(
+    openNights: Set<string> = new Set(),
+  ): BookingRepository {
     return {
       getOutstandingDebtCents: vi.fn(async () => 0),
       getOnboardingStatus: vi.fn(async () => "approved" as const),
@@ -1997,6 +1999,7 @@ describe("computeBookingArtifacts — house-sitting approval gate", () => {
         },
       ]),
       getOpenWindows: vi.fn(async () => []),
+      getOpenNights: vi.fn(async () => openNights),
       getActiveBusyRanges: vi.fn(async () => []),
       insertBookings: vi.fn(async () => ["bk-hs-1"]),
       insertBookingPets: vi.fn(async () => {}),
@@ -2047,5 +2050,46 @@ describe("computeBookingArtifacts — house-sitting approval gate", () => {
         (r) => r.code === "service_manual_only",
       ),
     ).toBe(true);
+  });
+
+  // A multi-day stay is ONE occurrence spanning N×24h — it can never fit an
+  // intraday availability_window. House_sitting is gated by overnight_nights
+  // instead; these two cases pin that the server uses the night set, not windows.
+  const HS_STAY = {
+    userId: HOUSE_SIT_USER,
+    serviceSlug: "house-sitting",
+    startsAt: new Date("2026-06-20T17:00:00Z"),
+    endsAt: new Date("2026-06-22T17:00:00Z"), // nights 06-20, 06-21
+    quantities: { dogs: 1, cats: 0, nights: 2 },
+    recurringRule: null,
+  };
+  // Enforce availability but skip the forms gate so the test isolates the night
+  // check (the mock's form set is incidental to overnight availability).
+  const HS_POLICY = { ...CLIENT_POLICY, skipFormsGate: true };
+
+  it("house-sitting create: succeeds when every covered night is published (no windows)", async () => {
+    const repo = makeHouseSitRepo(new Set(["2026-06-20", "2026-06-21"]));
+    const result = await createBookingCore(
+      { repo, now: HOUSE_SIT_NOW },
+      HS_STAY,
+      HS_POLICY,
+    );
+    expect(result.kind).toBe("success");
+    // Window list must be irrelevant — never consulted for house_sitting.
+    expect(repo.getOpenWindows).not.toHaveBeenCalled();
+    expect(repo.getOpenNights).toHaveBeenCalled();
+  });
+
+  it("house-sitting create: unavailable when a covered night is unpublished", async () => {
+    const repo = makeHouseSitRepo(new Set(["2026-06-20"])); // 06-21 missing
+    const result = await createBookingCore(
+      { repo, now: HOUSE_SIT_NOW },
+      HS_STAY,
+      HS_POLICY,
+    );
+    expect(result.kind).toBe("unavailable");
+    if (result.kind === "unavailable") {
+      expect(result.reason).toMatch(/overnight availability/i);
+    }
   });
 });
