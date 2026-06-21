@@ -118,7 +118,7 @@ function DesignerCredit() {
 /** Shared sheet footer. Rendered once by PageShell in the persistent (site) shell. */
 export function SiteFooter() {
   return (
-    <FooterReveal className="bg-card border-border border-t">
+    <FooterReveal className="bg-card border-border border-t shadow-[var(--shadow-footer)]">
       {/* Inner container aligned to header: same max-width + horizontal padding. */}
       <div className="mx-auto w-full max-w-6xl px-5 sm:px-8">
         {/* ── Desktop: single row ─────────────────────────────────────── */}

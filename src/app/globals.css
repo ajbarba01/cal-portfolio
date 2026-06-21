@@ -159,6 +159,13 @@
      ad-hoc clay drop-shadows). Warm-tinted to sit on the sand base. */
   --elev-1: 0 1px 2px 0 rgb(28 24 19 / 0.06);
   --elev-2: 0 12px 30px -16px rgb(60 40 20 / 0.45);
+  /* Nav underhang — spread (−8) matches blur (8) so the shadow shrinks to the
+     header's left/right edges (no side bleed); the +10 Y offset lets it fall
+     only below, over the page content. */
+  --shadow-nav: 0 10px 20px -14px rgb(60 40 20 / 0.16);
+  /* Footer overhang — mirror of --shadow-nav: same blur/spread cancel the side
+     bleed, the −10 Y offset lets it rise only above, over the page content. */
+  --shadow-footer: 0 -10px 20px -14px rgb(60 40 20 / 0.16);
 
   /* Scroll reveal (effects/reveal.tsx). Fade-in-on-scroll knobs; mirrors
      motion.reveal in design-tokens.ts. distance = 0 ⇒ pure fade — raise to
