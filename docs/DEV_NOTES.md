@@ -7,6 +7,7 @@
 
 ## NOT MVP
 
+- navbar underline vertical width
 - not sure cal discounts are showing up
 - site logo + wordmark typeface (included in seo)
 - paw print effect
