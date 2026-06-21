@@ -37,7 +37,7 @@ export function SiteHeader() {
   return (
     <header
       className={cn(
-        "bg-card border-border border-b",
+        "bg-card border-border border-b shadow-[var(--shadow-nav)]",
         STICKY_NAV && "sticky top-0 z-30",
       )}
     >

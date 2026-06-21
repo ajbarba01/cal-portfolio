@@ -2,8 +2,6 @@
 
 - ensure owing system
 - email system and notification settings for admin and maybe user?
-- finish cal's marketing text
-- add all rover reviews (from cal)
 
 - stripe deployment
 

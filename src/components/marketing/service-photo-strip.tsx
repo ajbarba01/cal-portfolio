@@ -106,7 +106,7 @@ export function ServicePhotoStrip({
             data-ring-exclude
             data-photo-index={index}
             key={photo.src}
-            className="bg-muted group relative aspect-4/5 w-[78%] shrink-0 snap-center overflow-hidden rounded-2xl sm:w-auto"
+            className="bg-muted group relative aspect-4/5 w-[78%] shrink-0 snap-center overflow-hidden sm:w-auto"
           >
             <Image
               src={photo.src}

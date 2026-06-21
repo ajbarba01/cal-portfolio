@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useToast } from "@/components/feedback/toast";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -18,12 +19,14 @@ export function SignOutButton({
   ...props
 }: SignOutButtonProps) {
   const router = useRouter();
+  const toast = useToast();
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   async function handleSignOut() {
     setIsSigningOut(true);
     const supabase = createClient();
     await supabase.auth.signOut();
+    toast.add({ title: "Signed out", description: "See you next time." });
     router.push("/");
     router.refresh();
   }
