@@ -1,0 +1,206 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="drawio" version="26.0.0">
+  <diagram name="cal-portfolio-architecture">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1700" pageHeight="1500" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Title -->
+        <mxCell id="title" value="calbarba.com — Portfolio + Self-Serve Booking  ·  Next.js (App Router) + TypeScript · Supabase · Vercel · Stripe · Resend" style="text;html=1;align=center;verticalAlign=middle;fontSize=18;fontStyle=1;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="40" y="10" width="1600" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- ===== Band A: Clients / route groups ===== -->
+        <mxCell id="bandA" value="CLIENTS · BROWSER — Next.js App Router route groups" style="swimlane;startSize=28;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;fontColor=#1f3a5f;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="40" y="50" width="1600" height="170" as="geometry" />
+        </mxCell>
+        <mxCell id="grpMkt" value="(marketing) — PUBLIC / static&#xa;/ · /about · /services · /gallery&#xa;/reviews · /resources · /contact&#xa;/book/[serviceSlug] (deferred-auth)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eaf2fc;strokeColor=#6c8ebf;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;" vertex="1" parent="bandA">
+          <mxGeometry x="20" y="36" width="370" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="grpAuth" value="(auth) — PUBLIC&#xa;/login · /signup&#xa;/auth/callback&#xa;(Supabase Auth)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eaf2fc;strokeColor=#6c8ebf;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;" vertex="1" parent="bandA">
+          <mxGeometry x="410" y="36" width="370" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="grpAcct" value="(account) — CLIENT (auth)&#xa;/onboarding (meet-greet gate)&#xa;/account · /pets · /forms&#xa;/bookings · /inquiries" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eaf2fc;strokeColor=#6c8ebf;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;" vertex="1" parent="bandA">
+          <mxGeometry x="800" y="36" width="370" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="grpAdmin" value="(admin) — ADMIN (Cal)&#xa;/availability · /bookings · /services&#xa;/settings · /reviews · /clients&#xa;/inquiries  (full in-app admin)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eaf2fc;strokeColor=#6c8ebf;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;" vertex="1" parent="bandA">
+          <mxGeometry x="1190" y="36" width="370" height="120" as="geometry" />
+        </mxCell>
+
+        <!-- ===== Band B: Middleware ===== -->
+        <mxCell id="bandB" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;align=center;verticalAlign=middle;fontStyle=1;fontColor=#4a275f;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="40" y="252" width="1600" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="mwLabel" value="MIDDLEWARE  —  src/proxy.ts → lib/supabase/proxy.ts   ·   Auth-session refresh  +  onboarding gate (status ≠ approved → /onboarding)   ·   role guards at group layouts" style="text;html=1;align=center;verticalAlign=middle;fontStyle=1;fontColor=#4a275f;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="40" y="252" width="1600" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- ===== Band C: App Router / server runtime ===== -->
+        <mxCell id="bandC" value="NEXT.JS APP ROUTER on VERCEL — RSC default · IO at the edges" style="swimlane;startSize=28;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontStyle=1;fontColor=#7a4f00;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="40" y="332" width="1600" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="rscPages" value="RSC Pages / Layouts&#xa;public routes stay static · SEO · instant-nav shell" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2e0;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="bandC">
+          <mxGeometry x="20" y="40" width="500" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="serverActions" value="Server Actions&#xa;createBookingCore · editBookingCore · quote-action · admin actions&#xa;submitInquiry · onboarding-action  (service-role writes)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2e0;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="bandC">
+          <mxGeometry x="540" y="40" width="640" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="apiRoutes" value="API routes&#xa;/api/cron/complete&#xa;/api/cron/series-roll&#xa;/api/stripe webhook" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2e0;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="bandC">
+          <mxGeometry x="1200" y="40" width="360" height="56" as="geometry" />
+        </mxCell>
+
+        <!-- ===== Band D: Feature domains (pure core) ===== -->
+        <mxCell id="bandD" value="FEATURE DOMAINS — src/features/* · pure functions, tested core (ENGINEERING #5)" style="swimlane;startSize=28;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;fontColor=#2d4a22;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="40" y="472" width="1600" height="250" as="geometry" />
+        </mxCell>
+        <mxCell id="fBooking" value="booking&#xa;state-machine · recurrence&#xa;availability · edit/reschedule&#xa;requirements gate · &lt;Scheduler&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e6f2e3;strokeColor=#82b366;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;" vertex="1" parent="bandD">
+          <mxGeometry x="20" y="40" width="300" height="86" as="geometry" />
+        </mxCell>
+        <mxCell id="fPricing" value="pricing&#xa;quote() dispatch by type&#xa;modifiers: travel/recurring/Kiche&#xa;geocoding adapter" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e6f2e3;strokeColor=#82b366;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;" vertex="1" parent="bandD">
+          <mxGeometry x="340" y="40" width="300" height="86" as="geometry" />
+        </mxCell>
+        <mxCell id="fPayments" value="payments&#xa;client-balance · debits&#xa;Stripe behind adapter&#xa;refund (single-writer)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e6f2e3;strokeColor=#82b366;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;" vertex="1" parent="bandD">
+          <mxGeometry x="660" y="40" width="300" height="86" as="geometry" />
+        </mxCell>
+        <mxCell id="fAccounts" value="accounts&#xa;form-registry (Zod per key)&#xa;owner/home_access/home_sitting&#xa;onboarding · photo crop" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e6f2e3;strokeColor=#82b366;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;" vertex="1" parent="bandD">
+          <mxGeometry x="980" y="40" width="300" height="86" as="geometry" />
+        </mxCell>
+        <mxCell id="fNotif" value="notifications&#xa;notifier · resend-notifier&#xa;completion / reminder crons&#xa;emails (transactional)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e6f2e3;strokeColor=#82b366;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;" vertex="1" parent="bandD">
+          <mxGeometry x="1300" y="40" width="280" height="86" as="geometry" />
+        </mxCell>
+        <mxCell id="fAdmin" value="admin&#xa;availability/clients/overnight&#xa;client-search · onboarding-badge" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e6f2e3;strokeColor=#82b366;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;" vertex="1" parent="bandD">
+          <mxGeometry x="20" y="146" width="300" height="86" as="geometry" />
+        </mxCell>
+        <mxCell id="fInquiries" value="inquiries&#xa;submitInquiry (honeypot+rate-limit)&#xa;reply-draft · shared list UI" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e6f2e3;strokeColor=#82b366;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;" vertex="1" parent="bandD">
+          <mxGeometry x="340" y="146" width="300" height="86" as="geometry" />
+        </mxCell>
+        <mxCell id="fGallery" value="gallery&#xa;gallery-images · masonry+lightbox&#xa;blur placeholders" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e6f2e3;strokeColor=#82b366;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;" vertex="1" parent="bandD">
+          <mxGeometry x="660" y="146" width="300" height="86" as="geometry" />
+        </mxCell>
+        <mxCell id="fLib" value="lib/ (business-agnostic infra)&#xa;haversine (pure miles) · format-money/phone&#xa;number-input · admin-guard · supabase clients" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e6f2e3;strokeColor=#82b366;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=11;" vertex="1" parent="bandD">
+          <mxGeometry x="980" y="146" width="600" height="86" as="geometry" />
+        </mxCell>
+
+        <!-- ===== Band E: Adapters ===== -->
+        <mxCell id="bandE" value="VENDOR ADAPTERS — swappable, IO at edges (ENGINEERING #4)" style="swimlane;startSize=28;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1;fontColor=#7a5c00;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="40" y="752" width="1600" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="adStripe" value="StripeGateway&#xa;PaymentIntents · refunds" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff8dc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="bandE">
+          <mxGeometry x="20" y="40" width="400" height="46" as="geometry" />
+        </mxCell>
+        <mxCell id="adResend" value="Resend mailer&#xa;confirmations · reminders" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff8dc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="bandE">
+          <mxGeometry x="600" y="40" width="400" height="46" as="geometry" />
+        </mxCell>
+        <mxCell id="adGeo" value="ZIP-centroid geocoder&#xa;offline US dataset · ZIP→lat/lng (no API)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff8dc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="bandE">
+          <mxGeometry x="1180" y="40" width="400" height="46" as="geometry" />
+        </mxCell>
+
+        <!-- ===== Band F: Supabase ===== -->
+        <mxCell id="bandF" value="SUPABASE — Postgres + Auth + RLS + Realtime + Storage" style="swimlane;startSize=28;html=1;fillColor=#d5e8d4;strokeColor=#3c8c3c;fontStyle=1;fontColor=#1f4d1f;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="40" y="882" width="1600" height="280" as="geometry" />
+        </mxCell>
+        <mxCell id="pgTables" value="Postgres (money = integer cents · UTC stored, render America/Denver)" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#3c8c3c;verticalAlign=top;spacingTop=8;fontStyle=1;fontSize=11;" vertex="1" parent="bandF">
+          <mxGeometry x="20" y="40" width="980" height="220" as="geometry" />
+        </mxCell>
+        <mxCell id="tbl1" value="profiles · pets · booking_pets&#xa;services · availability_windows&#xa;overnight_nights · settings" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eef6ee;strokeColor=#82b366;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=10;" vertex="1" parent="bandF">
+          <mxGeometry x="50" y="86" width="290" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="tbl2" value="bookings · booking_series&#xa;form_responses · authorizations&#xa;payments · client_debits" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eef6ee;strokeColor=#82b366;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=10;" vertex="1" parent="bandF">
+          <mxGeometry x="360" y="86" width="290" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="tbl3" value="reviews (native+rover)&#xa;inquiries&#xa;— RLS deny-by-default&#xa;+ column-level guard" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eef6ee;strokeColor=#82b366;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;fontSize=10;" vertex="1" parent="bandF">
+          <mxGeometry x="670" y="86" width="290" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="tblConstraint" value="btree_gist exclusion constraint — no same-concurrency-class overlap (enforced in DB, not app · ENGINEERING #11)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="bandF">
+          <mxGeometry x="50" y="180" width="910" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="sbAuth" value="Auth&#xa;auth.users&#xa;(client_id = uid)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="bandF">
+          <mxGeometry x="1030" y="40" width="270" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="sbRealtime" value="Realtime&#xa;live availability → /book/[slug]" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="bandF">
+          <mxGeometry x="1030" y="100" width="270" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="sbStorage" value="Storage (private buckets)&#xa;pet-photos · avatars · gallery&#xa;short-lived signed URLs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="bandF">
+          <mxGeometry x="1030" y="160" width="270" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="sbRls" value="RLS policies&#xa;per-client / public-read /&#xa;admin-override · service-role&#xa;busy-range (identity-free)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="bandF">
+          <mxGeometry x="1320" y="40" width="260" height="180" as="geometry" />
+        </mxCell>
+
+        <!-- ===== Band G: External SaaS ===== -->
+        <mxCell id="bandG" value="EXTERNAL SaaS / SCHEDULED" style="swimlane;startSize=28;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontStyle=1;fontColor=#333333;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1192" width="1600" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="extStripe" value="Stripe&#xa;prepay · webhook → payment_status (sole writer)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="bandG">
+          <mxGeometry x="20" y="40" width="380" height="46" as="geometry" />
+        </mxCell>
+        <mxCell id="extResend" value="Resend&#xa;email delivery (confirmations / reminders)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="bandG">
+          <mxGeometry x="440" y="40" width="380" height="46" as="geometry" />
+        </mxCell>
+        <mxCell id="extCron" value="Vercel Cron&#xa;daily: complete · series-roll · reminder" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="bandG">
+          <mxGeometry x="860" y="40" width="360" height="46" as="geometry" />
+        </mxCell>
+        <mxCell id="extVercel" value="Vercel&#xa;hosting · static public routes · edge" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="bandG">
+          <mxGeometry x="1260" y="40" width="320" height="46" as="geometry" />
+        </mxCell>
+
+        <!-- ===== Edges (band-to-band flow) ===== -->
+        <mxCell id="eAB" value="every request" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#6c8ebf;fontSize=10;" edge="1" parent="1" source="bandA" target="bandB">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="eBC" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#9673a6;" edge="1" parent="1" source="bandB" target="bandC">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="eCD" value="calls pure core" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#d79b00;fontSize=10;" edge="1" parent="1" source="bandC" target="bandD">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="eDE" value="vendor IO" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.3;exitY=1;exitDx=0;exitDy=0;entryX=0.3;entryY=0;entryDx=0;entryDy=0;strokeColor=#82b366;fontSize=10;" edge="1" parent="1" source="bandD" target="bandE">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="eDF" value="queries / mutations (RLS)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.7;exitY=1;exitDx=0;exitDy=0;entryX=0.7;entryY=0;entryDx=0;entryDy=0;strokeColor=#82b366;fontSize=10;" edge="1" parent="1" source="bandD" target="bandF">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1160" y="862" />
+              <mxPoint x="1160" y="872" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="eEF" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.3;exitY=1;exitDx=0;exitDy=0;entryX=0.3;entryY=0;entryDx=0;entryDy=0;strokeColor=#d6b656;" edge="1" parent="1" source="bandE" target="bandF">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="eEG" value="HTTPS API" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.3;entryY=0;entryDx=0;entryDy=0;strokeColor=#666666;fontSize=10;dashed=1;" edge="1" parent="1" source="adStripe" target="extStripe">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="eResend" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;strokeColor=#666666;dashed=1;" edge="1" parent="1" source="adResend" target="extResend">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="eWebhook" value="webhook: payment_status (single writer)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#9673a6;fontSize=10;dashed=1;startArrow=none;endArrow=classic;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="extStripe" target="apiRoutes">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1670" y="1215" />
+              <mxPoint x="1670" y="402" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="eCronRoll" value="daily roll / promote / complete / remind" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#d79b00;fontSize=10;dashed=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.85;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="extCron" target="apiRoutes">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1040" y="1170" />
+              <mxPoint x="1450" y="1170" />
+              <mxPoint x="1450" y="452" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="eRealtime" value="live availability (Realtime)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#6c8ebf;fontSize=10;dashed=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="sbRealtime" target="grpMkt">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="20" y="975" />
+              <mxPoint x="20" y="146" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

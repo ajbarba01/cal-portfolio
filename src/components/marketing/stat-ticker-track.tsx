@@ -8,10 +8,9 @@ import * as React from "react";
  *
  * - Idle: the offset drifts rightward at a constant baseline velocity (one
  *   group width per ~38s, matching the original CSS marquee speed).
- * - Hover (mouse only): baseline drift is ignored and the track follows the
- *   cursor 1:1 but eased — moving the mouse an inch slides the ribbon an inch,
- *   smoothed by an exponential lerp so it glides rather than snaps. Holding the
- *   cursor still lets the ribbon settle to a stop.
+ * - Hover (mouse only): the cursor does NOT steer the ribbon. The drift simply
+ *   decelerates, its velocity decaying exponentially toward a near-stop so the
+ *   ribbon eases to rest under the pointer.
  * - On leave: whatever momentum the ribbon carried is preserved and decays
  *   exponentially back to the baseline drift — iOS-style kinetic deceleration,
  *   `v = vBase + (v - vBase) * exp(-dt/τ)` (Ariya Hidayat's kinetic model).
@@ -22,10 +21,10 @@ import * as React from "react";
 
 // One group width per this many ms — matches the original 38s CSS marquee.
 const DRIFT_PERIOD_MS = 38000;
-// Time-constant for the hover follow lerp (smaller = snappier catch-up).
-const HOVER_TAU = 75;
-// Momentum decay time-constant on release (iOS kinetic standard ≈ 325ms).
-const FRICTION_TAU = 325;
+// Single time-constant for both the hover deceleration and the release accel
+// back to baseline drift — kept equal so the ribbon eases in and out at the
+// same rate (smaller = snappier).
+const FRICTION_TAU = 160;
 // Clamp frame delta so a backgrounded tab can't produce a huge jump on return.
 const MAX_DT = 64;
 
@@ -40,7 +39,6 @@ export function StatTickerTrack({ children }: { children: React.ReactNode }) {
     let frame = 0;
     let last = performance.now();
     let offset = 0; // px; rendered modulo the group width
-    let target = 0; // px; hover follow target
     let hovering = false;
 
     // Width of one item group (the first <ul>) — the loop wraps over this.
@@ -69,12 +67,9 @@ export function StatTickerTrack({ children }: { children: React.ReactNode }) {
       last = now;
 
       if (hovering) {
-        // Eased 1:1 follow: lerp toward the cursor-driven target, frame-rate
-        // independent. Track the resulting velocity so a flick out carries.
-        const k = 1 - Math.exp(-dt / HOVER_TAU);
-        const next = offset + (target - offset) * k;
-        velocity = dt > 0 ? (next - offset) / dt : velocity;
-        offset = next;
+        // Decelerate toward a near-stop while hovered (no cursor coupling).
+        velocity *= Math.exp(-dt / FRICTION_TAU);
+        offset += velocity * dt;
       } else {
         // Kinetic decay of leftover momentum back toward the baseline drift.
         const f = Math.exp(-dt / FRICTION_TAU);
@@ -89,10 +84,6 @@ export function StatTickerTrack({ children }: { children: React.ReactNode }) {
     const onEnter = (e: PointerEvent) => {
       if (e.pointerType !== "mouse") return;
       hovering = true;
-      target = offset; // anchor so the follow starts without a jump
-    };
-    const onMove = (e: PointerEvent) => {
-      if (hovering) target += e.movementX; // 1:1 cursor delta
     };
     const onLeave = (e: PointerEvent) => {
       if (e.pointerType !== "mouse") return;
@@ -100,7 +91,6 @@ export function StatTickerTrack({ children }: { children: React.ReactNode }) {
     };
 
     el.addEventListener("pointerenter", onEnter);
-    el.addEventListener("pointermove", onMove);
     el.addEventListener("pointerleave", onLeave);
     frame = requestAnimationFrame(tick);
 
@@ -108,7 +98,6 @@ export function StatTickerTrack({ children }: { children: React.ReactNode }) {
       cancelAnimationFrame(frame);
       ro.disconnect();
       el.removeEventListener("pointerenter", onEnter);
-      el.removeEventListener("pointermove", onMove);
       el.removeEventListener("pointerleave", onLeave);
     };
   }, []);

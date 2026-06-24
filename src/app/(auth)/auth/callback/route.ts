@@ -16,7 +16,8 @@ export async function GET(request: NextRequest) {
 
     if (!error) {
       // Redirect to onboarding; the account layout guard forwards to /account once complete.
-      return NextResponse.redirect(`${origin}/onboarding`);
+      // `verified=1` lets the landing page fire a one-time "email verified" toast.
+      return NextResponse.redirect(`${origin}/onboarding?verified=1`);
     }
   }
 

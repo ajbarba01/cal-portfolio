@@ -15,6 +15,7 @@ import {
   toRuleSettings,
   passesGuards,
   fitsWindow,
+  fitsOvernightNights,
   type BookingServiceDeps,
   type CreateBookingInput,
 } from "./booking-service-shared";
@@ -54,10 +55,11 @@ export type { CreateBookingInput };
  *       (single source of truth — service/settings/quoteInput/breakdown are the
  *       SAME objects the preview returned; no re-load, no recompute, no drift).
  *  6. Enforce booking-rule guards (hours-of-day, lead time, max advance) per occurrence.
- *  7. Enforce fitsWindow (availability-window containment) per occurrence.
- *     BEHAVIOR: a booking only succeeds if it falls inside an admin-defined
- *     availability window. Zero windows → all bookings return unavailable.
- *     This is the design intent: windows define Cal's availability.
+ *  7. Enforce availability containment per occurrence, gated by service type:
+ *     time-based services must fit an open availability_window; house_sitting
+ *     (a multi-day stay that can't fit an intraday window) must have every
+ *     covered night in overnight_nights. Either empty → unavailable. This is the
+ *     design intent: windows/nights define Cal's availability.
  *  8–9. Derive initial status via state machine.
  * 10. Insert all rows (reusing the one quoteInput/breakdown) via service role;
  *     catch 23P01 → slot_taken.
@@ -129,28 +131,42 @@ export async function createBookingCore(
     }
   }
 
-  // 7. Availability-window containment (policy-aware).
-  // DESIGN INTENT: availability_windows define when Cal is available to work.
-  // A booking is only accepted if EVERY occurrence falls fully inside at least
-  // one open window. Zero windows → all bookings are unavailable (correct:
-  // Cal has not published any open slots yet).
+  // 7. Availability containment (policy-aware), gated by service type.
+  // DESIGN INTENT: a booking is only accepted if EVERY occurrence is available.
+  // - Time-based services: each occurrence must fall fully inside an open
+  //   intraday availability_window. Zero windows → unavailable.
+  // - house_sitting: a stay is ONE multi-day occurrence and can never fit an
+  //   intraday window. Overnight availability is the per-night overnight_nights
+  //   set — the sole source of truth (migration 20260603140000). Every covered
+  //   night must be published, or the occurrence is unavailable.
   //
-  // Fetched once here, unconditionally — even when skipWindowFit is set.
-  // The per-occurrence loop below needs the window list to emit a warning
-  // for each skipped occurrence; pulling it inside the skipWindowFit branch
-  // would silently suppress those warnings.
-  const openWindows = await repo.getOpenWindows(now);
+  // Fetched once here, unconditionally — even when skipWindowFit is set — so the
+  // per-occurrence loop can emit a warning for each skipped occurrence (pulling
+  // the fetch inside the skipWindowFit branch would silently suppress them).
+  const isHouseSitting = service.pricing_type === "house_sitting";
+  const openWindows = isHouseSitting ? [] : await repo.getOpenWindows(now);
+  const openNights = isHouseSitting
+    ? await repo.getOpenNights(now)
+    : new Set<string>();
   for (const occStart of occurrences) {
     const occEnd = new Date(occStart.getTime() + durationMs);
-    if (!fitsWindow({ startsAt: occStart, endsAt: occEnd }, openWindows)) {
+    const occ = { startsAt: occStart, endsAt: occEnd };
+    const available = isHouseSitting
+      ? fitsOvernightNights(occ, openNights)
+      : fitsWindow(occ, openWindows);
+    if (!available) {
       if (policy.skipWindowFit) {
         warnings.push(
-          `Occurrence at ${occStart.toISOString()} is outside any published availability window.`,
+          isHouseSitting
+            ? `Occurrence at ${occStart.toISOString()} is outside Cal's published overnight availability.`
+            : `Occurrence at ${occStart.toISOString()} is outside any published availability window.`,
         );
       } else {
         return {
           kind: "unavailable",
-          reason: `Occurrence at ${occStart.toISOString()} does not fall within any open availability window.`,
+          reason: isHouseSitting
+            ? `Occurrence at ${occStart.toISOString()} does not fall within Cal's overnight availability.`
+            : `Occurrence at ${occStart.toISOString()} does not fall within any open availability window.`,
         };
       }
     }

@@ -1,0 +1,623 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cal Barba — Wordmark Explorations</title>
+
+    <!-- Google Fonts: display/script candidates + the live system faces -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,300..900,0..100,0..1;1,9..144,300..900,0..100,0..1&family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&family=Spectral:ital,wght@0,200..800;1,200..800&family=DM+Serif+Display:ital@0;1&family=Cormorant+Garamond:ital,wght@0,300..700;1,300..700&family=Marcellus&family=Bitter:ital,wght@0,100..900;1,100..900&family=Caveat:wght@400..700&family=Mansalva&family=Kalam:wght@300;400;700&family=Sacramento&family=Dancing+Script:wght@400..700&family=Yellowtail&family=Pacifico&family=Petit+Formal+Script&family=Public+Sans:ital,wght@0,100..900;1,100..900&display=swap"
+      rel="stylesheet"
+    />
+
+    <style>
+      /* ── Live "Trail" tokens (copied from src/app/globals.css) ───────── */
+      :root {
+        --sand-0: #ffffff;
+        --sand-50: #faf6f0;
+        --sand-100: #f2ece1;
+        --sand-200: #e7decf;
+        --sand-400: #b6a88f;
+        --sand-500: #6e6354;
+        --sand-700: #5a5044;
+        --sand-800: #322b22;
+        --sand-900: #2b2520;
+        --sand-925: #241f19;
+        --sand-950: #1c1813;
+
+        --clay-fill: #ae5a35;
+        --clay-strong: #8a4226;
+        --clay-soft: #e7d8cc;
+        --clay-light: #e5946b;
+        --clay-hot: #d2541a;
+
+        --page-bg: var(--sand-50);
+        --page-fg: var(--sand-900);
+        --card-bg: var(--sand-0);
+        --muted-fg: var(--sand-500);
+        --line: var(--sand-200);
+        --brand-text: var(--clay-strong);
+      }
+
+      [data-theme="dark"] {
+        --page-bg: var(--sand-950);
+        --page-fg: var(--sand-50);
+        --card-bg: var(--sand-925);
+        --muted-fg: var(--sand-400);
+        --line: rgba(255, 255, 255, 0.1);
+        --brand-text: var(--clay-light);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+      }
+      body {
+        margin: 0;
+        background: var(--page-bg);
+        color: var(--page-fg);
+        font-family: "Public Sans", system-ui, sans-serif;
+        line-height: 1.5;
+        transition: background 0.25s ease, color 0.25s ease;
+      }
+
+      .wrap {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: clamp(2rem, 5vw, 5rem) clamp(1.25rem, 4vw, 3rem) 6rem;
+      }
+
+      /* ── Header / controls ───────────────────────────────────────────── */
+      .topbar {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-bottom: 3.5rem;
+      }
+      .kicker {
+        font-size: 0.72rem;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: var(--brand-text);
+        font-weight: 600;
+        margin: 0 0 0.6rem;
+      }
+      .doc-title {
+        font-family: "Fraunces", serif;
+        font-optical-sizing: auto;
+        font-weight: 600;
+        font-size: clamp(1.9rem, 4vw, 2.8rem);
+        line-height: 1.05;
+        margin: 0;
+        max-width: 22ch;
+      }
+      .lede {
+        color: var(--muted-fg);
+        max-width: 60ch;
+        margin: 1rem 0 0;
+        font-size: 1.02rem;
+      }
+      .theme-toggle {
+        appearance: none;
+        border: 1px solid var(--line);
+        background: var(--card-bg);
+        color: var(--page-fg);
+        font: inherit;
+        font-size: 0.8rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        padding: 0.55rem 1rem;
+        border-radius: 999px;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: border-color 0.2s ease;
+      }
+      .theme-toggle:hover {
+        border-color: var(--brand-text);
+      }
+      .theme-toggle:focus-visible {
+        outline: 2px solid var(--clay-strong);
+        outline-offset: 2px;
+      }
+
+      /* ── Recommendation hero ─────────────────────────────────────────── */
+      .hero {
+        border: 1px solid var(--line);
+        border-radius: 28px;
+        background: var(--card-bg);
+        padding: clamp(2rem, 5vw, 3.5rem);
+        margin-bottom: 4rem;
+        position: relative;
+        overflow: hidden;
+      }
+      .hero::before {
+        /* warm clay bloom, echoing --bg-ombre */
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(
+          120% 80% at 15% -10%,
+          rgba(174, 90, 53, 0.12),
+          transparent 55%
+        );
+        pointer-events: none;
+      }
+      .hero-tag {
+        position: relative;
+        font-size: 0.7rem;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        font-weight: 700;
+        color: var(--brand-text);
+        margin: 0 0 1.5rem;
+      }
+      .hero-mark {
+        position: relative;
+        font-family: "Caveat", cursive;
+        font-weight: 600;
+        font-size: clamp(3.5rem, 12vw, 8rem);
+        line-height: 0.9;
+        margin: 0;
+        letter-spacing: -0.01em;
+      }
+      .hero-sub {
+        position: relative;
+        font-family: "Public Sans", sans-serif;
+        text-transform: uppercase;
+        letter-spacing: 0.34em;
+        font-size: clamp(0.62rem, 1.6vw, 0.82rem);
+        font-weight: 600;
+        color: var(--muted-fg);
+        margin: 0.4rem 0 0 0.2rem;
+      }
+      .hero-note {
+        position: relative;
+        margin: 2rem 0 0;
+        max-width: 62ch;
+        color: var(--muted-fg);
+        font-size: 0.98rem;
+      }
+      .hero-note strong {
+        color: var(--page-fg);
+        font-weight: 600;
+      }
+
+      /* In-context: a faux header bar to judge the mark at nav scale */
+      .navbar-demo {
+        position: relative;
+        margin-top: 2.25rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 0.85rem 1.4rem;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: var(--page-bg);
+      }
+      .navbar-demo .nav-mark {
+        font-family: "Caveat", cursive;
+        font-weight: 600;
+        font-size: 1.9rem;
+        line-height: 1;
+      }
+      .navbar-demo nav {
+        display: flex;
+        gap: 1.4rem;
+        font-size: 0.82rem;
+        color: var(--muted-fg);
+        font-weight: 500;
+      }
+      .navbar-demo .nav-cta {
+        background: var(--clay-fill);
+        color: #fff;
+        padding: 0.45rem 0.95rem;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        font-weight: 600;
+      }
+
+      /* ── Direction sections ──────────────────────────────────────────── */
+      .section-head {
+        display: flex;
+        align-items: baseline;
+        gap: 1rem;
+        margin: 0 0 1.5rem;
+        padding-top: 1rem;
+      }
+      .section-index {
+        font-family: "Fraunces", serif;
+        font-weight: 600;
+        font-size: 1rem;
+        color: var(--brand-text);
+        font-variant-numeric: tabular-nums;
+      }
+      .section-title {
+        font-family: "Fraunces", serif;
+        font-weight: 600;
+        font-size: clamp(1.3rem, 3vw, 1.7rem);
+        margin: 0;
+      }
+      .section-desc {
+        color: var(--muted-fg);
+        margin: 0.3rem 0 2rem;
+        max-width: 64ch;
+        font-size: 0.95rem;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 1.1rem;
+        margin-bottom: 4rem;
+      }
+      .card {
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: var(--card-bg);
+        padding: 1.6rem 1.6rem 1.4rem;
+        display: flex;
+        flex-direction: column;
+        min-height: 190px;
+      }
+      .card .mark {
+        font-size: clamp(2.4rem, 6vw, 3.2rem);
+        line-height: 1.05;
+        margin: 0 0 auto;
+        color: var(--page-fg);
+        word-break: break-word;
+      }
+      .card .meta {
+        margin-top: 1.4rem;
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 0.75rem;
+        border-top: 1px solid var(--line);
+        padding-top: 0.85rem;
+      }
+      .card .font-name {
+        font-weight: 600;
+        font-size: 0.82rem;
+        letter-spacing: 0.02em;
+      }
+      .card .font-note {
+        color: var(--muted-fg);
+        font-size: 0.78rem;
+        text-align: right;
+        max-width: 60%;
+      }
+      .card.pick {
+        border-color: var(--clay-fill);
+        box-shadow: inset 0 0 0 1px var(--clay-fill);
+      }
+      .pick-flag {
+        align-self: flex-start;
+        font-size: 0.62rem;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        font-weight: 700;
+        color: #fff;
+        background: var(--clay-fill);
+        padding: 0.18rem 0.5rem;
+        border-radius: 999px;
+        margin-bottom: 1rem;
+      }
+
+      /* ── Font assignments ────────────────────────────────────────────── */
+      .f-caveat { font-family: "Caveat", cursive; font-weight: 600; }
+      .f-mansalva { font-family: "Mansalva", cursive; }
+      .f-kalam { font-family: "Kalam", cursive; }
+      .f-sacramento { font-family: "Sacramento", cursive; font-size: clamp(3rem, 7vw, 4rem) !important; }
+      .f-dancing { font-family: "Dancing Script", cursive; font-weight: 600; }
+      .f-yellowtail { font-family: "Yellowtail", cursive; }
+      .f-pacifico { font-family: "Pacifico", cursive; }
+      .f-petit { font-family: "Petit Formal Script", cursive; font-size: clamp(2.6rem, 6vw, 3.4rem) !important; }
+
+      .f-fraunces-soft {
+        font-family: "Fraunces", serif;
+        font-weight: 600;
+        font-variation-settings: "opsz" 144, "SOFT" 60, "WONK" 1;
+      }
+      .f-fraunces-black {
+        font-family: "Fraunces", serif;
+        font-weight: 900;
+        font-variation-settings: "opsz" 144, "SOFT" 0, "WONK" 0;
+        letter-spacing: -0.015em;
+      }
+      .f-fraunces-italic {
+        font-family: "Fraunces", serif;
+        font-weight: 500;
+        font-style: italic;
+        font-variation-settings: "opsz" 144, "SOFT" 40, "WONK" 1;
+      }
+      .f-newsreader { font-family: "Newsreader", serif; font-weight: 500; font-style: italic; }
+      .f-spectral { font-family: "Spectral", serif; font-weight: 500; }
+      .f-dmserif { font-family: "DM Serif Display", serif; }
+      .f-dmserif-i { font-family: "DM Serif Display", serif; font-style: italic; }
+      .f-cormorant { font-family: "Cormorant Garamond", serif; font-weight: 600; }
+      .f-bitter { font-family: "Bitter", serif; font-weight: 700; }
+
+      .f-marcellus {
+        font-family: "Marcellus", serif;
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        font-size: clamp(1.8rem, 4.5vw, 2.4rem) !important;
+      }
+      .f-public-caps {
+        font-family: "Public Sans", sans-serif;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .f-cormorant-caps {
+        font-family: "Cormorant Garamond", serif;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.18em;
+        font-size: clamp(1.9rem, 4.5vw, 2.5rem) !important;
+      }
+
+      footer {
+        color: var(--muted-fg);
+        font-size: 0.82rem;
+        border-top: 1px solid var(--line);
+        padding-top: 1.5rem;
+      }
+      footer code {
+        font-family: ui-monospace, monospace;
+        background: var(--sand-100);
+        padding: 0.1rem 0.35rem;
+        border-radius: 4px;
+        color: var(--page-fg);
+      }
+      [data-theme="dark"] footer code { background: var(--sand-800); }
+
+      @media (prefers-reduced-motion: reduce) {
+        * { transition: none !important; }
+      }
+    </style>
+  </head>
+
+  <body data-theme="light">
+    <div class="wrap">
+      <div class="topbar">
+        <div>
+          <p class="kicker">Wordmark study · calbarba.com</p>
+          <h1 class="doc-title">Finding the signature for Cal&nbsp;Barba</h1>
+          <p class="lede">
+            The mark sits in the header beside Fraunces headings and Public Sans
+            body, on the warm Trail palette. Three directions below — each a
+            real take on the name, not a font sampler. Toggle dark to judge
+            contrast both ways.
+          </p>
+        </div>
+        <button class="theme-toggle" id="themeBtn" type="button">
+          Switch to dark
+        </button>
+      </div>
+
+      <!-- ── RECOMMENDATION ─────────────────────────────────────────── -->
+      <section class="hero">
+        <p class="hero-tag">My pick — a signed name</p>
+        <p class="hero-mark f-caveat">Cal Barba</p>
+        <p class="hero-sub">Dog Walking &amp; House Sitting</p>
+        <p class="hero-note">
+          <strong>Caveat, the felt-tip signature.</strong> A solo
+          keeper-of-dogs is trusted as a <em>person</em>, not a logo — a
+          handwritten name reads like Cal signed the card themselves. It's warm
+          and human without tipping into wedding-invite territory, stays legible
+          at nav size, and leaves all the editorial weight to Fraunces so the two
+          never compete. The clipped Public Sans caps underneath do the literal
+          job — saying what the business is — so the script is free to be
+          personality.
+        </p>
+
+        <div class="navbar-demo">
+          <span class="nav-mark f-caveat">Cal Barba</span>
+          <nav>
+            <span>Services</span><span>About</span><span>Reviews</span>
+            <span class="nav-cta">Book</span>
+          </nav>
+        </div>
+      </section>
+
+      <!-- ── DIRECTION 1: Signature scripts ─────────────────────────── -->
+      <div class="section-head">
+        <span class="section-index">01</span>
+        <h2 class="section-title">Signature — the name in a hand</h2>
+      </div>
+      <p class="section-desc">
+        Personal, warm, trustworthy. The risk is cuteness; the controlled,
+        single-weight hands stay on the right side of it. Pair every one with
+        clipped Public Sans caps for the descriptor.
+      </p>
+      <div class="grid">
+        <div class="card pick">
+          <span class="pick-flag">Recommended</span>
+          <p class="mark f-caveat">Cal Barba</p>
+          <div class="meta">
+            <span class="font-name">Caveat</span>
+            <span class="font-note">Felt-tip, friendly, legible small</span>
+          </div>
+        </div>
+        <div class="card">
+          <p class="mark f-mansalva">Cal Barba</p>
+          <div class="meta">
+            <span class="font-name">Mansalva</span>
+            <span class="font-note">Marker hand with more grit / texture</span>
+          </div>
+        </div>
+        <div class="card">
+          <p class="mark f-kalam">Cal Barba</p>
+          <div class="meta">
+            <span class="font-name">Kalam</span>
+            <span class="font-note">Rounder, casual, very approachable</span>
+          </div>
+        </div>
+        <div class="card">
+          <p class="mark f-sacramento">Cal Barba</p>
+          <div class="meta">
+            <span class="font-name">Sacramento</span>
+            <span class="font-note">Monoline cursive — elegant, dressier</span>
+          </div>
+        </div>
+        <div class="card">
+          <p class="mark f-dancing">Cal Barba</p>
+          <div class="meta">
+            <span class="font-name">Dancing Script</span>
+            <span class="font-note">The classic flowing script — familiar</span>
+          </div>
+        </div>
+        <div class="card">
+          <p class="mark f-yellowtail">Cal Barba</p>
+          <div class="meta">
+            <span class="font-name">Yellowtail</span>
+            <span class="font-note">Brush, retro signage — more energy</span>
+          </div>
+        </div>
+        <div class="card">
+          <p class="mark f-pacifico">Cal Barba</p>
+          <div class="meta">
+            <span class="font-name">Pacifico</span>
+            <span class="font-note">Rounded brush — playful, café-leaning</span>
+          </div>
+        </div>
+        <div class="card">
+          <p class="mark f-petit">Cal Barba</p>
+          <div class="meta">
+            <span class="font-name">Petit Formal Script</span>
+            <span class="font-note">Delicate, formal — most "boutique"</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── DIRECTION 2: Editorial serif ───────────────────────────── -->
+      <div class="section-head">
+        <span class="section-index">02</span>
+        <h2 class="section-title">Editorial — cohere with Fraunces</h2>
+      </div>
+      <p class="section-desc">
+        The safe, system-true path: the wordmark <em>is</em> the heading face,
+        pushed to display weight. Reads premium and editorial; the cost is it
+        feels institutional rather than personal — less "Cal," more "studio."
+      </p>
+      <div class="grid">
+        <div class="card">
+          <p class="mark f-fraunces-soft">Cal Barba</p>
+          <div class="meta">
+            <span class="font-name">Fraunces · soft + wonk</span>
+            <span class="font-note">On-brand, warmed up — top serif pick</span>
+          </div>
+        </div>
+        <div class="card">
+          <p class="mark f-fraunces-italic">Cal Barba</p>
+          <div class="meta">
+            <span class="font-name">Fraunces · italic</span>
+            <span class="font-note">Editorial swing, still the house face</span>
+          </div>
+        </div>
+        <div class="card">
+          <p class="mark f-fraunces-black">Cal Barba</p>
+          <div class="meta">
+            <span class="font-name">Fraunces · black</span>
+            <span class="font-note">Loud, confident, modern-vintage</span>
+          </div>
+        </div>
+        <div class="card">
+          <p class="mark f-newsreader">Cal Barba</p>
+          <div class="meta">
+            <span class="font-name">Newsreader italic</span>
+            <span class="font-note">Literary, soft — gentle alt to Fraunces</span>
+          </div>
+        </div>
+        <div class="card">
+          <p class="mark f-dmserif-i">Cal Barba</p>
+          <div class="meta">
+            <span class="font-name">DM Serif Display italic</span>
+            <span class="font-note">High-contrast, dramatic, very display</span>
+          </div>
+        </div>
+        <div class="card">
+          <p class="mark f-cormorant">Cal Barba</p>
+          <div class="meta">
+            <span class="font-name">Cormorant Garamond</span>
+            <span class="font-note">Refined, airy, fashion-adjacent</span>
+          </div>
+        </div>
+        <div class="card">
+          <p class="mark f-bitter">Cal Barba</p>
+          <div class="meta">
+            <span class="font-name">Bitter</span>
+            <span class="font-note">Slab — sturdy, outdoorsy, grounded</span>
+          </div>
+        </div>
+        <div class="card">
+          <p class="mark f-spectral">Cal Barba</p>
+          <div class="meta">
+            <span class="font-name">Spectral</span>
+            <span class="font-note">Calm, bookish, understated</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── DIRECTION 3: Refined caps ──────────────────────────────── -->
+      <div class="section-head">
+        <span class="section-index">03</span>
+        <h2 class="section-title">Set caps — quiet & architectural</h2>
+      </div>
+      <p class="section-desc">
+        Letterspaced capitals: the most restrained, "established small brand"
+        read. No personality risk, but no warmth either — works best if a paw /
+        trail glyph carries the character instead of the type.
+      </p>
+      <div class="grid">
+        <div class="card">
+          <p class="mark f-marcellus">Cal Barba</p>
+          <div class="meta">
+            <span class="font-name">Marcellus</span>
+            <span class="font-note">Roman inscriptional caps — timeless</span>
+          </div>
+        </div>
+        <div class="card">
+          <p class="mark f-cormorant-caps">Cal Barba</p>
+          <div class="meta">
+            <span class="font-name">Cormorant caps</span>
+            <span class="font-note">Elegant, high-contrast capitals</span>
+          </div>
+        </div>
+        <div class="card">
+          <p class="mark f-public-caps">Cal Barba</p>
+          <div class="meta">
+            <span class="font-name">Public Sans heavy</span>
+            <span class="font-note">System-true, modern, no extra face</span>
+          </div>
+        </div>
+      </div>
+
+      <footer>
+        Live tokens pulled from <code>src/app/globals.css</code> · all candidates
+        are Google Fonts (free, self-hostable via <code>next/font</code>). Tell me
+        which direction lands and I'll wire the winner into the header + theme.
+      </footer>
+    </div>
+
+    <script>
+      const btn = document.getElementById("themeBtn");
+      const body = document.body;
+      btn.addEventListener("click", () => {
+        const dark = body.getAttribute("data-theme") === "dark";
+        body.setAttribute("data-theme", dark ? "light" : "dark");
+        btn.textContent = dark ? "Switch to dark" : "Switch to light";
+      });
+    </script>
+  </body>
+</html>

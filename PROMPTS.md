@@ -34,6 +34,4 @@ I want to perform a large refactor of the component system for this website. her
 
 I want you to act as the project lead and designer here. this app must be thouroughly audited for all of the above points. You must iterate through all of the above points and gather all the necessary changes for the codebase. you must then think through the most optimal way to structure the refactors and create a detailed plan. give your honest recommendations as we go, and again, prioritize industry standards; this app must be professional. before you begin, I want you to do your research on the points i've provided for you in order to understand the best way to approach a system design like this and understand what exactly the industry standards are.
 
-also
-
 You are the senior dev and designer here. be honest, give your recommendations as we go, strictly adhere to industry standards, and after your think through all the paths and interactions of these refactors, including in the other perspectives (admin, admin editing, client editing), /grill-me

@@ -10,7 +10,7 @@ import {
   computeBookingArtifacts,
   toRuleSettings,
   passesGuards,
-  fitsWindow,
+  slotIsAvailable,
   type BookingServiceDeps,
   type CreateBookingInput,
 } from "./booking-service-shared";
@@ -225,6 +225,7 @@ export async function editBookingCore(
 
   const warnings = [...artifacts.artifacts.warnings];
   const {
+    service,
     settings: s,
     quoteInput,
     breakdown,
@@ -254,21 +255,19 @@ export async function editBookingCore(
     );
   }
 
-  if (!policy.skipWindowFit) {
-    const openWindows = await repo.getOpenWindows(now);
-    if (!fitsWindow({ startsAt, endsAt }, openWindows)) {
+  // Availability containment, gated by service type (window vs overnight nights).
+  const available = await slotIsAvailable(repo, now, service.pricing_type, {
+    startsAt,
+    endsAt,
+  });
+  if (!available) {
+    if (!policy.skipWindowFit) {
       return {
         kind: "unavailable",
-        reason: "The selected time is not within an open availability window.",
+        reason: "The selected time is not within Cal's availability.",
       };
     }
-  } else {
-    const openWindows = await repo.getOpenWindows(now);
-    if (!fitsWindow({ startsAt, endsAt }, openWindows)) {
-      warnings.push(
-        "Selected time is outside any published availability window.",
-      );
-    }
+    warnings.push("Selected time is outside Cal's published availability.");
   }
 
   // Re-derive status (per-occurrence array has exactly one element for an edit).
@@ -371,6 +370,7 @@ export async function previewEditCore(
     return { kind: "onboarding_incomplete" };
 
   const {
+    service,
     settings: s,
     breakdown,
     distanceMiles,
@@ -394,11 +394,19 @@ export async function previewEditCore(
     }
   }
   if (!policy.skipWindowFit) {
-    const openWindows = await repo.getOpenWindows(deps.now);
-    if (!fitsWindow({ startsAt, endsAt }, openWindows)) {
+    const available = await slotIsAvailable(
+      repo,
+      deps.now,
+      service.pricing_type,
+      {
+        startsAt,
+        endsAt,
+      },
+    );
+    if (!available) {
       return {
         kind: "unavailable",
-        reason: "The selected time is not within an open availability window.",
+        reason: "The selected time is not within Cal's availability.",
       };
     }
   }

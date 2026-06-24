@@ -7,6 +7,7 @@
 
 ## NOT MVP
 
+- random ass indicator when you don't fill out a required input in contact page
 - navbar underline vertical width
 - not sure cal discounts are showing up
 - site logo + wordmark typeface (included in seo)
