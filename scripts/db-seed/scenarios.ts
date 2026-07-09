@@ -3,6 +3,7 @@ import {
   type Ctx,
   addPet,
   createClientUser,
+  createUnclaimedClientUser,
   insertBooking,
   insertDebit,
   insertForm,
@@ -580,6 +581,18 @@ const adminDemoExtras: Step = {
       name: "Juniper",
       species: "dog",
       breed: "Aussie",
+    });
+    // Pre-created (unclaimed) clients: one just created, one already invited.
+    await createUnclaimedClientUser(ctx, {
+      email: "offline-approved@local.test",
+      fullName: "Offline Approved",
+      onboarding: "approved",
+      invited: true,
+    });
+    await createUnclaimedClientUser(ctx, {
+      email: "offline-pending@local.test",
+      fullName: "Offline Pending",
+      onboarding: "info_pending",
     });
     // Upcoming meet & greet (free, onboarding flow).
     await insertBooking(ctx, "meet-greet-morgan", {

@@ -88,6 +88,41 @@ export async function createClientUser(
   return id;
 }
 
+/**
+ * Cal-created ("unclaimed") client: a real auth user with no password whose
+ * profile is flagged `unclaimed = true`. `invited` stamps `invited_at` to demo
+ * the "invite generated" admin UI state.
+ */
+export async function createUnclaimedClientUser(
+  ctx: Ctx,
+  opts: {
+    email: string;
+    fullName: string;
+    onboarding: "info_pending" | "meet_greet_pending" | "approved" | "declined";
+    invited?: boolean;
+  },
+): Promise<string> {
+  const id = await createAuthUser(ctx.db, opts.email);
+  const { error } = await ctx.db
+    .from("profiles")
+    .update({
+      full_name: opts.fullName,
+      onboarding_status: opts.onboarding,
+      unclaimed: true,
+      invited_at: opts.invited ? ctx.now.toISOString() : null,
+      phone: "555-0100",
+      address: "123 Local St, Boulder, CO",
+      zip: "80301",
+      lat: 40.02,
+      lng: -105.26,
+    })
+    .eq("id", id);
+  if (error)
+    throw new Error(`create unclaimed client ${opts.email}: ${error.message}`);
+  ctx.users.set(opts.email, id);
+  return id;
+}
+
 export async function addPet(
   ctx: Ctx,
   ownerEmail: string,
