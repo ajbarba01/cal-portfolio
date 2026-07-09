@@ -58,6 +58,17 @@ export type {
   ClientPet,
 } from "./clients-actions";
 
+// create-client-actions
+export {
+  createUnclaimedClient,
+  generateClaimLink,
+} from "./create-client-actions";
+export type {
+  CreateClientInput,
+  CreateClientResult,
+  GenerateClaimLinkResult,
+} from "./create-client-actions";
+
 // client-search
 export { matchesClientQuery } from "./client-search";
 

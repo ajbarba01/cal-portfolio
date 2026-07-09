@@ -1,6 +1,9 @@
+import Link from "next/link";
+
 import { ErrorState } from "@/components/feedback/error-state";
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
+import { buttonVariants } from "@/components/ui/button";
 import { listClients } from "@/features/admin";
 
 import { ClientsIndexClient } from "./_components/clients-index-client";
@@ -20,7 +23,15 @@ export default async function AdminClientsPage() {
   }
   return (
     <PageContainer width="app">
-      <PageHeader title="Clients" subtitle="Everyone with a client account." />
+      <PageHeader
+        title="Clients"
+        subtitle="Everyone with a client account."
+        actions={
+          <Link href="/admin/clients/new" className={buttonVariants()}>
+            New client
+          </Link>
+        }
+      />
       <ClientsIndexClient clients={result.clients} />
     </PageContainer>
   );

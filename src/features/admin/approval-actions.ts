@@ -17,7 +17,7 @@ import {
   transition,
   createSupabaseBookingRepository,
 } from "@/features/booking";
-import { ResendNotifier } from "@/features/notifications";
+import { ResendNotifier, shouldNotify } from "@/features/notifications";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { BookingEvent, BookingStatus } from "@/features/booking";
 
@@ -51,7 +51,9 @@ const approvalConfirmationRowSchema = z.object({
   starts_at: z.string(),
   ends_at: z.string(),
   final_cents: z.number(),
-  profiles: z.object({ email: z.string() }).nullable(),
+  profiles: z
+    .object({ email: z.string(), unclaimed: z.boolean().nullable() })
+    .nullable(),
   services: z.object({ name: z.string() }).nullable(),
 });
 
@@ -208,7 +210,7 @@ export async function approveBooking(
         const { data: bookingRow } = await serviceClient
           .from("bookings")
           .select(
-            "starts_at, ends_at, final_cents, profiles(email), services(name)",
+            "starts_at, ends_at, final_cents, profiles(email, unclaimed), services(name)",
           )
           .eq("id", bookingId)
           .single();
@@ -218,7 +220,10 @@ export async function approveBooking(
           const row = parsed.data;
           const clientEmail = row.profiles?.email;
           const serviceName = row.services?.name ?? "Booking";
-          if (clientEmail) {
+          // Suppress confirmation email for unclaimed clients (Cal-created,
+          // not yet claimed) — Cal handles their comms manually until claim.
+          const mayNotify = row.profiles ? shouldNotify(row.profiles) : true;
+          if (clientEmail && mayNotify) {
             const repo = createSupabaseBookingRepository(serviceClient);
             const settings = await repo.getSettings();
             const notifier = new ResendNotifier();
