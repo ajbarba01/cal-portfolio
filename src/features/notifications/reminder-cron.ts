@@ -8,6 +8,7 @@
  */
 
 import { buildBookingReminderEmail } from "./emails";
+import { shouldNotify } from "./should-notify";
 import type { Mailer, SendResult } from "./types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
@@ -55,6 +56,7 @@ const reminderBookingRowSchema = z.object({
   profiles: z
     .object({
       email: z.string(),
+      unclaimed: z.boolean().nullable(),
     })
     .nullable(),
   services: z
@@ -106,7 +108,7 @@ export async function runReminderCron(
   const { data: rows, error: queryErr } = await serviceClient
     .from("bookings")
     .select(
-      "id, starts_at, ends_at, reminder_sent_at, status, profiles(email), services(name)",
+      "id, starts_at, ends_at, reminder_sent_at, status, profiles(email, unclaimed), services(name)",
     )
     .eq("status", "confirmed")
     .is("reminder_sent_at", null)
@@ -145,6 +147,10 @@ export async function runReminderCron(
     };
 
     if (!isRemindable(booking, now, leadHours)) continue;
+
+    // Suppress automated email for unclaimed (Cal-created, not yet claimed)
+    // clients — Cal handles their comms manually until they claim.
+    if (row.profiles && !shouldNotify(row.profiles)) continue;
 
     const clientEmail = row.profiles?.email;
     const serviceName = row.services?.name;
