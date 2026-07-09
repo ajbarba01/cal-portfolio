@@ -186,12 +186,14 @@ export async function generateClaimLinkCore(
     return { kind: "error", message: "Client has no email." };
   if (profile.unclaimed !== true) return { kind: "not_unclaimed" };
 
-  // Invite link → set-password landing. redirectTo routes through the existing
-  // /auth/callback (code exchange) with next=/claim so the claim page runs with
-  // an authenticated session.
+  // Recovery link → set-password landing. `invite` is rejected for an already-
+  // registered user (our unclaimed client was minted via createUser), so we use
+  // `recovery`, which lands an existing account in a set-password state. The
+  // redirectTo routes through the existing /auth/callback (code exchange) with
+  // next=/claim so the claim page runs with an authenticated session.
   const redirectTo = `${origin}/auth/callback?next=/claim`;
   const { data, error } = await serviceClient.auth.admin.generateLink({
-    type: "invite",
+    type: "recovery",
     email: profile.email as string,
     options: { redirectTo },
   });
