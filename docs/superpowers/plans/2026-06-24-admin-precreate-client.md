@@ -709,17 +709,21 @@ git commit -m "feat(admin): add createUnclaimedClient action"
 
 - [ ] **Step 1: Add the "New client" button on the directory page**
 
-In `src/app/(site)/(admin)/admin/clients/page.tsx`, import `Button` and `Link`, and render an action in the header. Replace the `<PageHeader … />` line with:
+In `src/app/(site)/(admin)/admin/clients/page.tsx`, import `Button` and `Link`, and render an action in the header via the `actions` prop (VERIFIED: `PageHeader` has an `actions?: React.ReactNode` slot, not `children`). Replace the `<PageHeader … />` line with:
 
 ```tsx
-<PageHeader title="Clients" subtitle="Everyone with a client account.">
-  <Button asChild>
-    <Link href="/admin/clients/new">New client</Link>
-  </Button>
-</PageHeader>
+<PageHeader
+  title="Clients"
+  subtitle="Everyone with a client account."
+  actions={
+    <Button asChild>
+      <Link href="/admin/clients/new">New client</Link>
+    </Button>
+  }
+/>
 ```
 
-Note for implementer: confirm `PageHeader` accepts `children` as an actions slot (check `src/components/layout/page-header.tsx`). If it does not, render the button in a flex row above `<ClientsIndexClient>` instead. Use the existing `Button` from `@/components/ui/button` and `Link` from `next/link`.
+Use the existing `Button` from `@/components/ui/button` and `Link` from `next/link`.
 
 - [ ] **Step 2: Write the form client-component**
 
@@ -944,12 +948,10 @@ function makeLinkDeps(opts: {
     from: vi.fn(() => ({
       select: vi.fn(() => ({
         eq: vi.fn(() => ({
-          single: vi
-            .fn()
-            .mockResolvedValue({
-              data: { role: isAdmin ? "admin" : "client" },
-              error: null,
-            }),
+          single: vi.fn().mockResolvedValue({
+            data: { role: isAdmin ? "admin" : "client" },
+            error: null,
+          }),
           maybeSingle: vi.fn().mockResolvedValue({
             data: { email: "x@y.test", unclaimed },
             error: null,
@@ -960,16 +962,14 @@ function makeLinkDeps(opts: {
     })),
     auth: {
       admin: {
-        generateLink: vi
-          .fn()
-          .mockResolvedValue(
-            generateError
-              ? { data: { properties: null }, error: generateError }
-              : {
-                  data: { properties: { action_link: actionLink } },
-                  error: null,
-                },
-          ),
+        generateLink: vi.fn().mockResolvedValue(
+          generateError
+            ? { data: { properties: null }, error: generateError }
+            : {
+                data: { properties: { action_link: actionLink } },
+                error: null,
+              },
+        ),
       },
     },
   } as unknown as Parameters<typeof generateClaimLinkCore>[0]["serviceClient"];
@@ -1175,20 +1175,16 @@ function makeDeps(opts: {
   } = opts;
   const sessionClient = {
     auth: {
-      getUser: vi
-        .fn()
-        .mockResolvedValue({
-          data: { user: userId ? { id: userId } : null },
-          error: null,
-        }),
+      getUser: vi.fn().mockResolvedValue({
+        data: { user: userId ? { id: userId } : null },
+        error: null,
+      }),
       updateUser: vi.fn().mockResolvedValue({ error: updateUserError }),
     },
   };
-  const profileUpdate = vi
-    .fn()
-    .mockReturnValue({
-      eq: vi.fn().mockResolvedValue({ error: profileError }),
-    });
+  const profileUpdate = vi.fn().mockReturnValue({
+    eq: vi.fn().mockResolvedValue({ error: profileError }),
+  });
   const serviceClient = { from: vi.fn(() => ({ update: profileUpdate })) };
   return {
     sessionClient: sessionClient as never,
@@ -1430,7 +1426,7 @@ export default async function ClaimPage() {
   if (profile?.unclaimed !== true) redirect("/account");
 
   return (
-    <PageContainer width="prose">
+    <PageContainer width="read">
       <PageHeader
         title="Claim your account"
         subtitle="Cal set up your profile. Choose a password to take it over."
@@ -1441,7 +1437,7 @@ export default async function ClaimPage() {
 }
 ```
 
-Note for implementer: confirm `PageContainer` `width` accepts `"prose"`/`"app"` (check the component); match the auth pages' container usage in `src/app/(auth)/login/page.tsx`.
+Note for implementer: `PageContainer` `width` accepts `"read" | "narrow" | "app"` only (VERIFIED — no `"prose"`); `"read"` is the prose-width option. Match the auth pages' container usage in `src/app/(auth)/login/page.tsx`.
 
 - [ ] **Step 8: Typecheck + commit**
 
@@ -1506,7 +1502,7 @@ In `clients-index-client.tsx`, in BOTH the desktop name cell and the mobile card
 ```tsx
 {
   client.unclaimed ? (
-    <Badge variant="secondary" className="ml-2 align-middle">
+    <Badge variant="outline" className="ml-2 align-middle">
       Unclaimed
     </Badge>
   ) : null;
@@ -1517,11 +1513,11 @@ Mobile — inside the `<div className="mt-1 flex flex-wrap gap-2 text-xs">`, add
 
 ```tsx
 {
-  client.unclaimed ? <Badge variant="secondary">Unclaimed</Badge> : null;
+  client.unclaimed ? <Badge variant="outline">Unclaimed</Badge> : null;
 }
 ```
 
-Note: use whatever neutral `Badge` variant exists (check `src/components/ui/badge.tsx` for valid variant names; if `"secondary"` is absent use the default `<Badge>`). Do not introduce a new color token.
+Note: VERIFIED valid `Badge` variants — `default | brand | available | booked | unavailable | pending | destructive | outline` (there is NO `"secondary"`). `"outline"` is the neutral choice used here; `<Badge>` (default) also works. Do not introduce a new color token.
 
 - [ ] **Step 5: Write the Account-claim panel**
 
