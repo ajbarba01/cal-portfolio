@@ -15,9 +15,12 @@ export async function GET(request: NextRequest) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error) {
-      // Redirect to onboarding; the account layout guard forwards to /account once complete.
+      // Only allow a known internal next target (claim flow). Everything else
+      // falls back to the onboarding gate, which routes by onboarding_status.
       // `verified=1` lets the landing page fire a one-time "email verified" toast.
-      return NextResponse.redirect(`${origin}/onboarding?verified=1`);
+      const next = searchParams.get("next");
+      const dest = next === "/claim" ? "/claim" : "/onboarding?verified=1";
+      return NextResponse.redirect(`${origin}${dest}`);
     }
   }
 

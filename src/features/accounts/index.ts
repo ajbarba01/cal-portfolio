@@ -21,5 +21,7 @@ export {
   EXPENSE_AUTH_TEXT,
 } from "./authorizations";
 export { completeOnboarding } from "./onboarding-action";
+export { claimAccount } from "./claim-actions";
+export type { ClaimResult } from "./claim-actions";
 export type { OnboardingFormState } from "./onboarding-form";
 export type { ProfileInput } from "./profile-schema";

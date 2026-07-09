@@ -43,6 +43,8 @@ export {
   EXPENSE_AUTH_VERSION,
   EXPENSE_AUTH_TEXT,
 } from "./authorizations";
+export { claimAccount } from "./claim-actions";
+export type { ClaimResult } from "./claim-actions";
 export type {
   Pet,
   PetInput,
