@@ -193,6 +193,11 @@ export function ClientsIndexClient({ clients }: { clients: ClientListRow[] }) {
                       >
                         {client.full_name ?? client.email ?? "(no name)"}
                       </Link>
+                      {client.unclaimed ? (
+                        <Badge variant="outline" className="mt-1">
+                          Unclaimed
+                        </Badge>
+                      ) : null}
                     </td>
                     <td className="text-muted-foreground max-w-50 px-4 py-2.5">
                       <span
@@ -274,6 +279,9 @@ export function ClientsIndexClient({ clients }: { clients: ClientListRow[] }) {
                   className="mt-1 flex flex-wrap gap-2 text-xs"
                   onClick={(e) => e.stopPropagation()}
                 >
+                  {client.unclaimed ? (
+                    <Badge variant="outline">Unclaimed</Badge>
+                  ) : null}
                   <Badge>{client.petCount} pets</Badge>
                   <Badge>{client.bookingCount} bookings</Badge>
                   <OnboardingStatusSelect

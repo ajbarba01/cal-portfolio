@@ -40,6 +40,7 @@ import {
 import type { PetFormActions } from "@/features/accounts/index.client";
 import type { ActionResult } from "@/features/accounts/index.client";
 import type { FormKey } from "@/features/accounts/index.client";
+import { AccountClaimPanel } from "./account-claim-panel";
 
 // ─── Editable booking statuses ───────────────────────────────────────────────
 
@@ -216,6 +217,11 @@ export function ClientDetailClient({ client }: { client: ClientDetailView }) {
           <dd>{denver(client.created_at)}</dd>
         </dl>
       </Surface>
+
+      {/* Account claim (unclaimed shadow accounts only) */}
+      {client.unclaimed ? (
+        <AccountClaimPanel clientId={client.id} invitedAt={client.invited_at} />
+      ) : null}
 
       {/* Onboarding */}
       <Surface as="section" variant="emphasis" className={SECTION}>

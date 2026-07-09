@@ -20,6 +20,7 @@ function makeClient(
     outstandingCents: 0,
     onboardingStatus: "info_pending" as OnboardingStatus,
     meetGreetUpcoming: false,
+    unclaimed: false,
     ...overrides,
   };
 }

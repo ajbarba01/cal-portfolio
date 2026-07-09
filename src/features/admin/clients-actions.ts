@@ -42,6 +42,8 @@ export interface ClientListRow {
   onboardingStatus: OnboardingStatus;
   /** Has a future, non-terminal meet-greet booking (drives the pre-visit approve confirm). */
   meetGreetUpcoming: boolean;
+  /** Cal-created shadow account not yet claimed by the client. */
+  unclaimed: boolean;
 }
 
 export type ListClientsResult =
@@ -62,7 +64,7 @@ export async function listClientsCore(
   const { data: profiles, error: profileError } = await serviceClient
     .from("profiles")
     .select(
-      "id, full_name, email, phone, onboarding_status, created_at, pets(count), bookings(count), client_debits(amount_cents, settled_at)",
+      "id, full_name, email, phone, onboarding_status, unclaimed, created_at, pets(count), bookings(count), client_debits(amount_cents, settled_at)",
     )
     .eq("role", "client")
     .order("created_at", { ascending: false });
@@ -90,6 +92,7 @@ export async function listClientsCore(
     email: string | null;
     phone: string | null;
     onboarding_status: OnboardingStatus | null;
+    unclaimed: boolean | null;
     pets: { count: number }[] | null;
     bookings: { count: number }[] | null;
     client_debits: { amount_cents: number; settled_at: string | null }[] | null;
@@ -107,6 +110,7 @@ export async function listClientsCore(
     outstandingCents: outstandingBalanceCents(profile.client_debits ?? []),
     onboardingStatus: profile.onboarding_status ?? "info_pending",
     meetGreetUpcoming: meetGreetUpcoming.has(profile.id),
+    unclaimed: profile.unclaimed ?? false,
   }));
 
   return { kind: "success", clients };
@@ -164,6 +168,9 @@ export interface ClientDetailView {
   avatar_url: string | null;
   onboarding_status: OnboardingStatus;
   created_at: string;
+  unclaimed: boolean;
+  invited_at: string | null;
+  claimed_at: string | null;
   pets: ClientPet[];
   forms: ClientFormResponse[];
   bookings: ClientBookingRow[];
@@ -191,7 +198,7 @@ export async function getClientDetailCore(
   const { data: profile, error: profileError } = await serviceClient
     .from("profiles")
     .select(
-      "id, full_name, email, phone, address, zip, avatar_url, onboarding_status, created_at, role",
+      "id, full_name, email, phone, address, zip, avatar_url, onboarding_status, unclaimed, invited_at, claimed_at, created_at, role",
     )
     .eq("id", clientId)
     .single();
@@ -320,6 +327,9 @@ export async function getClientDetailCore(
     onboarding_status:
       (profile.onboarding_status as OnboardingStatus) ?? "info_pending",
     created_at: profile.created_at as string,
+    unclaimed: (profile.unclaimed as boolean | null) ?? false,
+    invited_at: (profile.invited_at as string | null) ?? null,
+    claimed_at: (profile.claimed_at as string | null) ?? null,
     pets: petViews,
     forms: (forms ?? []).map((form) => ({
       id: form.id as string,
