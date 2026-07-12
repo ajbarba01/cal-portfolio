@@ -24,4 +24,5 @@ export { submitOnboarding } from "./onboarding-action";
 export { claimAccount } from "./claim-actions";
 export type { ClaimResult } from "./claim-actions";
 export { onboardingClientSchema } from "./onboarding-form";
+export { profileSchema } from "./profile-schema";
 export type { ProfileInput } from "./profile-schema";
