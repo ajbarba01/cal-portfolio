@@ -47,6 +47,8 @@ export {
   listClients,
   getClientDetail,
   settleDebit,
+  waiveDebit,
+  adjustDebit,
   setOnboardingStatus,
 } from "./clients-actions";
 export type {

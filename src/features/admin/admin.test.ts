@@ -23,7 +23,12 @@ import {
 import { updateServiceCore, listServicesCore } from "./services-actions";
 import { updateSettingsCore } from "./settings-actions";
 import { moderateReviewCore, listReviewsCore } from "./reviews-actions";
-import { listClientsCore, settleDebitCore } from "./clients-actions";
+import {
+  listClientsCore,
+  settleDebitCore,
+  waiveDebitCore,
+  adjustDebitCore,
+} from "./clients-actions";
 import { submitInquiryCore } from "@/features/inquiries/inquiry-actions";
 
 const url = process.env.SUPABASE_TEST_URL!;
@@ -673,6 +678,114 @@ describe("admin client capability cores", () => {
       .eq("id", debit.id)
       .single();
     expect(data?.settled_at).not.toBeNull();
+  });
+
+  it("waives a debit, setting resolution and settled_at", async () => {
+    const { data: debit, error } = await serviceClient
+      .from("client_debits")
+      .insert({
+        client_id: clientUserId,
+        amount_cents: 1234,
+        reason: "late_cancel",
+      })
+      .select("id")
+      .single();
+    if (error || !debit)
+      throw new Error(`debit insert failed: ${error?.message}`);
+    createdDebitIds.push(debit.id);
+
+    const result = await waiveDebitCore(adminDeps(), debit.id);
+    expect(result.kind).toBe("success");
+
+    const { data } = await serviceClient
+      .from("client_debits")
+      .select("settled_at, resolution")
+      .eq("id", debit.id)
+      .single();
+    expect(data?.settled_at).not.toBeNull();
+    expect(data?.resolution).toBe("waived");
+  });
+
+  it("adjusts a debit's amount and sets resolution", async () => {
+    const { data: debit, error } = await serviceClient
+      .from("client_debits")
+      .insert({
+        client_id: clientUserId,
+        amount_cents: 1234,
+        reason: "late_cancel",
+      })
+      .select("id")
+      .single();
+    if (error || !debit)
+      throw new Error(`debit insert failed: ${error?.message}`);
+    createdDebitIds.push(debit.id);
+
+    const result = await adjustDebitCore(adminDeps(), debit.id, 500);
+    expect(result.kind).toBe("success");
+
+    const { data } = await serviceClient
+      .from("client_debits")
+      .select("amount_cents, resolution")
+      .eq("id", debit.id)
+      .single();
+    expect(data?.amount_cents).toBe(500);
+    expect(data?.resolution).toBe("adjusted");
+
+    // This debit is still unsettled; remove it now so it doesn't skew the
+    // outstanding-balance aggregate assertion in a later test.
+    await serviceClient.from("client_debits").delete().eq("id", debit.id);
+  });
+
+  it("adjusting a settled debit is a no-op", async () => {
+    const { data: debit, error } = await serviceClient
+      .from("client_debits")
+      .insert({
+        client_id: clientUserId,
+        amount_cents: 1234,
+        reason: "late_cancel",
+        settled_at: new Date().toISOString(),
+        resolution: "paid",
+      })
+      .select("id")
+      .single();
+    if (error || !debit)
+      throw new Error(`debit insert failed: ${error?.message}`);
+    createdDebitIds.push(debit.id);
+
+    const result = await adjustDebitCore(adminDeps(), debit.id, 500);
+    expect(result.kind).toBe("success");
+
+    const { data } = await serviceClient
+      .from("client_debits")
+      .select("amount_cents, resolution")
+      .eq("id", debit.id)
+      .single();
+    expect(data?.amount_cents).toBe(1234);
+    expect(data?.resolution).toBe("paid");
+  });
+
+  it("non-admin → forbidden for waive and adjust", async () => {
+    const { data: debit, error } = await serviceClient
+      .from("client_debits")
+      .insert({
+        client_id: clientUserId,
+        amount_cents: 1234,
+        reason: "late_cancel",
+      })
+      .select("id")
+      .single();
+    if (error || !debit)
+      throw new Error(`debit insert failed: ${error?.message}`);
+    createdDebitIds.push(debit.id);
+
+    const waiveResult = await waiveDebitCore(nonAdminDeps(), debit.id);
+    const adjustResult = await adjustDebitCore(nonAdminDeps(), debit.id, 500);
+    expect(waiveResult.kind).toBe("forbidden");
+    expect(adjustResult.kind).toBe("forbidden");
+
+    // Still unsettled; remove it now so it doesn't skew the outstanding-balance
+    // aggregate assertion in a later test.
+    await serviceClient.from("client_debits").delete().eq("id", debit.id);
   });
 
   it("lists client aggregates including pets, bookings, and outstanding balance", async () => {

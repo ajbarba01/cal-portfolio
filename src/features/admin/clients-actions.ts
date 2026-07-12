@@ -23,6 +23,7 @@ import {
   type BookingPaymentStatus,
 } from "@/features/payments";
 import { deriveMeetGreetUpcoming } from "@/features/booking";
+import { parseAdjustAmountCents } from "./adjust-amount";
 
 const SIGNED_URL_TTL_SECONDS = 60 * 60;
 
@@ -402,7 +403,54 @@ export async function settleDebitCore(
   }
   const { error } = await deps.serviceClient
     .from("client_debits")
-    .update({ settled_at: new Date().toISOString() })
+    .update({ settled_at: new Date().toISOString(), resolution: "paid" })
+    .eq("id", debitId)
+    .is("settled_at", null);
+  if (error) return { kind: "error", message: error.message };
+  return { kind: "success" };
+}
+
+export async function waiveDebitCore(
+  deps: AdminDeps,
+  debitId: string,
+): Promise<ClientMutationResult> {
+  if (!(await assertActorIsAdmin(deps.serviceClient, deps.actorUserId))) {
+    return { kind: "forbidden" };
+  }
+  if (!uuidSchema.safeParse(debitId).success) {
+    return { kind: "validation_error", message: "Invalid debit id" };
+  }
+  const { error } = await deps.serviceClient
+    .from("client_debits")
+    .update({ settled_at: new Date().toISOString(), resolution: "waived" })
+    .eq("id", debitId)
+    .is("settled_at", null);
+  if (error) return { kind: "error", message: error.message };
+  return { kind: "success" };
+}
+
+export async function adjustDebitCore(
+  deps: AdminDeps,
+  debitId: string,
+  newAmountCents: number,
+): Promise<ClientMutationResult> {
+  if (!(await assertActorIsAdmin(deps.serviceClient, deps.actorUserId))) {
+    return { kind: "forbidden" };
+  }
+  if (!uuidSchema.safeParse(debitId).success) {
+    return { kind: "validation_error", message: "Invalid debit id" };
+  }
+  const amount = parseAdjustAmountCents(newAmountCents);
+  if (amount === null) {
+    return {
+      kind: "validation_error",
+      message: "Amount must be a positive whole number of cents",
+    };
+  }
+  // Only adjust debits that are still outstanding.
+  const { error } = await deps.serviceClient
+    .from("client_debits")
+    .update({ amount_cents: amount, resolution: "adjusted" })
     .eq("id", debitId)
     .is("settled_at", null);
   if (error) return { kind: "error", message: error.message };
@@ -432,6 +480,34 @@ export async function settleDebit(
   const result = await settleDebitCore(
     { serviceClient: createServiceClient(), actorUserId },
     debitId,
+  );
+  if (result.kind === "success") revalidatePath(`/admin/clients/${clientId}`);
+  return result;
+}
+
+export async function waiveDebit(
+  debitId: string,
+  clientId: string,
+): Promise<ClientMutationResult> {
+  const actorUserId = await getActorOrRedirect();
+  const result = await waiveDebitCore(
+    { serviceClient: createServiceClient(), actorUserId },
+    debitId,
+  );
+  if (result.kind === "success") revalidatePath(`/admin/clients/${clientId}`);
+  return result;
+}
+
+export async function adjustDebit(
+  debitId: string,
+  clientId: string,
+  newAmountCents: number,
+): Promise<ClientMutationResult> {
+  const actorUserId = await getActorOrRedirect();
+  const result = await adjustDebitCore(
+    { serviceClient: createServiceClient(), actorUserId },
+    debitId,
+    newAmountCents,
   );
   if (result.kind === "success") revalidatePath(`/admin/clients/${clientId}`);
   return result;
