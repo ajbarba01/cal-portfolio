@@ -28,6 +28,7 @@ import type { PetInput, Pet } from "@/features/accounts";
 // here rather than exposing account-actions internals.
 import { z } from "zod";
 import { FIELD_LIMITS } from "@/lib/field-limits";
+import { speciesEnum } from "@/features/pets";
 
 // ─── Result types (extend account-actions results with forbidden) ─────────────
 
@@ -47,7 +48,7 @@ export type AdminActionResult =
 
 const petSchema = z.object({
   name: z.string().min(1, "Pet name is required").max(FIELD_LIMITS.name),
-  species: z.enum(["dog", "cat"]).default("dog"),
+  species: speciesEnum.default("dog"),
   breed: z.string().max(FIELD_LIMITS.shortText).optional(),
   notes: z.string().max(FIELD_LIMITS.note).optional(),
   birthdate: z

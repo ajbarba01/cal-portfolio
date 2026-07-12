@@ -164,6 +164,20 @@ describe("bookingRequirements", () => {
     });
     expect(items[0].status).toBe("complete");
   });
+
+  it("small animals require pet_care but never pet_walk", () => {
+    const items = bookingRequirements({
+      pricingType: "house_sitting",
+      assignedPets: [{ id: "p1", name: "Tweety", species: "bird" }],
+      accountForms: {},
+      petForms: {},
+      now: new Date("2026-07-12T00:00:00Z"),
+    });
+    const petForms = items
+      .filter((i) => i.petId === "p1")
+      .map((i) => i.formKey);
+    expect(petForms).toEqual(["pet_care"]);
+  });
 });
 
 describe("requirementsSatisfied", () => {

@@ -89,7 +89,10 @@ export function PetForm({ initial, onSaved, onCancel, actions }: PetFormProps) {
   const form = useAppForm(petFormSchema, {
     defaultValues: {
       name: initial?.name ?? "",
-      species: initial?.species ?? "dog",
+      // This form's RadioGroup only offers dog/cat (species picker for the
+      // full taxonomy is a separate UI task); pets saved with a wider
+      // species default to "dog" here rather than failing to render.
+      species: initial?.species === "cat" ? "cat" : "dog",
       breed: initial?.breed ?? "",
       notes: initial?.notes ?? "",
       birthdate: initial?.birthdate ?? "",

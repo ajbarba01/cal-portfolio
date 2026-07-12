@@ -1,7 +1,7 @@
 import { Dog, Cat } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-export type PetSpecies = "dog" | "cat";
+import type { PetSpecies } from "@/features/pets";
+export type { PetSpecies };
 
 interface PetAvatarProps {
   name: string;

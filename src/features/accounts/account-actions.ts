@@ -18,6 +18,7 @@ import { FIELD_LIMITS } from "@/lib/field-limits";
 import { profileSchema, type ProfileInput } from "./profile-schema";
 import { formRegistry, type FormKey } from "@/features/accounts/form-registry";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { speciesEnum, type PetSpecies } from "@/features/pets";
 
 // ─── Result union ────────────────────────────────────────────────────────────
 
@@ -30,7 +31,7 @@ export type ActionResult =
 
 const petSchema = z.object({
   name: z.string().min(1, "Pet name is required").max(FIELD_LIMITS.name),
-  species: z.enum(["dog", "cat"]).default("dog"),
+  species: speciesEnum.default("dog"),
   breed: z.string().max(FIELD_LIMITS.shortText).optional(),
   notes: z.string().max(FIELD_LIMITS.note).optional(),
   birthdate: z
@@ -45,7 +46,7 @@ export type PetInput = z.infer<typeof petSchema>;
 export interface Pet {
   id: string;
   name: string;
-  species: "dog" | "cat";
+  species: PetSpecies;
   breed: string | null;
   notes: string | null;
   birthdate: string | null;

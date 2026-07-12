@@ -14,11 +14,12 @@
  */
 
 import type { PricingType } from "@/features/pricing";
+import type { PetSpecies } from "@/features/pets";
+export type { PetSpecies };
 
 export type AccountFormKey = "owner" | "home_access" | "home_sitting";
 export type PetFormKey = "pet_care" | "pet_walk";
 export type RequiredFormKey = AccountFormKey | PetFormKey;
-export type PetSpecies = "dog" | "cat";
 
 /**
  * One required form for a service. Account-scoped forms produce a single
