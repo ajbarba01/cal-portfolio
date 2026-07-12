@@ -72,7 +72,8 @@ const healthResources: ReadonlyArray<{
     nameId: "resources.health.2.name",
     descId: "resources.health.2.desc",
     href: "https://www.aspca.org/pet-care/aspca-poison-control",
-    detail: "(888) 426-4435 or (855) 764-7661",
+    // Two separate hotlines — attribute each number to its own org.
+    detail: "ASPCA (888) 426-4435 · Pet Poison Helpline (855) 764-7661",
     Icon: TriangleAlert,
     scenario: "emergency",
   },
@@ -283,22 +284,32 @@ export default function ResourcesPage() {
             <TriangleAlert className="size-3.5" aria-hidden="true" />
             In an emergency
           </span>
-          <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-            <a
-              href="tel:+18884264435"
-              className="font-heading text-foreground border-brand border-b-[1.5px] font-semibold hover:opacity-70"
-            >
-              (888) 426-4435
-            </a>
-            <a
-              href="tel:+18557647661"
-              className="font-heading text-foreground border-brand border-b-[1.5px] font-semibold hover:opacity-70"
-            >
-              (855) 764-7661
-            </a>
-            <span className="text-muted-foreground text-sm">
-              ASPCA Animal Poison Control — tap to call
+          {/* Two distinct hotlines — each number attributed to its own org
+              (they are separate services; the 855 number is NOT ASPCA). */}
+          <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1">
+            <span className="flex flex-wrap items-baseline gap-x-2">
+              <a
+                href="tel:+18884264435"
+                className="font-heading text-foreground border-brand border-b-[1.5px] font-semibold hover:opacity-70"
+              >
+                (888) 426-4435
+              </a>
+              <span className="text-muted-foreground text-sm">
+                ASPCA Poison Control
+              </span>
             </span>
+            <span className="flex flex-wrap items-baseline gap-x-2">
+              <a
+                href="tel:+18557647661"
+                className="font-heading text-foreground border-brand border-b-[1.5px] font-semibold hover:opacity-70"
+              >
+                (855) 764-7661
+              </a>
+              <span className="text-muted-foreground text-sm">
+                Pet Poison Helpline
+              </span>
+            </span>
+            <span className="text-muted-foreground text-sm">— tap to call</span>
           </div>
         </Reveal>
 
