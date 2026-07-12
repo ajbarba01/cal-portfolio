@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { CalendarDays, ChevronDown } from "lucide-react";
+import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -462,9 +463,9 @@ export function SettingsClient({
       </Surface>
 
       {error && (
-        <p role="alert" className="text-destructive text-sm">
+        <Alert variant="error" role="alert">
           {error}
-        </p>
+        </Alert>
       )}
       {success && (
         <p role="status" className="text-muted-foreground text-sm">

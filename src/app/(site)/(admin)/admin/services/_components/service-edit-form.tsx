@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { ZodError } from "zod";
+import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -195,9 +196,9 @@ export function ServiceEditForm({
       </div>
 
       {errors._form && (
-        <p role="alert" className="text-destructive text-sm">
+        <Alert variant="error" role="alert">
           {errors._form}
-        </p>
+        </Alert>
       )}
 
       <div className="flex gap-2">
