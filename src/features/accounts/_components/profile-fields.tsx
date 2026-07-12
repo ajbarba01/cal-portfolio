@@ -348,7 +348,7 @@ function FieldGroupBlock({ group }: { group: FieldGroup }) {
   const {
     register,
     formState: { errors },
-  } = useFormContext();
+  } = useFormContext<FieldValues>();
   return (
     <div
       role="group"
@@ -364,7 +364,7 @@ function FieldGroupBlock({ group }: { group: FieldGroup }) {
               name={f.name}
               hint={f.hint}
               optional={!f.required}
-              error={errors[f.name]?.message as string | undefined}
+              error={errors[f.name]?.message}
             >
               <Textarea rows={3} maxLength={f.max} {...register(f.name)} />
             </FormField>
