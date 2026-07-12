@@ -7,6 +7,7 @@
  * house-sitting form collects only the per-day add-ons.
  */
 
+import { useEffect } from "react";
 import { NumberStepper } from "@/components/ui/number-stepper";
 import { Switch } from "@/components/ui/switch";
 import type { PricingType } from "@/features/pricing";
@@ -169,12 +170,19 @@ function KicheWelcomeRow({
 
 // ── Forms ─────────────────────────────────────────────────────────────────────
 
+/** Zeroes leftover walk minutes once the stepper hides (no dog assigned). */
+function ZeroWalkOnHide({ onZero }: { onZero: () => void }) {
+  useEffect(onZero, [onZero]);
+  return null;
+}
+
 export function QuantityForm({
   state,
   onChange,
   kiche,
   minHours,
   maxHours,
+  hasDog = true,
 }: {
   state: QuantityState;
   onChange: (s: QuantityState) => void;
@@ -187,6 +195,8 @@ export function QuantityForm({
   /** Duration bounds (hours) from the service constraints. Hours services only. */
   minHours?: number;
   maxHours?: number;
+  /** House-sitting: whether ≥1 dog is assigned. Gates the walk-time stepper. */
+  hasDog?: boolean;
 }) {
   if (state.type === "house_sitting") {
     const qty = state.qty;
@@ -197,16 +207,22 @@ export function QuantityForm({
         <legend className="col-span-full mb-2 text-sm font-medium">
           Stay add-ons
         </legend>
-        <StepperField
-          id="hs-walk-min"
-          label="Walk time per day"
-          description="Daily walk time, in 15-min steps. The first 45 min/day are included."
-          value={qty.walkMinutesPerDay}
-          min={0}
-          step={15}
-          unit="min"
-          onChange={(v) => set({ walkMinutesPerDay: v })}
-        />
+        {hasDog ? (
+          <StepperField
+            id="hs-walk-min"
+            label="Walk time per day"
+            description="Daily walk time, in 15-min steps. The first 45 min/day are included."
+            value={qty.walkMinutesPerDay}
+            min={0}
+            step={15}
+            unit="min"
+            onChange={(v) => set({ walkMinutesPerDay: v })}
+          />
+        ) : (
+          qty.walkMinutesPerDay !== 0 && (
+            <ZeroWalkOnHide onZero={() => set({ walkMinutesPerDay: 0 })} />
+          )
+        )}
         <StepperField
           id="hs-max-away"
           label="Max hours Cal can be away"

@@ -174,6 +174,12 @@ export function ServiceBookingClient({
     maxPets,
   });
 
+  // House-sitting: the walk-time stepper only makes sense when a dog is
+  // assigned (only dogs are walked).
+  const hasDog = pets.some(
+    (p) => selectedPetIds.includes(p.id) && p.species === "dog",
+  );
+
   // U1: terminal success state — the panel replaces the flow until the user
   // starts over ("Book another") or leaves for /account/bookings.
   if (success) {
@@ -252,6 +258,7 @@ export function ServiceBookingClient({
             kiche={{ welcome: kicheWelcome, onChange: onKicheWelcomeChange }}
             minHours={durationBounds.minHours}
             maxHours={durationBounds.maxHours}
+            hasDog={hasDog}
           />
         </section>
       }
