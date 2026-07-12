@@ -42,6 +42,7 @@ import { paginate } from "@/lib/pagination";
 
 import { PrepayButton } from "./prepay-button";
 import { EditCell } from "./edit-cell";
+import { CancelCell } from "./cancel-cell";
 
 // ── constants / helpers ───────────────────────────────────────────────────────
 
@@ -286,6 +287,14 @@ function BookingCard({
           }}
           now={now}
           cancellationFullRefundHours={cancellationFullRefundHours}
+        />
+        <CancelCell
+          bookingId={booking.id}
+          booking={{
+            status: booking.status,
+            startsAt: new Date(booking.starts_at),
+          }}
+          now={now}
         />
       </div>
     </Surface>

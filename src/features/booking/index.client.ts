@@ -176,6 +176,9 @@ export { previewQuoteForClient } from "./preview-quote-for-client";
 export { previewBookingCancellation } from "./preview-cancellation";
 export type { PreviewCancellationResult } from "./preview-cancellation";
 
+// cancellation (pure refund/debt math — client-safe types)
+export type { CancellationOutcome } from "./cancellation";
+
 // quote-action ("use server")
 export { previewQuote } from "./quote-action";
 export type { PreviewActionResult } from "./quote-action";
