@@ -172,6 +172,10 @@ export { previewEdit } from "./preview-edit";
 // preview-quote-for-client ("use server")
 export { previewQuoteForClient } from "./preview-quote-for-client";
 
+// preview-cancellation ("use server")
+export { previewBookingCancellation } from "./preview-cancellation";
+export type { PreviewCancellationResult } from "./preview-cancellation";
+
 // quote-action ("use server")
 export { previewQuote } from "./quote-action";
 export type { PreviewActionResult } from "./quote-action";
