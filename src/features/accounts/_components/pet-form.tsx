@@ -17,6 +17,7 @@ import {
 import type { FormActionResult } from "@/lib/form-action-result";
 import { FIELD_LIMITS } from "@/lib/field-limits";
 import { PhotoCropField } from "./photo-crop-field";
+import { SPECIES, speciesEnum } from "@/features/pets";
 import {
   createPet,
   updatePet,
@@ -56,10 +57,9 @@ interface PetFormProps {
   actions?: PetFormActions;
 }
 
-// Species stays the dog/cat enum — the species-model expansion is a later pass.
 const petFormSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(FIELD_LIMITS.name),
-  species: z.enum(["dog", "cat"]),
+  species: speciesEnum,
   breed: z.string().max(FIELD_LIMITS.shortText).optional().or(z.literal("")),
   notes: z.string().max(FIELD_LIMITS.note).optional().or(z.literal("")),
   birthdate: z.string().optional().or(z.literal("")),
@@ -89,10 +89,7 @@ export function PetForm({ initial, onSaved, onCancel, actions }: PetFormProps) {
   const form = useAppForm(petFormSchema, {
     defaultValues: {
       name: initial?.name ?? "",
-      // This form's RadioGroup only offers dog/cat (species picker for the
-      // full taxonomy is a separate UI task); pets saved with a wider
-      // species default to "dog" here rather than failing to render.
-      species: initial?.species === "cat" ? "cat" : "dog",
+      species: initial?.species ?? "dog",
       breed: initial?.breed ?? "",
       notes: initial?.notes ?? "",
       birthdate: initial?.birthdate ?? "",
@@ -183,10 +180,10 @@ export function PetForm({ initial, onSaved, onCancel, actions }: PetFormProps) {
             ariaLabel="Species"
             value={species.field.value}
             onValueChange={(v) => species.field.onChange(v)}
-            options={[
-              { value: "dog", label: "🐕 Dog" },
-              { value: "cat", label: "🐈 Cat" },
-            ]}
+            options={SPECIES.map((s) => ({
+              value: s.value,
+              label: `${s.emoji} ${s.label}`,
+            }))}
           />
         </div>
       </div>

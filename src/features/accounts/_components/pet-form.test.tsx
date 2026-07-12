@@ -48,3 +48,13 @@ describe("PetForm", () => {
     expect(actions.create).not.toHaveBeenCalled();
   });
 });
+
+describe("PetForm species options", () => {
+  it("renders a radio for every canonical species", () => {
+    render(<PetForm onSaved={vi.fn()} />);
+    const radios = screen.getAllByRole("radio");
+    expect(radios).toHaveLength(7);
+    expect(screen.getByRole("radio", { name: /Bird/ })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /Fish/ })).toBeInTheDocument();
+  });
+});
