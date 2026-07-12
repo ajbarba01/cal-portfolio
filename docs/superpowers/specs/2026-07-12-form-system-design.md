@@ -80,9 +80,13 @@ both are zero-dependency and tree-shakeable.
    `company` field stays a plain unregistered input.
 4. **Account** — profile form, password form, pet form, review form, claim
    form.
-5. **Admin** — new-client form, service editor, settings. (The service
-   editor's requires-approval/duration validation quirk is Group E scope; this
-   pass migrates mechanically without changing that behavior.)
+5. **Admin** — new-client form migrates fully. The service editor and
+   settings panel are structured config editors (client-side validation and
+   per-field error maps already; stepper/switch-dominated) — the same class as
+   the booking forms, so they keep their state machines and only adopt the
+   shared conventions: root error rendered as an `Alert`, optional-label
+   convention on text fields. (The service editor's requires-approval/duration
+   validation quirk is Group E scope; unchanged here.)
 
 **Not migrated:** booking quantity forms + scheduler (structured state
 machines, no free text), filter Multiswitches, one-click mutation buttons
