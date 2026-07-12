@@ -174,9 +174,9 @@
 - provenance: cal-verbatim
 - consumed-by: src/app/(marketing)/about/page.tsx
 - applied-from: |
-  Animals have been a part of my life for as long as I can remember. Growing up, my family had three cats and three dogs, and I now have my own husky mix (named Kiche), who is rarely far from my side.
+  Animals have been a part of my life for as long as I can remember. Growing up, my family had three cats and three dogs, and I now have my own husky mix named Kiche (kee-chay), who is rarely far from my side.
 - live-text: |
-  Animals have been a part of my life for as long as I can remember. Growing up, my family had three cats and three dogs, and I now have my own husky mix (named Kiche), who is rarely far from my side.
+  Animals have been a part of my life for as long as I can remember. Growing up, my family had three cats and three dogs, and I now have my own husky mix named Kiche (kee-chay), who is rarely far from my side.
 - transforms: none
 - notes: -
 
@@ -723,8 +723,8 @@
   Until September 1, I'm assuming I can't…
   [reason supplied 2026-06-20: I'm recovering from a broken leg]
 - live-text: |
-  I'm recovering from a broken leg, so until September 1 I can't:
-- transforms: reason composition (2026-06-20). "I'm assuming I can't…" → "…so until September 1 I can't:" (drops the hedge + ellipsis, adds colon to lead the list) and prepends the user-supplied reason "I'm recovering from a broken leg". First person, per the marketing POV guardrail (user briefly tried third person then reverted).
+  I'm recovering from a broken leg, so until September 1, 2026, I am unable to:
+- transforms: reason composition (2026-06-20). "I'm assuming I can't…" → "…September 1, 2026, I am unable to:" (drops the hedge + ellipsis, adds colon to lead the list) and prepends the user-supplied reason "I'm recovering from a broken leg". First person, per the marketing POV guardrail (user briefly tried third person then reverted).
 - notes: ⏳ time-bound notice — Cal expects to remove after 2026-09-01. New IDs (services.notice.lede + .1/.2/.3), user-confirmed mapping 2026-06-20. Renders as its own full-width band (soft bg-brand tint, hairline top/bottom) above the service tabs as a left-aligned stack: "Limited availability" eyebrow (Info icon), lede, then .1/.2/.3 constraints with brand-tinted dash markers.
 
 ### services.notice.1

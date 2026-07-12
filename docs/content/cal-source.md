@@ -91,7 +91,7 @@ I recently graduated from Colorado College with a degree in Anthropology and cur
 ### about.bio.p2
 
 ```
-Animals have been a part of my life for as long as I can remember. Growing up, my family had three cats and three dogs, and I now have my own husky mix (named Kiche), who is rarely far from my side.
+Animals have been a part of my life for as long as I can remember. Growing up, my family had three cats and three dogs, and I now have my own husky mix named Kiche (kee-chay), who is rarely far from my side.
 ```
 
 ### about.bio.p3

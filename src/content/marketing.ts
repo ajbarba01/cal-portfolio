@@ -35,7 +35,7 @@ export const copy = {
   "about.bio.p1":
     "I recently graduated from Colorado College with a degree in Anthropology and currently live in Lakewood—though I also spend time in Boulder and throughout the Front Range.",
   "about.bio.p2":
-    "Animals have been a part of my life for as long as I can remember. Growing up, my family had three cats and three dogs, and I now have my own husky mix (named Kiche), who is rarely far from my side.",
+    "Animals have been a part of my life for as long as I can remember. Growing up, my family had three cats and three dogs, and I now have my own husky mix named Kiche (kee-chay), who is rarely far from my side.",
   "about.bio.p3":
     "Over the years, I've had the opportunity to work with hundreds of pets. My experience includes caring for puppies, senior pets, highly anxious dogs, reactive dogs, and multi-pet households, with much of my work centered around large-breed dogs. Beyond hands-on pet care, I've shadowed a veterinarian and have human-focused medical training as well (EMT and WFR). With my own dogs, I've explored activities such as agility, scent work, canicross, and bikejoring, and I enjoy continuing to learn about animal behavior, health, and enrichment.",
   "about.bio.p4":
@@ -88,7 +88,7 @@ export const copy = {
     "Drop-in visits, walks, house sitting, and training—each tailored to your pet's needs.",
   // Temporary availability notice — time-bound (remove after 2026-09-01).
   "services.notice.lede":
-    "I'm recovering from a broken leg, so until September 1 I can't:",
+    "I'm recovering from a broken leg, so until September 1, 2026, I am unable to:",
   "services.notice.1": "Travel more than one mile for a booking",
   "services.notice.2": "Do walks longer than 15 min for dogs over 40lbs",
   "services.notice.3":
