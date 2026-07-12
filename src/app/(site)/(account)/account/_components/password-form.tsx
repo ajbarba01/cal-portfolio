@@ -63,7 +63,6 @@ export function PasswordForm() {
           type="password"
           autoComplete="new-password"
           maxLength={FIELD_LIMITS.password}
-          required
         />
 
         <FormField
@@ -72,7 +71,6 @@ export function PasswordForm() {
           type="password"
           autoComplete="new-password"
           maxLength={FIELD_LIMITS.password}
-          required
         />
       </div>
 

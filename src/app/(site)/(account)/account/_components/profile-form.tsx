@@ -49,7 +49,6 @@ export function ProfileForm({ initialValues }: ProfileFormProps) {
           type="text"
           autoComplete="name"
           maxLength={FIELD_LIMITS.name}
-          required
         />
 
         <FormField
@@ -58,7 +57,6 @@ export function ProfileForm({ initialValues }: ProfileFormProps) {
           type="tel"
           autoComplete="tel"
           maxLength={FIELD_LIMITS.phone}
-          required
         />
       </div>
 
@@ -69,7 +67,6 @@ export function ProfileForm({ initialValues }: ProfileFormProps) {
           type="text"
           autoComplete="street-address"
           maxLength={FIELD_LIMITS.addressLine}
-          required
         />
 
         <FormField
@@ -79,7 +76,6 @@ export function ProfileForm({ initialValues }: ProfileFormProps) {
           autoComplete="postal-code"
           inputMode="numeric"
           maxLength={10}
-          required
         />
       </div>
 
