@@ -19,6 +19,8 @@ import {
   approveBooking,
   declineBooking,
   settleDebit,
+  waiveDebit,
+  adjustDebit,
   OnboardingStatusSelect,
   adminCreatePet,
   adminUpdatePet,
@@ -41,6 +43,7 @@ import type { PetFormActions } from "@/features/accounts/index.client";
 import type { ActionResult } from "@/features/accounts/index.client";
 import type { FormKey } from "@/features/accounts/index.client";
 import { AccountClaimPanel } from "./account-claim-panel";
+import { AdjustDebitDialog } from "./adjust-debit-dialog";
 
 // ─── Editable booking statuses ───────────────────────────────────────────────
 
@@ -71,6 +74,17 @@ function debitReasonLabel(reason: string): string {
   if (reason in DEBIT_REASON_LABELS) return DEBIT_REASON_LABELS[reason];
   // Title-case fallback
   return reason.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+const DEBIT_RESOLUTION_LABELS: Record<string, string> = {
+  paid: "paid",
+  waived: "waived",
+  adjusted: "adjusted",
+};
+
+function debitResolutionLabel(resolution: string | null): string {
+  if (!resolution) return "paid";
+  return DEBIT_RESOLUTION_LABELS[resolution] ?? resolution;
 }
 
 // ─── Formatting helpers ───────────────────────────────────────────────────────
@@ -125,6 +139,7 @@ export function ClientDetailClient({ client }: { client: ClientDetailView }) {
   const { confirm, dialog } = useConfirm();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [adjustingDebitId, setAdjustingDebitId] = useState<string | null>(null);
 
   function run<T extends { kind: string }>(
     action: () => Promise<T>,
@@ -491,40 +506,102 @@ export function ClientDetailClient({ client }: { client: ClientDetailView }) {
                   {denver(debit.created_at)}
                 </span>
                 {debit.settled_at ? (
-                  <span className="text-muted-foreground ml-auto">settled</span>
+                  <span className="text-muted-foreground ml-auto">
+                    settled &middot; {debitResolutionLabel(debit.resolution)}
+                  </span>
                 ) : (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="ml-auto"
-                    disabled={isPending}
-                    onClick={async () => {
-                      const ok = await confirm({
-                        title: `Mark ${client.full_name ?? "this client"}'s ${dollars(debit.amount_cents)} balance as settled?`,
-                        description:
-                          "This marks the debit settled and cannot be undone.",
-                        confirmLabel: "Mark settled",
-                        destructive: false,
-                      });
-                      if (!ok) return;
-                      run(
-                        () => settleDebit(debit.id, client.id),
-                        () =>
-                          toast.add({
-                            type: "success",
-                            title: "Debit settled",
-                          }),
-                      );
-                    }}
-                  >
-                    Mark settled
-                  </Button>
+                  <div className="ml-auto flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={isPending}
+                      onClick={() => setAdjustingDebitId(debit.id)}
+                    >
+                      Adjust
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={isPending}
+                      onClick={async () => {
+                        const ok = await confirm({
+                          title: `Waive this ${dollars(debit.amount_cents)} balance?`,
+                          description:
+                            "Forgives the debt without collecting. Cannot be undone.",
+                          confirmLabel: "Waive",
+                          destructive: false,
+                        });
+                        if (!ok) return;
+                        run(
+                          () => waiveDebit(debit.id, client.id),
+                          () =>
+                            toast.add({
+                              type: "success",
+                              title: "Debit waived",
+                            }),
+                        );
+                      }}
+                    >
+                      Waive
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={isPending}
+                      onClick={async () => {
+                        const ok = await confirm({
+                          title: `Mark ${client.full_name ?? "this client"}'s ${dollars(debit.amount_cents)} balance as settled?`,
+                          description:
+                            "This marks the debit settled and cannot be undone.",
+                          confirmLabel: "Mark settled",
+                          destructive: false,
+                        });
+                        if (!ok) return;
+                        run(
+                          () => settleDebit(debit.id, client.id),
+                          () =>
+                            toast.add({
+                              type: "success",
+                              title: "Debit settled",
+                            }),
+                        );
+                      }}
+                    >
+                      Mark settled
+                    </Button>
+                  </div>
                 )}
               </li>
             ))}
           </ul>
         ) : null}
       </Surface>
+
+      {adjustingDebitId ? (
+        <AdjustDebitDialog
+          open={adjustingDebitId !== null}
+          onOpenChange={(open) => {
+            if (!open) setAdjustingDebitId(null);
+          }}
+          currentAmountCents={
+            client.debits.find((d) => d.id === adjustingDebitId)
+              ?.amount_cents ?? 0
+          }
+          pending={isPending}
+          onSave={(cents) => {
+            const debitId = adjustingDebitId;
+            run(
+              () => adjustDebit(debitId, client.id, cents),
+              () =>
+                toast.add({
+                  type: "success",
+                  title: "Debit adjusted",
+                }),
+            );
+            setAdjustingDebitId(null);
+          }}
+        />
+      ) : null}
     </div>
   );
 }
