@@ -213,7 +213,9 @@ export function QuantityForm({
           description="Longest stretch Cal can step out each day. Lower means more on-site attention — and a small needy-care surcharge."
           value={qty.maxHoursAway}
           min={0}
-          max={24}
+          // 12 is a sane daily ceiling — ≥8 already means "no surcharge", so
+          // the 13–24 range carried no information.
+          max={12}
           unit="hr"
           onChange={(v) => set({ maxHoursAway: Math.round(v) })}
         />
