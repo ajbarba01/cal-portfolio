@@ -1,33 +1,47 @@
 "use client";
 
-import { useActionState } from "react";
-import { completeOnboarding } from "@/features/accounts";
-import type { OnboardingFormState } from "@/features/accounts";
+import { submitOnboarding, onboardingClientSchema } from "@/features/accounts";
+import {
+  useAppForm,
+  Form,
+  FormRootError,
+  submitAction,
+} from "@/components/form";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
 import { FormSection } from "@/components/ui/form-section";
 import { FIELD_LIMITS } from "@/lib/field-limits";
 
-const INITIAL: OnboardingFormState = { status: "idle" };
-
 /**
- * Step 1 — profile + emergency info form. Bound to completeOnboarding via
- * useActionState: validation errors come back as state and render inline under
- * each field; on success the action redirects (framework-handled, no try/catch).
+ * Step 1 — profile + emergency info form. RHF + zod validate client-side, so
+ * an invalid submit never round-trips (and never resets the form — the old
+ * useActionState wiring lost all input on a server validation error). The
+ * server re-parses the same schema; submitOnboarding redirects on success.
  */
 export function InfoStep({ returnTo }: { returnTo?: string }) {
-  const [state, formAction, isPending] = useActionState(
-    completeOnboarding,
-    INITIAL,
-  );
-  const errors = state.status === "error" ? state.fieldErrors : {};
+  const form = useAppForm(onboardingClientSchema, {
+    defaultValues: {
+      full_name: "",
+      phone: "",
+      address: "",
+      zip: "",
+      contact_name: "",
+      contact_phone: "",
+      contact_relationship: "",
+      vet_name: "",
+      vet_phone: "",
+    },
+  });
+  const isPending = form.formState.isSubmitting;
 
   return (
-    <form action={formAction} noValidate className="flex flex-col gap-5">
-      {returnTo ? (
-        <input type="hidden" name="returnTo" value={returnTo} />
-      ) : null}
-
+    <Form
+      form={form}
+      onSubmit={submitAction(form, (values) =>
+        submitOnboarding(values, returnTo),
+      )}
+      className="flex flex-col gap-5"
+    >
       <FormSection title="Your profile">
         <div className="grid gap-4 sm:grid-cols-2">
           <FormField
@@ -36,8 +50,6 @@ export function InfoStep({ returnTo }: { returnTo?: string }) {
             type="text"
             autoComplete="name"
             maxLength={FIELD_LIMITS.name}
-            error={errors.full_name}
-            required
           />
           <FormField
             label="Phone"
@@ -45,8 +57,6 @@ export function InfoStep({ returnTo }: { returnTo?: string }) {
             type="tel"
             autoComplete="tel"
             maxLength={FIELD_LIMITS.phone}
-            error={errors.phone}
-            required
           />
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -56,8 +66,6 @@ export function InfoStep({ returnTo }: { returnTo?: string }) {
             type="text"
             autoComplete="street-address"
             maxLength={FIELD_LIMITS.addressLine}
-            error={errors.address}
-            required
           />
           <FormField
             label="ZIP code"
@@ -66,8 +74,6 @@ export function InfoStep({ returnTo }: { returnTo?: string }) {
             autoComplete="postal-code"
             inputMode="numeric"
             maxLength={10}
-            error={errors.zip}
-            required
           />
         </div>
       </FormSection>
@@ -78,8 +84,6 @@ export function InfoStep({ returnTo }: { returnTo?: string }) {
           name="contact_name"
           type="text"
           maxLength={FIELD_LIMITS.name}
-          error={errors.contact_name}
-          required
         />
         <div className="grid gap-4 sm:grid-cols-2">
           <FormField
@@ -87,8 +91,6 @@ export function InfoStep({ returnTo }: { returnTo?: string }) {
             name="contact_phone"
             type="tel"
             maxLength={FIELD_LIMITS.phone}
-            error={errors.contact_phone}
-            required
           />
           <FormField
             label="Relationship"
@@ -96,8 +98,6 @@ export function InfoStep({ returnTo }: { returnTo?: string }) {
             type="text"
             placeholder="e.g. Parent, Spouse, Friend"
             maxLength={FIELD_LIMITS.relationship}
-            error={errors.contact_relationship}
-            required
           />
         </div>
       </FormSection>
@@ -109,19 +109,17 @@ export function InfoStep({ returnTo }: { returnTo?: string }) {
             name="vet_name"
             type="text"
             maxLength={FIELD_LIMITS.name}
-            error={errors.vet_name}
-            required
           />
           <FormField
             label="Vet phone"
             name="vet_phone"
             type="tel"
             maxLength={FIELD_LIMITS.phone}
-            error={errors.vet_phone}
-            required
           />
         </div>
       </FormSection>
+
+      <FormRootError />
 
       <Button
         type="submit"
@@ -131,6 +129,6 @@ export function InfoStep({ returnTo }: { returnTo?: string }) {
       >
         {isPending ? "Saving…" : "Continue →"}
       </Button>
-    </form>
+    </Form>
   );
 }

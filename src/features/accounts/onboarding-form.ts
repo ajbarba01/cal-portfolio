@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { profileSchema, type ProfileInput } from "./profile-schema";
 import {
   emergencySchema,
@@ -23,52 +24,25 @@ export function onboardingSuccessPath(safeReturnTo: string | null): string {
     : "/onboarding";
 }
 
-/** Result state returned to the onboarding form via useActionState. */
-export type OnboardingFormState =
-  | { status: "idle" }
-  | { status: "error"; fieldErrors: Record<string, string> };
-
 /**
- * Pure: read + validate the onboarding form fields. Returns either the parsed
- * OnboardingInput or per-field error messages (first message per field). No IO,
- * no auth — lives outside the "use server" action module so it can be a sync
- * export and unit-tested directly.
+ * The onboarding form as the client sees it: one flat object (RHF field names
+ * are flat), validated with the exact profile + emergency schemas the server
+ * re-parses. Client and server cannot drift — same zod objects.
  */
-export function parseOnboardingForm(
-  formData: FormData,
-):
-  | { ok: true; input: OnboardingInput }
-  | { ok: false; fieldErrors: Record<string, string> } {
-  const str = (k: string) => String(formData.get(k) ?? "");
+export const onboardingClientSchema = z.object({
+  ...profileSchema.shape,
+  ...emergencySchema.shape,
+});
 
-  const profile = profileSchema.safeParse({
-    full_name: str("full_name"),
-    phone: str("phone"),
-    address: str("address"),
-    zip: str("zip"),
-  });
-  const emergency = emergencySchema.safeParse({
-    contact_name: str("contact_name"),
-    contact_phone: str("contact_phone"),
-    contact_relationship: str("contact_relationship"),
-    vet_name: str("vet_name"),
-    vet_phone: str("vet_phone"),
-  });
+export type OnboardingClientInput = z.infer<typeof onboardingClientSchema>;
 
-  if (profile.success && emergency.success) {
-    return {
-      ok: true,
-      input: { profile: profile.data, emergency: emergency.data },
-    };
-  }
-
-  const fieldErrors: Record<string, string> = {};
-  const collect = (errs: Record<string, string[] | undefined>) => {
-    for (const [k, msgs] of Object.entries(errs)) {
-      if (msgs && msgs[0]) fieldErrors[k] = msgs[0];
-    }
+/** Regroup the flat client values into the { profile, emergency } shape runOnboarding takes. */
+export function splitOnboardingInput(
+  flat: OnboardingClientInput,
+): OnboardingInput {
+  const { full_name, phone, address, zip, ...emergency } = flat;
+  return {
+    profile: { full_name, phone, address, zip } satisfies ProfileInput,
+    emergency: emergency satisfies EmergencyInput,
   };
-  if (!profile.success) collect(profile.error.flatten().fieldErrors);
-  if (!emergency.success) collect(emergency.error.flatten().fieldErrors);
-  return { ok: false, fieldErrors };
 }

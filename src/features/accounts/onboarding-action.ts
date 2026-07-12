@@ -8,14 +8,18 @@ import { profileSchema } from "./profile-schema";
 import { emergencySchema } from "@/features/accounts/emergency-schema";
 import {
   onboardingSuccessPath,
-  parseOnboardingForm,
+  onboardingClientSchema,
+  splitOnboardingInput,
   type OnboardingInput,
-  type OnboardingFormState,
 } from "./onboarding-form";
 import { type SupabaseClient } from "@supabase/supabase-js";
 import { defaultGeocoder } from "@/features/pricing";
 import { type Geocoder } from "@/features/pricing";
 import { safeReturnTo } from "@/features/booking";
+import {
+  type FormActionResult,
+  zodFieldErrors,
+} from "@/lib/form-action-result";
 
 export interface OnboardingDeps {
   /** Service-role client — bypasses RLS + column grants. Required for writing system columns. */
@@ -106,20 +110,21 @@ export async function runOnboarding(
 }
 
 /**
- * Server action bound via useActionState. Authenticates, validates the form,
- * runs onboarding, then redirects on success. On validation failure it returns
- * field errors as state (NO throw), so the client never try/catches a redirect —
- * which is what surfaced the NEXT_REDIRECT error string in the old version.
+ * Server action bound via RHF's submitAction bridge. Authenticates, re-parses
+ * the same client schema, runs onboarding, then redirects on success. On
+ * validation failure it returns field errors as a FormActionResult (NO throw),
+ * so the client never try/catches a redirect — which is what surfaced the
+ * NEXT_REDIRECT error string in the old version.
  *
- * `returnTo` (deferred-auth round-trip) rides along as a hidden form field and is
+ * `returnTo` (deferred-auth round-trip) rides along as a plain argument and is
  * validated against the open-redirect guard; on success it is re-attached to the
  * /onboarding URL (see onboardingSuccessPath for why the redirect never targets
  * /account or the returnTo destination directly).
  */
-export async function completeOnboarding(
-  _prevState: OnboardingFormState,
-  formData: FormData,
-): Promise<OnboardingFormState> {
+export async function submitOnboarding(
+  input: unknown,
+  returnTo?: string,
+): Promise<FormActionResult> {
   const authClient = await createClient();
   const {
     data: { user },
@@ -129,24 +134,19 @@ export async function completeOnboarding(
     redirect("/login");
   }
 
-  const parsed = parseOnboardingForm(formData);
-  if (!parsed.ok) {
-    return { status: "error", fieldErrors: parsed.fieldErrors };
+  const parsed = onboardingClientSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, fieldErrors: zodFieldErrors(parsed.error) };
   }
 
   const serviceClient = createServiceClient();
   await runOnboarding(
     { serviceClient, userId: user.id, geocoder: defaultGeocoder },
-    parsed.input,
+    splitOnboardingInput(parsed.data),
   );
 
-  const returnTo = formData.get("returnTo");
   // Purge the cached /onboarding payload (it still holds the info form) so the
   // redirect renders the wizard fresh at its new meet_greet_pending state.
   revalidatePath("/onboarding");
-  redirect(
-    onboardingSuccessPath(
-      safeReturnTo(typeof returnTo === "string" ? returnTo : undefined),
-    ),
-  );
+  redirect(onboardingSuccessPath(safeReturnTo(returnTo)));
 }
