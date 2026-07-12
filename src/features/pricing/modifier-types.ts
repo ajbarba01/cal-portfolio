@@ -1,11 +1,8 @@
-export type Species =
-  | "dog"
-  | "cat"
-  | "bird"
-  | "rodent"
-  | "reptile"
-  | "fish"
-  | "other";
+import type { PetSpecies } from "@/features/pets";
+
+/** Species is a pet-domain concept; the canonical list lives in features/pets. */
+export type Species = PetSpecies;
+
 export type Unit = "dog" | "cat" | "other";
 export type Tier = { from: number; cents?: number; pct?: number };
 export type Condition =

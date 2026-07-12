@@ -8,6 +8,7 @@
  */
 
 import { z } from "zod";
+import { speciesEnum } from "@/features/pets";
 import type { ServicePricingConfig } from "./modifier-types";
 
 // ---------------------------------------------------------------------------
@@ -33,15 +34,7 @@ const nonNegSchema = z.number().nonnegative();
 // Species / Unit / Condition / Tier
 // ---------------------------------------------------------------------------
 
-const speciesSchema = z.enum([
-  "dog",
-  "cat",
-  "bird",
-  "rodent",
-  "reptile",
-  "fish",
-  "other",
-]);
+const speciesSchema = speciesEnum;
 
 const unitSchema = z.enum(["dog", "cat", "other"]);
 

@@ -548,6 +548,22 @@ const MEET_GREET_SEED: unknown = {
   },
 };
 
+// ---------------------------------------------------------------------------
+// Canonical species integration
+// ---------------------------------------------------------------------------
+
+import { SPECIES_VALUES } from "@/features/pets";
+
+describe("allowedSpecies accepts the full taxonomy", () => {
+  it("accepts every canonical species", () => {
+    const cfg = parsePricingConfig({
+      modifiers: [{ kind: "base_per_night", cents: 5000 }],
+      constraints: { intervalMin: 1440, allowedSpecies: [...SPECIES_VALUES] },
+    });
+    expect(cfg.constraints.allowedSpecies).toEqual([...SPECIES_VALUES]);
+  });
+});
+
 describe("parsePricingConfig — seeded JSON round-trips", () => {
   it("house_sitting: parses without throw, 13 modifiers, base_per_night first", () => {
     const cfg = parsePricingConfig(HOUSE_SITTING_SEED) as ServicePricingConfig;
