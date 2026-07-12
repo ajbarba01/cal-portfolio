@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useId } from "react";
+import { useFormContext } from "react-hook-form";
 import { FormField } from "@/components/ui/form-field";
 import { Textarea } from "@/components/ui/textarea";
 import { Eyebrow } from "@/components/marketing/eyebrow";
@@ -17,8 +18,8 @@ import type { FormKey } from "@/features/accounts/form-registry";
  * Copy is written from the owner's side of the screen — plain questions Cal's
  * clients recognize, with a one-line hint only where the question needs framing.
  *
- * Every field shows an explicit required/optional text label (not color alone)
- * for accessibility.
+ * Fields render via the RHF-mode FormField (self-wiring inside the surrounding
+ * <Form>); required/optional labeling is FormField's own convention now.
  */
 
 export type FieldValues = Record<string, string>;
@@ -342,16 +343,12 @@ export function profileFieldNames(formKey: FormKey): string[] {
   return groups.flatMap((g) => g.fields.map((f) => f.name));
 }
 
-function FieldGroupBlock({
-  group,
-  values,
-  onChange,
-}: {
-  group: FieldGroup;
-  values: FieldValues;
-  onChange: (name: string, value: string) => void;
-}) {
+function FieldGroupBlock({ group }: { group: FieldGroup }) {
   const headingId = useId();
+  const {
+    register,
+    formState: { errors },
+  } = useFormContext();
   return (
     <div
       role="group"
@@ -359,74 +356,41 @@ function FieldGroupBlock({
       className="flex flex-col gap-4"
     >
       <Eyebrow id={headingId}>{group.title}</Eyebrow>
-      {group.fields.map((f) => {
-        const labelNode = (
-          <span className="inline-flex items-center gap-1.5">
-            {f.label}
-            {f.required ? (
-              <span
-                className="text-destructive text-xs font-normal"
-                aria-label="required"
-              >
-                *
-              </span>
-            ) : (
-              <span className="text-muted-foreground text-xs font-normal">
-                (optional)
-              </span>
-            )}
-          </span>
-        );
-        const control = {
-          value: values[f.name] ?? "",
-          maxLength: f.max,
-          required: f.required,
-          onChange: (
-            e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
-          ) => onChange(f.name, e.target.value),
-        };
-        return (
-          <Fragment key={f.name}>
-            {f.multiline ? (
-              <FormField label={labelNode} name={f.name} hint={f.hint}>
-                <Textarea name={f.name} {...control} />
-              </FormField>
-            ) : (
-              <FormField
-                label={labelNode}
-                name={f.name}
-                hint={f.hint}
-                type={f.type ?? "text"}
-                placeholder={f.placeholder}
-                {...control}
-              />
-            )}
-          </Fragment>
-        );
-      })}
+      {group.fields.map((f) => (
+        <Fragment key={f.name}>
+          {f.multiline ? (
+            <FormField
+              label={f.label}
+              name={f.name}
+              hint={f.hint}
+              optional={!f.required}
+              error={errors[f.name]?.message as string | undefined}
+            >
+              <Textarea rows={3} maxLength={f.max} {...register(f.name)} />
+            </FormField>
+          ) : (
+            <FormField
+              label={f.label}
+              name={f.name}
+              hint={f.hint}
+              placeholder={f.placeholder}
+              type={f.type ?? "text"}
+              maxLength={f.max}
+              optional={!f.required}
+            />
+          )}
+        </Fragment>
+      ))}
     </div>
   );
 }
 
-export function ProfileFields({
-  formKey,
-  values,
-  onChange,
-}: {
-  formKey: FormKey;
-  values: FieldValues;
-  onChange: (name: string, value: string) => void;
-}) {
+export function ProfileFields({ formKey }: { formKey: FormKey }) {
   const groups = PROFILE_GROUPS[formKey] ?? [];
   return (
     <>
       {groups.map((g) => (
-        <FieldGroupBlock
-          key={g.title}
-          group={g}
-          values={values}
-          onChange={onChange}
-        />
+        <FieldGroupBlock key={g.title} group={g} />
       ))}
     </>
   );

@@ -1,12 +1,19 @@
 "use client";
 
-import { useId, useState, useTransition } from "react";
+import { useId, useState } from "react";
+import type { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Eyebrow } from "@/components/marketing/eyebrow";
 import { ShimmerCard } from "@/components/ui/shimmer-card";
 import { FIELD_LIMITS } from "@/lib/field-limits";
+import {
+  useAppForm,
+  Form,
+  FormRootError,
+  submitAction,
+} from "@/components/form";
 import { formRegistry, type FormKey } from "@/features/accounts/form-registry";
 import {
   ProfileFields,
@@ -35,16 +42,7 @@ export interface EmergencyFormValues {
   vet_phone: string;
 }
 
-function EmergencyFields({
-  values,
-  onChange,
-}: {
-  values: FieldValues;
-  onChange: (name: string, value: string) => void;
-}) {
-  function handle(e: React.ChangeEvent<HTMLInputElement>) {
-    onChange(e.target.name, e.target.value);
-  }
+function EmergencyFields() {
   const contactId = useId();
   const vetId = useId();
 
@@ -61,9 +59,6 @@ function EmergencyFields({
           name="contact_name"
           type="text"
           maxLength={FIELD_LIMITS.name}
-          value={values.contact_name ?? ""}
-          onChange={handle}
-          required
         />
         <div className="grid gap-4 sm:grid-cols-2">
           <FormField
@@ -71,9 +66,6 @@ function EmergencyFields({
             name="contact_phone"
             type="tel"
             maxLength={FIELD_LIMITS.phone}
-            value={values.contact_phone ?? ""}
-            onChange={handle}
-            required
           />
           <FormField
             label="Relationship"
@@ -81,9 +73,6 @@ function EmergencyFields({
             type="text"
             placeholder="e.g. Parent, Spouse, Friend"
             maxLength={FIELD_LIMITS.relationship}
-            value={values.contact_relationship ?? ""}
-            onChange={handle}
-            required
           />
         </div>
       </div>
@@ -96,18 +85,12 @@ function EmergencyFields({
             name="vet_name"
             type="text"
             maxLength={FIELD_LIMITS.name}
-            value={values.vet_name ?? ""}
-            onChange={handle}
-            required
           />
           <FormField
             label="Vet phone"
             name="vet_phone"
             type="tel"
             maxLength={FIELD_LIMITS.phone}
-            value={values.vet_phone ?? ""}
-            onChange={handle}
-            required
           />
         </div>
       </div>
@@ -250,11 +233,19 @@ export function FormCard({
   // still need attention without forcing every card open.
   const [open, setOpen] = useState(false);
   const [submitted, setSubmitted] = useState(existing !== undefined);
-  const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
-  const [values, setValues] = useState<FieldValues>(() =>
-    initialValues(formKey, existing),
-  );
+
+  // The registry's schema is a bare ZodSchema (each formKey's shape differs).
+  // These cards are genuinely dynamic — Record<string, string> is the honest
+  // value type — so we cast the runtime schema (a real ZodObject) to the shape
+  // useAppForm's generic wants rather than threading a union of every schema
+  // type through this component.
+  const schema = formRegistry[formKey].schema as unknown as z.ZodObject<
+    Record<string, z.ZodType<string>>
+  >;
+  const form = useAppForm(schema, {
+    defaultValues: initialValues(formKey, existing),
+  });
+  const isPending = form.formState.isSubmitting;
 
   // Owner e-sign state. needsAccept when the current version isn't yet accepted.
   const needsAccept =
@@ -263,36 +254,45 @@ export function FormCard({
   const [authName, setAuthName] = useState("");
   const authNameId = useId();
 
-  function handleChange(name: string, value: string) {
-    setValues((prev) => ({ ...prev, [name]: value }));
-  }
-
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError(null);
-
-    if (needsAccept && (!authChecked || authName.trim().length === 0)) {
-      setError("Type your legal name and check the box to authorize.");
-      return;
-    }
-
-    startTransition(async () => {
-      const result = await onSubmit(formKey, values, petId);
-      if (result.kind !== "success") {
-        setError(result.message);
+  async function onSuccess() {
+    if (needsAccept && auth) {
+      const authResult = await auth.onAccept(authName.trim());
+      if (authResult.kind !== "success") {
+        form.setError("root", {
+          type: "server",
+          message: authResult.message,
+        });
         return;
       }
-      if (needsAccept && auth) {
-        const authResult = await auth.onAccept(authName.trim());
-        if (authResult.kind !== "success") {
-          setError(authResult.message);
-          return;
-        }
+    }
+    setSubmitted(true);
+    setOpen(false);
+    onSaved?.();
+  }
+
+  const handleFormSubmit = submitAction(
+    form,
+    async (values) => {
+      if (needsAccept && (!authChecked || authName.trim().length === 0)) {
+        return {
+          ok: false,
+          message: "Type your legal name and check the box to authorize.",
+        };
       }
-      setSubmitted(true);
-      setOpen(false);
-      onSaved?.();
-    });
+      const result = await onSubmit(formKey, values as FieldValues, petId);
+      return result.kind === "success"
+        ? { ok: true }
+        : { ok: false, message: result.message };
+    },
+    { onSuccess },
+  );
+
+  function handleToggle() {
+    const next = !open;
+    if (next && status === "stale") {
+      form.reset(initialValues(formKey, existing));
+    }
+    setOpen(next);
   }
 
   const label = title ?? formRegistry[formKey].title;
@@ -307,7 +307,7 @@ export function FormCard({
         <Button
           variant={open ? "ghost" : "outline"}
           size="sm"
-          onClick={() => setOpen((o) => !o)}
+          onClick={handleToggle}
           aria-expanded={open}
         >
           {open ? "Close" : submitted ? "Edit" : "Start"}
@@ -315,9 +315,9 @@ export function FormCard({
       </div>
 
       {open && (
-        <form
-          onSubmit={handleSubmit}
-          noValidate
+        <Form
+          form={form}
+          onSubmit={handleFormSubmit}
           className="border-border bg-muted/40 flex flex-col gap-6 border-t px-4 py-4"
         >
           {status === "stale" && (
@@ -331,13 +331,9 @@ export function FormCard({
           )}
           <ProfileDisclaimer />
           {formKey === "emergency" ? (
-            <EmergencyFields values={values} onChange={handleChange} />
+            <EmergencyFields />
           ) : (
-            <ProfileFields
-              formKey={formKey}
-              values={values}
-              onChange={handleChange}
-            />
+            <ProfileFields formKey={formKey} />
           )}
 
           {auth ? (
@@ -385,11 +381,7 @@ export function FormCard({
             </div>
           ) : null}
 
-          {error && (
-            <p role="alert" className="text-destructive text-sm">
-              {error}
-            </p>
-          )}
+          <FormRootError />
 
           <Button
             type="submit"
@@ -399,7 +391,7 @@ export function FormCard({
           >
             {isPending ? "Saving…" : submitted ? "Update" : "Submit"}
           </Button>
-        </form>
+        </Form>
       )}
     </div>
   );
