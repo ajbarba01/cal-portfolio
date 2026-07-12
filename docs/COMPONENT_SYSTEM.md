@@ -78,6 +78,8 @@ sanctioned card lift is `ShimmerCard`'s opt-in `hoverLift` (the service cards).
 | empty / error / loading panel     | `EmptyState` / `ErrorState` / `Spinner` | see FRONTEND.md feedback taxonomy                                                                                |
 | inline link / textual CTA         | `TextLink`                              | the one clay link style                                                                                          |
 | titled group of form fields       | `FormSection`                           | emphasis Surface, not fieldset/legend                                                                            |
+| RHF form shell                    | `Form` + `useAppForm` + `submitAction`  | `src/components/form/` — zod resolver, `onTouched`, server-error mapping; see "Form recipe"                      |
+| form-level (root) error           | `FormRootError`                         | renders `errors.root` as an error Alert, above the submit row                                                    |
 | live length count on a long field | `CharCounter`                           | long textareas only; `maxLength` = server cap                                                                    |
 | section intro (eyebrow + heading) | `SectionHeader`                         | reuses `Eyebrow`                                                                                                 |
 | stat / receipt line               | `StatDisplay`                           | `stacked` or `receipt`                                                                                           |
@@ -91,11 +93,15 @@ A form sits on one or more `emphasis` Surface cards. Titled groups use
 `FormSection` (an `emphasis` Surface titled by an `Eyebrow`, wired
 `role="group"` + `aria-labelledby`) — **not** native `fieldset`/`legend`, whose
 notch misaligns with the shimmer ring. A multi-section form stacks several
-FormSections (each its own outer card); a single-section form is one card. Each
-field is a `FormField` carrying its label, control, optional `xs` hint, and `sm`
-inline error. Controls use the `bg-background` fill; one `brand` submit (control
-`md` size, `self-start` desktop / full-width mobile). Validation renders inline at
-the field, never as a toast (see FRONTEND.md feedback).
+FormSections (each its own outer card); a single-section form is one card. Forms
+are RHF (`useAppForm` + `<Form>`); `FormField` self-wires inside a `<Form>` —
+each field carries its label, control, optional `xs` hint, and `sm` inline error
+without threading `value`/`onChange`/`error` by hand. Required is the unmarked
+default; optional fields carry the muted `optional` suffix (no asterisks
+anywhere). Controls use the `bg-background` fill; one `brand` submit (control
+`md` size, `self-start` desktop / full-width mobile). Form-level errors render
+via `FormRootError` above the submit row. Validation renders inline at the
+field, never as a toast (see FRONTEND.md feedback).
 
 Every text control carries a `maxLength` (and its server schema a matching
 `.max()`) drawn from the same semantic tier in `src/lib/field-limits.ts` —
@@ -126,4 +132,4 @@ nothing above the semantic layer changes.
 - Mechanical drift (hand-rolled card surfaces, raw control heights, arbitrary
   colors, off-token fills) is caught by custom ESLint rules in `eslint.config.mjs`.
 
-_Last reviewed: 2026-06-16_
+_Last reviewed: 2026-07-12_

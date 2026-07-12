@@ -2,6 +2,8 @@
 
 import * as React from "react";
 
+import { z } from "zod";
+
 import { SectionHeader } from "@/components/marketing/section-header";
 import {
   ServicePhotoStrip,
@@ -34,6 +36,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { UnitInput } from "@/components/ui/unit-input";
 import { FIELD_LIMITS } from "@/lib/field-limits";
 import placeholders from "@/content/image-placeholders.json";
+import {
+  Form,
+  FormRootError,
+  submitAction,
+  useAppForm,
+} from "@/components/form";
+import type { FormActionResult } from "@/lib/form-action-result";
 
 const blurMap = placeholders as Record<string, string>;
 
@@ -101,6 +110,51 @@ const FILTER_OPTIONS = [
 ] as const;
 
 type FilterValue = (typeof FILTER_OPTIONS)[number]["value"];
+
+// ── Form ──────────────────────────────────────────────────────────────────
+
+const demoFormSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  breed: z.string().optional(),
+  phone: z.string().min(1, "Phone is required"),
+});
+
+/** Always fails, to demonstrate inline field errors + the root error slot. */
+async function demoSubmit(): Promise<FormActionResult> {
+  return {
+    ok: false,
+    fieldErrors: { name: "That name is already taken" },
+    message: "Couldn't save your changes. Try again.",
+  };
+}
+
+function FormShowcase() {
+  const form = useAppForm(demoFormSchema, {
+    defaultValues: { name: "", breed: "", phone: "" },
+  });
+  return (
+    <Surface variant="emphasis" className="flex flex-col gap-4 p-5 sm:max-w-sm">
+      <Form
+        form={form}
+        onSubmit={submitAction(form, demoSubmit)}
+        className="flex flex-col gap-4"
+      >
+        <FormRootError />
+        <FormField label="Name" name="name" type="text" />
+        <FormField label="Breed" name="breed" type="text" optional />
+        <FormField
+          label="Phone"
+          name="phone"
+          type="text"
+          hint="We only call about your bookings."
+        />
+        <Button type="submit" variant="brand" className="self-start">
+          Save
+        </Button>
+      </Form>
+    </Surface>
+  );
+}
 
 export function ShowcaseClient() {
   const [select, setSelect] = React.useState("two");
@@ -280,6 +334,14 @@ export function ShowcaseClient() {
             />
           </FormSection>
         </div>
+      </Section>
+
+      {/* ── Form ──────────────────────────────────────────────────────── */}
+      <Section
+        title="Form — RHF mode"
+        note="useAppForm + <Form>: FormField self-wires (no value/onChange/error threading). Required is the unmarked default (Name); optional fields carry the muted suffix (Breed); a hint sits below the control (Phone). Save always fails here — watch the inline field error and the FormRootError banner above the button."
+      >
+        <FormShowcase />
       </Section>
 
       {/* ── Families ──────────────────────────────────────────────────── */}
