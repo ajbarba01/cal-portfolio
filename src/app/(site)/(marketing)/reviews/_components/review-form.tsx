@@ -5,7 +5,9 @@
  * Submission requires auth — submitReview returns { ok: false } for anon.
  */
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState } from "react";
+import { useController } from "react-hook-form";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
 import { TextLink } from "@/components/ui/text-link";
@@ -15,16 +17,34 @@ import { ShimmerCard } from "@/components/ui/shimmer-card";
 import { createClient } from "@/lib/supabase/client";
 import { submitReview } from "@/features/reviews";
 import { FIELD_LIMITS } from "@/lib/field-limits";
+import {
+  useAppForm,
+  Form,
+  FormRootError,
+  submitAction,
+} from "@/components/form";
+import type { FormActionResult } from "@/lib/form-action-result";
+
+const reviewSchema = z.object({
+  rating: z.number().int().min(1).max(5),
+  body: z
+    .string()
+    .trim()
+    .min(1, "Write a few words first")
+    .max(FIELD_LIMITS.note),
+});
 
 export function ReviewForm() {
   // Auth resolves browser-side so this page (and /reviews) can render statically.
   // null = unresolved; render nothing until known to avoid a wrong-state flash.
   const [isSignedIn, setIsSignedIn] = useState<boolean | null>(null);
-  const [rating, setRating] = useState<number>(5);
-  const [body, setBody] = useState("");
-  const [error, setError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
-  const [isPending, startTransition] = useTransition();
+
+  const form = useAppForm(reviewSchema, {
+    defaultValues: { rating: 5, body: "" },
+  });
+  const rating = useController({ name: "rating", control: form.control });
+  const body = form.watch("body");
 
   useEffect(() => {
     const supabase = createClient();
@@ -69,41 +89,45 @@ export function ReviewForm() {
     );
   }
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError(null);
-
-    startTransition(async () => {
-      const result = await submitReview({ rating, body });
-      if (result.ok) {
-        setSubmitted(true);
-      } else {
-        setError(result.error);
-      }
-    });
+  async function submit(
+    values: z.infer<typeof reviewSchema>,
+  ): Promise<FormActionResult> {
+    const result = await submitReview(values);
+    return result.ok ? { ok: true } : { ok: false, message: result.error };
   }
+
+  const isPending = form.formState.isSubmitting;
 
   return (
     <ShimmerCard className="p-6 sm:p-8">
-      <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
+      <Form
+        form={form}
+        onSubmit={submitAction(form, submit, {
+          onSuccess: () => setSubmitted(true),
+        })}
+        className="flex flex-col gap-4"
+      >
+        <FormRootError />
+
         <div className="flex flex-col gap-1.5">
           <span id="review-rating-label" className="text-sm font-medium">
             Rating
           </span>
           <StarRatingInput
-            value={rating}
-            onChange={setRating}
+            value={rating.field.value}
+            onChange={rating.field.onChange}
             labelledBy="review-rating-label"
           />
         </div>
 
-        <FormField label="Your review" name="body">
+        <FormField
+          label="Your review"
+          name="body"
+          error={form.formState.errors.body?.message}
+        >
           <Textarea
-            name="body"
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
+            {...form.register("body")}
             rows={4}
-            required
             maxLength={FIELD_LIMITS.note}
             aria-describedby="review-body-counter"
             placeholder="Tell us about your experience…"
@@ -116,22 +140,12 @@ export function ReviewForm() {
           className="-mt-2 text-right"
         />
 
-        {error && (
-          <p role="alert" className="text-destructive text-sm">
-            {error}
-          </p>
-        )}
-
         <div>
-          <Button
-            type="submit"
-            variant="brand"
-            disabled={isPending || body.trim().length === 0}
-          >
+          <Button type="submit" variant="brand" disabled={isPending}>
             {isPending ? "Submitting…" : "Submit review"}
           </Button>
         </div>
-      </form>
+      </Form>
     </ShimmerCard>
   );
 }

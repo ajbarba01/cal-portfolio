@@ -1,75 +1,91 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { z } from "zod";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { FormField } from "@/components/ui/form-field";
 import { claimAccount } from "@/features/accounts/index.client";
+import { FIELD_LIMITS } from "@/lib/field-limits";
+import type { FormActionResult } from "@/lib/form-action-result";
+import {
+  useAppForm,
+  Form,
+  FormRootError,
+  submitAction,
+} from "@/components/form";
+
+const claimSchema = z
+  .object({
+    password: z.string().min(8, "Use at least 8 characters"),
+    confirm: z.string(),
+  })
+  .refine((v) => v.password === v.confirm, {
+    message: "Passwords do not match.",
+    path: ["confirm"],
+  });
 
 export function ClaimForm() {
   const router = useRouter();
-  const [pending, start] = useTransition();
-  const [error, setError] = useState<string | null>(null);
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError(null);
-    const form = new FormData(e.currentTarget);
-    const pw = String(form.get("password") ?? "");
-    const confirm = String(form.get("confirm") ?? "");
-    if (pw !== confirm) {
-      setError("Passwords do not match.");
-      return;
+  const form = useAppForm(claimSchema, {
+    defaultValues: { password: "", confirm: "" },
+  });
+
+  async function submit(
+    values: z.infer<typeof claimSchema>,
+  ): Promise<FormActionResult> {
+    const result = await claimAccount(values.password);
+    switch (result.kind) {
+      case "success":
+        return { ok: true };
+      case "unauthenticated":
+        return {
+          ok: false,
+          message: "This claim link has expired. Ask Cal to send a new one.",
+        };
+      case "validation_error":
+        return { ok: false, message: result.message };
+      case "error":
+        return { ok: false, message: result.message };
     }
-    start(async () => {
-      const result = await claimAccount(pw);
-      switch (result.kind) {
-        case "success":
+  }
+
+  const isPending = form.formState.isSubmitting;
+
+  return (
+    <Form
+      form={form}
+      onSubmit={submitAction(form, submit, {
+        onSuccess: () => {
           // Onboarding middleware routes by onboarding_status from here.
           router.push("/account");
           router.refresh();
-          break;
-        case "unauthenticated":
-          setError("This claim link has expired. Ask Cal to send a new one.");
-          break;
-        case "validation_error":
-          setError(result.message);
-          break;
-        case "error":
-          setError(result.message);
-          break;
-      }
-    });
-  }
+        },
+      })}
+      className="flex flex-col gap-4"
+    >
+      <FormRootError />
 
-  return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="password">Choose a password</Label>
-        <Input
-          id="password"
-          name="password"
-          type="password"
-          required
-          minLength={8}
-        />
-      </div>
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="confirm">Confirm password</Label>
-        <Input
-          id="confirm"
-          name="confirm"
-          type="password"
-          required
-          minLength={8}
-        />
-      </div>
-      {error ? <p className="text-destructive text-sm">{error}</p> : null}
-      <Button type="submit" disabled={pending}>
-        {pending ? "Setting up…" : "Claim my account"}
+      <FormField
+        label="Choose a password"
+        name="password"
+        type="password"
+        autoComplete="new-password"
+        maxLength={FIELD_LIMITS.password}
+      />
+
+      <FormField
+        label="Confirm password"
+        name="confirm"
+        type="password"
+        autoComplete="new-password"
+        maxLength={FIELD_LIMITS.password}
+      />
+
+      <Button type="submit" disabled={isPending}>
+        {isPending ? "Setting up…" : "Claim my account"}
       </Button>
-    </form>
+    </Form>
   );
 }
