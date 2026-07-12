@@ -129,12 +129,28 @@ _Fix:_ no-show debt becomes `max(0, noShowCharge − paidCents)`, mirroring the 
 No debit row is inserted when it nets to `0`. Pure, unit-tested (prepaid-full / partial /
 unpaid).
 
-**H-2 — stale "gate re-booking" comment (doc gap, not a bug).**
-The `client_debits` migration comment describes debits as balances that "gate re-booking,"
-but no code gates booking creation on outstanding balance. Nothing blocks a client from
-booking with an outstanding debit, so invariant 2 holds _trivially_ (never blocked at all).
-No booking gate is added this pass. _Resolution:_ correct the stale comment to state the
-actual behavior — balance does not gate booking (by current design).
+**H-2 — the debt gate IS wired (correction to an earlier draft of this finding).**
+An earlier draft of this section claimed no code gates booking on outstanding balance. That
+was wrong: it was based on grepping `outstandingBalanceCents` (the admin-only reporting
+reader) and missing `getOutstandingDebtCents` (the repo method that actually gates). The gate
+is live and intended:
+
+- `bookingServiceShared` create/quote path (`booking-service-shared.ts`) reads
+  `getOutstandingDebtCents(userId)` and returns `blocked_debt` for BOTH the quote preview and
+  the create call when any unsettled balance exists; the admin `skipDebtGate` policy downgrades
+  it to a warning.
+- The series-roll cron (`series-cron.ts`) uses the same check to skip promoting a debtor's
+  `pending_approval` occurrences to `confirmed` and to skip materializing new occurrences.
+- `docs/DESIGN.md` documents this as current design. The historical migration comment was
+  therefore correct, not stale.
+
+So invariant 2 ("never _wrongly_ blocked") has real substance, and this tranche's other work is
+exactly what protects it: **H-1's no-show fix removes the spurious debt that would otherwise
+wrongly block a prepaid client from re-booking, and the new waive/adjust tools give Cal a
+correction path for a disputed or erroneous debt.** A client is blocked only by genuine
+unsettled debt, which is correct. _Resolution:_ no behavior change; record the gate accurately
+in `client-balance.ts` (debt DOES gate booking; settled + waived both clear it) rather than the
+false "no gate" comment the earlier draft proposed.
 
 **Overcharge trace (clean paths, recorded for completeness).**
 `outstandingBalanceCents` sums only unsettled debits (`settled_at is null`); settled/waived
@@ -165,8 +181,8 @@ Current surface is only "Mark settled" (clears an entire debit). Gaps filled:
 
 ## Out of scope
 
-- Adding a booking gate on outstanding balance (H-2 documents current no-gate behavior; no
-  gate is added).
+- Changing the booking debt gate (H-2 confirms it is already wired and correct; no behavior
+  change is made).
 - Manual/arbitrary admin debit creation (waive + adjust only).
 - Client-facing balance/debt surfaces beyond the existing "owed" line and prepay.
 - Everything in the action plan outside Group C and Group H's first row.
