@@ -546,12 +546,16 @@ function RequirementsGate({
           const scopeKey = item.petId
             ? `${item.formKey}:${item.petId}`
             : item.formKey;
+          const species = item.petId
+            ? pets.find((p) => p.id === item.petId)?.species
+            : undefined;
           return (
             <FormCard
               key={scopeKey}
               flat
               formKey={item.formKey}
               petId={item.petId ?? null}
+              species={species}
               title={requirementLabel(item, pets)}
               status={item.status}
               existing={formResponses[scopeKey]}

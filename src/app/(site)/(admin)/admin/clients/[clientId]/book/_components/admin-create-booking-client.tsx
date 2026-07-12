@@ -123,6 +123,12 @@ export function AdminCreateBookingClient({
     maxPets,
   });
 
+  // House-sitting: the walk-time stepper only makes sense when a dog is
+  // assigned (only dogs are walked).
+  const hasDog = pets.some(
+    (p) => selectedPetIds.includes(p.id) && p.species === "dog",
+  );
+
   return (
     <BookingFlow
       flow={{
@@ -188,6 +194,7 @@ export function AdminCreateBookingClient({
             kiche={{ welcome: kicheWelcome, onChange: onKicheWelcomeChange }}
             minHours={durationBounds.minHours}
             maxHours={durationBounds.maxHours}
+            hasDog={hasDog}
           />
         </section>
       }
