@@ -138,6 +138,7 @@ export function FormsClient({
                   <FormCard
                     formKey="pet_care"
                     petId={pet.id}
+                    species={pet.species}
                     title={`${pet.name} — care details`}
                     existing={petResponses[`pet_care:${pet.id}`]}
                     onSubmit={submitForm}

@@ -299,15 +299,16 @@ export function ClientDetailClient({ client }: { client: ClientDetailView }) {
         ) : (
           <div className="flex flex-col gap-2">
             {client.forms.map((form) => {
-              const petName = form.pet_id
-                ? client.pets.find((p) => p.id === form.pet_id)?.name
+              const pet = form.pet_id
+                ? client.pets.find((p) => p.id === form.pet_id)
                 : undefined;
               return (
                 <FormCard
                   key={form.id}
                   formKey={form.form_key as FormKey}
                   petId={form.pet_id}
-                  title={petName ? `${petName} — care details` : undefined}
+                  species={pet?.species}
+                  title={pet ? `${pet.name} — care details` : undefined}
                   existing={{ data: form.data as Record<string, unknown> }}
                   onSubmit={async (fk, vals, pid) => {
                     const r = await adminSubmitForm(client.id, fk, vals, pid);

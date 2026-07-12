@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Eyebrow } from "@/components/marketing/eyebrow";
 import { FIELD_LIMITS } from "@/lib/field-limits";
 import type { FormKey } from "@/features/accounts/form-registry";
+import type { PetSpecies } from "@/features/pets";
 
 /**
  * Field specs + a generic renderer for the Owner / Home / Pet profiles. Driving
@@ -33,6 +34,8 @@ interface FieldSpec {
   multiline?: boolean;
   type?: "text" | "tel";
   max: number;
+  /** When set, the field renders only for these species (omitted = all). */
+  species?: readonly PetSpecies[];
 }
 
 interface FieldGroup {
@@ -272,7 +275,12 @@ const PET_CARE_GROUPS: FieldGroup[] = [
     title: "Behavior",
     fields: [
       { name: "friendly_strangers", label: "With strangers", max: S },
-      { name: "friendly_dogs", label: "With other dogs", max: S },
+      {
+        name: "friendly_dogs",
+        label: "With other dogs",
+        max: S,
+        species: ["dog"],
+      },
       { name: "friendly_children", label: "With children", max: S },
       {
         name: "behavior_comments",
@@ -343,12 +351,29 @@ export function profileFieldNames(formKey: FormKey): string[] {
   return groups.flatMap((g) => g.fields.map((f) => f.name));
 }
 
-function FieldGroupBlock({ group }: { group: FieldGroup }) {
+/** Fields that apply to a given pet's species (undefined species = all). */
+export function visibleFields(
+  fields: FieldSpec[],
+  species: PetSpecies | undefined,
+): FieldSpec[] {
+  return fields.filter(
+    (f) => !f.species || species === undefined || f.species.includes(species),
+  );
+}
+
+function FieldGroupBlock({
+  group,
+  species,
+}: {
+  group: FieldGroup;
+  species?: PetSpecies;
+}) {
   const headingId = useId();
   const {
     register,
     formState: { errors },
   } = useFormContext<FieldValues>();
+  const fields = visibleFields(group.fields, species);
   return (
     <div
       role="group"
@@ -356,7 +381,7 @@ function FieldGroupBlock({ group }: { group: FieldGroup }) {
       className="flex flex-col gap-4"
     >
       <Eyebrow id={headingId}>{group.title}</Eyebrow>
-      {group.fields.map((f) => (
+      {fields.map((f) => (
         <Fragment key={f.name}>
           {f.multiline ? (
             <FormField
@@ -385,12 +410,18 @@ function FieldGroupBlock({ group }: { group: FieldGroup }) {
   );
 }
 
-export function ProfileFields({ formKey }: { formKey: FormKey }) {
+export function ProfileFields({
+  formKey,
+  species,
+}: {
+  formKey: FormKey;
+  species?: PetSpecies;
+}) {
   const groups = PROFILE_GROUPS[formKey] ?? [];
   return (
     <>
       {groups.map((g) => (
-        <FieldGroupBlock key={g.title} group={g} />
+        <FieldGroupBlock key={g.title} group={g} species={species} />
       ))}
     </>
   );

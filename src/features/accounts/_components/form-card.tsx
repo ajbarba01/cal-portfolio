@@ -15,6 +15,7 @@ import {
   submitAction,
 } from "@/components/form";
 import { formRegistry, type FormKey } from "@/features/accounts/form-registry";
+import type { PetSpecies } from "@/features/pets";
 import {
   ProfileFields,
   profileFieldNames,
@@ -180,6 +181,8 @@ export interface FormCardProps {
   ) => Promise<ActionResult>;
   /** Pet scope for pet-scoped cards (one card per pet). */
   petId?: string | null;
+  /** The pet's species, for species-conditional field filtering (pet-scoped cards only). */
+  species?: PetSpecies;
   /** Override the card title (e.g. "Rex — pet care" on a per-pet card). */
   title?: string;
   /** Owner-card expense-authorization e-sign. Ignored for other forms. */
@@ -222,6 +225,7 @@ export function FormCard({
   existing,
   onSubmit,
   petId = null,
+  species,
   title,
   auth,
   status,
@@ -333,7 +337,7 @@ export function FormCard({
           {formKey === "emergency" ? (
             <EmergencyFields />
           ) : (
-            <ProfileFields formKey={formKey} />
+            <ProfileFields formKey={formKey} species={species} />
           )}
 
           {auth ? (
