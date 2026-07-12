@@ -10,6 +10,7 @@
 import { useMemo, useState } from "react";
 import { Star, PawPrint, ExternalLink } from "lucide-react";
 
+import { Reveal } from "@/components/effects/reveal";
 import {
   Multiswitch,
   type MultiswitchOption,
@@ -140,10 +141,12 @@ export function ReviewsList({ reviews }: { reviews: PublishedReview[] }) {
       ) : (
         <ul className="flex flex-col gap-4" role="list">
           {view.items.map((review) => (
-            // Render instantly — no mount fade — on first load and page switch.
-            <li key={review.id}>
+            // Same reveal treatment as the other marketing sections: on-screen
+            // cards fade on mount (incl. page/filter switches), below-the-fold
+            // ones fade in as you scroll to them.
+            <Reveal as="li" key={review.id}>
               <ReviewCard review={review} />
-            </li>
+            </Reveal>
           ))}
         </ul>
       )}
