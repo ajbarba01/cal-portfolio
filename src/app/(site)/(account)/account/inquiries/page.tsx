@@ -1,7 +1,9 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
+import { buttonVariants } from "@/components/ui/button";
 import type { InquiryRow } from "@/features/inquiries";
 import { createClient } from "@/lib/supabase/server";
 import { getCachedUser } from "@/lib/supabase/server-cache";
@@ -30,6 +32,11 @@ export default async function AccountInquiriesPage() {
       <PageHeader
         title="Your inquiries"
         subtitle="Messages you've sent to Cal. Mark one resolved once you no longer need a reply."
+        actions={
+          <Link href="/contact" className={buttonVariants()}>
+            New inquiry
+          </Link>
+        }
       />
       <AccountInquiriesClient initialInquiries={inquiries} />
     </PageContainer>
