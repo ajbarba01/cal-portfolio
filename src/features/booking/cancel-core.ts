@@ -3,7 +3,7 @@
  */
 
 import { z } from "zod";
-import { computeRefund, computeCancellationDebtCents } from "./cancellation";
+import { previewCancellation } from "./cancellation";
 import type { PaymentGateway } from "@/features/payments";
 import { transition } from "./state-machine";
 import {
@@ -74,37 +74,38 @@ export async function cancelBookingCore(
     .filter((p) => p.status === "succeeded")
     .reduce((sum, p) => sum + p.amountCents, 0);
 
-  const refund = computeRefund({
-    finalCents: booking.finalCents,
-    paidCents,
-    startsAt: booking.startsAt,
-    now,
-    fullRefundHours: settings.cancellation_full_refund_hours,
-    lateRefundPct: settings.late_cancel_refund_pct,
-    fullRefund: input.fullRefund ?? false,
-  });
-
-  // Initiate the default-tier refund (webhook re-projects payment_status).
-  if (refund.refundCents > 0) {
+  // Admin/Cal cancels always refund 100% (fullRefund path in the input); the
+  // client path uses the timing-based projection. Preserve that split.
+  if (input.fullRefund ?? false) {
     const succeeded = booking.payments.find((p) => p.status === "succeeded");
-    if (succeeded) {
-      await gateway.refund(succeeded.paymentIntentId, refund.refundCents);
+    if (succeeded && paidCents > 0) {
+      await gateway.refund(succeeded.paymentIntentId, paidCents);
     }
-  }
-
-  // Unpaid late cancel → debt for the forfeited amount.
-  if (refund.tier === "none") {
-    const debtCents = computeCancellationDebtCents({
+  } else {
+    const outcome = previewCancellation({
       finalCents: booking.finalCents,
-      reason: "late_cancel",
+      paidCents,
+      startsAt: booking.startsAt,
+      now,
+      fullRefundHours: settings.cancellation_full_refund_hours,
       lateRefundPct: settings.late_cancel_refund_pct,
       noShowChargePct: settings.no_show_charge_pct,
     });
-    if (debtCents > 0) {
+
+    // Initiate the default-tier refund (webhook re-projects payment_status).
+    if (outcome.refundCents > 0) {
+      const succeeded = booking.payments.find((p) => p.status === "succeeded");
+      if (succeeded) {
+        await gateway.refund(succeeded.paymentIntentId, outcome.refundCents);
+      }
+    }
+
+    // Unpaid late cancel → debt for the forfeited amount.
+    if (outcome.debtCents > 0) {
       await repo.insertDebit({
         client_id: booking.client_id,
         booking_id: booking.id,
-        amount_cents: debtCents,
+        amount_cents: outcome.debtCents,
         reason: "late_cancel",
       });
     }
