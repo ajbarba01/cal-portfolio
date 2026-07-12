@@ -2,8 +2,35 @@
 
 - ensure owing system
 - email system and notification settings for admin and maybe user?
-
 - stripe deployment
+- There should be a link to make an inquiry on “your inquiries” page
+- Pet besides cat and dog? When adding a pet those are the only options
+- Can’t edit or delete a review. You should at least be able to edit it within a certain timeframe
+- can't cancel a booking
+- there should be a max “max hours cal can be away”
+- shouldn't allow you to add walk time for cats.
+- there should be a max distance away you can live- it should have a pop up or something if you try to save your address or try to enter an address into a form that has a zip code that’s outside of a certain range
+- “With other dogs” shows up on form for cat
+- Didn’t actually let me book even though it said availables client
+- Why is Emergence contact and Vet required?
+- When not filling in required information, the information that was entered was cleared.
+- No field for apartment / unit
+- no fade in for comments
+- replace 23 yrs old with 150+ pets served
+- replace all gallery pictures with the new set. Cal edited the album.
+- more FAQ questions
+- "each cat" is a little confusing, maybe "each additioncal cat"
+- "ASPCA Animal Poison Control" the 764 number is not ASPCA its a Pet Poison Control helpline.
+- remove walks included leash manners
+- remove training included anxious dogs
+- Trying to save housesitting service as “requires approval” but it won’t let me save without putting in a default duration. Should I just do 1 minute? Or will clients see that and be confused?
+- is "premium night" too confusing?
+- "each additional animal" -> "each additional small animal"
+- Long stay, extended stay, needy pet care (don’t love the wording of that one), should also be defined.
+- tooltips for some hovers?
+- Long stay, extended stay, needy pet care (don’t love the wording of that one), should also be defined.
+- “Couldn’t save your time. Please try another slot (profiles_incomplete). Is this because you haven’t approved my account yet? If so, it should tell people they need to wait to be approved
+- need proper form validation and standardization throughout site. like some have different indicators for field required, and the most heinous fault is that onboarding form clears all information if you get an error while filling it out. theres probably a library for this right?
 
 ## NOT MVP
 
@@ -12,12 +39,13 @@
 - not sure cal discounts are showing up
 - site logo + wordmark typeface (included in seo)
 - paw print effect
-- enter site page
 - maybe: try making some sections or areas a window to the page bg
 - onboarding styling: why is there page below the footer, the page width changes from step to 1 to 2
 - edit booking does not take up proper width
 - timeline selector should show your bookings as grayed out (brown) blocks
 - repeating bookings system
+- broken proximity effect for account dropdown carot.
+- Once you get a few more references, it could be interesting to include pictures of the references (or at least their pets) just to give it some more personality. Yah this could be the same picture/s thats attached to their profile. Like my idea about how when they book the calendar shows their pets face in that slot
 
 ## Notes for the other project
 
