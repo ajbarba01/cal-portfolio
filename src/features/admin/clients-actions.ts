@@ -156,6 +156,7 @@ export interface ClientDebitRow {
   reason: string;
   settled_at: string | null;
   created_at: string;
+  resolution: string | null;
 }
 
 export interface ClientDetailView {
@@ -288,7 +289,9 @@ export async function getClientDetailCore(
 
   const { data: debits } = await serviceClient
     .from("client_debits")
-    .select("id, booking_id, amount_cents, reason, settled_at, created_at")
+    .select(
+      "id, booking_id, amount_cents, reason, settled_at, created_at, resolution",
+    )
     .eq("client_id", clientId)
     .order("created_at", { ascending: false });
 
@@ -299,6 +302,7 @@ export async function getClientDetailCore(
     reason: debit.reason as string,
     settled_at: (debit.settled_at as string | null) ?? null,
     created_at: debit.created_at as string,
+    resolution: (debit.resolution as string | null) ?? null,
   }));
 
   const detailNow = new Date();
