@@ -417,7 +417,7 @@
   Animal Poison Control (https://www.aspca.org/pet-care/aspca-poison-control) - (888) 426-4435 or (855) 764-7661
 - live-text: |
   Animal Poison Control
-- transforms: agent-resolved link target — name links to https://www.aspca.org/pet-care/aspca-poison-control (href in page data). Phone numbers "(888) 426-4435 or (855) 764-7661" kept verbatim as a page-data detail rendered after the name (public-fact contact info, user-confirmed 2026-06-09).
+- transforms: agent-resolved link target — name links to https://www.aspca.org/pet-care/aspca-poison-control (href in page data). Phone numbers rendered as a page-data detail after the name, each attributed to its org: "ASPCA (888) 426-4435 · Pet Poison Helpline (855) 764-7661" (public-fact correction 2026-07-12 — the 855 number is Pet Poison Helpline, not ASPCA; tester-reported). Same attribution split applied to the emergency-pin banner.
 - notes: supersedes the old hardcoded r4 ASPCA placeholder, now dropped.
 
 ### resources.health.2.desc
@@ -1229,21 +1229,20 @@
 - transforms: agent-resolved — mirrors the meet-greet DB seed description (seed_meet_greet_service.sql). Dormant fallback: the live card reads the DB `description`; this only fires if that is blank. Replaced "[[BODY: short meet-and-greet service description]]"; no prior entry.
 - notes: keep in sync with the seed text if either changes.
 
-### service.walk.included.1 / .2 / .3 / .4
+### service.walk.included.1 / .2 / .4
 
 - status: placed
 - provenance: agent-resolved
 - consumed-by: src/app/(site)/(marketing)/services/page.tsx
-- applied-from: — (1/2/4 derived from service.walk.detail.body; 3 agent-added)
+- applied-from: — (1/2/4 derived from service.walk.detail.body)
 - live-text: |
   1: Exercise tailored to your dog's energy level
   2: Car transport for outings
-  3: Leash manners training
   4: Off-leash time on a case-by-case basis
-- transforms: agent-resolved — "what's included" bullets. .1/.2/.4 paraphrase lines already in Cal's walk.detail.body; .3 (Alex-set) is not traceable to that source. Replaced "[[LABEL: walk included item N]]"; no prior entries.
-- notes: ⚠ substance; pending Cal confirm — especially .3 (leash manners), the only bullet with no source line.
+- transforms: agent-resolved — "what's included" bullets. .1/.2/.4 paraphrase lines already in Cal's walk.detail.body. Replaced "[[LABEL: walk included item N]]"; no prior entries.
+- notes: .3 (leash manners training) REMOVED at Cal's request 2026-07-12 ("remove walks included leash manners") — it was the only bullet with no source line. ID retired; remaining numbers kept stable.
 
-### service.training.included.3 / .4
+### service.training.included.3
 
 - status: placed
 - provenance: agent-resolved
@@ -1251,6 +1250,18 @@
 - applied-from: — (derived from service.training.detail.body)
 - live-text: |
   3: Positive-reinforcement approach
-  4: Support for anxious and reactive dogs
-- transforms: agent-resolved — extend the existing .1/.2 bullets; both paraphrase lines in Cal's training.detail.body (positive reinforcement; anxious/reactive dogs). Replaced "[[LABEL: training included item N]]"; no prior entries.
-- notes: ⚠ substance; pending Cal confirm.
+- transforms: agent-resolved — extends the existing .1/.2 bullets; paraphrases the positive-reinforcement line in Cal's training.detail.body. Replaced "[[LABEL: training included item N]]"; no prior entries.
+- notes: .4 (support for anxious and reactive dogs) REMOVED at Cal's request 2026-07-12 ("remove training included anxious dogs"). ID retired; remaining numbers kept stable.
+
+### about.stat.pets.value / .label
+
+- status: placed
+- provenance: cal-confirmed-edit
+- consumed-by: src/app/(site)/(marketing)/page.tsx
+- applied-from: |
+  replace 23 yrs old with 150+ pets served
+- live-text: |
+  value: 150+
+  label: Pets served
+- transforms: Cal's directive (tester-feedback batch, 2026-07-12) split into stat value "150+" + label "Pets served" for the home stat ribbon.
+- notes: replaces the derived-age stat (about.stat.age.label "Years old" + DOB-derived value); age ID retired and DOB removed from the page. Other about.stat.\* IDs predate the ledger and remain unrecorded.

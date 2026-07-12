@@ -45,10 +45,11 @@ export const copy = {
   "about.approach.p2":
     "Whether I'm taking your dog on a walk, stopping by for a visit, or caring for your pets and your home while you're away, I aim to provide the same level of attention, reliability, and compassion that I would want for my own animals.",
   // Stat ribbon (about page) — short, factual credentials Cal can tune. The CC
-  // entry renders as the Colorado College logo; age is derived from Cal's DOB
-  // in the page, so only its label lives here.
+  // entry renders as the Colorado College logo.
   "about.stat.cc.label": "B.A. Anthropology",
-  "about.stat.age.label": "Years old",
+  // Replaced the derived-age stat at Cal's request (2026-07-12).
+  "about.stat.pets.value": "150+",
+  "about.stat.pets.label": "Pets served",
   "about.stat.rover.value": '"Star Sitter"',
   "about.stat.rover.label": "Top-rated on Rover",
   "about.stat.clients.value": "100+",
@@ -208,7 +209,6 @@ export const copy = {
     "For dogs who enjoy a little extra adventure, I can also provide hikes and other outings that may involve transportation by car. I'm also more than happy to jog or run dogs when weather, health, and fitness levels permit!\n\nOff-leash outings are offered cautiously and on a case-by-case basis.",
   "service.walk.included.1": "Exercise tailored to your dog's energy level",
   "service.walk.included.2": "Car transport for outings",
-  "service.walk.included.3": "Leash manners training",
   "service.walk.included.4": "Off-leash time on a case-by-case basis",
   "service.training.detail.lede":
     "Currently, I offer two types of training: puppy training and basic obedience.",
@@ -218,7 +218,6 @@ export const copy = {
     "Customized training plan based on your dog's needs",
   "service.training.included.2": "Unlimited Q&A support between sessions",
   "service.training.included.3": "Positive-reinforcement approach",
-  "service.training.included.4": "Support for anxious and reactive dogs",
 } as const;
 
 /** Every stable copy ID known to the registry. */

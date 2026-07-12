@@ -118,6 +118,14 @@ Every pet has different needs, and every household has different routines, prefe
 Whether I'm taking your dog on a walk, stopping by for a visit, or caring for your pets and your home while you're away, I aim to provide the same level of attention, reliability, and compassion that I would want for my own animals.
 ```
 
+### about.stat.pets
+
+```
+150+ pets served
+```
+
+> Stat-ribbon directive (2026-07-12, tester-feedback batch): "replace 23 yrs old with 150+ pets served". Split into value "150+" + label "Pets served"; replaces the DOB-derived age stat. Other about.stat.\* entries predate the ledger and remain unrecorded.
+
 ### about.quote.text
 
 ```

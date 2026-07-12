@@ -20,21 +20,7 @@ import { copy } from "@/content/marketing";
 import { cn } from "@/lib/utils";
 import { buildPageMetadata } from "@/features/seo";
 
-// Cal's date of birth — age is derived so the ribbon never goes stale.
-const CAL_DOB = "2002-12-10";
-
-function yearsSince(isoDate: string): number {
-  const dob = new Date(isoDate);
-  const now = new Date();
-  let years = now.getFullYear() - dob.getFullYear();
-  const beforeBirthday =
-    now.getMonth() < dob.getMonth() ||
-    (now.getMonth() === dob.getMonth() && now.getDate() < dob.getDate());
-  if (beforeBirthday) years -= 1;
-  return years;
-}
-
-// Stat ribbon order (Cal's call): college · age · Rover · clients · experience · training · peaks.
+// Stat ribbon order (Cal's call): college · pets served · Rover · clients · experience · training · peaks.
 const tickerItems: StatTickerItem[] = [
   {
     kind: "logo",
@@ -46,8 +32,8 @@ const tickerItems: StatTickerItem[] = [
   },
   {
     kind: "stat",
-    value: String(yearsSince(CAL_DOB)),
-    label: copy["about.stat.age.label"],
+    value: copy["about.stat.pets.value"],
+    label: copy["about.stat.pets.label"],
   },
   {
     kind: "badge",

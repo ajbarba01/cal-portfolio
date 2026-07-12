@@ -123,17 +123,17 @@ const INCLUDED_COPY: Record<PublicPricingType, readonly CopyId[]> = {
     "service.check_in.included.3",
     "service.check_in.included.4",
   ],
+  // walk .3 (leash manners) and training .4 (anxious dogs) removed at Cal's
+  // request 2026-07-12 — IDs retired, remaining numbers kept stable.
   walk: [
     "service.walk.included.1",
     "service.walk.included.2",
-    "service.walk.included.3",
     "service.walk.included.4",
   ],
   training: [
     "service.training.included.1",
     "service.training.included.2",
     "service.training.included.3",
-    "service.training.included.4",
   ],
 };
 export function serviceIncludedCopyIds(
