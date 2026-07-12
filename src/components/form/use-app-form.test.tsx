@@ -10,15 +10,15 @@ const schema = z.object({
 
 describe("useAppForm", () => {
   it("validates with the zod schema and reports field errors", async () => {
-    const { result } = renderHook(() =>
-      useAppForm(schema, { defaultValues: { name: "" } }),
-    );
-    await act(async () => {
-      await result.current.trigger();
+    const { result } = renderHook(() => {
+      const form = useAppForm(schema, { defaultValues: { name: "" } });
+      // Read formState during render — RHF's proxy only re-renders subscribers.
+      return { form, errors: form.formState.errors };
     });
-    expect(result.current.formState.errors.name?.message).toBe(
-      "Name is required",
-    );
+    await act(async () => {
+      await result.current.form.trigger();
+    });
+    expect(result.current.errors.name?.message).toBe("Name is required");
   });
 
   it("parses valid values through the schema on submit", async () => {
