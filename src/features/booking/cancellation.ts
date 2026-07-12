@@ -99,3 +99,62 @@ export function computeCancellationDebtCents(input: {
   }
   return Math.round((input.finalCents * (100 - input.lateRefundPct)) / 100);
 }
+
+/** The projected outcome of cancelling a booking right now — the single source
+ * of truth shared by the preview action and the executing cancel core. */
+export interface CancellationOutcome {
+  tier: RefundTier;
+  refundCents: number;
+  remainderCents: number;
+  debtCents: number;
+}
+
+export interface PreviewCancellationInput {
+  finalCents: number;
+  paidCents: number;
+  startsAt: Date;
+  now: Date;
+  fullRefundHours: number;
+  lateRefundPct: number;
+  noShowChargePct: number;
+}
+
+/**
+ * Projects the client self-cancel outcome by composing the existing refund and
+ * debt math (no new money rules). `remainderCents` is what Cal could still grant
+ * back beyond the late-tier default (paidCents minus the immediate refund);
+ * `debtCents` is the late-cancel fee owed only when the slot was never paid.
+ */
+export function previewCancellation(
+  input: PreviewCancellationInput,
+): CancellationOutcome {
+  const refund = computeRefund({
+    finalCents: input.finalCents,
+    paidCents: input.paidCents,
+    startsAt: input.startsAt,
+    now: input.now,
+    fullRefundHours: input.fullRefundHours,
+    lateRefundPct: input.lateRefundPct,
+    fullRefund: false,
+  });
+
+  const remainderCents =
+    refund.tier === "late" ? input.paidCents - refund.refundCents : 0;
+
+  const debtCents =
+    refund.tier === "none"
+      ? computeCancellationDebtCents({
+          finalCents: input.finalCents,
+          reason: "late_cancel",
+          lateRefundPct: input.lateRefundPct,
+          noShowChargePct: input.noShowChargePct,
+        })
+      : 0;
+
+  return {
+    tier: refund.tier,
+    refundCents: refund.refundCents,
+    remainderCents,
+    debtCents,
+  };
+}

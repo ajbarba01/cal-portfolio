@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { computeRefund, computeCancellationDebtCents } from "./cancellation";
+import {
+  computeRefund,
+  computeCancellationDebtCents,
+  previewCancellation,
+} from "./cancellation";
 
 const MS_PER_HOUR = 60 * 60 * 1000;
 const now = new Date("2026-06-03T12:00:00Z");
@@ -144,5 +148,104 @@ describe("computeCancellationDebtCents", () => {
         noShowChargePct: 100,
       }),
     ).toBe(3000);
+  });
+});
+
+describe("previewCancellation", () => {
+  const settings = {
+    fullRefundHours: 48,
+    lateRefundPct: 50,
+    noShowChargePct: 100,
+  };
+  const start = new Date("2026-07-01T17:00:00Z");
+
+  it("full tier, paid: refunds everything, no remainder or debt", () => {
+    const now = new Date("2026-06-20T00:00:00Z"); // before cutoff
+    expect(
+      previewCancellation({
+        finalCents: 4500,
+        paidCents: 4500,
+        startsAt: start,
+        now,
+        ...settings,
+      }),
+    ).toEqual({
+      tier: "full",
+      refundCents: 4500,
+      remainderCents: 0,
+      debtCents: 0,
+    });
+  });
+
+  it("full tier, unpaid: no charge (all zeros)", () => {
+    const now = new Date("2026-06-20T00:00:00Z");
+    expect(
+      previewCancellation({
+        finalCents: 4500,
+        paidCents: 0,
+        startsAt: start,
+        now,
+        ...settings,
+      }),
+    ).toEqual({
+      tier: "full",
+      refundCents: 0,
+      remainderCents: 0,
+      debtCents: 0,
+    });
+  });
+
+  it("late tier, paid: partial refund now + remainder Cal may grant", () => {
+    const now = new Date("2026-07-01T00:00:00Z"); // < 48h before start
+    expect(
+      previewCancellation({
+        finalCents: 4500,
+        paidCents: 4500,
+        startsAt: start,
+        now,
+        ...settings,
+      }),
+    ).toEqual({
+      tier: "late",
+      refundCents: 2250,
+      remainderCents: 2250,
+      debtCents: 0,
+    });
+  });
+
+  it("none tier, unpaid inside cutoff: fee owed, no refund", () => {
+    const now = new Date("2026-07-01T00:00:00Z");
+    expect(
+      previewCancellation({
+        finalCents: 4500,
+        paidCents: 0,
+        startsAt: start,
+        now,
+        ...settings,
+      }),
+    ).toEqual({
+      tier: "none",
+      refundCents: 0,
+      remainderCents: 0,
+      debtCents: 2250,
+    });
+  });
+
+  it("$0 booking (meet & greet) inside cutoff: no charge", () => {
+    const now = new Date("2026-07-01T00:00:00Z");
+    expect(
+      previewCancellation({
+        finalCents: 0,
+        paidCents: 0,
+        startsAt: start,
+        now,
+        ...settings,
+      }),
+    ).toEqual({
+      tier: "none",
+      refundCents: 0,
+      remainderCents: 0,
+      debtCents: 0,
+    });
   });
 });
