@@ -100,6 +100,27 @@ export function computeCancellationDebtCents(input: {
   return Math.round((input.finalCents * (100 - input.lateRefundPct)) / 100);
 }
 
+/**
+ * No-show debt owed after crediting what the client already paid. A no-show
+ * charge is computed the same as any no-show (`noShowChargePct%` of
+ * `finalCents`), but a client who prepaid must not be charged again for the
+ * portion already captured — never returns a negative debt.
+ */
+export function noShowDebtCents(input: {
+  finalCents: number;
+  paidCents: number;
+  lateRefundPct: number;
+  noShowChargePct: number;
+}): number {
+  const charge = computeCancellationDebtCents({
+    finalCents: input.finalCents,
+    reason: "no_show",
+    lateRefundPct: input.lateRefundPct,
+    noShowChargePct: input.noShowChargePct,
+  });
+  return Math.max(0, charge - input.paidCents);
+}
+
 /** The projected outcome of cancelling a booking right now — the single source
  * of truth shared by the preview action and the executing cancel core. */
 export interface CancellationOutcome {

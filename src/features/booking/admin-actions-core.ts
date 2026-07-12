@@ -2,7 +2,7 @@
  * Admin booking operations: grant-full-refund, mark-no-show, settle-debt.
  */
 
-import { computeCancellationDebtCents } from "./cancellation";
+import { noShowDebtCents } from "./cancellation";
 import { transition } from "./state-machine";
 import {
   quoteInputSupportsManual,
@@ -98,9 +98,13 @@ export async function markNoShowCore(
   await repo.updateBookingStatus(bookingId, transitionResult.state);
 
   const settings = await repo.getSettings();
-  const debtCents = computeCancellationDebtCents({
+  const paidCents = booking.payments
+    .filter((p) => p.status === "succeeded")
+    .reduce((sum, p) => sum + p.amountCents, 0);
+  // Net against captured payment so a prepaid no-show is not double-charged.
+  const debtCents = noShowDebtCents({
     finalCents: booking.finalCents,
-    reason: "no_show",
+    paidCents,
     lateRefundPct: settings.late_cancel_refund_pct,
     noShowChargePct: settings.no_show_charge_pct,
   });

@@ -3,6 +3,7 @@ import {
   computeRefund,
   computeCancellationDebtCents,
   previewCancellation,
+  noShowDebtCents,
 } from "./cancellation";
 
 const MS_PER_HOUR = 60 * 60 * 1000;
@@ -148,6 +149,34 @@ describe("computeCancellationDebtCents", () => {
         noShowChargePct: 100,
       }),
     ).toBe(3000);
+  });
+});
+
+describe("noShowDebtCents", () => {
+  const settings = { lateRefundPct: 50, noShowChargePct: 100 };
+
+  it("fully-prepaid: charge equals what was already paid → no debt", () => {
+    expect(
+      noShowDebtCents({ finalCents: 3000, paidCents: 3000, ...settings }),
+    ).toBe(0);
+  });
+
+  it("unpaid: owes the full no-show charge", () => {
+    expect(
+      noShowDebtCents({ finalCents: 3000, paidCents: 0, ...settings }),
+    ).toBe(3000);
+  });
+
+  it("partially-paid: owes the remainder after crediting what was paid", () => {
+    expect(
+      noShowDebtCents({ finalCents: 3000, paidCents: 1000, ...settings }),
+    ).toBe(2000);
+  });
+
+  it("over-paid (edge case): never returns a negative debt", () => {
+    expect(
+      noShowDebtCents({ finalCents: 3000, paidCents: 4000, ...settings }),
+    ).toBe(0);
   });
 });
 

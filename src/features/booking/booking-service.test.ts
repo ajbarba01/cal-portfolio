@@ -739,6 +739,22 @@ async function insertBookingRow(opts: {
   return data.id as string;
 }
 
+/** Insert a succeeded payment row for a booking (controls paidCents directly). */
+async function insertSucceededPayment(opts: {
+  bookingId: string;
+  clientId: string;
+  amountCents: number;
+}): Promise<void> {
+  const { error } = await serviceClient.from("payments").insert({
+    booking_id: opts.bookingId,
+    client_id: opts.clientId,
+    stripe_payment_intent_id: `pi_test_${opts.bookingId}_${opts.amountCents}`,
+    amount_cents: opts.amountCents,
+    status: "succeeded",
+  });
+  if (error) throw new Error(`insertSucceededPayment failed: ${error.message}`);
+}
+
 describe("cancellation + debt gate", () => {
   it("unpaid late cancel writes a debit, blocks the next booking, and settleDebt clears it", async () => {
     // Place the booking ~200 days out (a slot no guard-bound suite ever books —
@@ -838,6 +854,89 @@ describe("cancellation + debt gate", () => {
 
     // no_show_charge_pct defaults to 100% → owes the full $30.00.
     expect(await makeRepo().getOutstandingDebtCents(noShowUserId)).toBe(3000);
+  });
+
+  it("no-show on a fully-prepaid booking writes NO debit (already paid) — H-1", async () => {
+    const now = new Date();
+    const start = new Date(now.getTime() - 199 * 24 * 60 * 60 * 1000);
+    start.setUTCMinutes(44, 0, 0);
+    const end = new Date(start.getTime() + 60 * 60 * 1000);
+
+    const bookingId = await insertBookingRow({
+      clientId: noShowUserId,
+      startsAt: start,
+      endsAt: end,
+      status: "confirmed",
+      finalCents: 3000,
+    });
+    await insertSucceededPayment({
+      bookingId,
+      clientId: noShowUserId,
+      amountCents: 3000,
+    });
+
+    const before = await makeRepo().getOutstandingDebtCents(noShowUserId);
+    const result = await markNoShowCore(deps(), bookingId);
+    expect(result.kind).toBe("success");
+
+    const { data: booking } = await serviceClient
+      .from("bookings")
+      .select("status")
+      .eq("id", bookingId)
+      .single();
+    expect(booking?.status).toBe("no_show");
+
+    // Already paid in full → no additional debt, regression guard for H-1.
+    expect(await makeRepo().getOutstandingDebtCents(noShowUserId)).toBe(before);
+  });
+
+  it("no-show on an unpaid booking writes the full no-show charge", async () => {
+    const now = new Date();
+    const start = new Date(now.getTime() - 198 * 24 * 60 * 60 * 1000);
+    start.setUTCMinutes(45, 0, 0);
+    const end = new Date(start.getTime() + 60 * 60 * 1000);
+
+    const bookingId = await insertBookingRow({
+      clientId: noShowUserId,
+      startsAt: start,
+      endsAt: end,
+      status: "confirmed",
+      finalCents: 3000,
+    });
+
+    const before = await makeRepo().getOutstandingDebtCents(noShowUserId);
+    const result = await markNoShowCore(deps(), bookingId);
+    expect(result.kind).toBe("success");
+    expect(await makeRepo().getOutstandingDebtCents(noShowUserId)).toBe(
+      before + 3000,
+    );
+  });
+
+  it("no-show on a partially-paid booking writes the remainder", async () => {
+    const now = new Date();
+    const start = new Date(now.getTime() - 197 * 24 * 60 * 60 * 1000);
+    start.setUTCMinutes(46, 0, 0);
+    const end = new Date(start.getTime() + 60 * 60 * 1000);
+
+    const bookingId = await insertBookingRow({
+      clientId: noShowUserId,
+      startsAt: start,
+      endsAt: end,
+      status: "confirmed",
+      finalCents: 3000,
+    });
+    await insertSucceededPayment({
+      bookingId,
+      clientId: noShowUserId,
+      amountCents: 1000,
+    });
+
+    const before = await makeRepo().getOutstandingDebtCents(noShowUserId);
+    const result = await markNoShowCore(deps(), bookingId);
+    expect(result.kind).toBe("success");
+    expect(await makeRepo().getOutstandingDebtCents(noShowUserId)).toBe(
+      before + 2000,
+    );
   });
 });
 
