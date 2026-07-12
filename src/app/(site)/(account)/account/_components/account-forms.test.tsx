@@ -48,13 +48,19 @@ describe("PasswordForm", () => {
     const user = userEvent.setup();
     render(<PasswordForm />);
 
-    await user.type(screen.getByLabelText(/new password/i), "password123");
-    await user.type(screen.getByLabelText(/confirm/i), "password456");
+    const newPasswordInput = screen.getByLabelText(/new password/i);
+    const confirmInput = screen.getByLabelText(/confirm/i);
+    await user.type(newPasswordInput, "password123");
+    await user.type(confirmInput, "password456");
     await user.click(screen.getByRole("button", { name: /update password/i }));
 
     expect(
       await screen.findByText("Passwords don't match."),
     ).toBeInTheDocument();
+    // The refine's path scopes the error to confirm_password specifically —
+    // guard against the message rendering while attached to the wrong field.
+    expect(confirmInput).toHaveAttribute("aria-invalid", "true");
+    expect(newPasswordInput).not.toHaveAttribute("aria-invalid", "true");
     expect(changePassword).not.toHaveBeenCalled();
   });
 });
