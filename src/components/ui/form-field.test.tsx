@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import * as React from "react";
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -40,5 +41,27 @@ describe("FormField", () => {
   it("renders the muted optional suffix", () => {
     render(<FormField label="Breed" name="breed" type="text" optional />);
     expect(screen.getByText("optional")).toBeInTheDocument();
+  });
+
+  it("controlled props inside a Form keep field in controlled mode", () => {
+    function ControlledInsideFormHarness() {
+      const form = useAppForm(schema, { defaultValues: { name: "" } });
+      const [value, setValue] = React.useState("typed");
+      return (
+        <Form form={form} onSubmit={() => {}}>
+          <FormField
+            label="Zip"
+            name="zip"
+            type="text"
+            error="Controlled error wins"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+          />
+        </Form>
+      );
+    }
+    render(<ControlledInsideFormHarness />);
+    expect(screen.getByText("Controlled error wins")).toBeInTheDocument();
+    expect(screen.getByLabelText("Zip")).toHaveValue("typed");
   });
 });
