@@ -141,6 +141,13 @@ export { petStepHeading } from "./pet-step-heading";
 export { clientCanEditBooking, editLockCopy } from "./client-can-edit";
 export type { EditabilityInput } from "./client-can-edit";
 
+// client-can-cancel
+export { clientCanCancelBooking, cancelLockCopy } from "./client-can-cancel";
+export type {
+  CancellabilityInput,
+  CancelBlockReason,
+} from "./client-can-cancel";
+
 // calendar-model
 export { validateStayRange } from "./calendar-model";
 
