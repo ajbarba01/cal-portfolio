@@ -85,3 +85,50 @@ describe("QuotePanel approval reasons", () => {
     ).not.toBeInTheDocument();
   });
 });
+
+describe("QuotePanel line descriptions", () => {
+  it("renders an info-tooltip trigger for a line that has a description", () => {
+    render(
+      <QuotePanel
+        preview={preview({
+          breakdown: {
+            lines: [
+              {
+                label: "Premium night",
+                amountCents: 1250,
+                description: "Holiday & peak-date rate.",
+              },
+              { label: "House sitting base (2 nights)", amountCents: 10000 },
+            ],
+            finalCents: 11250,
+          },
+          finalCents: 11250,
+        })}
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: /premium night/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("does not render a tooltip trigger for a line without a description", () => {
+    render(
+      <QuotePanel
+        preview={preview({
+          breakdown: {
+            lines: [
+              { label: "House sitting base (2 nights)", amountCents: 10000 },
+            ],
+            finalCents: 10000,
+          },
+          finalCents: 10000,
+        })}
+      />,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: /house sitting base/i }),
+    ).not.toBeInTheDocument();
+  });
+});
