@@ -33,6 +33,7 @@ import { Surface } from "@/components/ui/surface";
 import { Switch } from "@/components/ui/switch";
 import { TextLink } from "@/components/ui/text-link";
 import { Textarea } from "@/components/ui/textarea";
+import { InfoTooltip } from "@/components/ui/tooltip";
 import { UnitInput } from "@/components/ui/unit-input";
 import { FIELD_LIMITS } from "@/lib/field-limits";
 import placeholders from "@/content/image-placeholders.json";
@@ -503,6 +504,20 @@ export function ShowcaseClient() {
               </div>
             </div>
           </div>
+        </div>
+      </Section>
+
+      {/* ── Tooltip ───────────────────────────────────────────────────── */}
+      <Section
+        title="Tooltip / InfoTooltip"
+        note="Definition helper for confusing terms — not for essential content. Reveals on hover, focus, or tap; Esc dismisses. The ⓘ trigger's accessible name is `label`; the popup text is visual-only."
+      >
+        <div className="flex items-center gap-1.5">
+          <Tag>Premium night</Tag>
+          <InfoTooltip
+            label="What is a premium night?"
+            content="A holiday or high-demand date with a surcharge applied automatically."
+          />
         </div>
       </Section>
 
