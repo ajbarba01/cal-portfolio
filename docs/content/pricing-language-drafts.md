@@ -1,0 +1,43 @@
+# Pricing language drafts — copy-sync review
+
+Cal's approval required on tooltip descriptions and label renames below. Once approved, these become binding via the copy-sync protocol (see `docs/CONTENT.md`).
+
+---
+
+## 1. Shipped tooltip descriptions (confirm or revise)
+
+These strings currently ship in `src/features/pricing/term-descriptions.ts` as tooltips on pricing modifiers and breakdown rows. **Marked shipped as draft — confirm, revise, or approve for final.**
+
+| Structure key | Shipped description                                                                                |
+| ------------- | -------------------------------------------------------------------------------------------------- |
+| `premiumDays` | Holiday & peak-date rate — a surcharge that applies on major holidays and other high-demand dates. |
+| `needyTier`   | Extra-attention care — for pets needing more frequent check-ins or hands-on care during the stay.  |
+| `nightsOver4` | Long stay — applies once a booking runs longer than 4 nights.                                      |
+| `nightsOver6` | Extended stay — applies once a booking runs longer than 6 nights.                                  |
+| `unit:cat`    | Per cat, including the first.                                                                      |
+| `unit:dog`    | Per dog, including the first.                                                                      |
+
+---
+
+## 2. Admin-config label renames (Cal applies directly in admin editor)
+
+The following label changes live in each service's pricing configuration (admin editor), **not shipped in code**. The descriptions reference modifier structure (above), so they survive the rename without code changes.
+
+| Current label  | → New label              |
+| -------------- | ------------------------ |
+| Premium night  | Holiday & peak-date rate |
+| Needy pet care | Extra-attention care     |
+
+**Note:** Cal edits these directly in the admin-config UI per service. Once applied, the descriptions in Section 1 automatically key off the modifier structure and remain in sync.
+
+---
+
+## 3. FAQ candidates
+
+**Long stay**, **extended stay**, **premium / holiday & peak-date**, and **needy / extra-attention care** are candidates for the FAQ pass (tester-confusion themes: pricing terms, approval flow, service area).
+
+Cross-ref: `docs/superpowers/specs/2026-07-12-tester-feedback-action-plan.md` § F (Pricing language & definitions) and § G (Content & copy, FAQ action).
+
+---
+
+_Awaiting Cal approval for copy-sync gate._
