@@ -245,6 +245,26 @@ describe("pricingBreakdown — walk", () => {
   });
 });
 
+describe("pricingBreakdown — descriptions + small-animal label", () => {
+  it("labels non-dog/cat unit rows as small animal and describes cat rows", () => {
+    const config: ServicePricingConfig = {
+      modifiers: [
+        { kind: "base_per_night", cents: 5000 },
+        { kind: "flat_per_unit", unit: "cat", cents: 800 },
+        { kind: "flat_per_unit", unit: "other", cents: 500 },
+      ],
+      constraints: { intervalMin: 1440, allowedSpecies: ["dog", "cat"] },
+    };
+    const rows = pricingBreakdown(config);
+    const cat = rows.find((r) => r.label === "Each cat");
+    expect(cat?.description).toMatch(/including the first/i);
+    expect(rows.some((r) => r.label === "Each additional small animal")).toBe(
+      true,
+    );
+    expect(rows.some((r) => r.label === "Each additional animal")).toBe(false);
+  });
+});
+
 describe("centsToDollarsNumber", () => {
   it("converts integer cents to a dollar number", () => {
     expect(centsToDollarsNumber(1999)).toBe(19.99);

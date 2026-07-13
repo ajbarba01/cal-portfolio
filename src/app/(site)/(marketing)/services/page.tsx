@@ -21,6 +21,7 @@ import { MarketingProse } from "@/components/marketing/marketing-prose";
 import { ServicePhotoStrip } from "@/components/marketing/service-photo-strip";
 import { buttonVariants } from "@/components/ui/button";
 import { ShimmerCard } from "@/components/ui/shimmer-card";
+import { InfoTooltip } from "@/components/ui/tooltip";
 import { createStaticClient } from "@/lib/supabase/static";
 import {
   listActiveServices,
@@ -129,7 +130,15 @@ function ServiceDetail({
                     key={row.label}
                     className="border-border flex items-baseline justify-between gap-3 border-b border-dotted py-1.5 last:border-b-0"
                   >
-                    <dt className="text-muted-foreground">{row.label}</dt>
+                    <dt className="text-muted-foreground inline-flex items-center gap-1">
+                      {row.label}
+                      {row.description && (
+                        <InfoTooltip
+                          label={`What is "${row.label}"?`}
+                          content={row.description}
+                        />
+                      )}
+                    </dt>
                     <dd className="font-medium">{row.value}</dd>
                   </div>
                 ))}

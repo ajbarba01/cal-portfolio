@@ -7,6 +7,7 @@
  */
 
 import type { ServicePricingConfig, Modifier } from "./modifier-types";
+import { describeModifier } from "./term-descriptions";
 
 /**
  * Formats integer cents as a dollar string.
@@ -37,6 +38,7 @@ export function dollarsToCents(dollars: number): number {
 export interface PricingBreakdownRow {
   label: string;
   value: string;
+  description?: string;
 }
 
 /**
@@ -93,8 +95,12 @@ export function pricingBreakdown(
             ? "Each dog"
             : mod.unit === "cat"
               ? "Each cat"
-              : "Each additional animal";
-        rows.push({ label: unitLabel, value: `+${formatCents(mod.cents)}` });
+              : "Each additional small animal";
+        rows.push({
+          label: unitLabel,
+          value: `+${formatCents(mod.cents)}`,
+          description: describeModifier(mod),
+        });
         break;
       }
 
@@ -104,7 +110,7 @@ export function pricingBreakdown(
             ? "Each additional dog"
             : mod.unit === "cat"
               ? "Each additional cat"
-              : "Each additional animal";
+              : "Each additional small animal";
         // Summarise using the first tier rate or pct.
         const firstTier = mod.tiers[0];
         if (firstTier !== undefined) {
@@ -114,7 +120,11 @@ export function pricingBreakdown(
               : firstTier.pct !== undefined
                 ? `+${firstTier.pct}%`
                 : "tiered";
-          rows.push({ label: unitLabel, value: tierValue });
+          rows.push({
+            label: unitLabel,
+            value: tierValue,
+            description: describeModifier(mod),
+          });
         }
         break;
       }
@@ -126,6 +136,7 @@ export function pricingBreakdown(
         rows.push({
           label: mod.label,
           value: `${sign}${formatCents(absCents)} / night`,
+          description: describeModifier(mod),
         });
         break;
       }
@@ -134,6 +145,7 @@ export function pricingBreakdown(
         rows.push({
           label: mod.label,
           value: `+${formatCents(mod.cents)} / hour`,
+          description: describeModifier(mod),
         });
         break;
       }
@@ -143,23 +155,36 @@ export function pricingBreakdown(
         rows.push({
           label: mod.label,
           value: `+${formatCents(mod.cents)} / ${unitWord} (${mod.freeUnits} free)`,
+          description: describeModifier(mod),
         });
         break;
       }
 
       case "pct_surcharge": {
-        rows.push({ label: mod.label, value: `+${mod.pct}%` });
+        rows.push({
+          label: mod.label,
+          value: `+${mod.pct}%`,
+          description: describeModifier(mod),
+        });
         break;
       }
 
       case "pct_discount": {
         if (mod.manual) break;
-        rows.push({ label: mod.label, value: `−${mod.pct}%` });
+        rows.push({
+          label: mod.label,
+          value: `−${mod.pct}%`,
+          description: describeModifier(mod),
+        });
         break;
       }
 
       case "min_floor": {
-        rows.push({ label: "Minimum", value: formatCents(mod.cents) });
+        rows.push({
+          label: "Minimum",
+          value: formatCents(mod.cents),
+          description: describeModifier(mod),
+        });
         break;
       }
     }
