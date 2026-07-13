@@ -16,13 +16,18 @@ export function Tooltip({
   content: React.ReactNode;
   children: React.ReactElement;
 }) {
+  // @base-ui/react's Tooltip does not itself wire aria-describedby from the
+  // trigger to the popup, so screen-reader users would otherwise never learn
+  // the popup's content exists. Wire it manually.
+  const popupId = React.useId();
   if (!content) return children;
   return (
     <BaseTooltip.Root>
-      <BaseTooltip.Trigger render={children} />
+      <BaseTooltip.Trigger render={children} aria-describedby={popupId} />
       <BaseTooltip.Portal>
         <BaseTooltip.Positioner sideOffset={6}>
           <BaseTooltip.Popup
+            id={popupId}
             className={cn(
               "border-border bg-popover text-popover-foreground max-w-xs rounded-md border px-3 py-2 text-xs leading-relaxed",
             )}
@@ -37,7 +42,9 @@ export function Tooltip({
 
 /**
  * InfoTooltip — an ⓘ icon button that reveals `content`. `label` is the trigger's
- * accessible name (the tooltip content is visual; screen-reader users get `label`).
+ * accessible name; `content` is additionally wired via aria-describedby (see
+ * `Tooltip` above), so screen-reader users get both the question (`label`) and
+ * the definition (`content`).
  */
 export function InfoTooltip({
   label,
