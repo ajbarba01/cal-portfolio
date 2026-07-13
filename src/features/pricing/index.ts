@@ -19,6 +19,7 @@ export {
   dollarsToCents,
 } from "./display";
 export type { PricingBreakdownRow } from "./display";
+export { describeModifier } from "./term-descriptions";
 export { defaultGeocoder } from "./geocoding/zip-centroid-geocoder";
 export type { Geocoder } from "./geocoding/geocoder";
 export type {
