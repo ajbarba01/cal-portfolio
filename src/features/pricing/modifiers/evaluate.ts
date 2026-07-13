@@ -6,6 +6,7 @@ import type {
   ServicePricingConfig,
   Unit,
 } from "../modifier-types";
+import { describeModifier } from "../term-descriptions";
 
 const round = (n: number) => Math.round(n);
 const sum = (lines: QuoteLine[]) =>
@@ -59,6 +60,7 @@ export function evaluate(
         lines.push({
           label: `Extra ${mod.unit} (${n})`,
           amountCents: round(n * mod.cents * nightsOr1(nights)),
+          description: describeModifier(mod),
         });
     }
     if (mod.kind === "tiered_per_unit") {
@@ -82,6 +84,7 @@ export function evaluate(
         lines.push({
           label: mod.label,
           amountCents: round(mod.cents * count * nightsOr1(nights)),
+          description: describeModifier(mod),
         });
     }
     if (mod.kind === "per_hour_addon" && i.leashManners) {
@@ -131,7 +134,12 @@ export function evaluate(
         ? premiumNights / nights
         : 1;
     const amt = round((mod.pct / 100) * subtotal * factor);
-    if (amt !== 0) lines.push({ label: mod.label, amountCents: amt });
+    if (amt !== 0)
+      lines.push({
+        label: mod.label,
+        amountCents: amt,
+        description: describeModifier(mod),
+      });
   }
 
   // Phase 4 — min_floor (pre-discount)
@@ -174,6 +182,7 @@ export function evaluate(
       lines.push({
         label: mod.label,
         amountCents: round(mod.cents * nightsOr1(nights)),
+        description: describeModifier(mod),
       });
     }
   }

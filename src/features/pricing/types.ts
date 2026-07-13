@@ -149,6 +149,8 @@ export type { QuoteInput } from "./modifier-types";
 export interface QuoteLine {
   label: string;
   amountCents: number;
+  /** Optional plain-language definition, rendered as an info-tooltip. */
+  description?: string;
 }
 
 /**

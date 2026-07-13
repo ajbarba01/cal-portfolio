@@ -259,3 +259,30 @@ describe("evaluate full pipeline (golden)", () => {
     expect(r.finalCents).toBe(35330);
   });
 });
+
+describe("evaluate quote line descriptions", () => {
+  it("attaches a description to the premium-surcharge line", () => {
+    const config: ServicePricingConfig = {
+      modifiers: [
+        { kind: "base_per_night", cents: 5000 },
+        {
+          kind: "pct_surcharge",
+          id: "prem",
+          label: "Premium night",
+          pct: 25,
+          scope: "perPremiumNight",
+          condition: "premiumDays",
+        },
+      ],
+      constraints: { intervalMin: 1440, allowedSpecies: ["dog"] },
+    };
+    const r = evaluate(config, {
+      config,
+      dogs: 1,
+      nights: 2,
+      premiumNights: 1,
+    });
+    const premiumLine = r.lines.find((l) => l.label === "Premium night");
+    expect(premiumLine?.description).toMatch(/holiday/i);
+  });
+});
