@@ -31,6 +31,28 @@ describe("describeModifier", () => {
     expect(describeModifier(mod)).toMatch(/including the first/i);
   });
 
+  it("defines the long-stay auto discount (nightsOver4)", () => {
+    const mod: Modifier = {
+      kind: "pct_discount",
+      id: "long_a",
+      label: "Long stay (-5%)",
+      pct: 5,
+      condition: "nightsOver4",
+    };
+    expect(describeModifier(mod)).toMatch(/long stay/i);
+  });
+
+  it("defines the extended-stay auto discount (nightsOver6)", () => {
+    const mod: Modifier = {
+      kind: "pct_discount",
+      id: "long_b",
+      label: "Extended stay (-8%)",
+      pct: 8,
+      condition: "nightsOver6",
+    };
+    expect(describeModifier(mod)).toMatch(/extended stay/i);
+  });
+
   it("returns undefined for a modifier with no defined term", () => {
     const mod: Modifier = { kind: "base_per_night", cents: 5000 };
     expect(describeModifier(mod)).toBeUndefined();

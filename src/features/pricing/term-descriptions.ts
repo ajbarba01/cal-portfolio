@@ -29,6 +29,10 @@ export function termKeyForModifier(mod: Modifier): string | undefined {
         : undefined;
     case "pct_surcharge":
       return mod.condition === "premiumDays" ? "premiumDays" : undefined;
+    case "pct_discount":
+      return mod.condition === "nightsOver4" || mod.condition === "nightsOver6"
+        ? mod.condition
+        : undefined;
     case "flat_per_night_toggle":
       return mod.source.kind === "ladder" && mod.source.input === "needyTier"
         ? "needyTier"

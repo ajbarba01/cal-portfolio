@@ -285,4 +285,24 @@ describe("evaluate quote line descriptions", () => {
     const premiumLine = r.lines.find((l) => l.label === "Premium night");
     expect(premiumLine?.description).toMatch(/holiday/i);
   });
+
+  it("attaches a description to the long-stay auto-discount line", () => {
+    const config: ServicePricingConfig = {
+      modifiers: [
+        { kind: "base_per_night", cents: 5000 },
+        {
+          kind: "pct_discount",
+          id: "long_a",
+          label: "Long stay (-5%)",
+          pct: 5,
+          condition: "nightsOver4",
+        },
+      ],
+      constraints: { intervalMin: 1440, allowedSpecies: ["dog"] },
+    };
+    const r = evaluate(config, { config, dogs: 1, nights: 5 });
+    const discountLine = r.lines.find((l) => l.label === "Long stay (-5%)");
+    expect(discountLine?.amountCents).toBeLessThan(0);
+    expect(discountLine?.description).toMatch(/long stay/i);
+  });
 });

@@ -159,7 +159,12 @@ export function evaluate(
     if (!conditionHolds(mod.condition)) continue;
     const subtotal = sum(lines);
     const amt = round((mod.pct / 100) * subtotal);
-    if (amt !== 0) lines.push({ label: mod.label, amountCents: -amt });
+    if (amt !== 0)
+      lines.push({
+        label: mod.label,
+        amountCents: -amt,
+        description: describeModifier(mod),
+      });
   }
 
   // Phase 6 — manual discounts (admin-enabled) + custom adjustments
@@ -172,7 +177,12 @@ export function evaluate(
       conditionHolds(mod.condition)
     ) {
       const amt = round((mod.pct / 100) * sum(lines));
-      if (amt !== 0) lines.push({ label: mod.label, amountCents: -amt });
+      if (amt !== 0)
+        lines.push({
+          label: mod.label,
+          amountCents: -amt,
+          description: describeModifier(mod),
+        });
     }
     if (
       mod.kind === "flat_per_night_toggle" &&
