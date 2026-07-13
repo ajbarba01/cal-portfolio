@@ -142,7 +142,9 @@ export interface TrainingQuantities {
 export type { QuoteInput } from "./modifier-types";
 
 // ---------------------------------------------------------------------------
-// Quote output (frozen — do not alter shape)
+// Quote output (frozen — amountCents/label are load-bearing; do not alter or
+// remove existing fields. `description?` is additive, optional, and
+// non-breaking, so new optional fields in that spirit are fine.)
 // ---------------------------------------------------------------------------
 
 /** One itemized line in a quote breakdown. amountCents may be negative. */

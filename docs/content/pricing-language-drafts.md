@@ -17,6 +17,8 @@ These strings currently ship in `src/features/pricing/term-descriptions.ts` as t
 | `unit:cat`    | Per cat, including the first.                                                                      |
 | `unit:dog`    | Per dog, including the first.                                                                      |
 
+**Note on `unit:cat` accuracy:** "including the first" is only accurate when a dog is also on the booking. On a cats-only booking, the first cat is the base rate (not charged the per-cat amount) — see `unitCount()` in `src/features/pricing/modifiers/evaluate.ts`. Flagging for Cal to reword if desired (e.g. distinguish the cats-only case).
+
 ---
 
 ## 2. Admin-config label renames (Cal applies directly in admin editor)
