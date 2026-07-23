@@ -136,16 +136,33 @@ personality described from outside, instead of as a second, colder author.
 The skill is judgment, so it is calibrated against real examples rather than
 specified into correctness.
 
-Sample of roughly 14 real strings: about 5 microcopy, 5 feedback, 4 admin,
-deliberately including the awkward cases — a refusal reason with interpolated
-numbers, a zod validation message, an empty state, an admin table header.
+Two samples are drawn up front:
+
+- **Calibration set** — roughly 14 real strings: about 5 microcopy, 5 feedback,
+  4 admin, deliberately including the awkward cases (a refusal reason with
+  interpolated numbers, a zod validation message, an empty state, an admin
+  table header).
+- **Held-back set** — 5 further strings the maintainer never sees during
+  calibration.
 
 Each round: a fresh subagent, cold, loaded with the current skill, voice file,
 and project rules, rewrites all 14. The maintainer sees a before/after table
 and reacts per item or wholesale. The skill or voice file is edited from that
 feedback.
 
-**Exit condition:** one full round approved with zero changes.
+**Exit condition, both required:**
+
+1. One full calibration round approved with zero changes.
+2. A **blind round** on the held-back 5, rewritten by a subagent that never saw
+   any of the maintainer's feedback, judged as good as the calibrated output.
+
+The blind round exists because maintainer feedback can be satisfied two ways:
+by finding the general principle behind an objection, or by patching the
+specific string. The second looks identical during calibration and fails
+everywhere else. Held-back strings are the only evidence that the skill
+generalized, and they have to be bought before plan 2 spends effort on the
+full corpus. A failed blind round means another calibration round aimed at the
+principle, not the symptom.
 
 Approved pairs land in `docs/content/voice/fixtures.md`, each with a line on
 why the rewrite is right. Any rule a round produces folds back into
@@ -189,9 +206,10 @@ every register entry either rewritten or explicitly left alone with a reason.
 
 ## Risks
 
-- **Overfitting to the calibration sample.** Fourteen strings is a small
-  sample; a skill tuned to them may generalize poorly. Mitigation available if
-  it bites: a blind round on unseen strings before exit.
+- **Overfitting to the calibration sample.** Fourteen strings is small, and
+  round-by-round feedback invites symptom patches. The blind round is the
+  control; if it keeps failing, the sample itself is too narrow and needs
+  widening rather than more rounds.
 - **Corpus size.** `cal-source.md` is a modest corpus. Traits derived from it
   should stay qualitative; measured statistics would imply precision the
   sample cannot support.
