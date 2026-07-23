@@ -18,7 +18,7 @@ export const profileSchema = z.object({
   zip: z
     .string()
     .min(5, "ZIP code is required")
-    .regex(/^\d{5}(-\d{4})?$/, "Enter a valid 5-digit ZIP code"),
+    .regex(/^\d{5}(-\d{4})?$/, "Enter a valid ZIP code"),
 });
 
 export type ProfileInput = z.infer<typeof profileSchema>;
