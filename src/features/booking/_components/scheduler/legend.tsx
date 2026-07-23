@@ -2,8 +2,9 @@
  * Legend — horizontal status color key for the scheduler.
  *
  * Renders four entries (Available, Booked, Unavailable, Selected) each with
- * a color swatch and text label — never color-only. Reads capabilities from
- * context to conditionally show the Premium day entry (admin only). Token-only colors.
+ * a color swatch and text label — never color-only. Reads capabilities and
+ * data from context to conditionally show the Your booking entry (only when
+ * own bookings exist) and the Premium day entry (admin only). Token-only colors.
  */
 
 "use client";
@@ -41,11 +42,6 @@ const ENTRIES = [
     label: "Selected",
     swatchClass: "border-2 border-brand bg-transparent",
   },
-  {
-    label: "Your booking",
-    swatchClass:
-      "bg-status-available relative after:absolute after:bottom-0.5 after:left-1/2 after:size-1 after:-translate-x-1/2 after:rounded-full after:bg-brand after:content-['']",
-  },
 ] as const;
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -69,6 +65,18 @@ export function Legend({ className }: LegendProps) {
           <span className="text-muted-foreground text-xs">{label}</span>
         </li>
       ))}
+      {data.myBookings && data.myBookings.size > 0 && (
+        <li className="flex items-center gap-1.5">
+          <span
+            aria-hidden="true"
+            className={cn(
+              "size-3 rounded-sm",
+              "bg-status-available after:bg-brand relative after:absolute after:bottom-0.5 after:left-1/2 after:size-1 after:-translate-x-1/2 after:rounded-full after:content-['']",
+            )}
+          />
+          <span className="text-muted-foreground text-xs">Your booking</span>
+        </li>
+      )}
       {(capabilities.premiumMarkable ||
         (data.premiumDays && data.premiumDays.size > 0)) && (
         <li className="flex items-center gap-1.5">
