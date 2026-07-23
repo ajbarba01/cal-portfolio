@@ -452,7 +452,7 @@ export function BookingFlow({
           U6 policy line (rendered from settings when fields are present). */}
       <StepShell aria-label="Booking summary">
         <h2 className="font-heading text-foreground mb-2.5 text-[15px] font-semibold">
-          Your booking
+          Booking summary
         </h2>
         {receipt}
         {rules && <PolicyLine rules={rules} />}

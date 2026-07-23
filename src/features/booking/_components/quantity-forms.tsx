@@ -155,8 +155,8 @@ function KicheWelcomeRow({
       <div>
         <p className="text-foreground text-sm font-medium">Is Kiche welcome?</p>
         <p className="text-muted-foreground text-xs leading-relaxed">
-          OK for Cal&apos;s dog Kiche to tag along. You&apos;ll get a discount
-          if she joins.
+          OK for Cal&apos;s dog Kiche to tag along. A discount applies if she
+          joins.
         </p>
       </div>
       <Switch
