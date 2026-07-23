@@ -503,7 +503,16 @@ export async function computeBookingArtifacts(
   // 1. Validate
   const parseResult = createBookingInputSchema.safeParse(rawInput);
   if (!parseResult.success) {
-    return { kind: "validation_error", message: parseResult.error.message };
+    // zod v4's error.message is the serialized issues array (code/path/pattern).
+    // Log it for diagnosis; never show it to a user.
+    console.error(
+      "computeBookingArtifacts: booking input failed validation",
+      parseResult.error.issues,
+    );
+    return {
+      kind: "validation_error",
+      message: "Please check your booking details and try again.",
+    };
   }
   const input = parseResult.data;
   const { repo } = deps;
