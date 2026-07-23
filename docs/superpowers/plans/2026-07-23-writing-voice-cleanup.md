@@ -137,7 +137,7 @@ Dispatch **one sonnet subagent per audit task** with a prompt containing all of 
 
 - `rewrite` — a warranted copy change this plan will apply.
 - `leave` — flagged and deliberately not changed. Used when a tell is present but rewriting costs more than it buys, most often consistency with siblings.
-- `route:copy-sync` — Cal's approval needed. `term-descriptions.ts` strings, and anything on the marketing/system boundary.
+- `route:copy-sync` — Cal's approval needed before the string can change. Two destinations: pricing terms (`term-descriptions.ts`, admin pricing labels) are recorded in `docs/content/pricing-language-drafts.md`; everything else on the marketing/system boundary is reported to the maintainer at close-out for routing to Cal. A `route:copy-sync` row does not require a named tell if the reason it needs Cal is ownership rather than craft.
 - `route:component` — the fix is a component change, not a copy change. Precedent: `Additional owners (optional)` is a `FieldGroup.title`, not a `FormField` label, so the site's optional-suffix convention never reaches it. Same pattern at `src/features/accounts/_components/profile-fields.tsx:130`.
 - `route:engineering` — the copy describes the code incorrectly and the code is the question. Precedent: `Enter a valid 5-digit ZIP code` understates a regex that also accepts ZIP+4.
 
@@ -1162,9 +1162,13 @@ Then read every `leave` row and confirm each carries a reason. A `leave` with an
 
 - [ ] **Step 2: Record the `route:copy-sync` findings for Cal**
 
-For each `route:copy-sync` row, add a line to `docs/content/pricing-language-drafts.md` under the section that owns it (§1 for shipped tooltip descriptions, §2 for admin-config label renames), naming the string, what the audit found, and that it needs Cal's decision. Do not edit `src/features/pricing/term-descriptions.ts` — those strings are pending Cal's approval and route through copy-sync.
+Split these by destination.
 
-If there are no `route:copy-sync` rows, skip this step and say so.
+**Pricing terms** — for each row naming a `term-descriptions.ts` string or an admin pricing label, add a line to `docs/content/pricing-language-drafts.md` under the section that owns it (§1 for shipped tooltip descriptions, §2 for admin-config label renames), naming the string, what the audit found, and that it needs Cal's decision. Do not edit `src/features/pricing/term-descriptions.ts` — those strings are pending Cal's approval and route through copy-sync.
+
+**Everything else** — marketing/system-boundary strings that need Cal's approval but are not pricing (SEO meta descriptions, page-level taglines) have no drafts doc to land in. Report them to the maintainer in Step 8 as a named list with their locations and what the audit found, for Cal to decide. Do not invent a new doc for them.
+
+If there are no `route:copy-sync` rows in either destination, skip this step and say so.
 
 - [ ] **Step 3: Report the `route:component` and `route:engineering` findings**
 
