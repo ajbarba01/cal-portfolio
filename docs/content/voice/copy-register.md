@@ -60,7 +60,12 @@ systematically.
 | `D-booking`    | Booking flow UI                 | 19    | 109        | 12           | 97       | 3       |
 | `E-validation` | zod validation messages         | 5     | 23         | 0            | 23       | 1       |
 | `F-feedback`   | Server errors, refusals, toasts | 32    | 163        | 66           | 97       | 5       |
-| `G-admin`      | Admin surfaces                  | 54    | 338        |              |          |         |
+| `G-admin`      | Admin surfaces                  | 54    | 338        | 20\*         | 225\*    | 2\*     |
+
+\* Partial — this row covers only the 245 of 338 `G-admin` candidates that
+live under `src/app/(site)/(admin)/**` (34 files). The remaining 93, under
+`src/features/admin/**` and `src/features/inquiries/**`, are the next task's
+scope and will complete this row.
 
 ## Verdicts
 
@@ -277,7 +282,93 @@ text, so they were left in-scope and clean rather than routed like F1/F2.
 
 ### Group G — admin surfaces
 
-_Audit pending._
+**Admin pages**
+
+Scope: `src/app/(site)/(admin)/**`, 34 files, 245 of the group's 338
+candidates — the first half of Group G (see the coverage table's note above).
+The remaining 93 candidates, under `src/features/admin/**` and
+`src/features/inquiries/**`, are the next task's scope; this section does not
+speak to them. 20 out of scope, 225 in scope, 2 flagged.
+
+The five strings this task's brief names as already approved and not to be
+re-flagged were checked on re-inspection rather than skipped. Four live on
+this half's surface and stand as approved: `No inquiries yet.` and `This
+clears it from your open queue. You can still find it under the Resolved
+filter. This can't be undone.` (both
+`src/app/(site)/(admin)/admin/inquiries/_components/inquiries-client.tsx`),
+`Create a record for an offline client. They claim the account later.`
+(`src/app/(site)/(admin)/admin/clients/new/page.tsx:11`), and `Approve, edit,
+or cancel right from the row.`
+(`src/app/(site)/(admin)/admin/bookings/page.tsx:35`). The fifth,
+`Approve before the visit?`, lives in
+`src/features/admin/_components/onboarding-status-select.tsx:64` —
+`src/features/admin/**`, not this half's scope — so it is out of reach here
+and stays for the next task to re-confirm.
+
+Two findings, both the same defect recurring at two call sites, found by
+reading the code around a literal the extraction did surface (the Method
+section's noted blind spot: a message assembled at runtime from a variable is
+invisible to a literal-based extractor). Both admin surfaces run a generic
+mutation (approve/decline/cancel/waive/settle/adjust) through a local `run()`
+helper whose failure branch shows the result's `kind` tag. Two sibling files
+on this same admin surface —
+`src/app/(site)/(admin)/admin/settings/_components/settings-client.tsx:178-182`
+and `src/app/(site)/(admin)/admin/reviews/_components/reviews-client.tsx:104-108`
+— already guard this correctly (`"message" in result ? result.message : ...`),
+and `admin-kiche-control.tsx`'s own `errorMessage` mapper
+(`:142-155`) goes further, naming a specific sentence per failure kind. The
+two flagged files skip that guard, so a `validation_error` or `error` result
+— both of which carry a real `message` string on `ApprovalResult` and
+`CancelBookingResult` (`src/features/admin/approval-actions.ts:64-69`,
+`src/features/booking/cancel-core.ts:18-22`) — surfaces only the bare kind
+("Action failed: validation_error") to Cal, discarding the specific fact the
+code already had. No wording fix can restore dropped data without inventing
+text; the fix is the code-side guard already proven two files over.
+
+| #   | String                          | Location                                                                                   | Tell / rule                                          | Verdict             | Proposed text | Note                                                                                                                                                                                                                                                                                                                                                                                               |
+| --- | ------------------------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------- | ------------------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| G1  | `Action failed: ${result.kind}` | `src/app/(site)/(admin)/admin/bookings/_components/bookings-calendar-client.tsx:525`       | craft: Prefer the specific fact over the abstraction | `route:engineering` |               | This surface's `run()` wraps approve/decline/cancel and always shows the bare `kind` on failure, even for `validation_error`/`error` results that carry a real `message`. `settings-client.tsx:178-182` and `reviews-client.tsx:104-108` already check `"message" in result` first; this file skips that guard. Fix is code-side — see the shared note above and G2 (same defect, different file). |
+| G2  | `Action failed: ${result.kind}` | `src/app/(site)/(admin)/admin/clients/[clientId]/_components/client-detail-client.tsx:155` | craft: Prefer the specific fact over the abstraction | `route:engineering` |               | Same defect as G1 in this surface's own `run()` (approve/decline/cancel/waive/settle/adjust all route through it). No `"message" in result` guard, so a `validation_error`/`error` result's real message is discarded in favor of the bare kind. Fix is code-side; see G1 for the sibling files that already guard correctly.                                                                      |
+
+Out-of-scope breakdown (20 of 245): landmark/mechanic `aria-label`s naming a
+region or control for screen readers rather than duplicating rendered prose —
+`Today's bookings` (`today-timeline.tsx:60`), `Selected day availability`
+(`availability-client.tsx:584`), `Filter by service`, `Filter by status`,
+`Search client`, `Switch view` (`bookings-calendar-client.tsx:639`, `:621`,
+`:656`, `:664`), `Price estimate` (`admin-create-booking-client.tsx:234`, an
+`sr-only` heading — the same landmark pattern Group D already found
+out-of-scope on the public booking surface), `Apply Kiche discount to this
+booking` (`admin-kiche-control.tsx:133`), `Filter clients`, `Search clients`,
+`View ${…}` (`clients-index-client.tsx:132`, `:126`, `:184`/`:258`), `${…}
+out of 5 stars`, `Filter reviews by status`, `Search reviews`
+(`reviews-client.tsx:31`, `:154`, `:148`), and `Requires approval`
+(`service-edit-form.tsx:183`, duplicating the adjacent visible label
+verbatim). Two Tailwind class template strings the extractor mistook for
+prose (`booking-row.tsx:129`, `client-detail-client.tsx:356`) and one
+`block truncate` fragment (`clients-index-client.tsx:204`). One `rel`
+attribute value, `noopener noreferrer` (`client-detail-client.tsx:441`). One
+data comparison constant, `Meet & Greet` (`client-detail-client.tsx:173`,
+matched against a service name to find the onboarding booking — never itself
+rendered).
+
+Close calls, not flagged: a handful of "Could not X" error strings
+(`clients/[clientId]/book/page.tsx:107`, the identical string at
+`bookings/[bookingId]/edit/page.tsx:105`, and
+`inquiries-client.tsx:42`'s `Could not update the inquiry.`) sit against a
+much larger sibling family that contracts the same construction
+("Couldn't load bookings", "Couldn't load clients", "Couldn't save:
+${…}", "Couldn't generate a link", and the seven-plus `Couldn't load this` /
+`Couldn't load inquiries` error-state titles elsewhere on this same surface).
+`admin-kiche-control.tsx`'s own `errorMessage` mixes registers the same way
+in one function — `"The client hasn't marked..."` and `"This service doesn't
+offer..."` contract, `"This booking could not be found."` doesn't. No
+heading in `ai-tells.md` or `craft.md` names contraction consistency, so
+nothing was flagged, but the pattern recurs enough (four instances) that a
+maintainer may want to standardize it. Also not flagged for the same
+reason: `services-client.tsx:37`'s `Saved!` is the only exclamation mark
+among a dozen sibling success confirmations on this surface (`Client
+created`, `Booking created`, `Debit adjusted`, `Marked resolved`, and
+others), all otherwise flat.
 
 ---
 
