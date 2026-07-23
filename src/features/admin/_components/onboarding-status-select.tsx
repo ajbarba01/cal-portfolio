@@ -76,7 +76,7 @@ export function OnboardingStatusSelect({
       } else {
         toast.add({
           title: "Couldn't update status",
-          description: result.kind,
+          description: "message" in result ? result.message : result.kind,
           type: "error",
         });
       }
