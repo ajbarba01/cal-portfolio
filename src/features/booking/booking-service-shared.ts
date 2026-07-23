@@ -703,7 +703,7 @@ export async function computeBookingArtifacts(
     } else {
       return {
         kind: "refuse",
-        reason: `Client location is too far (${milesLabel} mi). Hard cutoff is ${settings.hard_cutoff_miles} mi.`,
+        reason: `Client is ${milesLabel} mi away — beyond the ${settings.hard_cutoff_miles} mi cutoff.`,
       };
     }
   }
