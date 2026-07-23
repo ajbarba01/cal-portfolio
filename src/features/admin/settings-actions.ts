@@ -131,8 +131,16 @@ export async function updateSettingsCore(
   if (!isAdmin) return { kind: "forbidden" };
 
   const parsed = settingsUpdateSchema.safeParse(rawInput);
-  if (!parsed.success)
-    return { kind: "validation_error", message: parsed.error.message };
+  if (!parsed.success) {
+    console.error(
+      "settings action: input validation failed",
+      parsed.error.issues,
+    );
+    return {
+      kind: "validation_error",
+      message: "Please check your entries and try again.",
+    };
+  }
 
   const update = parsed.data;
 

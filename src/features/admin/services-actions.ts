@@ -143,8 +143,16 @@ export async function updateServiceCore(
   if (!isAdmin) return { kind: "forbidden" };
 
   const parsed = updateServiceInputSchema.safeParse(rawInput);
-  if (!parsed.success)
-    return { kind: "validation_error", message: parsed.error.message };
+  if (!parsed.success) {
+    console.error(
+      "services action: input validation failed",
+      parsed.error.issues,
+    );
+    return {
+      kind: "validation_error",
+      message: "Please check your entries and try again.",
+    };
+  }
 
   const { serviceId, pricing_config, ...rest } = parsed.data;
 

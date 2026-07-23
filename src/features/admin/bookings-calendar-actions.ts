@@ -55,7 +55,14 @@ export async function listBookingsInRangeCore(
   }
   const parsed = rangeSchema.safeParse(range);
   if (!parsed.success) {
-    return { kind: "validation_error", message: parsed.error.message };
+    console.error(
+      "bookings-calendar action: input validation failed",
+      parsed.error.issues,
+    );
+    return {
+      kind: "validation_error",
+      message: "Please check your entries and try again.",
+    };
   }
 
   const { data, error } = await deps.serviceClient

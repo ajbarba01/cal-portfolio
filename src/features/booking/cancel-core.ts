@@ -49,7 +49,14 @@ export async function cancelBookingCore(
 ): Promise<CancelBookingResult> {
   const parseResult = cancelBookingInputSchema.safeParse(rawInput);
   if (!parseResult.success) {
-    return { kind: "error", message: parseResult.error.message };
+    console.error(
+      "cancelBookingCore: input validation failed",
+      parseResult.error.issues,
+    );
+    return {
+      kind: "error",
+      message: "Something went wrong. Please try again.",
+    };
   }
   const input = parseResult.data;
   const { repo, now, gateway } = deps;

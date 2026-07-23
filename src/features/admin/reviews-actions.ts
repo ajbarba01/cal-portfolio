@@ -121,8 +121,16 @@ export async function moderateReviewCore(
   if (!isAdmin) return { kind: "forbidden" };
 
   const parsed = moderateInputSchema.safeParse(rawInput);
-  if (!parsed.success)
-    return { kind: "validation_error", message: parsed.error.message };
+  if (!parsed.success) {
+    console.error(
+      "reviews action: input validation failed",
+      parsed.error.issues,
+    );
+    return {
+      kind: "validation_error",
+      message: "Please check your entries and try again.",
+    };
+  }
 
   const { reviewId, status } = parsed.data;
 

@@ -145,8 +145,16 @@ export async function transitionBookingByAdminCore(
     actorUserId: deps.actorUserId,
     ...rawInput,
   });
-  if (!parsed.success)
-    return { kind: "validation_error", message: parsed.error.message };
+  if (!parsed.success) {
+    console.error(
+      "approval action: input validation failed",
+      parsed.error.issues,
+    );
+    return {
+      kind: "validation_error",
+      message: "Please check your entries and try again.",
+    };
+  }
 
   const { bookingId, event } = parsed.data;
 
