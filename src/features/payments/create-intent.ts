@@ -178,9 +178,10 @@ export async function runCreatePrepayIntent(
     });
 
   if (insertError) {
+    console.error("createIntentCore: failed to record payment", insertError);
     return {
       ok: false,
-      error: `Failed to record payment: ${insertError.message}`,
+      error: "Something went wrong recording your payment. Please try again.",
     };
   }
 
