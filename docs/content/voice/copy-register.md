@@ -60,7 +60,7 @@ systematically.
 | `D-booking`    | Booking flow UI                 | 19    | 109        | 12           | 97       | 3       |
 | `E-validation` | zod validation messages         | 5     | 23         | 0            | 23       | 1       |
 | `F-feedback`   | Server errors, refusals, toasts | 32    | 163        | 66           | 97       | 5       |
-| `G-admin`      | Admin surfaces                  | 54    | 338        | 20\*         | 225\*    | 2\*     |
+| `G-admin`      | Admin surfaces                  | 54    | 338        | 20\*         | 225\*    | 3\*     |
 
 \* Partial — this row covers only the 245 of 338 `G-admin` candidates that
 live under `src/app/(site)/(admin)/**` (34 files). The remaining 93, under
@@ -288,7 +288,7 @@ Scope: `src/app/(site)/(admin)/**`, 34 files, 245 of the group's 338
 candidates — the first half of Group G (see the coverage table's note above).
 The remaining 93 candidates, under `src/features/admin/**` and
 `src/features/inquiries/**`, are the next task's scope; this section does not
-speak to them. 20 out of scope, 225 in scope, 2 flagged.
+speak to them. 20 out of scope, 225 in scope, 3 flagged.
 
 The five strings this task's brief names as already approved and not to be
 re-flagged were checked on re-inspection rather than skipped. Four live on
@@ -305,8 +305,9 @@ or cancel right from the row.`
 `src/features/admin/**`, not this half's scope — so it is out of reach here
 and stays for the next task to re-confirm.
 
-Two findings, both the same defect recurring at two call sites, found by
-reading the code around a literal the extraction did surface (the Method
+The first two findings below (G1, G2) are the same defect recurring at two
+call sites, found by reading the code around a literal the extraction did
+surface (the Method
 section's noted blind spot: a message assembled at runtime from a variable is
 invisible to a literal-based extractor). Both admin surfaces run a generic
 mutation (approve/decline/cancel/waive/settle/adjust) through a local `run()`
@@ -325,10 +326,20 @@ two flagged files skip that guard, so a `validation_error` or `error` result
 code already had. No wording fix can restore dropped data without inventing
 text; the fix is the code-side guard already proven two files over.
 
-| #   | String                          | Location                                                                                   | Tell / rule                                          | Verdict             | Proposed text | Note                                                                                                                                                                                                                                                                                                                                                                                               |
-| --- | ------------------------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------- | ------------------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| G1  | `Action failed: ${result.kind}` | `src/app/(site)/(admin)/admin/bookings/_components/bookings-calendar-client.tsx:525`       | craft: Prefer the specific fact over the abstraction | `route:engineering` |               | This surface's `run()` wraps approve/decline/cancel and always shows the bare `kind` on failure, even for `validation_error`/`error` results that carry a real `message`. `settings-client.tsx:178-182` and `reviews-client.tsx:104-108` already check `"message" in result` first; this file skips that guard. Fix is code-side — see the shared note above and G2 (same defect, different file). |
-| G2  | `Action failed: ${result.kind}` | `src/app/(site)/(admin)/admin/clients/[clientId]/_components/client-detail-client.tsx:155` | craft: Prefer the specific fact over the abstraction | `route:engineering` |               | Same defect as G1 in this surface's own `run()` (approve/decline/cancel/waive/settle/adjust all route through it). No `"message" in result` guard, so a `validation_error`/`error` result's real message is discarded in favor of the bare kind. Fix is code-side; see G1 for the sibling files that already guard correctly.                                                                      |
+| #   | String                                         | Location                                                                                   | Tell / rule                                          | Verdict             | Proposed text | Note                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| --- | ---------------------------------------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------- | ------------------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| G1  | `Action failed: ${result.kind}`                | `src/app/(site)/(admin)/admin/bookings/_components/bookings-calendar-client.tsx:525`       | craft: Prefer the specific fact over the abstraction | `route:engineering` |               | This surface's `run()` wraps approve/decline/cancel and always shows the bare `kind` on failure, even for `validation_error`/`error` results that carry a real `message`. `settings-client.tsx:178-182` and `reviews-client.tsx:104-108` already check `"message" in result` first; this file skips that guard. Fix is code-side — see the shared note above and G2 (same defect, different file).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| G2  | `Action failed: ${result.kind}`                | `src/app/(site)/(admin)/admin/clients/[clientId]/_components/client-detail-client.tsx:155` | craft: Prefer the specific fact over the abstraction | `route:engineering` |               | Same defect as G1 in this surface's own `run()` (approve/decline/cancel/waive/settle/adjust all route through it). No `"message" in result` guard, so a `validation_error`/`error` result's real message is discarded in favor of the bare kind. Fix is code-side; see G1 for the sibling files that already guard correctly.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| G3  | `The client is refunded in full and notified.` | `src/app/(site)/(admin)/admin/bookings/_components/bookings-calendar-client.tsx:538`       | craft: Prefer the specific fact over the abstraction | `route:engineering` |               | Splits into two claims. "Refunded in full" is code-backed: the admin cancel path forces `fullRefund: true` (`src/features/booking/actions.ts:136`, admin branch). "Notified" is not: `src/features/notifications/notifier.ts:7` documents `booking_cancelled` as intentionally omitted from the `NotificationEvent` vocabulary; `cancelBooking` (`src/features/booking/actions.ts:136`) and `cancelBookingCore` never construct or call a `Notifier`; the app's only two `ResendNotifier` instantiations are `actions.ts:77` (fires on `createBooking`) and `src/features/admin/approval-actions.ts:229` (fires on approval's `booking_confirmed`) — neither is reachable from a cancel. The Stripe refund call itself (`src/features/payments/stripe-gateway.ts:62`) passes no `receipt_email`. One caveat the reviewer could not settle from the code: Stripe's dashboard can be configured to email customers on a refund, a merchant-account setting invisible from this repo — that would not make the app's own copy code-backed, but it means the client may in fact receive something, so this is not a claim that the client is never notified. Same class as K5/F3: copy states a fact the code does not perform. The standard forbids correcting a fact as much as inventing one, so this needs a decision from whoever owns the notification vocabulary — build the notice or drop the claim — not a wording change. |
+
+G3 is a different kind of finding: not a dropped-message guard gap like G1/G2,
+but a copy claim the code only half backs. This surface's cancel-confirm
+dialog was initially set alongside `client-detail-client.tsx`'s own
+cancel-confirm text ("This cancels the booking per the refund policy.") as a
+pair where "both are true and neither is a tell" — a comparison made without
+tracing the notification path. Once traced, the "refunded" half held and the
+"notified" half did not, so this row replaces that comparison rather than
+sitting beside it as a second close call.
 
 Out-of-scope breakdown (20 of 245): landmark/mechanic `aria-label`s naming a
 region or control for screen readers rather than duplicating rendered prose —
@@ -369,6 +380,20 @@ reason: `services-client.tsx:37`'s `Saved!` is the only exclamation mark
 among a dozen sibling success confirmations on this surface (`Client
 created`, `Booking created`, `Debit adjusted`, `Marked resolved`, and
 others), all otherwise flat.
+
+A third close call, for a different reason: `settings-client.tsx:353`'s
+field label `Hard cutoff — refuse bookings beyond` is the only one of this
+settings form's roughly dozen field labels carrying a name-prefix ahead of
+its description. That reads like the odd one out in a parallel labelling
+system, which is this group's own named hazard — but the hazard is scoped to
+table headers, column labels, filter chips, and status badges, and a
+settings-form field label is none of those, so it doesn't reach here. Left
+unflagged for want of a named tell, same as the two items above it, not
+because "Hard cutoff" is precedented elsewhere: the only other place that
+phrase appears is the string K2 replaced, and K2's approved rewrite
+(`fixtures.md`) folded it into a lower-case "cutoff" inside a sentence
+precisely to move away from the standalone term, so it cannot argue for
+keeping it here.
 
 ---
 
