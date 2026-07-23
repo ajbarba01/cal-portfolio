@@ -15,6 +15,7 @@ import {
 } from "@/features/seo";
 import { PageContainer } from "@/components/layout/page-container";
 import { Reveal, RevealGroup } from "@/components/effects/reveal";
+import { EmptyState } from "@/components/feedback/empty-state";
 import { Eyebrow } from "@/components/marketing/eyebrow";
 import { MarketingCopy } from "@/components/marketing/marketing-copy";
 import { MarketingProse } from "@/components/marketing/marketing-prose";
@@ -268,9 +269,12 @@ export default async function ServicesPage() {
       <section aria-label="Services" className="bg-background">
         <PageContainer width="app" className="pt-12 pb-12 sm:pt-16 sm:pb-16">
           {items.length === 0 ? (
-            <p className="text-muted-foreground text-center">
-              Services coming soon — check back shortly.
-            </p>
+            <Reveal>
+              <EmptyState
+                title="Services coming soon"
+                message="Check back shortly."
+              />
+            </Reveal>
           ) : (
             <Reveal>
               <ServiceTabs items={items} />
