@@ -89,7 +89,9 @@ name: cal
 derived-from: docs/content/cal-source.md — 2026-07-22, N words
 ---
 
-## Traits # generated; each one observable, not a vibe
+<!-- Traits: generated. Each one observable, not a vibe. -->
+
+## Traits
 
 - Sentences mostly 8–18 words, with occasional 4-word fragments for emphasis
 - Contractions throughout; no semicolons anywhere in the corpus
@@ -97,11 +99,15 @@ derived-from: docs/content/cal-source.md — 2026-07-22, N words
 - Concrete care nouns over abstractions; zero business jargon
 - Never: hype adjectives, rule-of-threes, "passionate about"
 
-## Exemplars # generated; verbatim, never paraphrased
+<!-- Exemplars: generated. Verbatim, never paraphrased. -->
+
+## Exemplars
 
 > …
 
-## Overrides # hand-written; `update` never touches this section
+<!-- Overrides: hand-written. `update` never touches this section. -->
+
+## Overrides
 
 - …
 ```
