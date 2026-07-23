@@ -30,11 +30,17 @@ it.
 Structure the work as three layers that change on different clocks and belong
 to different owners:
 
-| Layer             | Lives in                             | Owns                                                                  |
-| ----------------- | ------------------------------------ | --------------------------------------------------------------------- |
-| **Craft rules**   | `~/.claude/skills/writing-in-voice/` | AI-tell catalog, rhythm and specificity heuristics, rewrite procedure |
-| **Voice**         | `docs/content/voice/` (this repo)    | trait profile + verbatim exemplars, derived from references           |
-| **Project rules** | `docs/DESIGN.md`, `docs/CONTENT.md`  | POV per surface, Colorado-only, never invent substance                |
+| Layer             | Lives in                                                        | Owns                                                                               |
+| ----------------- | --------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| **Craft rules**   | `~/.claude/skills/writing-in-voice/`                            | AI-tell catalog, rhythm and specificity heuristics, rewrite procedure              |
+| **Voice**         | `docs/content/voice/` (this repo)                               | trait profile + verbatim exemplars, derived from references                        |
+| **Project rules** | `docs/DESIGN.md`, `docs/CONTENT.md`, `docs/COMPONENT_SYSTEM.md` | POV per surface, Colorado-only, never invent substance, form and label conventions |
+
+`COMPONENT_SYSTEM.md` was added to that row during calibration. Round 1 left a
+label untouched that violated the site's optional-suffix convention, because
+nothing had told the skill the convention existed. Which docs count as
+"project rules" is itself a per-project decision, and getting it wrong looks
+exactly like a taste failure.
 
 The skill reads layers 2 and 3 by pointer and restates neither. That is what
 makes it liftable: another project supplies its own voice file and its own
@@ -148,7 +154,10 @@ Two samples are drawn up front:
 - **Calibration set** — roughly 14 real strings: about 5 microcopy, 5 feedback,
   4 admin, deliberately including the awkward cases (a refusal reason with
   interpolated numbers, a zod validation message, an empty state, an admin
-  table header).
+  table header). It grew to 17 during calibration: round 1 revealed the sample
+  held no **definitional copy** — text whose whole job is explaining a concept
+  — so three pricing tooltips were added, one of them carrying a known factual
+  error, to test that the standard flags rather than "fixes" it.
 - **Held-back set** — 5 further strings the maintainer never sees during
   calibration.
 
@@ -184,6 +193,19 @@ In scope: client-facing UI microcopy (labels, buttons, hints, section titles,
 placeholders, empty states across marketing, account, onboarding, booking),
 feedback text (validation messages, server errors, toasts, gate panels,
 refusal reasons), and admin-only surfaces.
+
+**Scope correction from calibration (2026-07-23).** The voice file will do
+far less work here than this design assumed. Almost no interface string is
+_about_ Cal, so his traits have no surface to apply to, and the blind round
+said so rather than pretending otherwise. The cleanup runs mostly on
+`craft.md` and `ai-tells.md`; `cal.md` earns its keep on email templates and
+anywhere the site speaks in a warmer register. Plan 2 should not budget effort
+for voice-matching across the whole corpus.
+
+Calibration also showed the standard is deliberately conservative: across 22
+real strings it changed 2. That is the intended behaviour, and it means plan 2
+should be sized as an audit that produces a small number of edits, not a
+rewrite of every string it touches.
 
 Out of scope: email templates, which belong to Group H and will inherit the
 finished voice; and developer-facing docs.
