@@ -11,6 +11,8 @@
 ## Global Constraints
 
 - **The skill contains zero project-specific content.** No mention of Cal, pet care, bookings, this repo, or its stack. Verifiable: `grep -ri "cal\b\|portfolio\|pet\|booking\|dog" ~/.claude/skills/writing-in-voice/` returns nothing.
+- **The skill contains zero agent-specific content.** No mention of Claude, Anthropic, or any single agent's tool names, file conventions, or invocation syntax. The body is instructions to a reader, not to one product. `~/.claude/skills/` is where the files sit today, not what they are; the content must lift into an agent-agnostic home unchanged. Verifiable: `grep -ri "claude\|anthropic\|cursor\|codex\|copilot" ~/.claude/skills/writing-in-voice/` returns nothing outside the front-matter block.
+- **Not version-controlled during this plan.** These files live outside cal-portfolio and get no git history in this pass. Per-task review therefore reads the files directly rather than a diff.
 - **The skill never restates project rules.** POV, Colorado-only, never-invent-substance live in `docs/CONTENT.md` and `docs/DESIGN.md`. The skill's rewrite operation reads whatever rules doc the caller names.
 - **Voice-file traits must be falsifiable** — checkable against a piece of output by a reader who has the corpus. "Warm and approachable" fails; "addresses the reader as _you_ in 9 of 11 openings" passes.
 - **Voice-file exemplars are verbatim.** Every exemplar must appear character-for-character in a named reference file.
@@ -50,24 +52,20 @@ In the repo (committed):
 **Files:**
 
 - Create: `~/.claude/skills/writing-in-voice/references/ai-tells.md`
-- Create: `~/.claude/skills/writing-in-voice/.gitignore` (empty marker so the directory is a clean repo root)
 
 **Interfaces:**
 
 - Produces: `references/ai-tells.md` — a catalog consumed by `SKILL.md` (Task 4) during the rewrite and audit operations. Each entry has a stable `### <Tell name>` heading that later tasks and calibration rounds cite by name when folding feedback back in.
 
-- [ ] **Step 1: Create the skill directory and make it its own git repo**
-
-The skill lives outside cal-portfolio, so cal-portfolio's git does not protect it. Calibration will edit these files many times and needs an undo.
+- [ ] **Step 1: Create the skill directory**
 
 ```bash
 mkdir -p ~/.claude/skills/writing-in-voice/references
-cd ~/.claude/skills/writing-in-voice
-git init
-printf '' > .gitignore
 ```
 
-Expected: `git status` inside that directory reports a repo with untracked files, and `git rev-parse --show-toplevel` prints the skill directory — **not** the cal-portfolio path. If it prints cal-portfolio, stop: the directory was created in the wrong place.
+This location is where the files sit for now, not a claim about what they are. Nothing written in this plan may depend on that path or on any single agent's conventions — see the agent-neutrality constraint above. Moving the directory into an agent-agnostic home later is a copy, and a decision for another day.
+
+These files are outside cal-portfolio and therefore outside its git history. They are not version-controlled during this plan; calibration edits are not recoverable, so do not delete a rule to "try something" without pasting it somewhere first.
 
 - [ ] **Step 2: Read the prior art**
 
@@ -140,13 +138,9 @@ Check each of these by reading the file. Every one must hold:
 - No section states a rule with no example.
 - The file itself does not commit the tells it lists. Read the prose you wrote: if it opens a section with "In the world of writing," rewrite it.
 
-- [ ] **Step 5: Commit (skill repo)**
+- [ ] **Step 5: Report the deliverable**
 
-```bash
-cd ~/.claude/skills/writing-in-voice
-git add .gitignore references/ai-tells.md
-git commit -m "docs: add AI-tell catalog"
-```
+There is nothing to commit — the file lives outside this repo's git. Report the file path, the number of tells written, and confirm the Step 4 checks passed. Review reads the file itself.
 
 ---
 
@@ -207,13 +201,9 @@ Read the file and check:
 - The file's own prose obeys its own rules. Specifically: run the "vary sentence length" check on the file's own explanatory paragraphs. If they fail, rewrite them.
 - No overlap with `ai-tells.md` — if a section is really "don't do X", it belongs in the tell catalog instead.
 
-- [ ] **Step 3: Commit (skill repo)**
+- [ ] **Step 3: Report the deliverable**
 
-```bash
-cd ~/.claude/skills/writing-in-voice
-git add references/craft.md
-git commit -m "docs: add craft heuristics"
-```
+Nothing to commit — the file is outside this repo's git. Report the path, the rules written, and confirm the Step 2 checks passed.
 
 ---
 
@@ -290,13 +280,9 @@ The update protocol:
 - The update protocol states the byte-identical `## Overrides` guarantee explicitly.
 - The file names no project. Run: `grep -ri "cal\b\|pet\|booking" ~/.claude/skills/writing-in-voice/references/voice-format.md` — expected: no output.
 
-- [ ] **Step 3: Commit (skill repo)**
+- [ ] **Step 3: Report the deliverable**
 
-```bash
-cd ~/.claude/skills/writing-in-voice
-git add references/voice-format.md
-git commit -m "docs: add voice-file format and protocols"
-```
+Nothing to commit — the file is outside this repo's git. Report the path and confirm the Step 2 checks passed, including the project-contamination grep.
 
 ---
 
@@ -337,29 +323,28 @@ The body must contain:
 
 **A pointer section**, not a copy: name the three reference files and say what each is for. Do not restate their contents in SKILL.md.
 
-- [ ] **Step 2: Verify the skill is self-contained and project-free**
+- [ ] **Step 2: Verify the skill is project-free and agent-free**
 
-Run:
+Run both greps across the whole skill directory, not just `SKILL.md`:
 
 ```bash
 grep -ril "cal\b\|portfolio\|pet\|booking\|dog\|colorado" ~/.claude/skills/writing-in-voice/
+grep -rin "claude\|anthropic\|cursor\|codex\|copilot\|gemini" ~/.claude/skills/writing-in-voice/
 ```
 
-Expected: no output. Any hit is a project assumption that must be removed — the skill has to lift into another project unchanged.
+Expected: no output from the first. The second may match only inside the `SKILL.md` front-matter block if a field genuinely requires it — every hit in prose is a defect.
 
-Then confirm the four operations named in SKILL.md match the four in the spec's "The skill" section exactly: derive, update, rewrite, audit.
+A project hit means the skill will not lift to another project. An agent hit means it will not lift to another agent. Both are the same failure: content that assumes its current home.
+
+Then confirm the four operations named in `SKILL.md` match the four in the spec's "The skill" section exactly: derive, update, rewrite, audit.
 
 - [ ] **Step 3: Confirm the skill loads**
 
 Run `/context` or list available skills in a new session and confirm `writing-in-voice` appears with its description. If it does not, check that the front matter parses — `name` must match the directory name.
 
-- [ ] **Step 4: Commit (skill repo)**
+- [ ] **Step 4: Report the deliverable**
 
-```bash
-cd ~/.claude/skills/writing-in-voice
-git add SKILL.md
-git commit -m "feat: add writing-in-voice skill entry point"
-```
+Nothing to commit — the file is outside this repo's git. Report the path, the four operations as written, and the results of both greps from Step 2.
 
 ---
 
@@ -530,16 +515,14 @@ Append to `docs/content/voice/fixtures.md`: the round number, the rewrites, the 
 
 - [ ] **Step 5: Commit the round**
 
+Only the repo files are committed; the skill files have no git history in this pass.
+
 ```bash
 git add docs/content/voice/fixtures.md docs/content/voice/cal.md
 git commit -m "docs: record voice calibration round"
 ```
 
-```bash
-cd ~/.claude/skills/writing-in-voice
-git add -A
-git commit -m "docs: refine rules from calibration feedback"
-```
+The fixtures entry for the round must name which skill file changed and what rule was added, since that is the only record of the skill's evolution.
 
 - [ ] **Step 6: Repeat until gate 1 passes**
 
@@ -595,12 +578,6 @@ git add docs/content/voice/fixtures.md docs/superpowers/specs/2026-07-22-writing
 git commit -m "docs: finalize voice fixtures after blind round"
 ```
 
-```bash
-cd ~/.claude/skills/writing-in-voice
-git add -A
-git commit -m "docs: finalize calibrated rules"
-```
-
 - [ ] **Step 7: Report readiness for plan 2**
 
 State explicitly: both gates passed, how many rounds it took, and where the artifacts live. Plan 2 (the repo text cleanup) can now be written, since its acceptance criteria depend on what the calibrated skill actually produces.
@@ -611,7 +588,8 @@ State explicitly: both gates passed, how many rounds it took, and where the arti
 
 - **Spec coverage:** three-layer separation (Global Constraints + Tasks 1–4), skill anatomy and four operations (Tasks 1–4), voice-file schema with observed/inferred and inviolable Overrides (Task 3, applied Task 5), Cal's corpus as the reference (Task 5), calibration sample of 14 plus 5 held back (Task 6), round loop with the fold-back-the-principle rule (Task 7), both exit gates (Tasks 7–8), fixtures staying in this repo rather than the portable skill (Tasks 6–8), CONTENT.md pointer under the same-commit doc rule (Task 5). Covered.
 - **Deliberate deviation from TDD:** this plan produces prose, and prose has no failing test to write first. Verification is substituted per task — structural checks on the artifacts (every entry has a before/after, every exemplar greps back to source, the project-free grep) and, for the skill's actual output quality, the two-gate calibration. The one place a mechanical check exists, it is used: the `grep -ril` project-contamination check in Tasks 3 and 4.
-- **Two git repos in play.** The skill directory is its own repo outside cal-portfolio; commits in Tasks 1–4 and the second commit block in Tasks 7–8 target it, not this project. Executors must check `git rev-parse --show-toplevel` before committing if there is any doubt.
+- **Only repo files are committed.** The skill files sit outside cal-portfolio and get no git history in this pass, so Tasks 1–4 end in a report rather than a commit and their review reads the files directly. The trade-off is accepted deliberately: versioning them would mean either polluting this project's history with unrelated files or standing up an agent-agnostic standards repo, which is a separate decision. The consequence to respect is that calibration edits are unrecoverable.
+- **Agent neutrality is a hard constraint, not a preference.** The files sit in an agent-specific directory today purely for convenience. Any sentence written to one product's conventions makes the eventual move a rewrite instead of a copy, so the grep in Task 4 Step 2 checks for it.
 - **Human gates are real gates.** Tasks 7 and 8 cannot be completed by a subagent alone; they require the maintainer's reactions. An executor that "approves" its own round has defeated the plan.
 - **Risk flagged in Task 7 Step 6:** the loop has no iteration cap by design, but three unproductive rounds is the stated signal to escalate rather than grind.
 

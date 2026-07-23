@@ -40,6 +40,13 @@ The skill reads layers 2 and 3 by pointer and restates neither. That is what
 makes it liftable: another project supplies its own voice file and its own
 rules doc, and the skill does not notice the difference.
 
+**Layer 1 is also agent-neutral.** Its content names no agent product, tool,
+or invocation convention — the same discipline this repo already applies with
+`AGENTS.md` as source of truth and `CLAUDE.md` as a thin shim over it. The
+skill sits in an agent-specific directory today for convenience only; nothing
+in its body may depend on that. A sentence written to one product's
+conventions turns the eventual move into a rewrite rather than a copy.
+
 ## Prior art
 
 No existing skill does this. Four related projects were reviewed and their
