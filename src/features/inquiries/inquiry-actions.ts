@@ -104,7 +104,10 @@ export async function submitInquiryCore(
     .select("id", { count: "exact", head: true })
     .eq("email", input.email)
     .gte("created_at", cutoff);
-  if (countError) return { ok: false, error: countError.message };
+  if (countError) {
+    console.error("submitInquiryCore: rate-limit count failed", countError);
+    return { ok: false, error: "Something went wrong. Please try again." };
+  }
   if ((count ?? 0) > 0) {
     return {
       ok: false,
@@ -122,7 +125,10 @@ export async function submitInquiryCore(
     message: input.message,
     status: "new" as const,
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    console.error("submitInquiryCore: insert failed", error);
+    return { ok: false, error: "Something went wrong. Please try again." };
+  }
   return { ok: true };
 }
 
