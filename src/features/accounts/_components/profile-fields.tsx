@@ -40,6 +40,7 @@ interface FieldSpec {
 
 interface FieldGroup {
   title: string;
+  optional?: boolean;
   fields: FieldSpec[];
 }
 
@@ -92,7 +93,8 @@ const OWNER_GROUPS: FieldGroup[] = [
     ],
   },
   {
-    title: "Additional owners (optional)",
+    title: "Additional owners",
+    optional: true,
     fields: [
       { name: "second_owner_name", label: "Second owner", max: N },
       { name: "second_owner_phone", label: "Their phone", type: "tel", max: P },
@@ -127,7 +129,8 @@ const OWNER_GROUPS: FieldGroup[] = [
     ],
   },
   {
-    title: "Second emergency contact (optional)",
+    title: "Second emergency contact",
+    optional: true,
     fields: [
       { name: "emergency2_name", label: "Contact name", max: N },
       { name: "emergency2_phone", label: "Contact phone", type: "tel", max: P },
@@ -380,7 +383,14 @@ function FieldGroupBlock({
       aria-labelledby={headingId}
       className="flex flex-col gap-4"
     >
-      <Eyebrow id={headingId}>{group.title}</Eyebrow>
+      <Eyebrow id={headingId}>
+        {group.title}
+        {group.optional ? (
+          <span className="text-muted-foreground ml-1.5 text-xs font-normal">
+            optional
+          </span>
+        ) : null}
+      </Eyebrow>
       {fields.map((f) => (
         <Fragment key={f.name}>
           {f.multiline ? (
