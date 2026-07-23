@@ -196,7 +196,7 @@ refusal reasons), and admin-only surfaces.
 
 **Scope correction from calibration (2026-07-23).** The voice file will do
 far less work here than this design assumed. Almost no interface string is
-_about_ Cal, so his traits have no surface to apply to, and the blind round
+_about_ Cal, so their traits have no surface to apply to, and the blind round
 said so rather than pretending otherwise. The cleanup runs mostly on
 `craft.md` and `ai-tells.md`; `cal.md` earns its keep on email templates and
 anywhere the site speaks in a warmer register. Plan 2 should not budget effort
@@ -213,6 +213,40 @@ finished voice; and developer-facing docs.
 Method: audit mode produces a register of every user-visible non-Cal string
 with its flagged tells, then rewrites proceed surface by surface, one commit
 each.
+
+### Outcome (2026-07-23)
+
+The pass ran and is complete. Register: `docs/content/voice/copy-register.md`.
+
+Of 1,070 extracted candidates, 811 were user-visible and in scope. **Twenty-three
+were flagged — 2.8%, against calibration's 9%.** Only four warranted a copy
+rewrite, and all four are applied. The other nineteen route elsewhere: twelve to
+engineering, four to a component owner, three to Cal.
+
+That ratio is the pass's real finding. The site's copy was in better shape than
+the spec assumed, and nearly everything the audit surfaced was a defect wearing
+copy's clothes rather than a copy defect. The three genre-level predictions held:
+the voice file bound almost nowhere, the standard stayed conservative, and the
+register stayed short.
+
+Two things the design did not anticipate:
+
+**The extraction has a blind spot, and most findings hid in it.** Only string
+literals were ever visible to it, so a user-facing message assembled at runtime
+from a variable never reached the candidate list. Eight of the twenty-three
+findings are exactly that — a raw driver error interpolated into a message, or a
+real error message discarded in favour of a bare union tag. Every one was found
+by reading the code around a literal, not by the extraction. The worst,
+`booking-service-shared.ts:506`, passes zod's serialized issues array — a JSON
+blob of schema internals — straight to users on three booking surfaces. Any
+future pass built this way inherits the same gap.
+
+**A conservative standard shifts the risk from the edits to the claims.** Every
+significant review finding across seven audits was a confident assertion in a
+report that turned out to be false — "only two strings reach the admin surface",
+"eleven in-scope strings in this file", "both are true, neither is a tell". Not
+one flagged string was itself wrong. Where a standard barely changes anything,
+the thing to review is the reasoning, not the diff.
 
 Three constraints:
 
@@ -248,4 +282,5 @@ every register entry either rewritten or explicitly left alone with a reason.
 
 ---
 
-_Last reviewed: 2026-07-22_
+_Last reviewed: 2026-07-23_ (cleanup pass complete; outcome recorded)
+_Earlier: 2026-07-22_

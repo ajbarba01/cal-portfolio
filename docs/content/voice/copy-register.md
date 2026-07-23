@@ -5,12 +5,13 @@
 > `~/.claude/skills/writing-in-voice/`. Approved judgements and the calibration
 > history live in `docs/content/voice/fixtures.md`.
 >
-> **Triaged 2026-07-23. Every row below carries a confirmed verdict.** The four
-> rows marked `rewrite` are the full scope of this pass's source changes; the
-> maintainer approved all four. The twelve `route:engineering` rows are real
-> code defects and stay recorded here for a follow-up plan — this pass does not
-> fix them. The three `route:copy-sync` rows go to Cal, and the four
-> `route:component` rows to whoever owns the component.
+> **Complete 2026-07-23.** 1,070 candidates extracted, 811 in scope, 23 flagged.
+> Four warranted a copy rewrite and all four are `applied`. The twelve
+> `route:engineering` rows are real code defects, recorded here for a follow-up
+> plan — this pass deliberately does not fix them. The three `route:copy-sync`
+> rows go to Cal; `unit:cat` is also recorded in
+> `docs/content/pricing-language-drafts.md`. The four `route:component` rows go
+> to whoever owns the component. No row is unresolved.
 
 The standard is conservative by design: across the 22 strings of calibration it
 changed 2. This register is expected to be short. A long one means the audit

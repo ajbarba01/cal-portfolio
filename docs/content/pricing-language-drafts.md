@@ -19,6 +19,8 @@ These strings currently ship in `src/features/pricing/term-descriptions.ts` as t
 
 **Note on `unit:cat` accuracy:** "including the first" is only accurate when a dog is also on the booking. On a cats-only booking, the first cat is the base rate (not charged the per-cat amount) — see `unitCount()` in `src/features/pricing/modifiers/evaluate.ts`. Flagging for Cal to reword if desired (e.g. distinguish the cats-only case).
 
+**Reconfirmed 2026-07-23** by the copy cleanup pass (`docs/content/voice/copy-register.md`, row F3). The audit re-derived the rule from `unitCount()` independently and reached the same conclusion, then deliberately left the string alone: the writing standard forbids correcting a fact as firmly as inventing one, so this needs Cal's decision rather than a rewrite. The audit also checked `Per dog, including the first.` on the same code path and found the key unreachable in practice — dogs price via `tiered_per_unit`, never `flat_per_unit` — so no change is warranted there.
+
 ---
 
 ## 2. Admin-config label renames (Cal applies directly in admin editor)
