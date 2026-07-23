@@ -12,6 +12,17 @@
 > rows go to Cal; `unit:cat` is also recorded in
 > `docs/content/pricing-language-drafts.md`. The four `route:component` rows go
 > to whoever owns the component. No row is unresolved.
+>
+> **Engineering follow-up complete 2026-07-23.** The narrative above records the
+> cleanup pass, which deliberately did not fix code. A follow-up plan
+> (`docs/superpowers/plans/2026-07-23-copy-cleanup-engineering-followup.md`) then
+> closed every code defect: all twelve `route:engineering` rows and all four
+> `route:component` rows now carry a `fixed` verdict, each in its own commit
+> (finding→commit map in the plan's SDD ledger). The three `route:copy-sync` rows
+> — A1, A2 (meta descriptions) and F3 (`Per cat, including the first.`) — are
+> unchanged: they still need Cal's approval and are routed to him, not fixed here.
+> The coverage and flag counts below describe the cleanup pass as it ran and are
+> left as the historical record.
 
 The standard is conservative by design: across the 22 strings of calibration it
 changed 2. This register is expected to be short. A long one means the audit
