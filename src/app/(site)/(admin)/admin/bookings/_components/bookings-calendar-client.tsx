@@ -540,7 +540,7 @@ export function BookingsCalendarClient({
   async function onCancel(id: string) {
     const ok = await confirm({
       title: "Cancel this booking?",
-      description: "The client is refunded in full and notified.",
+      description: "The client is refunded in full.",
       confirmLabel: "Cancel booking",
       destructive: true,
     });
