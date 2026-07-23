@@ -44,7 +44,7 @@ guarantee that nothing was skipped.
 | `A-public`     | Marketing chrome + app shell    | 58    | 187        | 104          | 83       | 3       |
 | `B-auth`       | Auth + onboarding               | 8     | 47         | 5            | 42       | 0       |
 | `C-account`    | Client account area             | 32    | 203        | 15           | 188      | 3       |
-| `D-booking`    | Booking flow UI                 | 19    | 109        |              |          |         |
+| `D-booking`    | Booking flow UI                 | 19    | 109        | 12           | 97       | 2       |
 | `E-validation` | zod validation messages         | 5     | 23         |              |          |         |
 | `F-feedback`   | Server errors, refusals, toasts | 32    | 163        |              |          |         |
 | `G-admin`      | Admin surfaces                  | 54    | 338        |              |          |         |
@@ -112,7 +112,49 @@ document) rather than an abstraction, so none were rewritten.
 
 ### Group D — booking flow UI
 
-_Audit pending._
+`BookingFlow` (`src/features/booking/_components/booking-flow.tsx`) and its
+`Scheduler.Legend` are the only files in this group actually shared between the
+client's `/book/[serviceSlug]` flow and the admin book-on-behalf flow at
+`/admin/clients/[clientId]/book` — `ServiceBookingClient` and
+`AdminCreateBookingClient` are separate components, each with its own
+POV-correct copy already (e.g. the month-range intro reads "your stay" for the
+client and "the stay" for admin, and the empty-price line reads "your price"
+vs. "the price"). Both flagged rows below live in the two files that _are_
+shared.
+
+| #   | String         | Location                                                   | Tell / rule                                  | Verdict           | Proposed text     | Note                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| --- | -------------- | ---------------------------------------------------------- | -------------------------------------------- | ----------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| D1  | `Your booking` | `src/features/booking/_components/booking-flow.tsx:456`    | craft: Match tense and person to the surface | `rewrite`         | `Booking summary` | This `h2` sits in the summary card rendered identically for all three booking surfaces (public create, admin create-on-behalf, edit — see this file's own docstring). "Your" is right for the client's own create/edit flow and wrong when an admin books for someone else, the same trap that fixed the distance-refusal string's subject as "Client". "Booking summary" costs nothing to invent: it already exists two lines up as this card's `aria-label`.                                                                                                                       |
+| D2  | `Your booking` | `src/features/booking/_components/scheduler/legend.tsx:45` | —                                            | `route:component` |                   | Same admin-owns-someone-else's-booking problem as D1, but a wording swap doesn't fix it: `data.myBookings` is always an empty `Set` on the admin create-on-behalf flow (`use-admin-create-booking.ts:135`), so the dot this legend key describes can never appear there — it's a permanently-dead key, not just a mis-worded one. The sibling `Premium day` entry in this same `ENTRIES` list is already gated on `capabilities.premiumMarkable \|\| data.premiumDays?.size > 0` (lines 72-73); this entry needs the same conditional-render treatment, which is a component change. |
+
+No other strings in this group were flagged. 109 candidates inspected across
+19 files, 12 out of scope, 97 in scope. Out-of-scope breakdown: `aria-label`s
+duplicating adjacent visible text (`Is Kiche welcome on this booking`, `Add
+leash manners training`, `Booking details`, `Close booking details`, `Price
+estimate`, `Paint mode`, `Calendar legend`), the `StepShell` mechanic
+`Booking summary` (the aria-label D1's proposed text reuses), one Tailwind
+class string caught by the extractor alongside the `Your booking` legend
+entry, one thrown invariant (`ContextDayButton must be rendered inside
+MonthGrid`), and one stray code fragment the extractor mistook for a string
+literal (`Math.abs(c - minuteFromTop)`).
+
+Two strings already settled in `docs/content/voice/fixtures.md` recur in this
+group's files and were left alone on re-inspection rather than re-flagged:
+`No eligible pets yet. Add one to continue.`
+(`src/features/booking/_components/pet-assignment.tsx:76`) and `We need to
+sort out your account before you can book. Please get in touch and we'll
+help.` (`src/app/(site)/(marketing)/book/[serviceSlug]/_components/service-booking-client.tsx:394`).
+`Anything Cal should know about this visit?` was inspected and left alone per
+this task's brief — correct third-person POV, not a new finding. `Per cat,
+including the first.`-style factual traps do not recur in this group's files.
+
+The parallel status-label systems the brief warned about were checked and
+hold: `Premium day` (`day-timeline.tsx` header badge and `legend.tsx` legend
+key) match verbatim, and the two scheduler instruments' instructional
+aria-labels (`day-painter.tsx`'s `Available ${…}. Drag to move; activate to
+edit.` / `Remove availability ${…}`, `day-timeline.tsx`'s `Time selector for
+${…}. Use arrow keys to move selection.`) follow one shared construction
+rather than three independent ones, so none were rewritten in isolation.
 
 ### Group E — zod validation messages
 
