@@ -33,7 +33,7 @@ derived-from: docs/content/cal-source.md (cleaned corpus, 80 of 92 entries) — 
   specifics instead — dates, certifications, counts ("since 2021," "EMT and WFR," "150+
   pets served," "eight Colorado fourteeners").
 - (observed) Advice is framed as a recommendation, never a command. "I recommend"
-  appears 5 times; "must" appears 0 times. Even the hazard write-ups describing
+  appears 4 times; "must" appears 0 times. Even the hazard write-ups describing
   life-threatening risks (bloat, heatstroke, parvo, toxic exposure) stay in
   recommend-and-explain register rather than switching to imperatives.
 - (observed) Offers are hedged with "happy to" rather than a flat "I will" — 6 instances
