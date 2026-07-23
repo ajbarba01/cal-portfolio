@@ -173,7 +173,7 @@ export function MeetGreetScheduler({
       } else {
         toast.add({
           title: "Couldn't save your time",
-          description: `Please try another slot (${result.kind}).`,
+          description: "Please try another slot.",
           type: "error",
         });
       }
