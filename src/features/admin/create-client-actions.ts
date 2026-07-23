@@ -99,8 +99,8 @@ export async function createUnclaimedClientCore(
     });
 
   if (createErr || !created.user) {
-    const msg = createErr?.message ?? "Could not create the account.";
-    if (createErr && isDuplicateEmailError(msg)) {
+    const raw = createErr?.message ?? "";
+    if (createErr && isDuplicateEmailError(raw)) {
       // Surface the existing client so the UI can link to them.
       const { data: existing } = await serviceClient
         .from("profiles")
@@ -112,7 +112,8 @@ export async function createUnclaimedClientCore(
         clientId: (existing?.id as string | undefined) ?? null,
       };
     }
-    return { kind: "error", message: msg };
+    console.error("createClientCore: admin.createUser failed", createErr);
+    return { kind: "error", message: "Could not create the account." };
   }
 
   const clientId = created.user.id;
@@ -136,7 +137,8 @@ export async function createUnclaimedClientCore(
     .eq("id", clientId);
 
   if (profileErr) {
-    return { kind: "error", message: profileErr.message };
+    console.error("createClientCore: profile insert failed", profileErr);
+    return { kind: "error", message: "Could not create the account." };
   }
 
   return { kind: "success", clientId };
