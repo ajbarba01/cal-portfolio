@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-- **The skill contains zero project-specific content.** No mention of Cal, pet care, bookings, this repo, or its stack. Verifiable: `grep -ri "cal\b\|portfolio\|pet\|booking\|dog" ~/.claude/skills/writing-in-voice/` returns nothing.
+- **The skill contains zero project-specific content.** No mention of Cal, pet care, bookings, this repo, or its stack. Verifiable: `grep -rinE "\b(cal|portfolio|pets?|bookings?|dogs?|colorado)\b" ~/.claude/skills/writing-in-voice/` returns nothing. Word boundaries on both sides are required — an unanchored `cal` matches "logical", "typical", and "symmetrical", and a check that cries wolf gets ignored.
 - **The skill contains zero agent-specific content.** No mention of Claude, Anthropic, or any single agent's tool names, file conventions, or invocation syntax. The body is instructions to a reader, not to one product. `~/.claude/skills/` is where the files sit today, not what they are; the content must lift into an agent-agnostic home unchanged. Verifiable: `grep -ri "claude\|anthropic\|cursor\|codex\|copilot" ~/.claude/skills/writing-in-voice/` returns nothing outside the front-matter block.
 - **Not version-controlled during this plan.** These files live outside cal-portfolio and get no git history in this pass. Per-task review therefore reads the files directly rather than a diff.
 - **The skill never restates project rules.** POV, Colorado-only, never-invent-substance live in `docs/CONTENT.md` and `docs/DESIGN.md`. The skill's rewrite operation reads whatever rules doc the caller names.
@@ -190,7 +190,7 @@ when you submit. You'll see a confirmation.
 - **Say what happens next** — check: any message about a failure or a wait names the reader's next action or what the system will do. A message that only describes a state is unfinished.
 - **Cut words that don't change meaning** — check: delete each word in turn; if the meaning survives, it stays deleted. Particularly "simply", "just", "please note that", "in order to", "the process of".
 - **Match tense and person to the surface** — check: the caller's rules doc names the POV for this surface; output uses it consistently, including in fragments.
-- **Write the fragment if the fragment is clearer** — check: sentence fragments are allowed in interface copy where a full sentence adds only ceremony. "No pets yet." beats "You have not added any pets yet."
+- **Write the fragment if the fragment is clearer** — check: sentence fragments are allowed in interface copy where a full sentence adds only ceremony. "No files yet." beats "You have not added any files yet."
 
 - [ ] **Step 2: Verify**
 
@@ -278,7 +278,7 @@ The update protocol:
 
 - The schema in the file and the schema in the spec (`docs/superpowers/specs/2026-07-22-writing-voice-design.md`, "Voice file" section) agree on section names. If they differ, the spec wins — fix the skill file.
 - The update protocol states the byte-identical `## Overrides` guarantee explicitly.
-- The file names no project. Run: `grep -ri "cal\b\|pet\|booking" ~/.claude/skills/writing-in-voice/references/voice-format.md` — expected: no output.
+- The file names no project. Run: `grep -rinE "\b(cal|portfolio|pets?|bookings?|dogs?|colorado)\b" ~/.claude/skills/writing-in-voice/references/voice-format.md` — expected: no output. Word boundaries on both sides matter: an unanchored `cal` matches "identical", "logical", and "typical", and a false positive here tempts a writer to reword perfectly good prose to satisfy a broken check.
 
 - [ ] **Step 3: Report the deliverable**
 
@@ -328,8 +328,8 @@ The body must contain:
 Run both greps across the whole skill directory, not just `SKILL.md`:
 
 ```bash
-grep -ril "cal\b\|portfolio\|pet\|booking\|dog\|colorado" ~/.claude/skills/writing-in-voice/
-grep -rin "claude\|anthropic\|cursor\|codex\|copilot\|gemini" ~/.claude/skills/writing-in-voice/
+grep -rinE "\b(cal|portfolio|pets?|bookings?|dogs?|colorado)\b" ~/.claude/skills/writing-in-voice/
+grep -rinE "\b(claude|anthropic|cursor|codex|copilot|gemini)\b" ~/.claude/skills/writing-in-voice/
 ```
 
 Expected: no output from the first. The second may match only inside the `SKILL.md` front-matter block if a field genuinely requires it — every hit in prose is a defect.
