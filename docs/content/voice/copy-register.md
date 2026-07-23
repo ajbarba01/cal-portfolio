@@ -7,17 +7,18 @@
 >
 > **Triaged 2026-07-23. Every row below carries a confirmed verdict.** The four
 > rows marked `rewrite` are the full scope of this pass's source changes; the
-> maintainer approved all four. The nine `route:engineering` rows are real code
-> defects and stay recorded here for a follow-up plan — this pass does not fix
-> them. The `route:copy-sync` rows go to Cal, and the `route:component` rows to
-> whoever owns the component.
+> maintainer approved all four. The twelve `route:engineering` rows are real
+> code defects and stay recorded here for a follow-up plan — this pass does not
+> fix them. The three `route:copy-sync` rows go to Cal, and the four
+> `route:component` rows to whoever owns the component.
 
 The standard is conservative by design: across the 22 strings of calibration it
 changed 2. This register is expected to be short. A long one means the audit
 drifted into taste, not that the site is badly written.
 
-Across 1,070 candidates, 811 were in scope and 18 were flagged — 2.2%, against
-calibration's 9%. Fourteen of the eighteen are not copy problems at all. The
+Across 1,070 candidates, 811 were in scope and 23 were flagged — 2.8%, against
+calibration's 9%. Nineteen of the twenty-three are not copy problems at all:
+they route to code, to a component, or to Cal. Four warranted a rewrite. The
 standard left the site's text very largely alone, which is the result it was
 built to produce.
 
