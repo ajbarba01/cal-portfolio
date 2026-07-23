@@ -139,8 +139,12 @@ export function useAvailability({
       .gte("ends_at", new Date().toISOString());
 
     if (windowsRes.error) {
+      console.error(
+        "useAvailability: failed to load windows",
+        windowsRes.error,
+      );
       startTransition(() => {
-        setError(`Failed to load availability: ${windowsRes.error.message}`);
+        setError("Something went wrong. Please try again.");
       });
       return;
     }
