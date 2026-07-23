@@ -62,6 +62,10 @@ hand-tuned only in its `## Overrides` section — never edit `## Traits` or
 `## Exemplars` by hand. `src/content/marketing.ts` remains Cal's own words, captured
 verbatim via copy-sync, and is never rewritten from the voice file.
 
+`docs/content/voice/copy-register.md` records the cleanup pass over the site's
+non-Cal text — every flagged string with its tell, verdict, and reason,
+including the ones deliberately left alone.
+
 ## Edge cases
 
 - **Missing registry ID:** record in source + ledger as pending, report; never fail the run.
@@ -75,4 +79,4 @@ verbatim via copy-sync, and is never rewritten from the voice file.
 
 ---
 
-_Last reviewed: 2026-07-22_ (added Voice section pointing to `docs/content/voice/cal.md`)
+_Last reviewed: 2026-07-23_ (added Voice section pointing to `docs/content/voice/cal.md`)
