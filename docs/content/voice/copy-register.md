@@ -18,12 +18,12 @@ select lists, and snake_case identifiers. The filter over-collects on purpose �
 an auditor can reject noise, but a string that never reached the list never got
 looked at.
 
-A literal `$$` in a quoted string (e.g. a `$` immediately followed by a
-`${…}` interpolation) is read by the markdown formatter as a display-math
-fence and will corrupt the surrounding prose on the next `prettier` run.
-Split any such quote across two adjacent inline-code spans (`` `…$` ``
-`` `${…}` `` with no space between them) instead of writing it as one span —
-never leave two `$` characters adjacent outside of code fencing.
+A literal `$$` in a quoted string — a `$` immediately followed by a `${…}`
+interpolation — was once written into this file as a display-math fence,
+splitting a sentence in two and leaving a stray delimiter after the footer.
+The cause was the authoring step, not `prettier`, which leaves such a
+sequence untouched (checked directly). Quote a dollar amount carefully and
+re-read the region afterwards; a formatter check will not catch this.
 
 Each candidate was then opened in its source file and classified as
 `out-of-scope` (not user-visible prose), `in-scope, clean`, or `in-scope,
@@ -433,7 +433,7 @@ labels (`Base rate (per hour)`, `Minimum charge`, `Max dogs`, `Slot
 interval`, `Soft distance warning (mi)`, and siblings) and the interpolated
 ones (`Each ${…}`, `Each extra ${…} (from ${…})`, the free-units/per-unit
 pair built from `mod.label`) are all minimal, specific noun phrases with no
-tell, and the validation messages (`Enter a value.`, `Must be at least $` `${…}.`, and siblings) match this register's established zod-message family
+tell, and the validation messages (`Enter a value.`, `Must be at least $`&#8203;`${…}.`, and siblings) match this register's established zod-message family
 and render inline via `pricing-fields-editor.tsx`'s `errors[f.path]`. The
 §2 renames themselves (`Premium night` → `Holiday & peak-date rate`, `Needy
 pet care` → `Extra-attention care`) are per-service `mod.label` values Cal
