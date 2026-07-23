@@ -43,7 +43,7 @@ guarantee that nothing was skipped.
 | -------------- | ------------------------------- | ----- | ---------- | ------------ | -------- | ------- |
 | `A-public`     | Marketing chrome + app shell    | 58    | 187        | 104          | 83       | 3       |
 | `B-auth`       | Auth + onboarding               | 8     | 47         | 5            | 42       | 0       |
-| `C-account`    | Client account area             | 32    | 203        |              |          |         |
+| `C-account`    | Client account area             | 32    | 203        | 15           | 188      | 3       |
 | `D-booking`    | Booking flow UI                 | 19    | 109        |              |          |         |
 | `E-validation` | zod validation messages         | 5     | 23         |              |          |         |
 | `F-feedback`   | Server errors, refusals, toasts | 32    | 163        |              |          |         |
@@ -86,7 +86,29 @@ No entries flagged. 47 strings inspected, 42 in scope.
 
 ### Group C — client account area
 
-_Audit pending._
+No new entries flagged. 203 strings inspected, 188 in scope. Three flagged
+strings living in this group's files were already settled in
+`docs/content/voice/fixtures.md` and are recorded above under "Carried over
+from calibration" rather than duplicated here: `K1`
+(`src/app/(site)/(account)/account/forms/page.tsx:76`, `rewrite`), and `K3`/`K4`
+(`src/features/accounts/_components/profile-fields.tsx:95` and `:130`, both
+`route:component`). Four more strings on this surface — `No pets added yet.`,
+`Messages you've sent to Cal. Mark one resolved once you no longer need a
+reply.`, `Add or edit your pets. Name, species, breed, a photo, and any care
+notes.`, and `Update your contact info. Email is managed through your login.`
+— are likewise already approved as correct in `fixtures.md` and were left
+alone on re-inspection, not re-flagged.
+
+The 15 out-of-scope candidates were `aria-label`/`alt` mechanics duplicating
+visible button or dialog text (`Filter by service`, `Filter by status`,
+`Switch view`, `Cancel this booking`, `Prepay for this booking`, `${pet.name}
+forms`, `Collapse pet details`, `Expand pet details`, `Selected pet photo`)
+and developer-facing guard/exception strings unreachable through normal use
+(`account-actions.ts`'s form-scope-mismatch and unknown-form-key messages,
+`onboarding-action.ts`'s three thrown errors). The 63 intake-form hints in
+`profile-fields.tsx` and `form-card.tsx` were read in full given this
+surface's density; each states a specific fact (a field, a location, a
+document) rather than an abstraction, so none were rewritten.
 
 ### Group D — booking flow UI
 
