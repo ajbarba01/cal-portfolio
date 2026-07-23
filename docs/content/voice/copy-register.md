@@ -60,12 +60,7 @@ systematically.
 | `D-booking`    | Booking flow UI                 | 19    | 109        | 12           | 97       | 3       |
 | `E-validation` | zod validation messages         | 5     | 23         | 0            | 23       | 1       |
 | `F-feedback`   | Server errors, refusals, toasts | 32    | 163        | 66           | 97       | 5       |
-| `G-admin`      | Admin surfaces                  | 54    | 338        | 20\*         | 225\*    | 3\*     |
-
-\* Partial — this row covers only the 245 of 338 `G-admin` candidates that
-live under `src/app/(site)/(admin)/**` (34 files). The remaining 93, under
-`src/features/admin/**` and `src/features/inquiries/**`, are the next task's
-scope and will complete this row.
+| `G-admin`      | Admin surfaces                  | 54    | 338        | 57           | 281      | 7       |
 
 ## Verdicts
 
@@ -395,6 +390,140 @@ phrase appears is the string K2 replaced, and K2's approved rewrite
 precisely to move away from the standalone term, so it cannot argue for
 keeping it here.
 
+**Admin features + inquiries**
+
+Scope: `src/features/admin/**` (14 files, 72 candidates) and
+`src/features/inquiries/**` (6 files, 21 candidates) — the remaining 93 of
+the group's 338 candidates. 37 out of scope, 56 in scope, 4 flagged.
+
+Two strings this task's brief names as already settled were re-inspected
+rather than skipped. `Approve before the visit?`
+(`src/features/admin/_components/onboarding-status-select.tsx:64`) fell to
+this task because the admin-pages half's scope stopped at
+`src/app/(site)/(admin)/**`; re-opened here, it is still the confirm-dialog
+title `fixtures.md` approved, and stands unchanged. `A valid email is
+required` (`src/features/admin/create-client-actions.ts:30`) is the blind
+round's own carried-over zod message, native to this task's scope rather
+than merely recurring in it; re-confirmed live via `NewClientForm`'s `case
+"validation_error": return { ok: false, message: result.message };`
+(`new-client-form.tsx:98`), and left exactly as the blind round found it.
+
+`src/features/inquiries/inquiry-schema.ts`'s four strings (`Name is
+required`, `Enter a valid email`, `Phone is required`, `Message is
+required`) are the ones Group E's own section already named as mislabeled
+into this group by the extractor's first-match-wins rule. They render on the
+public `/contact` page through `contact-form.tsx`, not on any admin surface,
+and belong to Group E's `X is required` / `Enter a valid X` family; the same
+set-consistency rule applies, so they were not flagged here either — this
+section only confirms the re-inspection Group E's text promised.
+
+This task's third hazard warned that `src/features/admin/pricing-config-fields.ts`'s
+labels feed the admin pricing editor, and that a label rename there is
+`route:copy-sync`, not `rewrite`, because Cal edits some of these labels
+directly per `docs/content/pricing-language-drafts.md` §2. None of this
+file's 19 candidates needed a rename to trigger that routing: the static
+labels (`Base rate (per hour)`, `Minimum charge`, `Max dogs`, `Slot
+interval`, `Soft distance warning (mi)`, and siblings) and the interpolated
+ones (`Each ${…}`, `Each extra ${…} (from ${…})`, the free-units/per-unit
+pair built from `mod.label`) are all minimal, specific noun phrases with no
+tell, and the validation messages (`Enter a value.`, `Must be at least
+
+$$
+{…}.`, and siblings) match this register's established zod-message family
+and render inline via `pricing-fields-editor.tsx`'s `errors[f.path]`. The
+§2 renames themselves (`Premium night` → `Holiday & peak-date rate`, `Needy
+pet care` → `Extra-attention care`) are per-service `mod.label` values Cal
+edits in the live editor, not literals in this file, so they never surfaced
+as candidates here. The one out-of-scope string in this file, `Unknown
+pricing field path: ${…}`, is a thrown invariant the file's own docstring
+calls "a bug, not a silent no-op."
+
+Two new instances of the pass's own noted blind spot (Method: a message
+assembled at runtime from a variable is invisible to the extractor) turned
+up in this scope — one of G1/G2's discard shape, and two of F1/F2/F4's raw-
+driver-text shape — each confirmed live by tracing every consumer rather
+than assumed:
+
+| #   | String                                                                     | Location                                              | Tell / rule                                          | Verdict             | Proposed text | Note                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| --- | --------------------------------------------------------------------------- | ------------------------------------------------------ | ----------------------------------------------------- | ------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| G4  | `Couldn't update status`                                                   | `src/features/admin/_components/onboarding-status-select.tsx:79` | craft: Prefer the specific fact over the abstraction | `route:engineering` |               | Same defect as G1/G2, found the same way — by reading the failure branch around this literal title. `setOnboardingStatus`'s `ClientMutationResult` carries a real `message` on both failure kinds (`Invalid client id` / `Invalid onboarding status` on `validation_error`, `clients-actions.ts:402,525,529`; the driver error on `error`, `:536`), but this toast's `description` is set to the bare `result.kind` literal (`:79`) instead of that message, so Cal sees the word "validation_error" or "error," never the actual reason. Confirmed this file is the sole caller of `setOnboardingStatus` (repo-wide search: only `clients-actions.ts` and this file reference it). Fix is code-side, same as G1/G2: guard on `"message" in result` before falling back to `kind`.                                                                                                                                                              |
+| G5  | `Could not create the account.`                                            | `src/features/admin/create-client-actions.ts:102`     | craft: Say what happens next                         | `route:engineering` |               | Same blind-spot class as F1/F2/F4. `const msg = createErr?.message ?? "Could not create the account.";` — the static fallback only fires when Supabase's error object carries no `.message`; any other `admin.createUser` failure (e.g. a non-duplicate-email rejection) ships the raw driver text instead. Confirmed live: `NewClientForm.submit`'s `case "error": return { ok: false, message: result.message };` (`new-client-form.tsx:99-100`) is rendered verbatim by `FormRootError` (`form.tsx:53`). A second, unguarded leak sits four lines later in the same function — `profileErr.message` (`:139`) has no fallback text at all and reaches the same field. Contrast, confirmed by tracing rather than assumed: `generateClaimLinkCore`'s near-identical `error?.message ?? "Could not generate a link."` (`:203`) does *not* leak — its only consumer, `account-claim-panel.tsx`, discards `result.message` entirely on every non-success kind in favor of a static "Please try again." Fix is code-side, matching F1/F2/F4's remedy. |
+| G6  | `Insert failed.`                                                           | `src/features/admin/onbehalf-actions.ts:103`          | craft: Say what happens next                         | `route:engineering` |               | Same class, on the admin's per-client pet/forms editor. `error?.message ?? "Insert failed."` in `adminCreatePetCore` only shows this text when Supabase's error is empty; a real failure ships raw driver text. Confirmed live: `PetList` stores `r.message` into `setError` unconditionally on any non-success `kind` (`pet-list.tsx:88`, rendered `:179`/`:188`), and `client-detail-client.tsx`'s `adminPetActions.create` passes the result through unchanged except for `forbidden`. Six sibling branches in this same file carry the identical unguarded pattern, several with no fallback text at all — `adminUpdatePetCore` (`:167`), `adminSubmitFormCore`'s pet-lookup and write branches (`:250`, `:270`, `:283`, `:297`), and `adminUploadPetPhotoCore`'s upload and photo-url-update branches (`:361`, `:372`) — all confirmed reachable the same way, through `PetList`/`FormCard`'s generic `result.message` display (`form-card.tsx:289`). Fix is code-side: substitute a static, field-aware message before the error leaves each core.                        |
+| G7  | `You just sent a message - please wait a moment before sending another.` | `src/features/inquiries/inquiry-actions.ts:107`       | craft: Say what happens next                         | `route:engineering` |               | The public `/contact` page's own instance of the class — the only one in this scope reaching a signed-out, non-admin reader. This flagged string is itself clean; the defect is the two neighboring raw-driver branches in the same function, found by reading around it. `submitInquiryCore`'s rate-limit check forwards `countError.message` (`:107`) as `r.error` if the count query itself fails, and the insert two lines later does the same with `error.message` (`:125`). Confirmed live via `contact-form.tsx:133-134`'s `return r.ok ? { ok: true } : { ok: false, message: r.error };`, rendered by the same `FormRootError` as G5. Fix is code-side, same remedy as F1/F2/F4/G5/G6.                                                                                                                                                                                                                                            |
+
+Out-of-scope breakdown (37 of 93): the whole of
+`src/features/admin/availability-actions.ts` (12) — every validation/error
+message in this file is either returned by a wrapper (`createWindow`,
+`trimWindow`, `deleteWindow`, `listWindows`) that no page or component calls
+anywhere in the app (confirmed by a repo-wide search), or reachable only
+through `availability-client.tsx`'s callbacks, which fire the real server
+action inside `startTransition` and then return a hardcoded success (or a
+fixed conflict/success fallback) regardless of what the action actually
+returned — the same returned-but-never-UI-routed pattern this register
+already established for `state-machine.ts` and the two dead hooks in Group
+F. The identical discard, confirmed the same way, applies to
+`overnight-actions.ts`'s two strings and `premium-days-actions.ts`'s one,
+both consumed by the same `availability-client.tsx` callbacks.
+`approval-actions.ts`'s `Unexpected booking row shape: ${…}` is doubly dead:
+`listPendingBookings` has no caller anywhere in the app (confirmed by a
+repo-wide search), and the string is a DB-shape invariant besides; its
+sibling `console.error`-prefixed log in the same file matches the dev-log
+pattern already established for `series-cron.ts`. The same DB-shape-
+invariant reasoning — not the dead-caller reasoning — covers
+`reviews-actions.ts`'s `Unexpected review row shape: ${…}`,
+`services-actions.ts`'s `Unexpected service row shape: ${…}`, and
+`settings-actions.ts`'s `Unexpected settings row shape: ${…}`: each is
+live-called, but every consuming page (`reviews/page.tsx`, `services/page.tsx`,
+`settings/page.tsx`, and the dashboard's `listReviews()` call in
+`admin/page.tsx`) already substitutes a static `ErrorState` message (or
+silently defaults to zero) on any `kind: "error"` result rather than
+rendering it, confirmed by reading each page. `create-client-actions.ts`'s
+duplicate-email substring matches (`already been registered`, `already
+registered`) are matched against Supabase's own error text and never
+displayed; its `Client has no email.` and `Could not generate a link.` look
+like G5's leak class but are confirmed dead the same way G5's contrast
+paragraph describes. `onbehalf-actions.ts`'s two form-scope-mismatch
+messages and its `Unknown form key: ${…}` mirror the identical guard shape
+Group C already ruled out-of-scope in `account-actions.ts` — `FormCard`
+always passes a matching scope in normal use. `clients-actions.ts`'s `Meet &
+Greet` is the same never-rendered service-name comparison constant the
+admin-pages half already found reused at `client-detail-client.tsx:173`, and
+its Supabase select-list literal is excluded on the same grounds as every
+other select list in this register. `inquiry-actions.ts`'s `Bad inquiry
+row.` and `Bad inquiry row: ${…}` are the same DB-shape-invariant class as
+the three "Unexpected X row shape" strings above. `inquiry-list.tsx`'s two
+`aria-label`s and `inquiry-card.tsx`'s one duplicate rendered or placeholder
+text, the same landmark-mechanic pattern established in Groups C, D, and G's
+admin-pages half. `pricing-config-fields.ts`'s one thrown invariant is
+covered above.
+
+`clients-actions.ts`'s four validation messages (`Invalid client id`,
+`Invalid debit id`, `Invalid onboarding status`, `Amount must be a positive
+whole number of cents`) are in scope and clean on their own wording, but
+none currently reaches Cal as written: `settleDebit`/`waiveDebit`/`adjustDebit`
+all route through `client-detail-client.tsx`'s `run()` (G2's own bug), and
+`setOnboardingStatus` routes through G4's bug above. Their proper display is
+blocked by a call-site defect already flagged once each (G2, G4), not by
+anything wrong with these four strings, so they were not re-flagged.
+
+Close calls, not flagged: `onbehalf-actions.ts`'s `Insert failed.` and
+`Pet not found.` and `inquiry-actions.ts`'s `This inquiry can no longer be
+edited.` are all short "X failed"/"X not found" fragments with no named
+next step, but `craft.md`'s "say what happens next" check is aimed at
+states with a real recovery action to name, and these are rare, already-
+terse edge cases matching this register's accepted convention for messages
+like `Booking has no stored quote to re-price.` (Group F) — left in scope
+and clean. The spaced hyphen in `You just sent a message - please wait...`
+(`inquiry-actions.ts`) recurs identically in `reply-draft.ts`'s `Thanks for
+reaching out -`; `ai-tells.md` has no entry for dash style, and two
+instances sharing one unusual construction reads as a house convention
+rather than a tic, so neither was flagged. `reply-draft.ts`'s three strings
+are Cal's own outgoing reply draft (a mailto/sms pre-fill he completes
+before sending), correctly first person throughout ("Thanks for reaching
+out") rather than third-person system copy about him — checked against
+`docs/CONTENT.md`'s POV rule and left alone, not flagged.
+
 ---
 
 _Last reviewed: 2026-07-23_
+$$
