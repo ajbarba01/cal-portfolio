@@ -101,18 +101,21 @@ receipt. Plus a general tooltip pass wherever users would expect one.
 
 ---
 
-## Suggested sequencing
+## Sequencing + status
 
-1. **Quick wins, ship now:** ASPCA fix · inquiry CTA · max-away 0–12 clamp · stat swap · included-line removals · reviews fade-in
-2. **Group A (form system)** — biggest root cause; unblocks consistent UX everywhere
-3. **Group C cancel + Group H owing audit together** — both touch refund/debt paths; verify once
-4. **Group B species + Group F pricing language together** — both touch pricing labels/config
-5. **Group D service area · Group E admin config · Group H notifications** — independent, any order
+Each numbered tranche = one spec/plan cycle per repo workflow. Status is
+recorded here because the SDD progress ledger (`.superpowers/sdd/progress.md`)
+holds only the tranche currently executing — each new tranche overwrites the
+last, so a finished tranche leaves no trace there.
+
+1. **Quick wins, ship now:** ASPCA fix · inquiry CTA · max-away 0–12 clamp · stat swap · included-line removals · reviews fade-in — **DONE 2026-07-12**
+2. **Group A (form system)** — biggest root cause; unblocks consistent UX everywhere — **DONE 2026-07-12** (13 tasks, `44f9a4e`..`b95bfaf`; per-task + whole-branch review passed; plan archived). Live browser verify (plan Task 13 step 3) is maintainer-owned and unrecorded.
+3. **Group C cancel + Group H owing audit together** — both touch refund/debt paths; verify once — **DONE 2026-07-12**
+4. **Group B species + Group F pricing language together** — both touch pricing labels/config — **DONE 2026-07-12** (pending Cal sign-off on `docs/content/pricing-language-drafts.md`)
+5. **Group D service area · Group E admin config · Group H notifications** — independent, any order — **next**
 6. **Blocked-on-Cal:** gallery assets · FAQ approval · wording sign-offs (batch into one Cal review)
 7. **Investigation (parallel anytime):** "didn't let me book" availability bug
 
-Each numbered tranche = one spec/plan cycle per repo workflow.
-
 ---
 
-_Last reviewed: 2026-07-12_
+_Last reviewed: 2026-07-22_
