@@ -41,8 +41,8 @@ guarantee that nothing was skipped.
 
 | Group          | Surface                         | Files | Candidates | Out of scope | In scope | Flagged |
 | -------------- | ------------------------------- | ----- | ---------- | ------------ | -------- | ------- |
-| `A-public`     | Marketing chrome + app shell    | 58    | 187        |              |          |         |
-| `B-auth`       | Auth + onboarding               | 8     | 47         |              |          |         |
+| `A-public`     | Marketing chrome + app shell    | 58    | 187        | 104          | 83       | 2       |
+| `B-auth`       | Auth + onboarding               | 8     | 47         | 5            | 42       | 0       |
 | `C-account`    | Client account area             | 32    | 203        |              |          |         |
 | `D-booking`    | Booking flow UI                 | 19    | 109        |              |          |         |
 | `E-validation` | zod validation messages         | 5     | 23         |              |          |         |
@@ -74,11 +74,14 @@ so the pass applies and closes them.
 
 ### Group A — marketing chrome + app shell
 
-_Audit pending._
+| #   | String                                                                                                                              | Location                                 | Tell / rule                   | Verdict           | Proposed text | Note                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- | ----------------------------- | ----------------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A1  | `Professional dog walking and house sitting across Colorado's Front Range. Reliable, caring pet care tailored to your dog's needs.` | `src/app/layout.tsx:35`                  | ai-tells: Promotional framing | `route:copy-sync` |               | The default `<meta name="description">`. Sentence 1 is a plain fact (services + region); sentence 2 is adjectives only — "Reliable, caring... tailored" carries no checkable claim and would paste unchanged onto any competing pet-care business. Fixing it needs a real specific from Cal (a certification, a count, a named practice), not a wording change to what's already there. Same defect at A2, and duplicated (as JSON-LD `description`, out of scope) at `src/features/seo/business.ts:16`. |
+| A2  | `Reliable dog walking and house sitting across Colorado's Front Range. Caring, dependable pet care tailored to your dog.`           | `src/app/(site)/(marketing)/page.tsx:93` | ai-tells: Promotional framing | `route:copy-sync` |               | Same construction as A1 (the home page's own meta description, not a shared render). Left for the same reason: no specific fact exists in the source to substitute for "dependable"/"tailored" without inventing one.                                                                                                                                                                                                                                                                                    |
 
 ### Group B — auth + onboarding
 
-_Audit pending._
+No entries flagged. 47 strings inspected, 42 in scope.
 
 ### Group C — client account area
 
