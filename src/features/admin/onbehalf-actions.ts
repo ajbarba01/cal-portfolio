@@ -100,7 +100,11 @@ export async function adminCreatePetCore(
     .single();
 
   if (error || !data) {
-    return { kind: "error", message: error?.message ?? "Insert failed." };
+    console.error("adminCreatePetCore: insert failed", error);
+    return {
+      kind: "error",
+      message: "Couldn't save the pet. Please try again.",
+    };
   }
 
   return { kind: "success", pet: data as Pet };
@@ -164,7 +168,11 @@ export async function adminUpdatePetCore(
     .eq("client_id", clientId);
 
   if (error) {
-    return { kind: "error", message: error.message };
+    console.error("adminUpdatePetCore: update failed", error);
+    return {
+      kind: "error",
+      message: "Couldn't save the pet. Please try again.",
+    };
   }
 
   return { kind: "success" };
@@ -247,7 +255,11 @@ export async function adminSubmitFormCore(
       .eq("client_id", clientId)
       .maybeSingle();
     if (petError) {
-      return { kind: "error", message: petError.message };
+      console.error("adminSubmitFormCore: pet lookup failed", petError);
+      return {
+        kind: "error",
+        message: "Couldn't save the form. Please try again.",
+      };
     }
     if (!pet) {
       return { kind: "validation_error", message: "Pet not found." };
@@ -267,7 +279,11 @@ export async function adminSubmitFormCore(
     await selectQuery.maybeSingle();
 
   if (selectError) {
-    return { kind: "error", message: selectError.message };
+    console.error("adminSubmitFormCore: select failed", selectError);
+    return {
+      kind: "error",
+      message: "Couldn't save the form. Please try again.",
+    };
   }
 
   if (existing) {
@@ -280,7 +296,11 @@ export async function adminSubmitFormCore(
       .eq("client_id", clientId);
 
     if (error) {
-      return { kind: "error", message: error.message };
+      console.error("adminSubmitFormCore: write failed", error);
+      return {
+        kind: "error",
+        message: "Couldn't save the form. Please try again.",
+      };
     }
   } else {
     // Insert new row.
@@ -294,7 +314,11 @@ export async function adminSubmitFormCore(
     });
 
     if (error) {
-      return { kind: "error", message: error.message };
+      console.error("adminSubmitFormCore: write failed", error);
+      return {
+        kind: "error",
+        message: "Couldn't save the form. Please try again.",
+      };
     }
   }
 
@@ -358,7 +382,11 @@ export async function adminUploadPetPhotoCore(
     .upload(path, file, { upsert: true, contentType: file.type });
 
   if (uploadError) {
-    return { kind: "error", message: uploadError.message };
+    console.error("adminUploadPetPhotoCore: upload failed", uploadError);
+    return {
+      kind: "error",
+      message: "Couldn't upload the photo. Please try again.",
+    };
   }
 
   const { error: updateError } = await deps.serviceClient
@@ -369,7 +397,14 @@ export async function adminUploadPetPhotoCore(
     .eq("client_id", clientId);
 
   if (updateError) {
-    return { kind: "error", message: updateError.message };
+    console.error(
+      "adminUploadPetPhotoCore: photo url update failed",
+      updateError,
+    );
+    return {
+      kind: "error",
+      message: "Couldn't upload the photo. Please try again.",
+    };
   }
 
   return { kind: "success" };
