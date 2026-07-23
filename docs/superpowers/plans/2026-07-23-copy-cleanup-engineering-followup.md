@@ -2,11 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Fix the twelve `route:engineering` and four `route:component` defects the writing-voice cleanup pass recorded in `docs/content/voice/copy-register.md`, and add a lint rule that prevents the two error-leak classes from regressing.
+**Goal:** Fix the twelve `route:engineering` and four `route:component` defects the writing-voice cleanup pass recorded in `docs/content/voice/copy-register.md`.
 
-**Architecture:** Four sub-projects in one ledger. SP1 stops internal error objects reaching users (suppress the value, show a clean static message, log the raw server-side). SP2 makes admin/action failure paths surface the real `.message` instead of a bare union tag, then codifies both classes as a lint rule. SP4 fixes three component-convention gaps. SP3 resolves two copy-vs-code truth defects that need a decision first. Findings are referenced by their register IDs (F1–F4, G1–G7, K3–K5, A3, C1, D2); the register Note for each carries the verified trace and is the source of truth.
+**Architecture:** Four sub-projects in one ledger. SP1 stops internal error objects reaching users (suppress the value, show a clean static message, log the raw server-side). SP2 makes admin/action failure paths surface the real `.message` instead of a bare union tag. SP4 fixes three component-convention gaps. SP3 resolves two copy-vs-code truth defects that need a decision first. Findings are referenced by their register IDs (F1–F4, G1–G7, K3–K5, A3, C1, D2); the register Note for each carries the verified trace and is the source of truth.
 
-**Tech Stack:** Next.js (App Router) + TypeScript strict · zod v4 · Vitest · ESLint flat config (`eslint.config.mjs`) with an existing inline custom plugin (`no-drift`) as the template for the new rule.
+**Tech Stack:** Next.js (App Router) + TypeScript strict · zod v4 · Vitest · ESLint flat config (`eslint.config.mjs`).
 
 ## Global Constraints
 
