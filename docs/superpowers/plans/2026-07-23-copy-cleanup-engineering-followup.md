@@ -19,7 +19,7 @@
 - **Cal uses they/them.** Never a gendered pronoun for Cal.
 - **Same-commit doc rule.** A code change that adds/moves/deletes files updates the relevant doc in the same commit. Run `node scripts/check-doc-links.mjs` when docs change.
 - **Register is the live status board.** When a finding is fixed, in the SAME commit flip its register row's verdict from `route:engineering` / `route:component` to `fixed (<7-char-commit>)`. (The commit hash is not known until after commit — so: commit the code+register-verdict-text as `fixed (pending)`, or amend the verdict line in the immediately following commit. Prefer: include the register edit in the fix commit with the prior commit's short hash left as `fixed` without a hash, then a single final close-out task backfills hashes. See Task 16.)
-- **Testing altitude (deliberate).** Pure-logic findings (F4, K5) and the lint rule get full TDD unit tests. The one-line static-message UI swaps (F1, F2, C1, G1, G2, G4, and the SP4 component edits) are verified by `npm run typecheck`, the SP2 lint rule (built in Task 10), and reading the named consumer chain — not by new component tests. A component test asserting a now-static toast string is brittle and low-value; the lint rule is the durable regression guard. This is a YAGNI choice, stated so it is visible, not an omission.
+- **Testing altitude (deliberate).** Pure-logic findings (F4, K5) get full TDD unit tests. The one-line static-message UI swaps (F1, F2, C1, G1, G2, G4, and the SP4 component edits) are verified by `npm run typecheck`, reading the named consumer chain, and `npm run lint` (existing rules) — not by new component tests. A component test asserting a now-static toast string is brittle and low-value. This is a YAGNI choice, stated so it is visible, not an omission. Regression prevention for the two error-leak classes is code review plus the nearby-class sweep already run during planning (a repo-wide grep for `${…kind}` / `${…message}` interpolation found no unguarded survivors beyond the sites this plan fixes); a lint rule was considered and dropped because the sanctioned guarded fallback legitimately contains `${result.kind}`, so no low-false-positive rule distinguishes it from the bug.
 
 ---
 
@@ -552,113 +552,9 @@ git commit -m "fix(contact): show a static message instead of the raw driver err
 
 ---
 
-### Task 10: SP2 regression lint rule
+### Task 10: SP2 regression lint rule — REMOVED (do not dispatch)
 
-**Files:**
-
-- Modify: `src/features/booking/booking-service-shared.ts` — no change; this task only adds config + a fixture
-- Modify: `eslint.config.mjs` (add a second inline plugin)
-- Create: `docs/content/voice/lint-fixture.md` is NOT needed — the fixture is a throwaway, see Step 2
-
-**Interfaces:**
-
-- Produces: an ESLint rule `error-copy/no-raw-error-in-message` that flags the shape both SP1/SP2 classes share, modeled on the existing `no-drift` plugin (`eslint.config.mjs:42-104`).
-
-The rule catches template-literal interpolations that leak an internal value into user-facing copy: an interpolation whose expression is a member access named `kind`, or a member access ending in `.message` on an error-shaped identifier (`error`, `err`, `*Error`). It is a heuristic that catches the _shape_, escapable with `// eslint-disable-next-line error-copy/no-raw-error-in-message -- <reason>`, exactly like the existing rules.
-
-- [ ] **Step 1: Add the plugin to `eslint.config.mjs`**
-
-After the `designSystem` plugin definition (`:104`), add:
-
-```js
-/** Inline ESLint plugin: flags internal values interpolated into user-facing copy. */
-const errorCopy = {
-  rules: {
-    "no-raw-error-in-message": {
-      meta: {
-        type: "problem",
-        docs: {
-          description:
-            "Flag `${result.kind}` and raw `${err.message}` interpolated into user-facing strings. Show a static message and log the raw value server-side. See docs/content/voice/copy-register.md.",
-        },
-        schema: [],
-      },
-      create(context) {
-        const isErrorName = (n) =>
-          n === "error" || n === "err" || /Error$/.test(n);
-        return {
-          TemplateLiteral(node) {
-            for (const expr of node.expressions) {
-              if (expr.type !== "MemberExpression" || expr.computed) continue;
-              const prop = expr.property.name;
-              if (prop === "kind") {
-                context.report({
-                  node: expr,
-                  message:
-                    "Don't interpolate a result's `kind` tag into user copy — guard on `\"message\" in result` and show `result.message`, or a static string.",
-                });
-              } else if (
-                prop === "message" &&
-                expr.object.type === "Identifier" &&
-                isErrorName(expr.object.name)
-              ) {
-                context.report({
-                  node: expr,
-                  message:
-                    "Don't interpolate a raw driver error into user copy — log it with console.error and show a static message.",
-                });
-              }
-            }
-          },
-        };
-      },
-    },
-  },
-};
-```
-
-Then register it in the `designSystem` config block (or a new sibling block). Add to the existing `plugins`/`rules` at `:165-166`:
-
-```js
-    plugins: { "design-system": designSystem, "error-copy": errorCopy },
-    rules: {
-      "design-system/no-drift": "error",
-      "error-copy/no-raw-error-in-message": "error",
-    },
-```
-
-- [ ] **Step 2: Prove the rule fires on the pre-fix shape**
-
-Create a scratch file `src/features/_lint-scratch.ts`:
-
-```ts
-declare const result: { kind: string };
-declare const error: { message: string };
-export const a = `Action failed: ${result.kind}`;
-export const b = `Failed: ${error.message}`;
-```
-
-Run: `npx eslint src/features/_lint-scratch.ts`
-Expected: two `error-copy/no-raw-error-in-message` errors. Then delete the scratch file:
-
-```bash
-rm src/features/_lint-scratch.ts
-```
-
-- [ ] **Step 3: Prove the rule passes the whole repo now that Tasks 1–9 are done**
-
-Run: `npm run lint`
-Expected: exit 0. (If it flags a surviving site, that site is an unfixed instance of the class — fix it in this commit and note it.)
-
-- [ ] **Step 4: Update the component/ESLint doc and commit**
-
-Add a one-line pointer to the new rule in `docs/COMPONENT_SYSTEM.md`'s lint section (wherever `no-drift` is documented; if it is not documented there, add a short "Copy-safety lint" note).
-
-```bash
-git add eslint.config.mjs docs/COMPONENT_SYSTEM.md
-node scripts/check-doc-links.mjs
-git commit -m "feat(lint): flag internal error values interpolated into user-facing copy"
-```
+Dropped at pre-flight (maintainer decision, 2026-07-23). A lint rule was considered to keep the discard/leak classes from regressing, but it is not viable: the sanctioned guarded fallback legitimately retains `${result.kind}` (`"message" in result ? result.message : \`Action failed: ${result.kind}\``), so no low-false-positive rule distinguishes the correct pattern from the bug; and a raw-`.message` detector would flag ~60 legitimate `throw new Error(\`…${err.message}\`)` and server-log sites (`booking-repository.ts`, `webhook-core.ts`, `onboarding-action.ts`, the `Unexpected X row shape`invariants). Regression prevention falls to code review plus the nearby-class sweep already run during planning: a repo-wide grep for`${…kind}`interpolation found exactly one site beyond Tasks 5–9's targets,`service-edit-form.tsx:122`, and it is already correctly guarded. Task numbering below is unchanged so references stay stable; no implementer is dispatched for this task.
 
 ---
 
@@ -972,11 +868,11 @@ git commit -m "docs: close out the copy-cleanup engineering follow-up"
 
 **Spec coverage:** SP1 → Tasks 1–4 (F4, F1, F2, C1). SP2 → Tasks 5–10 (G1, G2, G4, G5, G6, G7 + lint rule). SP4 → Tasks 11–13 (A3, D2, K3, K4). SP3 → Tasks 14–15 (K5, G3). Copy-sync (A1, A2, F3) → Task 16 Step 2 (routed, not edited). Every register `route:engineering` and `route:component` row maps to a task.
 
-**Nearby-class hunt:** the register enumerated the extra branches (G5:139, G6's 8 branches, G7:107/125); those exact lines are in Tasks 7–9. The lint rule (Task 10) is the durable catch for any the enumeration missed — run `npm run lint` at Task 10 Step 3 flags survivors.
+**Nearby-class hunt:** the register enumerated the extra branches (G5:139, G6's 8 branches, G7:107/125); those exact lines are in Tasks 7–9. The planned lint rule (Task 10) was dropped after a repo-wide sweep for `${…kind}` interpolation found no unguarded survivors beyond those tasks' targets (`service-edit-form.tsx:122` is already guarded); regression prevention is code review plus that completed sweep.
 
 **Placeholder note:** Task 7 Step 1 contains one honest placeholder (`{ kind: "duplicate_email" }`) because the existing duplicate-email branch's return shape must be read from source rather than guessed — the step says so explicitly and scopes the change to the generic branch only.
 
-**Ordering:** Tasks are independent except Task 10 (lint rule) must run after Tasks 1–9 so `npm run lint` is green when the rule turns on, and Task 16 runs last. Task 15 (G3) is decision-gated and can be deferred without blocking others.
+**Ordering:** Tasks are independent (Task 10 is removed). Task 16 (close-out) runs last. Task 15 (G3) is decision-gated and can be deferred without blocking others.
 
 ---
 
