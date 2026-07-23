@@ -574,7 +574,7 @@ Dispatch **one sonnet subagent**. The prompt executes the `## Audit protocol` ab
 
 **Group hazards, stated to the subagent verbatim:**
 
-- This surface holds the site's densest instructional copy — the intake form hints in `profile-fields.tsx` (63 candidates) and `form-card.tsx` (32). Those hints describe what a client should write in a field. They are in scope, and they are also the place where an over-eager rewrite does the most damage, because a hint that loses a specific ("Where to find it if the power trips") for a smoother abstraction is strictly worse.
+- This surface holds the site's densest instructional copy — the intake form hints in `profile-fields.tsx` (60 candidates) and `form-card.tsx` (13). Those hints describe what a client should write in a field. They are in scope, and they are also the place where an over-eager rewrite does the most damage, because a hint that loses a specific ("Where to find it if the power trips") for a smoother abstraction is strictly worse.
 - Four strings on this surface are already approved in `fixtures.md` and must not be re-flagged without a recorded reason: `No pets added yet.`, `Messages you've sent to Cal. Mark one resolved once you no longer need a reply.`, `Add or edit your pets. Name, species, breed, a photo, and any care notes.`, `Update your contact info. Email is managed through your login.`
 - `K1` (`account/forms/page.tsx:76`) is already seeded in the register as a `rewrite`. Do not duplicate it.
 - `EXPENSE_AUTH_TEXT` and any other client-signed consent stays the client's first person. That is an intentional POV exception per `docs/DESIGN.md`, not a defect.
@@ -715,7 +715,7 @@ Group G is split across two tasks because 338 candidates in one pass degrades ju
 
 Dispatch **one sonnet subagent**. The prompt executes the `## Audit protocol` above — reproduce that protocol's eight numbered points in the prompt in full, then add this task's specifics:
 
-**Scope for this task:** `src/app/(site)/(admin)/**` only (34 files, 245 candidates). The heaviest files are `settings/_components/settings-client.tsx` (52), `clients/[clientId]/_components/client-detail-client.tsx` (52), `bookings/_components/bookings-calendar-client.tsx` (50), `clients/_components/clients-index-client.tsx` (30), `availability/_components/availability-client.tsx` (27).
+**Scope for this task:** `src/app/(site)/(admin)/**` only (34 files, 245 candidates). The heaviest files are `settings/_components/settings-client.tsx` (32), `clients/[clientId]/_components/client-detail-client.tsx` (28), `bookings/_components/bookings-calendar-client.tsx` (24), `clients/[clientId]/bookings/[bookingId]/edit/_components/admin-kiche-control.tsx` (14), `availability/_components/availability-client.tsx` (12). Take these as a pointer to where the mass is, not as a checklist — the authoritative per-file counts are in `candidates.json`.
 
 **Group hazards, stated to the subagent verbatim:**
 
