@@ -73,7 +73,7 @@ export default async function FormsPage() {
     <PageContainer width="app">
       <PageHeader
         title="Your profiles"
-        subtitle="Keep these up to date and don't worry, these forms are confidential and secure."
+        subtitle="Keep these up to date. They're confidential and secure."
       />
       <FormsClient
         owner={owner}
