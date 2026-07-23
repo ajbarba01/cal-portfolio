@@ -19,9 +19,15 @@ export const metadata = buildPageMetadata({
   path: "/contact",
 });
 
-// Reassurance question deflected here, beside the form, before clients ask.
+// The site's only FAQ — every question Cal fields lands here, beside the form,
+// so an unanswered one turns straight into a message.
 const FAQ_ITEMS: ReadonlyArray<FaqItem> = [
   { id: "updates", questionId: "contact.faq.1.q", answerId: "contact.faq.1.a" },
+  {
+    id: "boarding",
+    questionId: "contact.faq.2.q",
+    answerId: "contact.faq.2.a",
+  },
 ];
 
 // Static: the page reads no per-request data. Signed-in prefill (name/email/

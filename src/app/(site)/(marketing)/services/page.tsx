@@ -34,20 +34,7 @@ import { headlineRate, pricingBreakdown } from "@/features/pricing";
 import { getServiceImages, type ServiceImage } from "@/features/gallery";
 import { copy, type CopyId } from "@/content/marketing";
 import { cn } from "@/lib/utils";
-import {
-  FaqAccordion,
-  type FaqItem,
-} from "@/components/marketing/faq-accordion";
 import { ServiceTabs, type ServiceTabItem } from "./_components/service-tabs";
-
-// Scope questions buyers weigh while picking a service.
-const FAQ_ITEMS: ReadonlyArray<FaqItem> = [
-  {
-    id: "boarding",
-    questionId: "services.faq.1.q",
-    answerId: "services.faq.1.a",
-  },
-];
 
 /** The panel body for one service (server-rendered, passed to the tab island). */
 function ServiceDetail({
@@ -292,7 +279,8 @@ export default async function ServicesPage() {
         </PageContainer>
       </section>
 
-      {/* Sliding cost scale — side-labelled statement on the alt band */}
+      {/* Sliding cost scale — side-labelled statement on the alt band; last
+          band before the footer. FAQ lives on /contact only. */}
       <section
         aria-labelledby="sliding-scale-heading"
         className="bg-section-alt panel-ombre"
@@ -313,28 +301,6 @@ export default async function ServicesPage() {
               <p className="text-muted-foreground mt-5 leading-relaxed">
                 <MarketingCopy id="services.pricing.body" />
               </p>
-            </Reveal>
-          </RevealGroup>
-        </PageContainer>
-      </section>
-
-      {/* FAQ — base band (sliding scale is alt); centered title over a
-          read-width accordion. Scope questions answered where buyers decide. */}
-      <section
-        aria-labelledby="services-faq-heading"
-        className="bg-background panel-ombre"
-      >
-        <PageContainer width="read" className="py-12 sm:py-16">
-          <RevealGroup>
-            <Reveal
-              as="h2"
-              id="services-faq-heading"
-              className="font-heading mx-auto max-w-[20ch] text-center text-2xl font-semibold tracking-tight sm:text-3xl"
-            >
-              Frequently Asked Questions
-            </Reveal>
-            <Reveal className="mt-6">
-              <FaqAccordion items={FAQ_ITEMS} />
             </Reveal>
           </RevealGroup>
         </PageContainer>

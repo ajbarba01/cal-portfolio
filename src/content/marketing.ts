@@ -89,7 +89,7 @@ export const copy = {
     "Drop-in visits, walks, house sitting, and training—each tailored to your pet's needs.",
   // Temporary availability notice — time-bound (remove after 2026-09-01).
   "services.notice.lede":
-    "I'm recovering from a broken leg, so until September 1, 2026, I am unable to:",
+    "I'm recovering from a broken leg, so until August 25, 2026, I am unable to:",
   "services.notice.1": "Travel more than one mile for a booking",
   "services.notice.2": "Do walks longer than 15 min for dogs over 40lbs",
   "services.notice.3":
@@ -97,11 +97,6 @@ export const copy = {
   "services.pricing.header": "Pricing Flexibility Available",
   "services.pricing.body":
     "To accommodate different financial situations, I offer a limited number of free or discounted slots. Please reach out if this is something you're interested in.",
-  // FAQ — scope question, surfaced where buyers weigh services (moved from resources, 2026-06-15).
-  "services.faq.1.q":
-    "Can you watch my animal at your house?/Can you board my animal?",
-  "services.faq.1.a":
-    "Unfortunately, I'm unable to care for clients' pets in my own home at this time due to housing restrictions and the needs of my own dog. I am, however, happy to take your pup on walks, hikes, and other adventures outside of your home!",
 
   // Reviews — src/app/(marketing)/reviews/page.tsx
   "reviews.purpose": "Feedback from pet-parents",
@@ -167,10 +162,15 @@ export const copy = {
   "contact.intro":
     "Questions about walks, sitting, or whether we're a fit — send a note.",
   "contact.replyNote": "I usually reply within a day.",
-  // FAQ — communication/reassurance question, surfaced beside the contact form (moved from resources, 2026-06-15).
+  // FAQ — the site's single FAQ, beside the contact form (consolidated here
+  // 2026-07-22; q1 moved from resources 2026-06-15, q2 from the services page).
   "contact.faq.1.q": "Will I receive updates while I'm away?",
   "contact.faq.1.a":
     "Yes! I'm happy to send updates and photos as often as you'd like. I know it can be difficult to be away from your pets, and I strive to provide clear communication and timely responses throughout your booking.",
+  "contact.faq.2.q":
+    "Can you watch my animal at your house?/Can you board my animal?",
+  "contact.faq.2.a":
+    "Unfortunately, I'm unable to care for clients' pets in my own home at this time due to housing restrictions and the needs of my own dog. I am, however, happy to take your pup on walks, hikes, and other adventures outside of your home!",
 
   // Footer — src/components/layout/site-footer.tsx
   "footer.tagline": "Dog Walking · House Sitting · Colorado",

@@ -389,7 +389,7 @@ Please let me know if there are other resources you think I should share. I'm al
 > Time-bound availability notice captured 2026-06-20; Cal expects to remove it after 2026-09-01. Raw inputs below; live string is a user-confirmed third-person composition (reason + date), tracked in the ledger.
 
 ```
-Until September 1, I'm assuming I can't…
+Until August 25, please assume I can't…
 [reason supplied 2026-06-20: I'm recovering from a broken leg]
 ```
 
@@ -567,18 +567,6 @@ Home care (mail, plants, trash bi
 
 > ⚠ `service.house_sitting.included.4` is **truncated in Cal's source dump** ("Home care (mail, plants, trash bi"). Live string mirrors the check-in equivalent ("Home care (mail, plants, trash bins, lights, etc.)") per user confirmation 2026-06-16 — recorded as agent-resolved in the ledger. Replace with Cal's full line once supplied.
 
-### services.faq.1.q
-
-```
-Can you watch my animal at your house?/Can you board my animal?
-```
-
-### services.faq.1.a
-
-```
-Unfortunately, I'm unable to care for clients' pets in my own home at this time due to housing restrictions and the needs of my own dog. I am, however, happy to take your pup on walks, hikes, and other adventures outside of your home!
-```
-
 ## Contact page
 
 ### contact.header
@@ -591,6 +579,8 @@ Contact Me
 
 > FAQ moved from the resources page (2026-06-15): the updates/communication question belongs beside the contact form. Same Cal-verbatim text.
 
+> Single FAQ (2026-07-22, user-requested): the services-page FAQ was folded in here, so the site has one FAQ. `services.faq.1.{q,a}` → `contact.faq.2.{q,a}`; same Cal-verbatim text.
+
 ### contact.faq.1.q
 
 ```
@@ -601,4 +591,16 @@ Will I receive updates while I'm away?
 
 ```
 Yes! I'm happy to send updates and photos as often as you'd like. I know it can be difficult to be away from your pets, and I strive to provide clear communication and timely responses throughout your booking.
+```
+
+### contact.faq.2.q
+
+```
+Can you watch my animal at your house?/Can you board my animal?
+```
+
+### contact.faq.2.a
+
+```
+Unfortunately, I'm unable to care for clients' pets in my own home at this time due to housing restrictions and the needs of my own dog. I am, however, happy to take your pup on walks, hikes, and other adventures outside of your home!
 ```

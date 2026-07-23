@@ -708,7 +708,7 @@
 - transforms: punctuation — curly apostrophes normalized to straight ASCII (auto-allowed).
 - notes: -
 
-> FAQ relocated by page (2026-06-15): the boarding question moved to the services page (`services.faq.1.*`), the updates question to the contact page (`contact.faq.1.*`). Same Cal-verbatim text; see those IDs below. Entries split by intent so each answer renders where the question arises.
+> FAQ relocated (2026-06-15, revised 2026-07-22): both questions now live in the single contact-page FAQ — updates as `contact.faq.1.*`, boarding as `contact.faq.2.*` (briefly `services.faq.1.*`). Same Cal-verbatim text; see those IDs below.
 
 > Dropped placeholders (user-confirmed 2026-06-09, "drop everything but Cal's source"): `resources.1.{name,desc}`, `resources.2.{name,desc}`, `resources.faq.{3,4,5}.{q,a}`, and the hardcoded public-fact entries r3 (Animal Emergency & Referral Center of Northern Colorado) + r4 (ASPCA Poison Control). None had prior ledger entries.
 
@@ -720,11 +720,11 @@
 - provenance: cal-confirmed-edit
 - consumed-by: src/app/(site)/(marketing)/services/page.tsx
 - applied-from: |
-  Until September 1, I'm assuming I can't…
+  Until August 25, please assume I can't…
   [reason supplied 2026-06-20: I'm recovering from a broken leg]
 - live-text: |
-  I'm recovering from a broken leg, so until September 1, 2026, I am unable to:
-- transforms: reason composition (2026-06-20). "I'm assuming I can't…" → "…September 1, 2026, I am unable to:" (drops the hedge + ellipsis, adds colon to lead the list) and prepends the user-supplied reason "I'm recovering from a broken leg". First person, per the marketing POV guardrail (user briefly tried third person then reverted).
+  I'm recovering from a broken leg, so until August 25, 2026, I am unable to:
+- transforms: reason composition (2026-06-20). "I'm assuming I can't…" → "…August 25, 2026, I am unable to:" (drops the hedge + ellipsis, adds colon to lead the list) and prepends the user-supplied reason "I'm recovering from a broken leg". First person, per the marketing POV guardrail (user briefly tried third person then reverted).
 - notes: ⏳ time-bound notice — Cal expects to remove after 2026-09-01. New IDs (services.notice.lede + .1/.2/.3), user-confirmed mapping 2026-06-20. Renders as its own full-width band (soft bg-brand tint, hairline top/bottom) above the service tabs as a left-aligned stack: "Limited availability" eyebrow (Info icon), lede, then .1/.2/.3 constraints with brand-tinted dash markers.
 
 ### services.notice.1
@@ -1063,29 +1063,7 @@
 - transforms: agent-resolved — source dump truncated mid-line ("Home care (mail, plants, trash bi"); mirrored the check-in equivalent "Home care (mail, plants, trash bins, lights, etc.)" (user-confirmed 2026-06-16). Replace with Cal's full line once supplied.
 - notes: ⚠ source truncated — see cal-source.md note.
 
-### services.faq.1.q
-
-- status: placed
-- provenance: cal-verbatim
-- consumed-by: src/app/(marketing)/services/page.tsx
-- applied-from: |
-  Can you watch my animal at your house?/Can you board my animal?
-- live-text: |
-  Can you watch my animal at your house?/Can you board my animal?
-- transforms: none
-- notes: moved from resources.faq.1.q (2026-06-15) — scope question surfaced on the services page. Slash kept verbatim (Cal's two-phrasing question).
-
-### services.faq.1.a
-
-- status: placed
-- provenance: cal-verbatim
-- consumed-by: src/app/(marketing)/services/page.tsx
-- applied-from: |
-  Unfortunately, I'm unable to care for clients' pets in my own home at this time due to housing restrictions and the needs of my own dog. I am, however, happy to take your pup on walks, hikes, and other adventures outside of your home!
-- live-text: |
-  Unfortunately, I'm unable to care for clients' pets in my own home at this time due to housing restrictions and the needs of my own dog. I am, however, happy to take your pup on walks, hikes, and other adventures outside of your home!
-- transforms: punctuation — curly apostrophes normalized to straight ASCII (auto-allowed).
-- notes: moved from resources.faq.1.a (2026-06-15).
+> Services FAQ retired (2026-07-22, user-requested "combine the two FAQs"): `services.faq.1.{q,a}` → `contact.faq.2.{q,a}`, the site's one FAQ. Same Cal-verbatim text; entries below under their new IDs.
 
 ### contact.header
 
@@ -1122,6 +1100,30 @@
   Yes! I'm happy to send updates and photos as often as you'd like. I know it can be difficult to be away from your pets, and I strive to provide clear communication and timely responses throughout your booking.
 - transforms: punctuation — curly apostrophes normalized to straight ASCII (auto-allowed).
 - notes: moved from resources.faq.2.a (2026-06-15).
+
+### contact.faq.2.q
+
+- status: placed
+- provenance: cal-verbatim
+- consumed-by: src/app/(site)/(marketing)/contact/page.tsx
+- applied-from: |
+  Can you watch my animal at your house?/Can you board my animal?
+- live-text: |
+  Can you watch my animal at your house?/Can you board my animal?
+- transforms: none
+- notes: was resources.faq.1.q (2026-06-15) → services.faq.1.q → contact.faq.2.q (2026-07-22, FAQs combined onto /contact). Slash kept verbatim (Cal's two-phrasing question).
+
+### contact.faq.2.a
+
+- status: placed
+- provenance: cal-verbatim
+- consumed-by: src/app/(site)/(marketing)/contact/page.tsx
+- applied-from: |
+  Unfortunately, I'm unable to care for clients' pets in my own home at this time due to housing restrictions and the needs of my own dog. I am, however, happy to take your pup on walks, hikes, and other adventures outside of your home!
+- live-text: |
+  Unfortunately, I'm unable to care for clients' pets in my own home at this time due to housing restrictions and the needs of my own dog. I am, however, happy to take your pup on walks, hikes, and other adventures outside of your home!
+- transforms: punctuation — curly apostrophes normalized to straight ASCII (auto-allowed).
+- notes: was resources.faq.1.a (2026-06-15) → services.faq.1.a → contact.faq.2.a (2026-07-22).
 
 ### contact.subtitle
 

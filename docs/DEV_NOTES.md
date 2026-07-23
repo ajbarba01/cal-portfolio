@@ -46,6 +46,9 @@
 - repeating bookings system
 - broken proximity effect for account dropdown carot.
 - Once you get a few more references, it could be interesting to include pictures of the references (or at least their pets) just to give it some more personality. Yah this could be the same picture/s thats attached to their profile. Like my idea about how when they book the calendar shows their pets face in that slot
+- site by zander barba link should open in new tab
+- pagination controls on top too
+- nicer tooltips
 
 ## Notes for the other project
 
