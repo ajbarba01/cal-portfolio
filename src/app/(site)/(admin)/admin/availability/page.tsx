@@ -87,7 +87,7 @@ export default async function AdminAvailabilityPage() {
 
   return (
     <PageContainer width="app">
-      <PageHeader title="Availability & Bookings" />
+      <PageHeader title="Availability" />
       <AvailabilityClient
         initialWindows={result.windows}
         initialBusy={busyResult.ranges}
