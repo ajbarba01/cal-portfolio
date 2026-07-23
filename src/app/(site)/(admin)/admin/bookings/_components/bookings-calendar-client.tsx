@@ -133,7 +133,7 @@ const VIEW_OPTIONS = [
   { value: "list" as const, label: "List", icon: List },
 ];
 
-type ActionResult = { kind: string };
+type ActionResult = { kind: string } | { kind: string; message: string };
 
 // ──────────────────────────────────────────────────────────────────────────────
 // InspectBridge — relays the Scheduler's in-context inspectedBookingId (set when
@@ -522,7 +522,12 @@ export function BookingsCalendarClient({
     startTransition(async () => {
       const result = await action();
       if (result.kind === "success") router.refresh();
-      else setError(`Action failed: ${result.kind}`);
+      else
+        setError(
+          "message" in result
+            ? result.message
+            : `Action failed: ${result.kind}`,
+        );
     });
   }
 

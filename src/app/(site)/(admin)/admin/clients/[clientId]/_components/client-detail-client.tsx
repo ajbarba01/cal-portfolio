@@ -141,7 +141,7 @@ export function ClientDetailClient({ client }: { client: ClientDetailView }) {
   const [error, setError] = useState<string | null>(null);
   const [adjustingDebitId, setAdjustingDebitId] = useState<string | null>(null);
 
-  function run<T extends { kind: string }>(
+  function run<T extends { kind: string } | { kind: string; message: string }>(
     action: () => Promise<T>,
     onSuccess?: () => void,
   ) {
@@ -152,7 +152,11 @@ export function ClientDetailClient({ client }: { client: ClientDetailView }) {
         onSuccess?.();
         router.refresh();
       } else {
-        setError(`Action failed: ${result.kind}`);
+        setError(
+          "message" in result
+            ? result.message
+            : `Action failed: ${result.kind}`,
+        );
       }
     });
   }
