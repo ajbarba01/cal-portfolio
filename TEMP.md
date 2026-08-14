@@ -104,3 +104,54 @@ additional_mile (+1.5) per booking
 
 Discounts:
 puppy_training (-15%) puppies!
+
+      {/* Time-bound availability notice — remove after 2026-09-01. Own
+          full-width band (soft tint, hairline top/bottom); left-aligned
+          stack — eyebrow, the reason + date, then dash-led constraints. */}
+      <section
+        aria-labelledby="availability-heading"
+        className="bg-brand/6 border-brand/15 border-y"
+      >
+        <PageContainer width="app" className="py-7 sm:py-8">
+          <Reveal>
+            <h2
+              id="availability-heading"
+              className="text-brand-strong flex items-center gap-2 text-xs font-semibold tracking-[0.14em] uppercase"
+            >
+              <Info
+                aria-hidden="true"
+                className="size-4 shrink-0"
+                strokeWidth={2.2}
+              />
+              Limited availability
+            </h2>
+            <p className="text-foreground mt-2.5 max-w-[60ch] leading-relaxed">
+              {copy["services.notice.lede"]}
+            </p>
+            <ul
+              role="list"
+              className="text-muted-foreground mt-2.5 max-w-[60ch] space-y-1.5 text-sm leading-relaxed"
+            >
+              {(
+                [
+                  "services.notice.1",
+                  "services.notice.2",
+                  "services.notice.3",
+                ] as const
+              ).map((id) => (
+                <li key={id} className="flex items-start gap-2">
+                  <span
+                    aria-hidden="true"
+                    className="text-brand/70 select-none"
+                  >
+                    –
+                  </span>
+                  <span>
+                    <MarketingCopy id={id} />
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </Reveal>
+        </PageContainer>
+      </section>
