@@ -50,8 +50,11 @@ async function main(): Promise<void> {
     .eq("source", "rover");
   if (readErr) throw new Error(`read existing: ${readErr.message}`);
 
+  // `external_key` is nullable. A Rover row without one cannot be reconciled by
+  // key, so it is skipped rather than collected as a `null` "key" that would
+  // then be counted as removed and sent back in the delete filter.
   const existingKeys = new Set(
-    (existing ?? []).map((r) => r.external_key as string),
+    (existing ?? []).map((r) => r.external_key).filter((key) => key !== null),
   );
   const fileKeys = new Set(ROVER_REVIEWS.map((e) => e.key));
 

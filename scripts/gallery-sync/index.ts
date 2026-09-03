@@ -2,14 +2,15 @@
  * gallery:sync — re-encode raw camera originals into web-ready images.
  *
  * Reads from gitignored source folders (`gallery-originals/`, `bg-originals/`,
- * `services-originals/<slug>/`), writes optimized JPEGs into `public/`, and emits
- * blur placeholders. Run it after adding/removing originals; commit the
- * regenerated outputs + placeholders.
+ * `references-originals/`, `services-originals/<slug>/`), writes optimized JPEGs
+ * into `public/`, and emits blur placeholders. Run it after adding/removing
+ * originals; commit the regenerated outputs + placeholders.
  *
  * Pipeline per image: resize to ≤1600px long edge (no upscaling), JPEG q≈80
  * (mozjpeg), strip EXIF (sharp default). Gallery + per-service outputs get
- * content-hashed names (`IMG_0592.<hash>.jpg`) so swaps bust caches; bg outputs
- * keep stable basenames (referenced directly in code). The services job is
+ * content-hashed names (`IMG_0592.<hash>.jpg`) so swaps bust caches; bg and
+ * reference outputs keep stable basenames (bg is referenced by path in code,
+ * a reference photo by basename from `src/content/references.ts`). The services job is
  * nested: each `services-originals/<slug>/` folder maps to `public/services/<slug>/`.
  * Idempotent: unchanged source → skip; orphaned output (no source) → delete;
  * new/changed → process.
@@ -58,6 +59,11 @@ const JOBS: Job[] = [
     hashed: true,
   },
   { srcDir: "bg-originals", outDir: path.join("public", "bg"), hashed: false },
+  {
+    srcDir: "references-originals",
+    outDir: path.join("public", "references"),
+    hashed: false,
+  },
   {
     srcDir: "services-originals",
     outDir: path.join("public", "services"),
@@ -262,10 +268,11 @@ async function main() {
   }
 
   // Write placeholders sorted for stable diffs.
-  const sortedPlaceholders: Placeholders = {};
-  for (const key of Object.keys(placeholders).sort()) {
-    sortedPlaceholders[key] = placeholders[key];
-  }
+  const sortedPlaceholders: Placeholders = Object.fromEntries(
+    Object.entries(placeholders).sort(([a], [b]) =>
+      a < b ? -1 : a > b ? 1 : 0,
+    ),
+  );
   await writeFile(
     PLACEHOLDERS_PATH,
     JSON.stringify(sortedPlaceholders, null, 2) + "\n",
