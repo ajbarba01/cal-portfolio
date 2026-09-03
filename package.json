@@ -17,7 +17,11 @@
     "rover:sync": "tsx --env-file=.env.local scripts/rover-sync/index.ts",
     "rover:sync:prod": "tsx --env-file=.env.production.local scripts/rover-sync/index.ts",
     "gallery:sync": "tsx scripts/gallery-sync/index.ts",
-    "prepare": "husky"
+    "prepare": "husky",
+    "test:unit": "vitest run --project unit",
+    "test:integration": "vitest run --project integration",
+    "test:coverage": "vitest run --project unit --coverage",
+    "db:types": "supabase gen types typescript --local > src/lib/supabase/database.types.ts && prettier --write src/lib/supabase/database.types.ts"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
@@ -46,10 +50,8 @@
     "react-hook-form": "^7.81.0",
     "resend": "^6.12.4",
     "server-only": "^0.0.1",
-    "shadcn": "^4.8.3",
     "stripe": "^22.2.0",
     "tailwind-merge": "^3.6.0",
-    "tw-animate-css": "^1.4.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -62,6 +64,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitest/coverage-v8": "^4.1.7",
+    "dotenv": "^17.4.2",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
     "eslint-import-resolver-typescript": "^4.4.5",
@@ -71,11 +74,16 @@
     "lint-staged": "^17.0.5",
     "prettier": "^3.8.3",
     "prettier-plugin-tailwindcss": "^0.8.0",
+    "shadcn": "^4.8.3",
     "sharp": "^0.35.1",
     "supabase": "^2.102.0",
     "tailwindcss": "^4",
     "tsx": "^4.22.4",
+    "tw-animate-css": "^1.4.0",
     "typescript": "^5",
     "vitest": "^4.1.7"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }
