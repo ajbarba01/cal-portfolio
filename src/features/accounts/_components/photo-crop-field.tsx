@@ -157,11 +157,16 @@ export function PhotoCropField({ onCroppedBlobChange }: PhotoCropFieldProps) {
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
+  // sr-only, not hidden: the file dialog only opens from a real input, so it
+  // stays in the DOM and the visible button forwards the click. tabIndex -1
+  // keeps it out of the tab order — otherwise every keyboard user hits an
+  // unlabelled extra stop right before the button that actually does the job.
   const hiddenInput = (
     <input
       ref={fileInputRef}
       type="file"
       accept="image/*"
+      tabIndex={-1}
       className="sr-only"
       onChange={(e) => loadFile(e.target.files?.[0])}
     />
@@ -271,7 +276,7 @@ export function PhotoCropField({ onCroppedBlobChange }: PhotoCropFieldProps) {
           loadFile(e.dataTransfer.files?.[0]);
         }}
         className={cn(
-          "border-border text-muted-foreground hover:border-brand/40 hover:text-brand-strong hover:bg-muted focus-visible:border-ring focus-visible:ring-ring/50 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border-[1.5px] border-dashed px-4 py-3 text-sm font-medium transition-colors outline-none focus-visible:ring-3",
+          "border-border text-muted-foreground hover:border-brand/40 hover:text-brand-strong hover:bg-muted focus-visible:border-ring focus-visible:ring-ring/50 rounded-card flex min-h-11 w-full items-center justify-center gap-2 border-[1.5px] border-dashed px-4 py-3 text-sm font-medium transition-colors outline-none focus-visible:ring-3",
         )}
       >
         <ImagePlus className="size-4" aria-hidden="true" />

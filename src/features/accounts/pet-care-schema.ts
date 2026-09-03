@@ -5,8 +5,10 @@ import { FIELD_LIMITS } from "@/lib/field-limits";
  * Pet-care profile (pet-scoped). Covers the rich medical / behavior / feeding
  * narrative from Cal's "Per Animal" form. Applies to all species (dogs, cats).
  * Required by any service involving the pet: house-sitting, check-ins, walks,
- * training. Structured identity (age, sex, weight, vet_*) lives in `pets`
- * columns — this is the freeform care detail.
+ * training. Surviving pet identity (name, species, breed, birthdate — pricing
+ * reads birthdate) lives in `pets` columns; vet contact lives in the
+ * account-scoped `owner` form. Age, sex, weight, and spay/neuter status are
+ * collected nowhere since migration 20260902130002 dropped the unused columns.
  *
  * All fields optional: the gate treats a saved-and-confirmed row as complete
  * regardless of how many optional fields are filled.

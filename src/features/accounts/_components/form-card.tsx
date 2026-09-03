@@ -26,6 +26,11 @@ import { ProfileDisclaimer } from "@/features/accounts/_components/profile-discl
 
 // ─── Emergency form (legacy) ──────────────────────────────────────────────────
 
+/**
+ * The retired `emergency` form, still rendered for the rows Cal collected under
+ * it. Its fields live here rather than in `PROFILE_GROUPS` because nothing
+ * writes them any more: the owner form owns emergency and vet contact now.
+ */
 const EMERGENCY_FIELDS = [
   "contact_name",
   "contact_phone",
@@ -302,7 +307,7 @@ export function FormCard({
   const label = title ?? formRegistry[formKey].title;
 
   const inner = (
-    <div className={flat ? "" : "overflow-hidden rounded-2xl"}>
+    <div className={flat ? "" : "rounded-card overflow-hidden"}>
       <div className="flex items-center justify-between gap-3 px-4 py-3">
         <div className="flex flex-col gap-1">
           <p className="text-foreground text-sm font-semibold">{label}</p>
@@ -327,7 +332,7 @@ export function FormCard({
           {status === "stale" && (
             <p
               role="status"
-              className="text-foreground border-border bg-muted rounded-xl border p-3 text-xs leading-relaxed"
+              className="text-foreground border-border bg-muted rounded-card border p-3 text-xs leading-relaxed"
             >
               You filled this out a while ago. Please review it and save to
               confirm it&apos;s still accurate.
@@ -351,7 +356,7 @@ export function FormCard({
               </Eyebrow>
               {needsAccept ? (
                 <>
-                  <p className="text-muted-foreground border-border bg-background rounded-xl border p-3 text-xs leading-relaxed whitespace-pre-line">
+                  <p className="text-muted-foreground border-border bg-background rounded-card border p-3 text-xs leading-relaxed whitespace-pre-line">
                     {auth.text}
                   </p>
                   <label className="flex items-start gap-2.5 text-sm">

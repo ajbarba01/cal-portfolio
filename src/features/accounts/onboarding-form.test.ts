@@ -2,7 +2,6 @@ import { describe, it, expect } from "vitest";
 import {
   onboardingClientSchema,
   onboardingSuccessPath,
-  splitOnboardingInput,
 } from "./onboarding-form";
 
 const valid = {
@@ -10,11 +9,6 @@ const valid = {
   phone: "3035551234",
   address: "1 Main St",
   zip: "80401",
-  contact_name: "Sam Friend",
-  contact_phone: "3035555678",
-  contact_relationship: "Friend",
-  vet_name: "Front Range Vet",
-  vet_phone: "3035559999",
 };
 
 describe("onboardingClientSchema", () => {
@@ -26,24 +20,16 @@ describe("onboardingClientSchema", () => {
     const r = onboardingClientSchema.safeParse({ ...valid, full_name: "" });
     expect(r.success).toBe(false);
   });
-});
 
-describe("splitOnboardingInput", () => {
-  it("splits the flat form values into profile + emergency", () => {
-    const input = splitOnboardingInput(valid);
-    expect(input.profile).toEqual({
-      full_name: "Alex Client",
-      phone: "3035551234",
-      address: "1 Main St",
-      zip: "80401",
-    });
-    expect(input.emergency).toEqual({
-      contact_name: "Sam Friend",
-      contact_phone: "3035555678",
-      contact_relationship: "Friend",
-      vet_name: "Front Range Vet",
-      vet_phone: "3035559999",
-    });
+  // Signup collects the profile only. Emergency and vet contact are part of the
+  // owner form, which the booking gate requires before the first paid booking.
+  it("asks for nothing beyond the profile fields", () => {
+    expect(Object.keys(onboardingClientSchema.shape)).toEqual([
+      "full_name",
+      "phone",
+      "address",
+      "zip",
+    ]);
   });
 });
 

@@ -1,13 +1,15 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { ChevronRight, Plus } from "lucide-react";
+import { ChevronRight, PawPrint, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Surface, type SurfaceVariant } from "@/components/ui/surface";
+import { EmptyState } from "@/components/feedback/empty-state";
 import { useConfirm } from "@/components/feedback/confirm-dialog";
 import { PetForm } from "./pet-form";
 import type { PetFormActions } from "./pet-form";
-import { PetAvatar } from "@/features/booking/index.client";
+import { PetAvatar } from "@/features/pets";
+import { SPECIES } from "@/features/pets";
 import type { Pet } from "@/features/accounts/account-actions";
 import type { ActionResult } from "@/features/accounts/account-actions";
 
@@ -69,6 +71,10 @@ function PetItem({
   const [isPending, startTransition] = useTransition();
   const { confirm, dialog } = useConfirm();
 
+  // The row shows the species the way the picker names it, not the stored slug.
+  const speciesLabel =
+    SPECIES.find((s) => s.value === pet.species)?.label ?? pet.species;
+
   async function handleDelete() {
     setError(null);
     const ok = await confirm({
@@ -92,7 +98,7 @@ function PetItem({
 
   if (editing) {
     return (
-      <li className="border-brand bg-muted/40 rounded-xl border p-4">
+      <li className="border-brand bg-muted/40 rounded-card border p-4">
         <p className={LEGEND_CLASS}>Edit pet</p>
         <PetForm
           initial={pet}
@@ -124,7 +130,7 @@ function PetItem({
             <p className="text-foreground font-semibold">
               {pet.name}{" "}
               <span className="text-muted-foreground font-normal">
-                ({pet.species})
+                ({speciesLabel})
               </span>
             </p>
             {pet.breed && <p className="text-muted-foreground">{pet.breed}</p>}
@@ -209,12 +215,13 @@ export function PetList({
   return (
     <div className="flex flex-col gap-6">
       {pets.length === 0 && !showAddForm && (
-        <Surface variant={surface} className="border-dashed p-8 text-center">
-          <div aria-hidden="true" className="mb-2 text-3xl">
-            🐾
-          </div>
-          <p className="text-muted-foreground text-sm">No pets added yet.</p>
-        </Surface>
+        <EmptyState
+          title="No pets added yet."
+          icon={<PawPrint className="size-5" />}
+          // `plain` is the parent saying the list is nested inside a card
+          // (admin), where the full-page empty-state height reads as a hole.
+          className={surface === "plain" ? "py-8" : undefined}
+        />
       )}
 
       {pets.length > 0 && (
@@ -233,7 +240,7 @@ export function PetList({
       )}
 
       {showAddForm ? (
-        <div className="border-brand bg-muted/40 rounded-xl border p-4">
+        <div className="border-brand bg-muted/40 rounded-card border p-4">
           <p className={LEGEND_CLASS}>Add a pet</p>
           <PetForm
             onSaved={() => {

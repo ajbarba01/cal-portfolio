@@ -136,6 +136,7 @@ export function MeetGreetScheduler({
       return;
     }
     const [cell] = state.gridDraft;
+    if (cell === undefined) return;
     const atIdx = cell.indexOf("@");
     if (atIdx === -1) return;
     const dayKey = cell.slice(0, atIdx);
@@ -191,7 +192,10 @@ export function MeetGreetScheduler({
 
   return (
     <div className="flex flex-col gap-5">
+      {/* `bare`: the onboarding step already wraps this in a card, and a
+          scheduler card inside it would nest one card in another. */}
       <Scheduler
+        bare
         capabilities={capabilities}
         data={data}
         onSelectionChange={onSelectionChange}

@@ -15,6 +15,8 @@ export { PetForm } from "./_components/pet-form";
 export { MeetGreetScheduler } from "./_components/meet-greet-scheduler";
 export { formRegistry } from "./form-registry";
 export type { FormKey, FormScope } from "./form-registry";
+export { listClientForms } from "./forms-repo";
+export type { ClientFormResponses, FormResponseRow } from "./forms-repo";
 export {
   EXPENSE_AUTH_KIND,
   EXPENSE_AUTH_VERSION,
@@ -23,6 +25,11 @@ export {
 export { submitOnboarding } from "./onboarding-action";
 export { claimAccount } from "./claim-actions";
 export type { ClaimResult } from "./claim-actions";
+export {
+  checkZipServiceArea,
+  OUTSIDE_SERVICE_AREA_MESSAGE,
+} from "./service-area";
+export type { ServiceAreaCheck, ServiceAreaDeps } from "./service-area";
 export { onboardingClientSchema } from "./onboarding-form";
 export { profileSchema } from "./profile-schema";
 export type { ProfileInput } from "./profile-schema";

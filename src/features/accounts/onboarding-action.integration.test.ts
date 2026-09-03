@@ -53,36 +53,33 @@ afterAll(async () => {
   await serviceClient.auth.admin.deleteUser(testUserId);
 });
 
-/** Stub geocoder — returns a fixed centroid for 80301 so tests are deterministic. */
+/**
+ * Stub geocoder — 80301 is a Boulder centroid inside the seeded service area,
+ * 81301 a Durango one far outside it. Everything else is unknown.
+ */
 const stubGeocoder: Geocoder = {
   geocode: async (zip: string) => {
     if (zip === "80301") return { lat: 40.0481, lng: -105.2527 };
+    if (zip === "81301") return { lat: 37.2753, lng: -107.8801 };
     return null;
   },
 };
 
 describe("runOnboarding", () => {
   const validInput = {
-    profile: {
-      full_name: "Test User",
-      phone: "303-555-0100",
-      address: "123 Main St",
-      zip: "80301",
-    },
-    emergency: {
-      contact_name: "Jane Doe",
-      contact_phone: "303-555-0101",
-      contact_relationship: "Spouse",
-      vet_name: "Boulder Vet Clinic",
-      vet_phone: "303-555-0102",
-    },
+    full_name: "Test User",
+    phone: "303-555-0100",
+    address: "123 Main St",
+    zip: "80301",
   };
 
   it("advances onboarding_status to meet_greet_pending", async () => {
-    await runOnboarding(
+    const result = await runOnboarding(
       { serviceClient, userId: testUserId, geocoder: stubGeocoder },
       validInput,
     );
+
+    expect(result).toEqual({ ok: true });
 
     const { data: profile } = await serviceClient
       .from("profiles")
@@ -93,18 +90,17 @@ describe("runOnboarding", () => {
     expect(profile?.onboarding_status).toBe("meet_greet_pending");
   });
 
-  it("inserts an emergency form_responses row", async () => {
+  // Signup no longer collects emergency/vet info, so it must not write a
+  // form_responses row: the write-once unique index made a retry after a
+  // partial failure fail on a duplicate key.
+  it("writes no form_responses row", async () => {
     const { data: rows, error } = await serviceClient
       .from("form_responses")
-      .select("id, form_key, data")
-      .eq("client_id", testUserId)
-      .eq("form_key", "emergency");
+      .select("id")
+      .eq("client_id", testUserId);
 
     expect(error).toBeNull();
-    expect(rows).toHaveLength(1);
-    expect(rows?.[0].data).toMatchObject({
-      contact_name: validInput.emergency.contact_name,
-    });
+    expect(rows).toHaveLength(0);
   });
 
   it("writes the profile fields including geocoded lat/lng", async () => {
@@ -129,12 +125,40 @@ describe("runOnboarding", () => {
     await expect(
       runOnboarding(
         { serviceClient, userId: testUserId, geocoder: stubGeocoder },
-        {
-          ...validInput,
-          profile: { ...validInput.profile, zip: "" },
-        },
+        { ...validInput, zip: "" },
       ),
     ).rejects.toThrow();
+  });
+
+  // Signup is the first place an out-of-area client can be turned away, and it
+  // has to be a field error rather than a throw: the wizard shows it at the ZIP
+  // and keeps everything already typed.
+  it.each([
+    ["a ZIP beyond the service area", "81301"],
+    ["a ZIP the geocoder cannot place", "99999"],
+  ])("refuses %s without advancing onboarding", async (_label, zip) => {
+    const { data: before } = await serviceClient
+      .from("profiles")
+      .select("zip, onboarding_status")
+      .eq("id", testUserId)
+      .single();
+
+    const result = await runOnboarding(
+      { serviceClient, userId: testUserId, geocoder: stubGeocoder },
+      { ...validInput, zip },
+    );
+
+    expect(result).toEqual({
+      ok: false,
+      fieldErrors: { zip: "That address is outside Cal's service area." },
+    });
+
+    const { data: after } = await serviceClient
+      .from("profiles")
+      .select("zip, onboarding_status")
+      .eq("id", testUserId)
+      .single();
+    expect(after).toEqual(before);
   });
 
   it("RLS isolation: a different client cannot read the first user's form_responses", async () => {
@@ -148,6 +172,19 @@ describe("runOnboarding", () => {
 
     const secondUserId = secondUser.user!.id;
 
+    // runOnboarding no longer writes form_responses, so seed one directly:
+    // without a row the read below would return zero for want of data rather
+    // than because RLS blocked it.
+    const { error: seedError } = await serviceClient
+      .from("form_responses")
+      .insert({
+        client_id: testUserId,
+        form_key: "owner",
+        booking_id: null,
+        data: { owner_name: "Test User" },
+      });
+    expect(seedError).toBeNull();
+
     try {
       // Sign in as the second user with a user-scoped client.
       const secondClient = createClient(url, anonKey, {
@@ -158,8 +195,7 @@ describe("runOnboarding", () => {
         password: TEST_PASSWORD,
       });
 
-      // The second user should see 0 rows from the first user's form_responses.
-      // (runOnboarding was called for the first user only, via stubGeocoder above.)
+      // The second user must see 0 rows of the first user's form_responses.
       const { data: rows, error } = await secondClient
         .from("form_responses")
         .select("id")

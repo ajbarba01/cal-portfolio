@@ -10,7 +10,8 @@ import { petWalkSchema } from "./pet-walk-schema";
  * Entity-scoped intake forms. `scope` decides whether a response is keyed to the
  * account (one row per client) or to a pet (one row per client + pet). The
  * booking requirement gate and the standalone /account/forms surface both read
- * `scope` to know how many rows a form expects.
+ * `scope` to know how many rows a form expects — through forms-repo.ts's
+ * `formResponseKey`, one shared function rather than two inline copies.
  *
  * `emergency` is legacy (the original single-form gate). It is superseded by
  * `owner` but kept registered so existing rows still validate if edited; it is

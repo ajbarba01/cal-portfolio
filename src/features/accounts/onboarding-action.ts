@@ -4,26 +4,27 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { profileSchema } from "./profile-schema";
-import { emergencySchema } from "@/features/accounts/emergency-schema";
+import { profileSchema, type ProfileInput } from "./profile-schema";
 import {
   onboardingSuccessPath,
   onboardingClientSchema,
-  splitOnboardingInput,
-  type OnboardingInput,
 } from "./onboarding-form";
-import { type SupabaseClient } from "@supabase/supabase-js";
+import { type DbClient } from "@/lib/supabase/db-client";
 import { defaultGeocoder } from "@/features/pricing";
 import { type Geocoder } from "@/features/pricing";
-import { safeReturnTo } from "@/features/booking";
+import { safeReturnTo } from "@/lib/return-to";
 import {
   type FormActionResult,
   zodFieldErrors,
 } from "@/lib/form-action-result";
+import {
+  checkZipServiceArea,
+  OUTSIDE_SERVICE_AREA_MESSAGE,
+} from "./service-area";
 
 export interface OnboardingDeps {
   /** Service-role client — bypasses RLS + column grants. Required for writing system columns. */
-  serviceClient: SupabaseClient;
+  serviceClient: DbClient;
   /** The authenticated user's ID. Must be verified from a real session before calling. */
   userId: string;
   /** Geocoder used to resolve the client's ZIP to lat/lng at signup. Defaults to the bundled offline geocoder. */
@@ -32,33 +33,41 @@ export interface OnboardingDeps {
 
 /**
  * Core onboarding logic, extracted for testability (dependency injection).
- * Validates input, writes profile fields, inserts the emergency form_response,
+ * Validates input, gates the ZIP on the service area, writes profile fields,
  * and advances onboarding_status to 'meet_greet_pending' via the service role.
  *
- * Non-atomicity concern: these are three sequential DB writes. A failure mid-way
- * (after profile update but before form insert, or after form insert but before
- * the status advance) leaves a partial state. Mitigation: the guard checks
- * onboarding_status, so a user whose update succeeded but advance failed will be
- * re-presented the form. Phase 3+ can wrap these in a Postgres function/transaction.
+ * Returns a failure instead of throwing when the address is out of area: that
+ * is the client's mistake to correct, not a fault, and the wizard shows it at
+ * the ZIP field. Every other failure still throws.
+ *
+ * Non-atomicity concern: these are two sequential DB writes. A failure between
+ * them leaves a partial state. Mitigation: the guard checks onboarding_status,
+ * so a user whose update succeeded but advance failed is re-presented the form.
+ * Both writes are idempotent, so that retry is safe.
  */
 export async function runOnboarding(
   deps: OnboardingDeps,
-  input: OnboardingInput,
-): Promise<void> {
-  const profile = profileSchema.parse(input.profile);
-  const emergency = emergencySchema.parse(input.emergency);
+  input: ProfileInput,
+): Promise<FormActionResult> {
+  const profile = profileSchema.parse(input);
 
   const { serviceClient, userId, geocoder = defaultGeocoder } = deps;
 
-  // Geocode the client's ZIP once at signup. Returns null for unknown ZIPs —
-  // a far or unrecognised ZIP must not block onboarding; the distance gate
-  // handles refusals at booking time.
-  const latLng = await geocoder.geocode(profile.zip);
+  // Geocode the client's ZIP once at signup — the gate and the profile write
+  // below both read the result, so signup never geocodes twice. An address
+  // outside the area is refused here, before any of it is stored.
+  const { isInArea, latLng } = await checkZipServiceArea(
+    { client: serviceClient, geocoder },
+    profile.zip,
+  );
+  if (!isInArea) {
+    return { ok: false, fieldErrors: { zip: OUTSIDE_SERVICE_AREA_MESSAGE } };
+  }
 
   // 1. Update profile fields (service role bypasses the column-level grant on role/lat/lng/etc.)
   // .select() returns affected rows; a missing profile (handle_new_user trigger didn't fire,
-  // or user predates the trigger migration) returns [] with no error — catch it here so
-  // step 2's FK insert doesn't fail with a confusing constraint message.
+  // or user predates the trigger migration) returns [] with no error — catch it here so the
+  // status advance doesn't silently no-op against a row that was never created.
   const { data: updated, error: profileError } = await serviceClient
     .from("profiles")
     .update({
@@ -82,21 +91,7 @@ export async function runOnboarding(
     );
   }
 
-  // 2. Insert emergency form response
-  const { error: formError } = await serviceClient
-    .from("form_responses")
-    .insert({
-      client_id: userId,
-      form_key: "emergency",
-      booking_id: null,
-      data: emergency,
-    });
-
-  if (formError) {
-    throw new Error(`Emergency form insert failed: ${formError.message}`);
-  }
-
-  // 3. Advance onboarding to the meet-and-greet stage — single writer (service
+  // 2. Advance onboarding to the meet-and-greet stage — single writer (service
   // role only; RLS + column grant blocks client writes). This NO LONGER unlocks
   // booking; the client must now book + attend a meet-and-greet, then Cal approves.
   const { error: flagError } = await serviceClient
@@ -107,6 +102,8 @@ export async function runOnboarding(
   if (flagError) {
     throw new Error(`onboarding_status advance failed: ${flagError.message}`);
   }
+
+  return { ok: true };
 }
 
 /**
@@ -140,10 +137,11 @@ export async function submitOnboarding(
   }
 
   const serviceClient = createServiceClient();
-  await runOnboarding(
+  const result = await runOnboarding(
     { serviceClient, userId: user.id, geocoder: defaultGeocoder },
-    splitOnboardingInput(parsed.data),
+    parsed.data,
   );
+  if (!result.ok) return result;
 
   // Purge the cached /onboarding payload (it still holds the info form) so the
   // redirect renders the wizard fresh at its new meet_greet_pending state.

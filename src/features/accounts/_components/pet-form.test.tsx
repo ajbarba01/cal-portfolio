@@ -50,11 +50,30 @@ describe("PetForm", () => {
 });
 
 describe("PetForm species options", () => {
-  it("renders a radio for every canonical species", () => {
+  it("offers every canonical species in the picker", async () => {
+    const user = userEvent.setup();
     render(<PetForm onSaved={vi.fn()} />);
-    const radios = screen.getAllByRole("radio");
-    expect(radios).toHaveLength(7);
-    expect(screen.getByRole("radio", { name: /Bird/ })).toBeInTheDocument();
-    expect(screen.getByRole("radio", { name: /Fish/ })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("combobox", { name: "Species" }));
+
+    const options = await screen.findAllByRole("option");
+    expect(options).toHaveLength(7);
+    expect(screen.getByRole("option", { name: /Bird/ })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: /Fish/ })).toBeInTheDocument();
+  });
+
+  it("submits the picked species", async () => {
+    const user = userEvent.setup();
+    const actions = stubActions();
+    render(<PetForm onSaved={vi.fn()} actions={actions} />);
+
+    await user.type(screen.getByLabelText(/name/i), "Mittens");
+    await user.click(screen.getByRole("combobox", { name: "Species" }));
+    await user.click(await screen.findByRole("option", { name: /Cat/ }));
+    await user.click(screen.getByRole("button", { name: /add pet/i }));
+
+    expect(actions.create).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "Mittens", species: "cat" }),
+    );
   });
 });

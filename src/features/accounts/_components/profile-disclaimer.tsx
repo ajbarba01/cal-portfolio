@@ -5,7 +5,7 @@ export const PROFILE_DISCLAIMER =
 
 export function ProfileDisclaimer() {
   return (
-    <p className="text-muted-foreground border-border bg-muted/40 flex items-start gap-2 rounded-xl border p-3 text-xs leading-relaxed">
+    <p className="text-muted-foreground border-border bg-muted/40 rounded-card flex items-start gap-2 border p-3 text-xs leading-relaxed">
       <Info aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
       <span>{PROFILE_DISCLAIMER}</span>
     </p>

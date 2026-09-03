@@ -8,7 +8,7 @@
  */
 
 import { z } from "zod";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { DbClient } from "@/lib/supabase/db-client";
 
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
@@ -26,8 +26,8 @@ export type ClaimResult =
   | { kind: "error"; message: string };
 
 export interface ClaimDeps {
-  sessionClient: SupabaseClient;
-  serviceClient: SupabaseClient;
+  sessionClient: DbClient;
+  serviceClient: DbClient;
 }
 
 export async function claimAccountCore(

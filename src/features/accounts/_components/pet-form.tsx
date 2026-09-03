@@ -7,7 +7,13 @@ import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
 import { Textarea } from "@/components/ui/textarea";
 import { CharCounter } from "@/components/ui/char-counter";
-import { RadioGroup } from "@/components/ui/radio-group";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   useAppForm,
   Form,
@@ -81,7 +87,7 @@ export function PetForm({ initial, onSaved, onCancel, actions }: PetFormProps) {
     uploadPhoto: async (petId: string, file: File) => {
       const fd = new FormData();
       fd.set("petId", petId);
-      fd.set("file", file, "pet.jpg");
+      fd.set("file", file);
       return uploadPetPhoto(fd);
     },
   };
@@ -100,8 +106,9 @@ export function PetForm({ initial, onSaved, onCancel, actions }: PetFormProps) {
   // uploaded after the pet row is saved.
   const [croppedPhoto, setCroppedPhoto] = useState<Blob | null>(null);
 
-  // Species is a custom control (RadioGroup) — wire it through the form.
+  // Species is a custom control (Select) — wire it through the form.
   const species = useController({ name: "species", control: form.control });
+  const speciesOption = SPECIES.find((s) => s.value === species.field.value);
 
   // Label classes mirror FormField's Field.Label so custom-control groups
   // (species, photo) align with FormField rows in the grid.
@@ -142,10 +149,13 @@ export function PetForm({ initial, onSaved, onCancel, actions }: PetFormProps) {
     }
 
     if (croppedPhoto && croppedPhoto.size > 0) {
-      const upload = await resolvedActions.uploadPhoto(
-        saved.id,
-        croppedPhoto as File,
-      );
+      // The crop field yields a bare canvas Blob. The upload actions take a
+      // File — the admin one derives the stored object's extension from the
+      // file name — so give it a name and its own MIME type here.
+      const photo = new File([croppedPhoto], "pet.jpg", {
+        type: croppedPhoto.type,
+      });
+      const upload = await resolvedActions.uploadPhoto(saved.id, photo);
       if (upload.kind !== "success") {
         return { ok: false, message: upload.message };
       }
@@ -172,19 +182,30 @@ export function PetForm({ initial, onSaved, onCancel, actions }: PetFormProps) {
           autoComplete="off"
         />
 
-        {/* Custom control (radiogroup self-labels). Label classes match
-            FormField so the control tops align across the 2-col grid. */}
+        {/* Custom control (the trigger self-labels). Label classes match
+            FormField so the control tops align across the 2-col grid. A Select
+            rather than a segmented control: seven species never fit one track
+            inside a form cell. */}
         <div className="flex flex-col gap-1.5">
           <span className={groupLabel}>Species</span>
-          <RadioGroup
-            ariaLabel="Species"
+          <Select
             value={species.field.value}
-            onValueChange={(v) => species.field.onChange(v)}
-            options={SPECIES.map((s) => ({
-              value: s.value,
-              label: `${s.emoji} ${s.label}`,
-            }))}
-          />
+            onValueChange={(v) => v && species.field.onChange(v)}
+          >
+            <SelectTrigger aria-label="Species">
+              <SelectValue>
+                {speciesOption &&
+                  `${speciesOption.emoji} ${speciesOption.label}`}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {SPECIES.map((s) => (
+                <SelectItem key={s.value} value={s.value}>
+                  {`${s.emoji} ${s.label}`}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 

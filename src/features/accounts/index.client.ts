@@ -45,12 +45,19 @@ export {
 } from "./authorizations";
 export { claimAccount } from "./claim-actions";
 export type { ClaimResult } from "./claim-actions";
+export { submitOnboarding } from "./onboarding-action";
 export type {
   Pet,
   PetInput,
   ActionResult,
   CreatePetResult,
 } from "./account-actions";
+
+// ─── Pure schemas + copy ─────────────────────────────────────────────────────
+
+export { profileSchema } from "./profile-schema";
+export { onboardingClientSchema } from "./onboarding-form";
+export { OUTSIDE_SERVICE_AREA_MESSAGE } from "./service-area";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

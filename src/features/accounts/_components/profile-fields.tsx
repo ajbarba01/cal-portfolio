@@ -138,6 +138,19 @@ const OWNER_GROUPS: FieldGroup[] = [
       { name: "emergency2_address", label: "Address", max: A },
     ],
   },
+  {
+    title: "Veterinarian",
+    fields: [
+      { name: "vet_name", label: "Vet name or clinic", required: true, max: N },
+      {
+        name: "vet_phone",
+        label: "Vet phone",
+        type: "tel",
+        required: true,
+        max: P,
+      },
+    ],
+  },
   NOTES_GROUP,
 ];
 
@@ -145,7 +158,13 @@ const HOME_ACCESS_GROUPS: FieldGroup[] = [
   {
     title: "Getting in",
     fields: [
-      { name: "address", label: "Home address", required: true, max: A },
+      {
+        name: "address",
+        label: "Home address",
+        hint: "Street address, apt or unit",
+        required: true,
+        max: A,
+      },
       {
         name: "entry_instructions",
         label: "How to get in",

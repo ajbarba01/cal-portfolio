@@ -1,9 +1,12 @@
 /**
  * Click-to-accept e-signature for the Owner form's Emergency Expense
- * Authorization. The accepted TEXT is versioned: each acceptance appends an
- * immutable row to `authorizations` (kind + version + typed legal name +
- * timestamp). The booking gate re-prompts only when EXPENSE_AUTH_VERSION is
- * newer than the client's latest accepted row for that kind.
+ * Authorization. The accepted TEXT is versioned: an acceptance appends a row to
+ * `authorizations` (kind + version + typed legal name + timestamp), and rows
+ * are never edited or deleted. The booking gate re-prompts only when
+ * EXPENSE_AUTH_VERSION is newer than the client's latest accepted row for that
+ * kind, and the server applies the same test on write: re-accepting the version
+ * already on record is a no-op, so a repeated submit cannot append a duplicate
+ * and cannot restate the name on an acceptance that already stands.
  *
  * Bump EXPENSE_AUTH_VERSION whenever EXPENSE_AUTH_TEXT changes materially so
  * existing clients are asked to re-accept the new terms.

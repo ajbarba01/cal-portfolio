@@ -1,14 +1,4 @@
-import { z } from "zod";
-import { profileSchema, type ProfileInput } from "./profile-schema";
-import {
-  emergencySchema,
-  type EmergencyInput,
-} from "@/features/accounts/emergency-schema";
-
-export interface OnboardingInput {
-  profile: ProfileInput;
-  emergency: EmergencyInput;
-}
+import { profileSchema } from "./profile-schema";
 
 /**
  * Where a successful info-step submit lands. Always /onboarding (the wizard
@@ -25,24 +15,10 @@ export function onboardingSuccessPath(safeReturnTo: string | null): string {
 }
 
 /**
- * The onboarding form as the client sees it: one flat object (RHF field names
- * are flat), validated with the exact profile + emergency schemas the server
- * re-parses. Client and server cannot drift — same zod objects.
+ * The onboarding form as the client sees it. Signup collects the profile and
+ * nothing else: emergency and vet contact belong to the owner form, which the
+ * booking gate requires before the first paid booking rather than before the
+ * free meet & greet. Named separately from `profileSchema` so the wizard's
+ * client and server halves have one import to keep in step.
  */
-export const onboardingClientSchema = z.object({
-  ...profileSchema.shape,
-  ...emergencySchema.shape,
-});
-
-export type OnboardingClientInput = z.infer<typeof onboardingClientSchema>;
-
-/** Regroup the flat client values into the { profile, emergency } shape runOnboarding takes. */
-export function splitOnboardingInput(
-  flat: OnboardingClientInput,
-): OnboardingInput {
-  const { full_name, phone, address, zip, ...emergency } = flat;
-  return {
-    profile: { full_name, phone, address, zip } satisfies ProfileInput,
-    emergency: emergency satisfies EmergencyInput,
-  };
-}
+export const onboardingClientSchema = profileSchema;

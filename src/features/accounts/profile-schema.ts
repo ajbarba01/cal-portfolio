@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { FIELD_LIMITS } from "@/lib/field-limits";
+import { PHONE_PATTERN } from "@/lib/phone-schema";
 
 /**
  * Required profile fields collected at onboarding.
@@ -10,7 +11,7 @@ export const profileSchema = z.object({
   phone: z
     .string()
     .min(7, "Phone number is required")
-    .regex(/^\+?[\d\s\-().]{7,20}$/, "Enter a valid phone number"),
+    .regex(PHONE_PATTERN, "Enter a valid phone number"),
   address: z
     .string()
     .min(1, "Street address is required")

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { FIELD_LIMITS } from "@/lib/field-limits";
+import { PHONE_PATTERN } from "@/lib/phone-schema";
 
 /** Emergency contact and veterinarian info collected at onboarding. */
 export const emergencySchema = z.object({
@@ -10,7 +11,7 @@ export const emergencySchema = z.object({
   contact_phone: z
     .string()
     .min(7, "Emergency contact phone is required")
-    .regex(/^\+?[\d\s\-().]{7,20}$/, "Enter a valid phone number"),
+    .regex(PHONE_PATTERN, "Enter a valid phone number"),
   contact_relationship: z
     .string()
     .min(1, "Relationship to emergency contact is required")
@@ -22,7 +23,7 @@ export const emergencySchema = z.object({
   vet_phone: z
     .string()
     .min(7, "Veterinarian phone is required")
-    .regex(/^\+?[\d\s\-().]{7,20}$/, "Enter a valid phone number"),
+    .regex(PHONE_PATTERN, "Enter a valid phone number"),
 });
 
 export type EmergencyInput = z.infer<typeof emergencySchema>;
