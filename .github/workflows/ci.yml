@@ -1,0 +1,66 @@
+name: CI
+
+# Runs the same checks as the local pre-commit hook (plus unit tests, which the hook skips) on
+# every push and pull request, so `main` is never gated only by a hook a contributor can bypass
+# with --no-verify. The integration suite needs a live local Supabase stack, which isn't wired
+# up here yet; its job stays workflow_dispatch-only below so this workflow never needs a secret.
+#
+# Node is pinned to a literal version (matching the Vercel deploy runtime) rather than resolved
+# from package.json's engines.node - that field is an open >= range, and setup-node resolves a
+# range to the newest released Node, not to the LTS the app actually deploys on.
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Format, lint, typecheck, unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run format:check
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test:unit
+
+  # Not run on push or pull_request: the runner has no local Supabase stack, and none of the
+  # NEXT_PUBLIC_SUPABASE_* / SUPABASE_SECRET_KEY values src/test-setup.ts loads from .env.test
+  # are configured here. Trigger by hand (Actions tab -> CI -> Run workflow) once a step that
+  # writes .env.test from `supabase status` output is added; recorded now so the missing piece
+  # is visible in the workflow file instead of silently absent.
+  integration:
+    name: Integration tests (Supabase, manual)
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      # Applies supabase/migrations/** and seed.sql itself - no separate migration step needed.
+      - name: Start local Supabase stack
+        run: supabase start -x vector,logflare,studio,imgproxy,edge-runtime
+
+      - run: npm run test:integration
