@@ -11,6 +11,7 @@ import { Check } from "lucide-react";
 import {
   buildPageMetadata,
   buildBreadcrumbJsonLd,
+  buildBusinessOffersJsonLd,
   JsonLd,
 } from "@/features/seo";
 import { PageContainer } from "@/components/layout/page-container";
@@ -19,6 +20,7 @@ import { EmptyState } from "@/components/feedback/empty-state";
 import { Eyebrow } from "@/components/marketing/eyebrow";
 import { MarketingCopy } from "@/components/marketing/marketing-copy";
 import { MarketingProse } from "@/components/marketing/marketing-prose";
+import { headingClass } from "@/components/marketing/section-header";
 import { ServicePhotoStrip } from "@/components/marketing/service-photo-strip";
 import { buttonVariants } from "@/components/ui/button";
 import { ShimmerCard } from "@/components/ui/shimmer-card";
@@ -26,11 +28,13 @@ import { InfoTooltip } from "@/components/ui/tooltip";
 import { createStaticClient } from "@/lib/supabase/static";
 import {
   listActiveServices,
+  type PublicService,
+} from "@/features/booking/services-repo";
+import {
   serviceDetailLedeCopyId,
   serviceDetailBodyCopyId,
   serviceIncludedCopyIds,
-  type PublicService,
-} from "@/features/booking";
+} from "@/features/booking/service-card-display";
 import { headlineRate, pricingBreakdown } from "@/features/pricing";
 import { getServiceImages, type ServiceImage } from "@/features/gallery";
 import { type CopyId } from "@/content/marketing";
@@ -67,7 +71,7 @@ function ServiceDetail({
         // No photos for this service yet — keep a quiet placeholder.
         <div
           aria-hidden="true"
-          className="border-border bg-muted text-muted-foreground mb-7 grid h-48 place-items-center rounded-2xl border border-dashed text-xs tracking-[0.12em] uppercase sm:h-56"
+          className="border-border bg-muted text-muted-foreground rounded-card mb-7 grid h-48 place-items-center border border-dashed text-xs tracking-[0.12em] uppercase sm:h-56"
         >
           Photo placeholder
         </div>
@@ -175,15 +179,19 @@ export const revalidate = 86400;
 
 export default async function ServicesPage() {
   const services = await listActiveServices(createStaticClient());
-  const photoLists = await Promise.all(
-    services.map((service) => getServiceImages(service.slug)),
+  const items = await Promise.all(
+    services.map(async (service) =>
+      toItem(service, await getServiceImages(service.slug)),
+    ),
   );
-  const items = services.map((service, index) =>
-    toItem(service, photoLists[index]),
-  );
+  const offersLd = buildBusinessOffersJsonLd(services);
 
   return (
     <>
+      {/* The only page that reads the live service list, so it is the one that
+          adds the offers to the sitewide LocalBusiness node the marketing
+          layout emits. */}
+      {offersLd ? <JsonLd data={offersLd} /> : null}
       <JsonLd
         data={buildBreadcrumbJsonLd([
           { name: "Home", path: "/" },
@@ -200,7 +208,7 @@ export default async function ServicesPage() {
             <Reveal
               as="h1"
               id="services-heading"
-              className="font-heading mx-auto mt-3 max-w-[18ch] text-4xl font-bold tracking-tight sm:text-5xl"
+              className={cn(headingClass.display, "mx-auto mt-3 max-w-[18ch]")}
             >
               <MarketingCopy id="services.hero.title" />
             </Reveal>
@@ -240,12 +248,12 @@ export default async function ServicesPage() {
       >
         <PageContainer width="app" className="py-12 sm:py-16">
           <RevealGroup className="flex flex-col gap-3 lg:flex-row lg:gap-12">
-            <Reveal
-              as="h2"
-              id="sliding-scale-heading"
-              className="text-brand-strong text-xs font-semibold tracking-[0.14em] uppercase lg:pt-2 lg:whitespace-nowrap"
-            >
-              Sliding scale
+            {/* The side label IS this band's heading, so the eyebrow renders as
+                the h2 that `aria-labelledby` points at. */}
+            <Reveal className="lg:pt-2 lg:whitespace-nowrap">
+              <Eyebrow as="h2" id="sliding-scale-heading">
+                Sliding scale
+              </Eyebrow>
             </Reveal>
             <Reveal className="max-w-[58ch]">
               <p className="font-heading text-foreground text-xl leading-snug font-medium sm:text-2xl">

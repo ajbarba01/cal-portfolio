@@ -2,6 +2,8 @@
 
 import * as React from "react";
 
+import { SectionHeader } from "@/components/marketing/section-header";
+
 /**
  * One service tab. Text fields are plain strings; `detail` is the server-rendered
  * panel body (photo, long-form copy, receipt) passed through so marketing copy
@@ -37,6 +39,7 @@ export function ServiceTabs({ items }: { items: ServiceTabItem[] }) {
     e.preventDefault();
     const dir = e.key === "ArrowRight" ? 1 : -1;
     const next = items[(index + dir + items.length) % items.length];
+    if (!next) return;
     tabRefs.current[next.slug]?.focus();
     select(next.slug);
   };
@@ -67,7 +70,7 @@ export function ServiceTabs({ items }: { items: ServiceTabItem[] }) {
                 onClick={() => select(item.slug)}
                 onKeyDown={(e) => onKeyDown(e, i)}
                 className={[
-                  "focus-visible:ring-ring/50 -mb-px flex shrink-0 cursor-pointer flex-col gap-0.5 rounded-t-xl border-b-2 px-4 pt-2.5 pb-3 text-left whitespace-nowrap transition-[color,background-color,border-color] duration-200 ease-out outline-none focus-visible:ring-3 focus-visible:ring-inset",
+                  "focus-visible:ring-ring/50 rounded-t-card -mb-px flex shrink-0 cursor-pointer flex-col gap-0.5 border-b-2 px-4 pt-2.5 pb-3 text-left whitespace-nowrap transition-[color,background-color,border-color] duration-200 ease-out outline-none focus-visible:ring-3 focus-visible:ring-inset",
                   selected
                     ? "border-brand bg-sidebar-active text-foreground"
                     : "text-muted-foreground bg-section-alt hover:text-foreground border-transparent hover:bg-[color-mix(in_oklab,var(--brand)_12%,var(--section-alt))]",
@@ -99,11 +102,14 @@ export function ServiceTabs({ items }: { items: ServiceTabItem[] }) {
               aria-labelledby={`tab-${item.slug}`}
               hidden={!selected}
             >
-              <div className="mb-5">
-                <h2 className="font-heading text-3xl leading-tight font-semibold tracking-tight sm:text-4xl">
-                  {item.name}
-                </h2>
-              </div>
+              {/* An h2 (the page h1 is the masthead) carrying the h1 step: the
+                  panel title is the loudest thing under the tab strip. */}
+              <SectionHeader
+                as="h2"
+                size="h1"
+                title={item.name}
+                className="mb-5"
+              />
               {item.detail}
             </section>
           );

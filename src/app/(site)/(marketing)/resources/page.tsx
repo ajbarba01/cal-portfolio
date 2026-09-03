@@ -1,7 +1,8 @@
-"use client";
-
-import * as React from "react";
-import { buildBreadcrumbJsonLd, JsonLd } from "@/features/seo";
+/**
+ * Resources — an editorial ledger of the guidance Cal hands out most. Server
+ * component: every card, tag and copy string is rendered here, and the only
+ * client island is the scenario filter (see `_components/scenario-filter`).
+ */
 import {
   TriangleAlert,
   HeartPulse,
@@ -16,30 +17,31 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
+import {
+  buildBreadcrumbJsonLd,
+  buildPageMetadata,
+  JsonLd,
+} from "@/features/seo";
 import { PageContainer } from "@/components/layout/page-container";
 import { Reveal, RevealGroup } from "@/components/effects/reveal";
+import { Eyebrow } from "@/components/marketing/eyebrow";
 import { MarketingCopy } from "@/components/marketing/marketing-copy";
 import {
-  Multiswitch,
-  type MultiswitchOption,
-} from "@/components/ui/multiswitch";
+  headingClass,
+  SectionHeader,
+} from "@/components/marketing/section-header";
 import { BackToTop } from "@/components/ui/back-to-top";
 import { copy, type CopyId } from "@/content/marketing";
 import { cn } from "@/lib/utils";
+import { ScenarioFilter } from "./_components/scenario-filter";
+import { SCENARIO_LABEL, type Scenario } from "./_components/scenarios";
 
-// Scenario buckets group the Health resources by *when* they matter, driving the
-// Multiswitch filter. Editorial classification (Cal's call to refine): Emergency
-// = act now; Seasonal = warm-weather / Colorado-specific; Everyday = always worth
-// knowing. Tag + icon are structural metadata, not copy — they live here, not in
-// marketing.ts (which owns Cal's prose only).
-type Scenario = "emergency" | "seasonal" | "everyday";
-type Filter = "all" | Scenario;
-
-const SCENARIO_LABEL: Record<Scenario, string> = {
-  emergency: "Emergency",
-  seasonal: "Seasonal",
-  everyday: "Everyday",
-};
+export const metadata = buildPageMetadata({
+  title: "Resources",
+  description:
+    "Pet-care guidance and Colorado-specific safety notes — heat, foxtails, algae blooms — from Cal Barba.",
+  path: "/resources",
+});
 
 // Tag tint per scenario — semantic tokens only (no hardcoded color): clay for
 // emergency, amber "warning" for seasonal, neutral for everyday.
@@ -128,13 +130,6 @@ const healthResources: ReadonlyArray<{
   },
 ];
 
-const FILTER_OPTIONS: ReadonlyArray<MultiswitchOption<Filter>> = [
-  { value: "all", label: "All" },
-  { value: "emergency", label: SCENARIO_LABEL.emergency },
-  { value: "seasonal", label: SCENARIO_LABEL.seasonal },
-  { value: "everyday", label: SCENARIO_LABEL.everyday },
-];
-
 // Topic-only sections — names Cal listed without links/descriptions yet. Render
 // through MarketingCopy so a future inline link "just works".
 const toolsTopics: readonly CopyId[] = [
@@ -181,21 +176,23 @@ function TopicChips({ topics }: { topics: readonly CopyId[] }) {
 
 /**
  * One editorial band with a sticky side-label (the about/services pattern). The
- * old per-section eyebrow is gone; its descriptive text moves into `note` beside
- * the heading, where it informs rather than restates. `bandAlt` flips the band
- * to the section-alt surface so adjacent bands alternate color.
+ * old per-section eyebrow is gone; its descriptive text moves into the note
+ * beside the heading, where it informs rather than restates. The note is a copy
+ * slot rather than a literal, so it carries a registry ID and can be reviewed and
+ * revised by ID like the rest of the site's prose. `bandAlt` flips the band to
+ * the section-alt surface so adjacent bands alternate color.
  */
 function LedgerSection({
   id,
   title,
-  note,
+  noteId,
   bandAlt = false,
   width = "app",
   children,
 }: {
   id: string;
   title: string;
-  note?: React.ReactNode;
+  noteId?: CopyId;
   bandAlt?: boolean;
   /** Container width — Health needs the full `app` measure; the lighter topic
    *  sections read better in the narrower `read` column. */
@@ -213,15 +210,12 @@ function LedgerSection({
       <PageContainer width={width} className="py-12 sm:py-16">
         <RevealGroup className="flex flex-col gap-4 lg:flex-row lg:gap-12">
           <Reveal className="lg:sticky lg:top-[calc(var(--site-header-h)+2rem)] lg:w-56 lg:shrink-0 lg:self-start">
-            <h2
-              id={`${id}-heading`}
-              className="font-heading text-2xl font-semibold tracking-tight sm:text-3xl"
-            >
-              {title}
-            </h2>
-            {note ? (
+            <SectionHeader as="h2" id={`${id}-heading`} title={title} />
+            {/* The note is a side-column caption, so it stays at `text-sm`
+                rather than using SectionHeader's full-measure description. */}
+            {noteId ? (
               <p className="text-muted-foreground mt-3 text-sm leading-relaxed">
-                {note}
+                <MarketingCopy id={noteId} />
               </p>
             ) : null}
           </Reveal>
@@ -233,8 +227,6 @@ function LedgerSection({
 }
 
 export default function ResourcesPage() {
-  const [filter, setFilter] = React.useState<Filter>("all");
-
   return (
     <>
       <JsonLd
@@ -257,7 +249,7 @@ export default function ResourcesPage() {
             <Reveal
               as="h1"
               id="resources-heading"
-              className="font-heading mx-auto max-w-[16ch] text-4xl font-bold tracking-tight sm:text-5xl"
+              className={cn(headingClass.display, "mx-auto max-w-[16ch]")}
             >
               Resources
             </Reveal>
@@ -276,14 +268,14 @@ export default function ResourcesPage() {
       <LedgerSection
         id="health"
         title="Health & Safety"
-        note="First aid and prevention — the topics I discuss most. Each links to a trusted external guide."
+        noteId="resources.health.note"
       >
         {/* Emergency pin — time-critical numbers surfaced above the fold, tap-to-call. */}
-        <Reveal className="bg-sidebar-active mb-6 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-2xl px-4 py-3.5">
-          <span className="text-brand-strong inline-flex items-center gap-1.5 text-xs font-semibold tracking-[0.12em] uppercase">
+        <Reveal className="bg-sidebar-active rounded-card mb-6 flex flex-wrap items-center gap-x-5 gap-y-2 px-4 py-3.5">
+          <Eyebrow as="span" className="inline-flex items-center gap-1.5">
             <TriangleAlert className="size-3.5" aria-hidden="true" />
             In an emergency
-          </span>
+          </Eyebrow>
           {/* Two distinct hotlines — each number attributed to its own org
               (they are separate services; the 855 number is NOT ASPCA). */}
           <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1">
@@ -313,30 +305,13 @@ export default function ResourcesPage() {
           </div>
         </Reveal>
 
-        {/* Scenario filter — the shared Multiswitch, mutually-exclusive. */}
-        <Reveal className="mb-6">
-          <Multiswitch
-            ariaLabel="Filter health resources by scenario"
-            options={FILTER_OPTIONS}
-            value={filter}
-            onValueChange={setFilter}
-            className="flex-wrap"
-          />
-        </Reveal>
-
-        <ul className="flex flex-col" role="list">
-          {healthResources.map(
-            ({ nameId, descId, href, detail, Icon, scenario }) => {
-              const show = filter === "all" || scenario === filter;
-              return (
-                <Reveal
-                  as="li"
-                  key={nameId}
-                  className={cn(
-                    "border-border group relative -mx-3 flex gap-4 rounded-xl border-b px-3 py-4 transition-colors duration-200 last:border-0 hover:bg-[color-mix(in_oklab,var(--brand)_5%,transparent)]",
-                    !show && "hidden",
-                  )}
-                >
+        <ScenarioFilter
+          rows={healthResources.map(
+            ({ nameId, descId, href, detail, Icon, scenario }) => ({
+              id: nameId,
+              scenario,
+              content: (
+                <>
                   <span
                     className="bg-sidebar-active text-brand-strong mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full transition-shadow duration-300 ease-out group-hover:shadow-[0_0_0_5px_color-mix(in_oklab,var(--brand)_9%,transparent)]"
                     aria-hidden="true"
@@ -368,18 +343,18 @@ export default function ResourcesPage() {
                       <MarketingCopy id={descId} />
                     </p>
                   </div>
-                </Reveal>
-              );
-            },
+                </>
+              ),
+            }),
           )}
-        </ul>
+        />
       </LedgerSection>
 
       {/* Tools & Training — alt band (distinct color from Enrichment). */}
       <LedgerSection
         id="tools"
         title="Tools & Training"
-        note="Gear and methods I get asked about most."
+        noteId="resources.tools.note"
         bandAlt
         width="read"
       >
@@ -390,7 +365,7 @@ export default function ResourcesPage() {
       <LedgerSection
         id="enrichment"
         title="Enrichment & Well-Being"
-        note="Beyond the walk — keeping dogs happy and stimulated."
+        noteId="resources.enrichment.note"
         width="read"
       >
         <TopicChips topics={enrichmentTopics} />

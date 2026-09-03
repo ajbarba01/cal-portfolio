@@ -10,12 +10,16 @@ export function GalleryGrid({ images }: { images: LightboxImage[] }) {
 
   return (
     <>
+      {/* Deliberately one observer per photo rather than a RevealGroup around
+          the list: a group observes its own element, and this wall runs many
+          viewports tall, so its intersection ratio can never reach the reveal
+          threshold. Photo-by-photo is also the right cadence here — a wall this
+          long should meet you as you scroll, not resolve all at once. */}
       <ul
         className="columns-1 gap-4 sm:columns-2 lg:columns-3 [&>li]:mb-4"
         role="list"
       >
         {images.map((img, i) => (
-          // Each photo fades in as it scrolls into view (standalone Reveal).
           <Reveal as="li" key={img.src} className="break-inside-avoid">
             <button
               type="button"
@@ -26,8 +30,9 @@ export function GalleryGrid({ images }: { images: LightboxImage[] }) {
               // Refined hover: a shadow-only "lift" (no movement, so the photo
               // never shifts out from under the cursor) + the site's clay
               // card-ring outline just outside the square edge. Focus keeps the
-              // standard ring for keyboard users.
-              className="group focus-visible:ring-ring/50 hover:ring-brand/60 relative block w-full overflow-hidden shadow-sm transition-shadow duration-300 outline-none hover:shadow-[0_16px_32px_-16px_rgba(28,24,19,0.4)] hover:ring-1 focus-visible:ring-3"
+              // standard ring for keyboard users. Both depths come from the
+              // elevation tokens (resting `elev-1`, lift `elev-2`).
+              className="group focus-visible:ring-ring/50 hover:ring-brand/60 shadow-elev-1 hover:shadow-elev-2 relative block w-full overflow-hidden transition-shadow duration-300 outline-none hover:ring-1 focus-visible:ring-3"
             >
               <Image
                 src={img.src}
@@ -48,7 +53,7 @@ export function GalleryGrid({ images }: { images: LightboxImage[] }) {
               {/* Expand affordance — signals the photo opens in a lightbox. */}
               <span
                 aria-hidden="true"
-                className="bg-background/90 pointer-events-none absolute top-2.5 right-2.5 flex size-7 items-center justify-center rounded-full opacity-0 shadow-sm transition-opacity duration-200 group-hover:opacity-100"
+                className="bg-background/90 shadow-elev-1 pointer-events-none absolute top-2.5 right-2.5 flex size-7 items-center justify-center rounded-full opacity-0 transition-opacity duration-200 group-hover:opacity-100"
               >
                 <svg
                   viewBox="0 0 14 14"

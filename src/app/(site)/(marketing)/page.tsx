@@ -83,10 +83,6 @@ const trustPoints = [
   },
 ] as const;
 
-// Static with daily ISR so the derived age ribbon (yearsSince) refreshes without
-// a redeploy; the page reads no per-request data, so it stays cached static HTML.
-export const revalidate = 86400;
-
 export const metadata = buildPageMetadata({
   title: "Cal Barba — Dog Walking & House Sitting on the Front Range",
   description:
@@ -100,7 +96,7 @@ export default function HomePage() {
     <>
       <MarketingHero
         src="/bg/IMG_7869.JPG"
-        blurDataURL={(placeholders as Record<string, string>)["IMG_7869.JPG"]}
+        blurDataURL={placeholders["IMG_7869.JPG"]}
         eyebrow="Dog walking · house sitting · Colorado"
         title={<MarketingCopy id="home.hero.hook" />}
         body={<MarketingCopy id="home.hero.body" />}

@@ -1,10 +1,12 @@
 import { readdir } from "node:fs/promises";
 import path from "node:path";
 import placeholders from "@/content/image-placeholders.json";
+import { listGalleryFiles } from "./gallery-images";
 
-const blurMap = placeholders as Record<string, string>;
+/** Filenames are content-hashed by gallery-sync, so a lookup can miss between a
+ *  re-hash and the next sync — `undefined` is a real outcome, not a cast away. */
+const blurMap: Record<string, string | undefined> = placeholders;
 
-const IMAGE_EXT = /\.(jpe?g|png|webp|avif)$/i;
 const SERVICES_DIR = path.join(process.cwd(), "public", "services");
 
 export type ServiceImage = {
@@ -26,11 +28,8 @@ export async function getServiceImages(slug: string): Promise<ServiceImage[]> {
   } catch {
     return [];
   }
-  return entries
-    .filter((f) => IMAGE_EXT.test(f))
-    .sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()))
-    .map((file) => ({
-      src: `/services/${slug}/${file}`,
-      blurDataURL: blurMap[file],
-    }));
+  return listGalleryFiles(entries).map((file) => ({
+    src: `/services/${slug}/${file}`,
+    blurDataURL: blurMap[file],
+  }));
 }

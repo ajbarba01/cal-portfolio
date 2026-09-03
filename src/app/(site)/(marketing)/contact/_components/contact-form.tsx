@@ -49,6 +49,24 @@ export function ContactForm({
   // can render statically (no server cookie read). Guests get an empty form
   // immediately; a signed-in client's details fill in just after hydration.
   useEffect(() => {
+    // /about sends a visitor here as ?ref=<name> when they want to be put in
+    // touch with a reference whose details aren't published, so the subject
+    // arrives carrying that reference's name and Cal knows who the message is
+    // about. The name is the whole subject: no wording wraps it, because any
+    // wrapper would be site copy nobody has approved. Read off location, not
+    // useSearchParams — the latter would opt this route out of static
+    // rendering. The value is a URL parameter, so cap it at the same limit the
+    // field and the server schema enforce.
+    const referenceName = new URLSearchParams(window.location.search).get(
+      "ref",
+    );
+    if (referenceName) {
+      form.reset({
+        ...form.getValues(),
+        subject: referenceName.slice(0, FIELD_LIMITS.shortText),
+      });
+    }
+
     const supabase = createClient();
     let active = true;
     // getSession() is the local cookie read (no network on HS256).
@@ -102,7 +120,7 @@ export function ContactForm({
             </h2>
             <p className="text-muted-foreground text-sm">
               Thanks — Cal will get back to you within a day. In the meantime
-              you can <TextLink href="/book">check availability</TextLink>.
+              you can <TextLink href="/services">check availability</TextLink>.
             </p>
           </div>
         </div>

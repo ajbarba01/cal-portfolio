@@ -4,12 +4,18 @@ import * as React from "react";
 
 import { z } from "zod";
 
-import { SectionHeader } from "@/components/marketing/section-header";
+import {
+  headingClass,
+  SectionHeader,
+} from "@/components/marketing/section-header";
 import {
   ServicePhotoStrip,
   type ServicePhoto,
 } from "@/components/marketing/service-photo-strip";
 import { StatDisplay } from "@/components/marketing/stat-display";
+// Type-only: the gallery barrel reads the filesystem, so nothing runtime is
+// pulled into this client bundle.
+import type { ServiceImage } from "@/features/gallery";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -36,7 +42,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { InfoTooltip } from "@/components/ui/tooltip";
 import { UnitInput } from "@/components/ui/unit-input";
 import { FIELD_LIMITS } from "@/lib/field-limits";
-import placeholders from "@/content/image-placeholders.json";
 import {
   Form,
   FormRootError,
@@ -44,19 +49,6 @@ import {
   useAppForm,
 } from "@/components/form";
 import type { FormActionResult } from "@/lib/form-action-result";
-
-const blurMap = placeholders as Record<string, string>;
-
-// Real walk-service outputs (gallery-sync), to preview the triptych in situ.
-const SERVICE_PHOTOS: ServicePhoto[] = [
-  "IMG_0591.8c0affcf.jpg",
-  "IMG_5560.e0d4bd05.jpg",
-  "IMG_7762.3352f49b.jpg",
-].map((file) => ({
-  src: `/services/walk/${file}`,
-  alt: "A dog on a walk with Cal",
-  blurDataURL: blurMap[file],
-}));
 
 /** A labelled block in the catalog. */
 function Section({
@@ -71,9 +63,10 @@ function Section({
   return (
     <section className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
-        <h2 className="font-heading text-2xl leading-tight font-semibold">
-          {title}
-        </h2>
+        {/* The heading runs on the exported scale; the note stays a step below
+            SectionHeader's description so a ~30-section catalog keeps two
+            levels of text between the page intro and each specimen. */}
+        <h2 className={headingClass.h2}>{title}</h2>
         {note ? (
           <p className="text-muted-foreground max-w-[70ch] text-sm leading-relaxed">
             {note}
@@ -108,6 +101,12 @@ const FILTER_OPTIONS = [
   { value: "all", label: "All" },
   { value: "active", label: "Active" },
   { value: "archived", label: "Archived" },
+] as const;
+
+const SELECT_OPTIONS = [
+  { value: "30", label: "30 minutes" },
+  { value: "45", label: "45 minutes" },
+  { value: "60", label: "60 minutes" },
 ] as const;
 
 type FilterValue = (typeof FILTER_OPTIONS)[number]["value"];
@@ -157,8 +156,26 @@ function FormShowcase() {
   );
 }
 
-export function ShowcaseClient() {
-  const [select, setSelect] = React.useState("two");
+export function ShowcaseClient({
+  walkPhotos,
+}: {
+  /** Real walk-service outputs (gallery-sync), read on the server so the
+   *  triptych previews in situ without hard-coding content-hashed filenames. */
+  walkPhotos: readonly ServiceImage[];
+}) {
+  const servicePhotos: ServicePhoto[] = walkPhotos.map((photo) => ({
+    ...photo,
+    alt: "A dog on a walk with Cal",
+  }));
+  // Two independent Selects: one in the control-track alignment row, one as the
+  // registry specimen. `labelFor` is the idiom every call site owes SelectValue.
+  const labelFor = (value: string) =>
+    SELECT_OPTIONS.find((o) => o.value === value)?.label;
+  const [select, setSelect] = React.useState<string>(SELECT_OPTIONS[1].value);
+  const [duration, setDuration] = React.useState<string>(
+    SELECT_OPTIONS[0].value,
+  );
+  const durationLabel = labelFor(duration);
   const [filter, setFilter] = React.useState<FilterValue>("all");
   const [count, setCount] = React.useState(2);
   const [toggle, setToggle] = React.useState(true);
@@ -168,26 +185,20 @@ export function ShowcaseClient() {
 
   return (
     <main className="mx-auto flex max-w-5xl flex-col gap-14 px-6 py-12">
-      <header className="flex flex-col gap-2">
-        <p className="text-brand-strong text-xs font-semibold tracking-[0.14em] uppercase">
-          Component System
-        </p>
-        <h1 className="font-heading text-4xl font-semibold tracking-tight">
-          Showcase
-        </h1>
-        <p className="text-muted-foreground max-w-[70ch] leading-relaxed">
-          Dev-only catalog of the shared primitives, rendered with the real
-          components and live tokens. Use it to verify the groupings line up and
-          to make visual decisions (e.g. the input fill below).
-        </p>
-      </header>
+      <SectionHeader
+        as="h1"
+        size="display"
+        eyebrow="Component System"
+        title="Showcase"
+        description="Dev-only catalog of the shared primitives, rendered with the real components and live tokens. Use it to verify the groupings line up and to make visual decisions (e.g. the input fill below)."
+      />
 
       {/* ── Service photo strip ───────────────────────────────────────── */}
       <Section
         title="Service photo strip"
         note="Triptych for a service panel. Equal-thirds grid at sm+; on a narrow viewport it becomes a peek-the-next scroll-snap row (resize the window below 640px to see it). Each photo zooms slightly on hover; sources are gallery-sync outputs with blur placeholders."
       >
-        <ServicePhotoStrip photos={SERVICE_PHOTOS} />
+        <ServicePhotoStrip photos={servicePhotos} />
       </Section>
 
       {/* ── Control track ─────────────────────────────────────────────── */}
@@ -203,13 +214,15 @@ export function ShowcaseClient() {
           <div className="flex flex-col gap-1.5">
             <Tag>Select</Tag>
             <Select value={select} onValueChange={(v) => v && setSelect(v)}>
-              <SelectTrigger className="w-36">
-                <SelectValue />
+              <SelectTrigger aria-label="Control track sample" className="w-36">
+                <SelectValue>{labelFor(select)}</SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="one">One</SelectItem>
-                <SelectItem value="two">Two</SelectItem>
-                <SelectItem value="three">Three</SelectItem>
+                {SELECT_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -420,6 +433,26 @@ export function ShowcaseClient() {
                 { value: "cat", label: "🐈 Cat" },
               ]}
             />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Tag>
+              Select — single-select once a RadioGroup would stop scanning well.
+              Always give SelectValue the option&apos;s label as children; a
+              bare &lt;SelectValue /&gt; prints the raw stored value.
+            </Tag>
+            <Select value={duration} onValueChange={(v) => v && setDuration(v)}>
+              <SelectTrigger aria-label="Visit length" className="w-56">
+                <SelectValue>{durationLabel}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {SELECT_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="flex flex-col gap-2">

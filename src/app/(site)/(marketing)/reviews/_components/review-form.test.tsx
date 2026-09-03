@@ -35,6 +35,21 @@ describe("ReviewForm", () => {
     expect(body).toHaveValue("Great walk today");
   });
 
+  it("carries focus with the star rating arrow keys", async () => {
+    const user = userEvent.setup();
+    render(<ReviewForm />);
+    await screen.findByLabelText(/your review/i);
+
+    screen.getByRole("radio", { name: "5 stars" }).focus();
+    await user.keyboard("{ArrowLeft}");
+
+    // Selection moves AND focus follows it — otherwise focus is stranded on a
+    // button that arrow keys have just made untabbable.
+    const four = screen.getByRole("radio", { name: "4 stars" });
+    expect(four).toHaveAttribute("aria-checked", "true");
+    expect(four).toHaveFocus();
+  });
+
   it("blocks an empty submit client-side", async () => {
     const user = userEvent.setup();
     render(<ReviewForm />);

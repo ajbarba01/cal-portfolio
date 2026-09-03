@@ -8,7 +8,9 @@ import { getGalleryImages } from "@/features/gallery";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { GalleryGrid } from "./_components/gallery-grid";
 import { MarketingCopy } from "@/components/marketing/marketing-copy";
+import { headingClass } from "@/components/marketing/section-header";
 import { BackToTop } from "@/components/ui/back-to-top";
+import { cn } from "@/lib/utils";
 import {
   buildPageMetadata,
   buildBreadcrumbJsonLd,
@@ -35,10 +37,7 @@ export default async function GalleryPage() {
       />
       <PageContainer width="app" className="py-12 sm:py-16">
         <RevealGroup className="mb-8">
-          <Reveal
-            as="h1"
-            className="font-heading mt-2 text-4xl font-bold tracking-tight"
-          >
+          <Reveal as="h1" className={cn(headingClass.display, "mt-2")}>
             Gallery
           </Reveal>
           <Reveal

@@ -6,8 +6,9 @@
 import Image from "next/image";
 import { MarketingHero } from "@/components/marketing/marketing-hero";
 import { MarketingCopy } from "@/components/marketing/marketing-copy";
-import type { CopyId } from "@/content/marketing";
 import placeholders from "@/content/image-placeholders.json";
+import { references } from "@/content/references";
+import { ReferenceList } from "@/features/references";
 import { PageContainer } from "@/components/layout/page-container";
 import { Reveal, RevealGroup } from "@/components/effects/reveal";
 import {
@@ -31,24 +32,19 @@ const bioParagraphs = [
   "about.bio.p4",
 ] as const;
 
-// Named client references, published per client as consent is granted. Contact
-// info is never shown (privacy) — it's available on request via the intro line.
-// Flip a client to `consented: true` only once they've approved publishing.
-const references = [
-  { id: "about.references.1", consented: false },
-  { id: "about.references.2", consented: false },
-  { id: "about.references.3", consented: false },
-  { id: "about.references.4", consented: false },
-  { id: "about.references.5", consented: true },
-  { id: "about.references.6", consented: false },
-  { id: "about.references.7", consented: true },
-  { id: "about.references.8", consented: false },
-] as const satisfies readonly { id: CopyId; consented: boolean }[];
+const blurMap: Record<string, string | undefined> = placeholders;
+
+/** Blur data for the reference photos alone — the whole map is tens of KB of
+ *  base64 and has no business crossing into the browser bundle. */
+const referenceBlurs = Object.fromEntries(
+  references.flatMap((reference) =>
+    reference.photo
+      ? [[reference.photo, blurMap[reference.photo]] as const]
+      : [],
+  ),
+);
 
 export default function AboutPage() {
-  const consentedRefs = references.filter((ref) => ref.consented);
-  const pendingRefs = references.length - consentedRefs.length;
-
   return (
     <>
       <JsonLd
@@ -60,7 +56,7 @@ export default function AboutPage() {
       <JsonLd data={buildPersonJsonLd()} />
       <MarketingHero
         src="/bg/IMG_0048.JPG"
-        blurDataURL={(placeholders as Record<string, string>)["IMG_0048.JPG"]}
+        blurDataURL={placeholders["IMG_0048.JPG"]}
         title="Meet Cal"
         body={<MarketingCopy id="about.summary" />}
         aspect="aspect-[2/1] lg:aspect-[5/2]"
@@ -141,7 +137,7 @@ export default function AboutPage() {
                   same as hero / gallery imagery. */}
               <div
                 data-ring-exclude
-                className="group relative aspect-3/4 overflow-hidden shadow-xl"
+                className="group shadow-elev-2 relative aspect-3/4 overflow-hidden"
               >
                 <Image
                   src="/bg/IMG_5455.JPG"
@@ -149,9 +145,7 @@ export default function AboutPage() {
                   fill
                   sizes="(max-width: 1024px) 20rem, 280px"
                   placeholder="blur"
-                  blurDataURL={
-                    (placeholders as Record<string, string>)["IMG_5455.JPG"]
-                  }
+                  blurDataURL={placeholders["IMG_5455.JPG"]}
                   className="object-cover transition-transform duration-500 ease-out group-hover:scale-[1.04]"
                 />
               </div>
@@ -193,11 +187,11 @@ export default function AboutPage() {
         </PageContainer>
       </section>
 
-      {/* References — section-alt band. Named clients (about.references.1–8) are
-          published per client as consent is granted (the `references` map above);
-          contact info is never shown — it's available on request via the intro.
-          Clients without consent surface only as a muted "more coming" cue. */}
+      {/* References — section-alt band. Names, consent and contact details all
+          come from src/content/references.ts. Emptying that registry leaves the
+          band standing with its "coming soon" intro and no chips. */}
       <section
+        id="references"
         aria-labelledby="references-heading"
         className="bg-section-alt panel-ombre"
       >
@@ -216,31 +210,13 @@ export default function AboutPage() {
             >
               <MarketingCopy
                 id={
-                  consentedRefs.length > 0
+                  references.length > 0
                     ? "about.references"
                     : "about.references.pending"
                 }
               />
             </Reveal>
-            <ul role="list" className="mt-6 flex flex-wrap gap-2.5">
-              {consentedRefs.map((ref) => (
-                <Reveal
-                  as="li"
-                  key={ref.id}
-                  className="bg-sidebar-active text-brand-strong rounded-full px-4 py-2 text-sm font-medium"
-                >
-                  <MarketingCopy id={ref.id} />
-                </Reveal>
-              ))}
-              {pendingRefs > 0 && (
-                <Reveal
-                  as="li"
-                  className="border-border text-muted-foreground rounded-full border border-dashed px-4 py-2 text-sm font-medium"
-                >
-                  More coming soon
-                </Reveal>
-              )}
-            </ul>
+            <ReferenceList blurDataURLs={referenceBlurs} />
           </RevealGroup>
         </PageContainer>
       </section>

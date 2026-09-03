@@ -1,9 +1,11 @@
-import { readdir, readFile } from "node:fs/promises";
+import { readdir } from "node:fs/promises";
 import path from "node:path";
-import { imageSize } from "image-size";
+import { imageSizeFromFile } from "image-size/fromFile";
 import placeholders from "@/content/image-placeholders.json";
 
-const blurMap = placeholders as Record<string, string>;
+/** Filenames are content-hashed by gallery-sync, so a lookup can miss between a
+ *  re-hash and the next sync — `undefined` is a real outcome, not a cast away. */
+const blurMap: Record<string, string | undefined> = placeholders;
 
 export type GalleryImage = {
   src: string;
@@ -28,6 +30,9 @@ export function listGalleryFiles(filenames: string[]): string[] {
  * IO: read public/gallery, measure each image's intrinsic dimensions so the
  * masonry has no layout shift. Server-only (used by the Gallery RSC).
  * Generic non-claim alt until Cal supplies captions.
+ *
+ * `imageSizeFromFile` reads only the header bytes it needs; loading each photo
+ * whole to measure it pulled the entire folder (tens of MB) through the build.
  */
 export async function getGalleryImages(): Promise<GalleryImage[]> {
   let entries: string[];
@@ -41,8 +46,9 @@ export async function getGalleryImages(): Promise<GalleryImage[]> {
   const images: GalleryImage[] = [];
   for (const file of files) {
     try {
-      const buf = await readFile(path.join(GALLERY_DIR, file));
-      const { width, height } = imageSize(buf);
+      const { width, height } = await imageSizeFromFile(
+        path.join(GALLERY_DIR, file),
+      );
       if (!width || !height) continue;
       images.push({
         src: `/gallery/${file}`,

@@ -18,11 +18,11 @@ import {
 import { Pagination } from "@/components/ui/pagination";
 import { ResultCount } from "@/components/ui/result-count";
 import { ShimmerCard } from "@/components/ui/shimmer-card";
+import { StarRating } from "@/components/ui/star-rating";
 import { TextLink } from "@/components/ui/text-link";
 import { paginate } from "@/lib/pagination";
 import type { PublishedReview } from "@/features/reviews";
 import { ROVER_PROFILE_URL } from "@/content/rover-reviews";
-import { StarRating } from "./review-form";
 
 const PAGE_SIZE = 6;
 

@@ -3,7 +3,6 @@
  * Server component.
  */
 import { PageContainer } from "@/components/layout/page-container";
-import { PageHeader } from "@/components/layout/page-header";
 import { Reveal, RevealGroup } from "@/components/effects/reveal";
 import { EmptyState } from "@/components/feedback/empty-state";
 import { createStaticClient } from "@/lib/supabase/static";
@@ -11,6 +10,7 @@ import { listPublishedReviews } from "@/features/reviews";
 import { ReviewForm } from "./_components/review-form";
 import { ReviewsList } from "./_components/reviews-list";
 import { MarketingCopy } from "@/components/marketing/marketing-copy";
+import { SectionHeader } from "@/components/marketing/section-header";
 import {
   buildPageMetadata,
   buildBreadcrumbJsonLd,
@@ -46,9 +46,14 @@ export default async function ReviewsPage() {
       {reviewsLd ? <JsonLd data={reviewsLd} /> : null}
       <PageContainer width="read" className="py-12 sm:py-16">
         <Reveal>
-          <PageHeader
+          {/* The masthead runs on the marketing display step, like /services,
+              /gallery and /resources — PageHeader is the account/admin scale. */}
+          <SectionHeader
+            as="h1"
+            size="display"
             title="Reviews"
-            subtitle={<MarketingCopy id="reviews.purpose" />}
+            description={<MarketingCopy id="reviews.purpose" />}
+            className="mb-8"
           />
         </Reveal>
 
@@ -69,12 +74,14 @@ export default async function ReviewsPage() {
         </section>
 
         <RevealGroup as="section" aria-labelledby="submit-review-heading">
-          <Reveal
-            as="h2"
-            id="submit-review-heading"
-            className="font-heading mb-4 text-xl font-semibold"
-          >
-            Leave a review
+          <Reveal>
+            <SectionHeader
+              as="h2"
+              size="h3"
+              id="submit-review-heading"
+              title="Leave a review"
+              className="mb-4"
+            />
           </Reveal>
           <Reveal>
             <ReviewForm />
