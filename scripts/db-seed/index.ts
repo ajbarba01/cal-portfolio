@@ -5,8 +5,9 @@ import { printSummary } from "./summary";
 import { wipe } from "./wipe";
 
 async function main(): Promise<void> {
-  const name = process.argv[2];
-  if (!name || !(name in SCENARIOS)) {
+  const name = process.argv[2] ?? "";
+  const steps = SCENARIOS[name];
+  if (!steps) {
     console.error(
       `Usage: npm run db:seed -- <scenario>\nScenarios: ${Object.keys(SCENARIOS).join(", ")}`,
     );
@@ -26,7 +27,7 @@ async function main(): Promise<void> {
     services: new Map(),
   };
   await loadServices(ctx);
-  for (const step of SCENARIOS[name]) {
+  for (const step of steps) {
     console.log(`  step: ${step.name}`);
     await step.run(ctx);
   }

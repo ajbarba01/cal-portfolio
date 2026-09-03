@@ -1,31 +1,54 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { parsePricingConfig } from "../../src/features/pricing";
+import type { ServicePricingConfig } from "../../src/features/pricing";
+import type { Enums } from "../../src/lib/supabase/database.types";
+import type { DbClient } from "../../src/lib/supabase/db-client";
 import { ADMIN_EMAIL, SEED_PASSWORD } from "./constants";
+import { SEED_DISTANCE_MILES, asJson, seedQuote } from "./quotes";
+import type { SeedQuantities } from "./quotes";
 
 export interface Ctx {
-  db: SupabaseClient;
+  db: DbClient;
   now: Date;
   adminId: string;
   users: Map<string, string>; // email → user id
   pets: Map<string, string>; // pet key → pet id
-  bookings: Map<string, { id: string; clientId: string }>; // booking key → ids
+  // booking key → ids + the quoted total, which payments and debits bill off
+  bookings: Map<string, { id: string; clientId: string; finalCents: number }>;
   series: Map<string, string>; // series key → series id
-  services: Map<string, { id: string; concurrency: "exclusive" | "resident" }>;
+  services: Map<
+    string,
+    {
+      id: string;
+      concurrency: Enums<"concurrency_class">;
+      config: ServicePricingConfig;
+    }
+  >;
 }
 
 export async function loadServices(ctx: Ctx): Promise<void> {
   const { data, error } = await ctx.db
     .from("services")
-    .select("id, slug, concurrency");
+    .select("id, slug, concurrency, pricing_config");
   if (error || !data) throw new Error(`load services: ${error?.message}`);
   for (const s of data) {
-    ctx.services.set(s.slug, { id: s.id, concurrency: s.concurrency });
+    // Throws on a config the app itself would reject — a seed that priced
+    // bookings off a shape the quote engine cannot read is worse than no seed.
+    ctx.services.set(s.slug, {
+      id: s.id,
+      concurrency: s.concurrency,
+      config: parsePricingConfig(s.pricing_config),
+    });
   }
 }
 
-async function createAuthUser(
-  db: SupabaseClient,
-  email: string,
-): Promise<string> {
+/** The quoted total of an already-seeded booking. */
+export function bookingFinalCents(ctx: Ctx, key: string): number {
+  const booking = ctx.bookings.get(key);
+  if (!booking) throw new Error(`bookingFinalCents: unknown booking ${key}`);
+  return booking.finalCents;
+}
+
+async function createAuthUser(db: DbClient, email: string): Promise<string> {
   const { data, error } = await db.auth.admin.createUser({
     email,
     password: SEED_PASSWORD,
@@ -38,7 +61,7 @@ async function createAuthUser(
 }
 
 /** Finds (or creates) the admin and (re)asserts its promoted profile. */
-export async function ensureAdmin(db: SupabaseClient): Promise<string> {
+export async function ensureAdmin(db: DbClient): Promise<string> {
   const { data, error } = await db.auth.admin.listUsers({
     page: 1,
     perPage: 1000,
@@ -65,7 +88,7 @@ export async function createClientUser(
   opts: {
     email: string;
     fullName: string;
-    onboarding: "info_pending" | "meet_greet_pending" | "approved" | "declined";
+    onboarding: Enums<"onboarding_status">;
     kiche?: boolean;
   },
 ): Promise<string> {
@@ -98,7 +121,7 @@ export async function createUnclaimedClientUser(
   opts: {
     email: string;
     fullName: string;
-    onboarding: "info_pending" | "meet_greet_pending" | "approved" | "declined";
+    onboarding: Enums<"onboarding_status">;
     invited?: boolean;
   },
 ): Promise<string> {
@@ -127,7 +150,7 @@ export async function addPet(
   ctx: Ctx,
   ownerEmail: string,
   key: string,
-  opts: { name: string; species: "dog" | "cat"; breed?: string },
+  opts: { name: string; species: Enums<"pet_species">; breed?: string },
 ): Promise<string> {
   const ownerId = ctx.users.get(ownerEmail);
   if (!ownerId) throw new Error(`addPet ${key}: unknown owner ${ownerEmail}`);
@@ -154,15 +177,10 @@ export async function insertBooking(
     service: string;
     startsAt: Date;
     endsAt: Date;
-    status:
-      | "pending_approval"
-      | "confirmed"
-      | "completed"
-      | "declined"
-      | "cancelled"
-      | "no_show";
-    paymentStatus?: "unpaid" | "paid" | "partially_refunded" | "refunded";
-    finalCents: number;
+    status: Enums<"booking_status">;
+    paymentStatus?: Enums<"payment_status">;
+    /** Priced quantities — the total is quoted from these, never hand-written. */
+    quantities: SeedQuantities;
     seriesKey?: string;
     petKeys?: string[];
   },
@@ -175,6 +193,7 @@ export async function insertBooking(
   if (opts.seriesKey && !seriesId) {
     throw new Error(`booking ${key}: unknown series ${opts.seriesKey}`);
   }
+  const { input, breakdown } = seedQuote(svc.config, opts.quantities);
   const { data, error } = await ctx.db
     .from("bookings")
     .insert({
@@ -186,17 +205,24 @@ export async function insertBooking(
       status: opts.status,
       payment_status: opts.paymentStatus ?? "unpaid",
       concurrency: svc.concurrency,
-      distance_miles: 3,
-      quote_inputs: {},
-      quote_breakdown: {},
+      distance_miles: SEED_DISTANCE_MILES,
+      quote_inputs: asJson(input),
+      quote_breakdown: asJson(breakdown),
       discount_cents: 0,
-      final_cents: opts.finalCents,
+      final_cents: breakdown.finalCents,
+      // Stated rather than left to the column default: the admin discount panel
+      // hides the Kiche toggle unless the client marked the booking welcome.
+      kiche_welcome: true,
       requires_approval: opts.status === "pending_approval",
     })
     .select("id")
     .single();
   if (error || !data) throw new Error(`booking ${key}: ${error?.message}`);
-  ctx.bookings.set(key, { id: data.id, clientId });
+  ctx.bookings.set(key, {
+    id: data.id,
+    clientId,
+    finalCents: breakdown.finalCents,
+  });
   for (const petKey of opts.petKeys ?? []) {
     const petId = ctx.pets.get(petKey);
     if (!petId) throw new Error(`booking ${key}: unknown pet ${petKey}`);
@@ -221,6 +247,8 @@ export async function insertSeries(
     openEnded?: boolean;
     count?: number;
     skippedStarts?: Date[];
+    /** Quantities the roll cron freezes onto each occurrence it creates. */
+    quantities: SeedQuantities;
   },
 ): Promise<string> {
   const clientId = ctx.users.get(opts.clientEmail);
@@ -239,7 +267,7 @@ export async function insertSeries(
       open_ended: opts.openEnded ?? false,
       template_starts_at: opts.templateStartsAt.toISOString(),
       duration_min: opts.durationMin,
-      quote_inputs: {},
+      quote_inputs: asJson(seedQuote(svc.config, opts.quantities).input),
       active: true,
       skipped_starts: (opts.skippedStarts ?? []).map((d) => d.toISOString()),
     })
@@ -255,8 +283,9 @@ export async function insertPayment(
   opts: {
     bookingKey: string;
     intentId: string;
-    amountCents: number;
-    status: "requires_payment" | "succeeded" | "refunded" | "failed";
+    /** Defaults to the booking's quoted total — a seeded payment charges the quote. */
+    amountCents?: number;
+    status: Enums<"payment_txn_status">;
     refundedCents?: number;
     disputedAt?: Date;
     disputeStatus?: string;
@@ -268,7 +297,7 @@ export async function insertPayment(
     booking_id: booking.id,
     client_id: booking.clientId,
     stripe_payment_intent_id: opts.intentId,
-    amount_cents: opts.amountCents,
+    amount_cents: opts.amountCents ?? booking.finalCents,
     currency: "usd",
     status: opts.status,
     refunded_cents: opts.refundedCents ?? 0,
@@ -307,25 +336,6 @@ export async function insertForm(
     throw new Error(
       `insertForm ${opts.clientEmail}/${opts.formKey}: ${error.message}`,
     );
-}
-
-/**
- * Set (or clear) the required form key on a service.
- * Used by the admin-demo scenario to show the forms-gate in action:
- * services with form_key != null require clients to have submitted that form
- * before booking. Pass null to clear.
- */
-export async function setServiceFormKey(
-  ctx: Ctx,
-  serviceSlug: string,
-  formKey: string | null,
-): Promise<void> {
-  const { error } = await ctx.db
-    .from("services")
-    .update({ form_key: formKey })
-    .eq("slug", serviceSlug);
-  if (error)
-    throw new Error(`setServiceFormKey ${serviceSlug}: ${error.message}`);
 }
 
 export async function setPremiumDays(
@@ -374,7 +384,7 @@ export async function insertReview(
     authorName: string;
     rating: number;
     body: string;
-    status: "pending" | "published" | "rejected";
+    status: Enums<"review_status">;
   },
 ): Promise<void> {
   const clientId = ctx.users.get(opts.clientEmail);

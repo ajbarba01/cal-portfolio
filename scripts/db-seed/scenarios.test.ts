@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { SCENARIOS } from "./scenarios";
+import { SCENARIOS, type Step } from "./scenarios";
+
+/** Registry lookup that fails loudly instead of yielding an absent scenario. */
+function scenario(name: string): Step[] {
+  const steps = SCENARIOS[name];
+  if (!steps) throw new Error(`No scenario named "${name}"`);
+  return steps;
+}
 
 describe("SCENARIOS registry", () => {
   it("defines exactly the four spec scenarios", () => {
@@ -16,9 +23,9 @@ describe("SCENARIOS registry", () => {
   });
 
   it("admin-demo composes busy-week + payment-states + extras", () => {
-    const names = SCENARIOS["admin-demo"].map((s) => s.name);
-    for (const s of SCENARIOS["busy-week"]) expect(names).toContain(s.name);
-    for (const s of SCENARIOS["payment-states"]) {
+    const names = scenario("admin-demo").map((s) => s.name);
+    for (const s of scenario("busy-week")) expect(names).toContain(s.name);
+    for (const s of scenario("payment-states")) {
       expect(names).toContain(s.name);
     }
     expect(names).toContain("admin-demo-extras");

@@ -2,6 +2,7 @@ import { addMinutes } from "date-fns";
 import {
   type Ctx,
   addPet,
+  bookingFinalCents,
   createClientUser,
   createUnclaimedClientUser,
   insertBooking,
@@ -14,8 +15,8 @@ import {
   insertSeries,
   insertWindow,
   setPremiumDays,
-  setServiceFormKey,
 } from "./factories";
+import type { SeedQuantities } from "./quotes";
 import { SEED_TZ, slot, statusFor, weekAnchor } from "./dates";
 
 export interface Step {
@@ -93,13 +94,43 @@ const busyAvailability: Step = {
   },
 };
 
+/** The two-night weekend stay both seeded house-sits book, one cat in the home. */
+const HOUSESIT_QUANTITIES: SeedQuantities = {
+  dogs: 0,
+  cats: 1,
+  others: 0,
+  nights: 2,
+  exerciseMinutesPerDay: 0,
+  needyTier: 0,
+};
+
+/** A single walk with one dog — the shape most payment-state bookings take. */
+const ONE_DOG_WALK: SeedQuantities = {
+  hours: 1,
+  dogs: 1,
+  leashManners: false,
+};
+
+/** A walk, check-in or training visit: all three price by the hour, so the booked duration IS a quantity. */
+interface HourlyBooking {
+  key: string;
+  svc: string;
+  email: string;
+  pets: string[];
+  day: number;
+  h: number;
+  m: number;
+  q: SeedQuantities & { hours: number };
+}
+
 const busyBookings: Step = {
   name: "busy-bookings",
   async run(ctx) {
     const a = weekAnchor(ctx.now);
-    // Disjoint same-class slots; statuses derived from time vs now.
-    const timetable = [
-      // walks ($25/h + $10/dog)
+    // Disjoint same-class slots; statuses derived from time vs now. Prices come
+    // from each service's own pricing config — quantities are all that's stated.
+    const timetable: HourlyBooking[] = [
+      // walks
       {
         key: "walk-mon",
         svc: "walk",
@@ -108,8 +139,7 @@ const busyBookings: Step = {
         day: 0,
         h: 9,
         m: 0,
-        dur: 60,
-        cents: 4500,
+        q: { hours: 1, dogs: 2, leashManners: false },
       },
       {
         key: "walk-tue",
@@ -119,8 +149,7 @@ const busyBookings: Step = {
         day: 1,
         h: 9,
         m: 0,
-        dur: 60,
-        cents: 3500,
+        q: { hours: 1, dogs: 1, leashManners: false },
       },
       {
         key: "walk-wed",
@@ -130,8 +159,7 @@ const busyBookings: Step = {
         day: 2,
         h: 14,
         m: 0,
-        dur: 60,
-        cents: 3500,
+        q: { hours: 1, dogs: 1, leashManners: true },
       },
       {
         key: "walk-thu",
@@ -141,8 +169,7 @@ const busyBookings: Step = {
         day: 3,
         h: 9,
         m: 0,
-        dur: 60,
-        cents: 3500,
+        q: { hours: 1, dogs: 1, leashManners: false },
       },
       {
         key: "walk-fri",
@@ -152,8 +179,7 @@ const busyBookings: Step = {
         day: 4,
         h: 11,
         m: 0,
-        dur: 60,
-        cents: 3500,
+        q: { hours: 1, dogs: 1, leashManners: false },
       },
       {
         key: "walk-sat",
@@ -163,10 +189,9 @@ const busyBookings: Step = {
         day: 5,
         h: 10,
         m: 0,
-        dur: 60,
-        cents: 3500,
+        q: { hours: 1, dogs: 1, leashManners: false },
       },
-      // check-ins ($30/h, $15 min)
+      // check-ins
       {
         key: "checkin-mon",
         svc: "check-in",
@@ -175,8 +200,7 @@ const busyBookings: Step = {
         day: 0,
         h: 13,
         m: 0,
-        dur: 30,
-        cents: 1500,
+        q: { hours: 0.5 },
       },
       {
         key: "checkin-wed",
@@ -186,8 +210,7 @@ const busyBookings: Step = {
         day: 2,
         h: 9,
         m: 30,
-        dur: 30,
-        cents: 1500,
+        q: { hours: 0.5 },
       },
       {
         key: "checkin-fri",
@@ -197,10 +220,9 @@ const busyBookings: Step = {
         day: 4,
         h: 15,
         m: 0,
-        dur: 30,
-        cents: 1500,
+        q: { hours: 0.5 },
       },
-      // training ($35/h, max 1 pet)
+      // training (max 1 pet)
       {
         key: "training-tue",
         svc: "training",
@@ -209,8 +231,7 @@ const busyBookings: Step = {
         day: 1,
         h: 16,
         m: 0,
-        dur: 60,
-        cents: 3500,
+        q: { hours: 1 },
       },
     ];
     for (const t of timetable) {
@@ -219,21 +240,21 @@ const busyBookings: Step = {
         clientEmail: t.email,
         service: t.svc,
         startsAt,
-        endsAt: addMinutes(startsAt, t.dur),
+        endsAt: addMinutes(startsAt, t.q.hours * 60),
         status: statusFor(startsAt, ctx.now),
         paymentStatus: "unpaid",
-        finalCents: t.cents,
+        quantities: t.q,
         petKeys: t.pets,
       });
     }
-    // Resident house-sit: Fri 18:00 → Sun 10:00, cat-only 2 nights ($30/night).
+    // Resident house-sit: Fri 18:00 → Sun 10:00, cat-only 2 nights.
     await insertBooking(ctx, "housesit-weekend", {
       clientEmail: "lee@local.test",
       service: "house-sitting",
       startsAt: slot(a, 4, 18),
       endsAt: slot(a, 6, 10),
       status: statusFor(slot(a, 4, 18), ctx.now),
-      finalCents: 6000,
+      quantities: HOUSESIT_QUANTITIES,
       petKeys: ["clementine"],
     });
     // Pending approvals, next week.
@@ -243,7 +264,7 @@ const busyBookings: Step = {
       startsAt: slot(a, 7, 9),
       endsAt: slot(a, 7, 10),
       status: "pending_approval",
-      finalCents: 4500,
+      quantities: { hours: 1, dogs: 2, leashManners: false },
       petKeys: ["biscuit", "maple"],
     });
     await insertBooking(ctx, "pending-housesit", {
@@ -252,7 +273,7 @@ const busyBookings: Step = {
       startsAt: slot(a, 10, 18),
       endsAt: slot(a, 12, 10),
       status: "pending_approval",
-      finalCents: 13000,
+      quantities: { ...HOUSESIT_QUANTITIES, dogs: 1 },
       petKeys: ["pepper", "mochi"],
     });
   },
@@ -265,6 +286,12 @@ const busySeries: Step = {
     // Weekly walk, Mondays 15:00, open-ended; week-3 occurrence skipped
     // (EXDATE), so occurrences exist at +1w, +2w, +4w.
     const template = slot(a, 7, 15);
+    // Three occurrences clears the recurring-discount minimum, so the series
+    // and its bookings quote with the discount the app would apply.
+    const seriesQuantities: SeedQuantities = {
+      ...ONE_DOG_WALK,
+      recurringSeries: true,
+    };
     await insertSeries(ctx, "weekly-walk", {
       clientEmail: "sam@local.test",
       service: "walk",
@@ -272,6 +299,7 @@ const busySeries: Step = {
       durationMin: 60,
       openEnded: true,
       skippedStarts: [slot(a, 21, 15)],
+      quantities: seriesQuantities,
     });
     for (const day of [7, 14, 28]) {
       const startsAt = slot(a, day, 15);
@@ -281,7 +309,7 @@ const busySeries: Step = {
         startsAt,
         endsAt: addMinutes(startsAt, 60),
         status: "confirmed",
-        finalCents: 3500,
+        quantities: seriesQuantities,
         seriesKey: "weekly-walk",
         petKeys: ["pepper"],
       });
@@ -338,7 +366,7 @@ const paymentBookings: Step = {
       endsAt: b1.endsAt,
       status: "completed",
       paymentStatus: "unpaid",
-      finalCents: 3500,
+      quantities: ONE_DOG_WALK,
       petKeys: ["rex"],
     });
 
@@ -351,13 +379,12 @@ const paymentBookings: Step = {
       endsAt: b3.endsAt,
       status: "completed",
       paymentStatus: "paid",
-      finalCents: 3500,
+      quantities: ONE_DOG_WALK,
       petKeys: ["rex"],
     });
     await insertPayment(ctx, {
       bookingKey: b3.key,
       intentId: "pi_seed_paid",
-      amountCents: 3500,
       status: "succeeded",
     });
 
@@ -370,15 +397,14 @@ const paymentBookings: Step = {
       endsAt: b4.endsAt,
       status: "cancelled",
       paymentStatus: "refunded",
-      finalCents: 3500,
+      quantities: ONE_DOG_WALK,
       petKeys: ["rex"],
     });
     await insertPayment(ctx, {
       bookingKey: b4.key,
       intentId: "pi_seed_refunded",
-      amountCents: 3500,
       status: "refunded",
-      refundedCents: 3500,
+      refundedCents: bookingFinalCents(ctx, b4.key),
     });
 
     // no-show with outstanding debt → devon's re-booking is debt-gated
@@ -390,13 +416,13 @@ const paymentBookings: Step = {
       endsAt: b6.endsAt,
       status: "no_show",
       paymentStatus: "unpaid",
-      finalCents: 3500,
+      quantities: ONE_DOG_WALK,
       petKeys: ["koda"],
     });
     await insertDebit(ctx, {
       clientEmail: "devon@local.test",
       bookingKey: b6.key,
-      amountCents: 3500,
+      amountCents: bookingFinalCents(ctx, b6.key),
       reason: "no_show",
       settled: false,
     });
@@ -410,13 +436,14 @@ const paymentBookings: Step = {
       endsAt: b7.endsAt,
       status: "cancelled",
       paymentStatus: "unpaid",
-      finalCents: 3500,
+      quantities: ONE_DOG_WALK,
       petKeys: ["rex"],
     });
     await insertDebit(ctx, {
       clientEmail: "paula@local.test",
       bookingKey: b7.key,
-      amountCents: 1750,
+      // Half the price: the late-cancel retention.
+      amountCents: bookingFinalCents(ctx, b7.key) / 2,
       reason: "late_cancel",
       settled: true,
     });
@@ -430,13 +457,12 @@ const paymentBookings: Step = {
       endsAt: b2.endsAt,
       status: "confirmed",
       paymentStatus: "unpaid",
-      finalCents: 3500,
+      quantities: ONE_DOG_WALK,
       petKeys: ["rex"],
     });
     await insertPayment(ctx, {
       bookingKey: b2.key,
       intentId: "pi_seed_open",
-      amountCents: 3500,
       status: "requires_payment",
     });
 
@@ -449,13 +475,12 @@ const paymentBookings: Step = {
       endsAt: b5.endsAt,
       status: "confirmed",
       paymentStatus: "unpaid",
-      finalCents: 3500,
+      quantities: ONE_DOG_WALK,
       petKeys: ["rex"],
     });
     await insertPayment(ctx, {
       bookingKey: b5.key,
       intentId: "pi_seed_failed",
-      amountCents: 3500,
       status: "failed",
     });
 
@@ -471,7 +496,7 @@ const paymentBookings: Step = {
       endsAt: b8.endsAt,
       status: "confirmed",
       paymentStatus: "unpaid",
-      finalCents: 3500,
+      quantities: ONE_DOG_WALK,
       petKeys: ["rex"],
     });
 
@@ -484,15 +509,15 @@ const paymentBookings: Step = {
       endsAt: b9.endsAt,
       status: "cancelled",
       paymentStatus: "partially_refunded",
-      finalCents: 3500,
+      quantities: ONE_DOG_WALK,
       petKeys: ["rex"],
     });
     await insertPayment(ctx, {
       bookingKey: b9.key,
       intentId: "pi_seed_partial_refunded",
-      amountCents: 3500,
       status: "succeeded",
-      refundedCents: 1750,
+      // 50% retained on a late cancel.
+      refundedCents: bookingFinalCents(ctx, b9.key) / 2,
     });
   },
 };
@@ -517,13 +542,12 @@ const adminDemoExtras: Step = {
       endsAt: disputedBooking.endsAt,
       status: "completed",
       paymentStatus: "paid",
-      finalCents: 3500,
+      quantities: ONE_DOG_WALK,
       petKeys: ["rex"],
     });
     await insertPayment(ctx, {
       bookingKey: "pay-disputed",
       intentId: "pi_seed_disputed",
-      amountCents: 3500,
       status: "succeeded",
       disputedAt: new Date(ctx.now.getTime() - 2 * 24 * 60 * 60 * 1000),
       disputeStatus: "needs_response",
@@ -601,7 +625,7 @@ const adminDemoExtras: Step = {
       startsAt: slot(a, 9, 11),
       endsAt: slot(a, 9, 11, 30),
       status: "confirmed",
-      finalCents: 0,
+      quantities: {},
       petKeys: ["scout"],
     });
     // Inquiries queue: one new guest, one resolved client-linked.
@@ -641,14 +665,6 @@ const adminDemoExtras: Step = {
       body: "Juniper loves her walks.",
       status: "rejected",
     });
-
-    // ── SP6: forms-gate demo ──────────────────────────────────────────────────
-    // Walk service now requires the emergency form (form_key = 'emergency').
-    // Dana has submitted it (inserted above); Sam, Lee, Devon, and Paula have not
-    // → those clients will see "Finish your forms before booking" when visiting
-    // /book/walk. Dana books normally.
-    // The gate is bypassed for admin create-on-behalf (ADMIN_POLICY).
-    await setServiceFormKey(ctx, "walk", "emergency");
   },
 };
 

@@ -1,4 +1,4 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { DbClient } from "../../src/lib/supabase/db-client";
 import { ADMIN_EMAIL, SEED_PASSWORD } from "./constants";
 
 const TABLES = [
@@ -13,9 +13,9 @@ const TABLES = [
   "client_debits",
   "reviews",
   "inquiries",
-];
+] as const;
 
-export async function printSummary(db: SupabaseClient): Promise<void> {
+export async function printSummary(db: DbClient): Promise<void> {
   console.log("\nSeeded state:");
   for (const table of TABLES) {
     const { count, error } = await db

@@ -1,6 +1,11 @@
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { createClient } from "@supabase/supabase-js";
+import { requireEnv } from "../../src/lib/env";
+import type { Database } from "../../src/lib/supabase/database.types";
+import type { DbClient } from "../../src/lib/supabase/db-client";
 
 const LOCAL_HOSTS = new Set(["127.0.0.1", "localhost", "[::1]", "::1"]);
+
+const HINT = "run via `npm run db:seed` so .env.local is loaded";
 
 /**
  * Seeding wipes data. It must be impossible to point this tool at a remote
@@ -15,16 +20,19 @@ export function assertLocalDbUrl(url: string): void {
   }
 }
 
-export function makeServiceClient(): SupabaseClient {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SECRET_KEY;
-  if (!url || !key) {
-    throw new Error(
-      "Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SECRET_KEY — run via `npm run db:seed` so .env.local is loaded.",
-    );
-  }
+export function makeServiceClient(): DbClient {
+  const url = requireEnv(
+    "NEXT_PUBLIC_SUPABASE_URL",
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    HINT,
+  );
+  const key = requireEnv(
+    "SUPABASE_SECRET_KEY",
+    process.env.SUPABASE_SECRET_KEY,
+    HINT,
+  );
   assertLocalDbUrl(url);
-  return createClient(url, key, {
+  return createClient<Database>(url, key, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 }

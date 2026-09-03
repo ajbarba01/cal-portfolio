@@ -1,11 +1,15 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "../../src/lib/supabase/database.types";
+import type { DbClient } from "../../src/lib/supabase/db-client";
 import { ADMIN_EMAIL } from "./constants";
 import { ensureAdmin } from "./factories";
 
 // Children before parents (FK delete order). services + settings are
 // migration-owned and never wiped (spec). PostgREST requires a filter on
 // delete; `not col is null` matches every row.
-const WIPE_ORDER: ReadonlyArray<{ table: string; col: string }> = [
+const WIPE_ORDER: ReadonlyArray<{
+  table: keyof Database["public"]["Tables"];
+  col: string;
+}> = [
   { table: "form_responses", col: "id" },
   { table: "payments", col: "id" },
   { table: "booking_pets", col: "booking_id" },
@@ -21,13 +25,13 @@ const WIPE_ORDER: ReadonlyArray<{ table: string; col: string }> = [
 
 /** Wipe-first reset: empty scenario-owned tables, delete non-admin auth
  *  users (cascades profiles), ensure the admin exists. Returns admin id. */
-export async function wipe(db: SupabaseClient): Promise<string> {
+export async function wipe(db: DbClient): Promise<string> {
   for (const { table, col } of WIPE_ORDER) {
     const { error } = await db.from(table).delete().not(col, "is", null);
     if (error) throw new Error(`wipe ${table}: ${error.message}`);
   }
-  // Reset mutable services config so scenario-specific overrides (e.g.
-  // admin-demo's setServiceFormKey) don't bleed into subsequent seeds.
+  // services rows survive the wipe, so a form attached to a service — by an
+  // admin in the UI, or by a scenario — would outlive the seed that set it.
   const { error: svcErr } = await db
     .from("services")
     .update({ form_key: null })
