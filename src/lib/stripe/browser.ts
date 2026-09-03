@@ -1,17 +1,18 @@
 import { loadStripe, type Stripe, type Appearance } from "@stripe/stripe-js";
 
+import { requireEnv } from "@/lib/env";
+
 /** Module-scope singleton — loadStripe must be called once, outside render. */
 let stripePromise: Promise<Stripe | null> | null = null;
 
 export function getStripe(): Promise<Stripe | null> {
   if (!stripePromise) {
-    const key = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
-    if (!key) {
-      throw new Error(
-        "Missing NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY — set it in .env.local.",
-      );
-    }
-    stripePromise = loadStripe(key);
+    stripePromise = loadStripe(
+      requireEnv(
+        "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY",
+        process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
+      ),
+    );
   }
   return stripePromise;
 }
