@@ -2,7 +2,7 @@
 import type { MetadataRoute } from "next";
 import { buildSitemap } from "@/features/seo";
 import { createStaticClient } from "@/lib/supabase/static";
-import { listActiveServices } from "@/features/booking";
+import { listActiveServices } from "@/features/booking/services-repo";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let serviceSlugs: string[] = [];

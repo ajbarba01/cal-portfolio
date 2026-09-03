@@ -2,7 +2,11 @@
 import type { MetadataRoute } from "next";
 import { absoluteUrl } from "./site-url";
 
-/** Public marketing routes that always exist (no DB). */
+/**
+ * Public marketing routes that always exist (no DB).
+ * `/book` is absent on purpose: it permanently redirects to `/services`, and a
+ * redirecting URL in the sitemap is a Search Console error.
+ */
 export const SITEMAP_STATIC_PATHS = [
   "/",
   "/about",
@@ -10,7 +14,6 @@ export const SITEMAP_STATIC_PATHS = [
   "/gallery",
   "/reviews",
   "/resources",
-  "/book",
   "/contact",
 ] as const;
 

@@ -25,9 +25,13 @@ function areaServedJsonLd(areas: readonly AreaServed[]): JsonLdObject[] {
   }));
 }
 
-export function buildBusinessJsonLd(
-  services: readonly ServiceLike[],
-): JsonLdObject {
+/**
+ * The LocalBusiness node, emitted sitewide by the marketing layout. It carries
+ * no offers: reading the live service list to build them would tie every public
+ * route — and the build itself — to the database. Offers come from
+ * {@link buildBusinessOffersJsonLd} on the one page that already reads them.
+ */
+export function buildBusinessJsonLd(): JsonLdObject {
   return {
     "@context": "https://schema.org",
     "@type": "LocalBusiness",
@@ -44,6 +48,24 @@ export function buildBusinessJsonLd(
       addressCountry: BUSINESS.addressCountry,
     },
     areaServed: areaServedJsonLd(BUSINESS.areaServed),
+  };
+}
+
+/**
+ * The offers half of the business node — the `@id` plus `makesOffer` and
+ * nothing else, so it reads as more properties for the node the layout already
+ * emitted rather than a second LocalBusiness entity with the same identifier.
+ * Returns null with no services, so no empty offer list is ever published.
+ * Emit only from a page that already reads the live service list.
+ */
+export function buildBusinessOffersJsonLd(
+  services: readonly ServiceLike[],
+): JsonLdObject | null {
+  if (services.length === 0) return null;
+  return {
+    "@context": "https://schema.org",
+    "@type": "LocalBusiness",
+    "@id": businessId(),
     makesOffer: services.map((s) => ({
       "@type": "Offer",
       itemOffered: {

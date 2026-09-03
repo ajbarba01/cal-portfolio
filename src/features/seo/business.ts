@@ -23,5 +23,7 @@ export const BUSINESS = {
     { kind: "city", name: "Lakewood" },
   ] satisfies AreaServed[],
   // A real service photo, not the (unfinished) brand mark. Cal can swap freely.
-  imagePath: "/gallery/IMG_0048.8b25e086.jpg",
+  // Must stay an un-hashed path: gallery-sync re-hashes /gallery filenames on
+  // every run, which would silently turn this into a dead URL.
+  imagePath: "/bg/IMG_0048.JPG",
 } as const;

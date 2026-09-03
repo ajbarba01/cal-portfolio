@@ -5,6 +5,7 @@ export { BUSINESS, type AreaServed } from "./business";
 export { buildPageMetadata, type PageMetadataInput } from "./metadata";
 export {
   buildBusinessJsonLd,
+  buildBusinessOffersJsonLd,
   buildWebSiteJsonLd,
   buildServiceJsonLd,
   buildBreadcrumbJsonLd,

@@ -19,6 +19,9 @@ describe("buildSitemap", () => {
     const urls = entries.map((e) => e.url);
     expect(urls).toContain("https://calbarba.com/");
     expect(urls).toContain("https://calbarba.com/book/walk");
+    // `/book` itself permanently redirects to `/services`; the per-service
+    // `/book/<slug>` pages above are the real destinations.
+    expect(urls.some((u) => u.endsWith("/book"))).toBe(false);
   });
 
   it("excludes private routes", () => {

@@ -12,8 +12,8 @@ describe("buildRobots", () => {
     delete process.env.NEXT_PUBLIC_SITE_URL;
     const r = buildRobots();
     const rule = Array.isArray(r.rules) ? r.rules[0] : r.rules;
-    expect(rule.allow).toBe("/");
-    expect(rule.disallow).toEqual(
+    expect(rule?.allow).toBe("/");
+    expect(rule?.disallow).toEqual(
       expect.arrayContaining([
         "/admin",
         "/account",

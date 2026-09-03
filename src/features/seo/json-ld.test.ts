@@ -2,6 +2,7 @@
 import { describe, it, expect, afterEach } from "vitest";
 import {
   buildBusinessJsonLd,
+  buildBusinessOffersJsonLd,
   buildWebSiteJsonLd,
   buildServiceJsonLd,
   buildBreadcrumbJsonLd,
@@ -30,7 +31,7 @@ function asObj(v: unknown): Record<string, unknown> {
 describe("buildBusinessJsonLd", () => {
   it("emits a LocalBusiness with region CO, area served, and NO street address", () => {
     delete process.env.NEXT_PUBLIC_SITE_URL;
-    const ld = asObj(buildBusinessJsonLd(SERVICES));
+    const ld = asObj(buildBusinessJsonLd());
     expect(ld["@type"]).toBe("LocalBusiness");
     expect(ld["@id"]).toBe("https://calbarba.com/#business");
     const address = asObj(ld.address);
@@ -42,18 +43,47 @@ describe("buildBusinessJsonLd", () => {
       { "@type": "City", name: "Denver" },
       { "@type": "City", name: "Lakewood" },
     ]);
+  });
+
+  it("carries no offers — they belong to the page that reads the services", () => {
+    const ld = asObj(buildBusinessJsonLd());
+    expect("makesOffer" in ld).toBe(false);
+  });
+});
+
+describe("buildBusinessOffersJsonLd", () => {
+  it("references the business @id and describes each service as an offer", () => {
+    delete process.env.NEXT_PUBLIC_SITE_URL;
+    const ld = asObj(buildBusinessOffersJsonLd(SERVICES));
+    expect(ld["@id"]).toBe("https://calbarba.com/#business");
     const offers = ld.makesOffer as unknown[];
     expect(offers).toHaveLength(2);
-    const offer0 = asObj(offers[0]);
-    const itemOffered = asObj(offer0.itemOffered);
+    const itemOffered = asObj(asObj(offers[0]).itemOffered);
     expect(itemOffered.url).toBe("https://calbarba.com/book/walk");
   });
 
+  it("carries only the offers, so it is a reference and not a second entity", () => {
+    // A same-`@id` node that repeats name/address/areaServed reads as a
+    // duplicate LocalBusiness to a strict validator; only the delta is emitted.
+    const ld = asObj(buildBusinessOffersJsonLd(SERVICES));
+    expect(Object.keys(ld).sort()).toEqual([
+      "@context",
+      "@id",
+      "@type",
+      "makesOffer",
+    ]);
+  });
+
   it("never fabricates a price on offers", () => {
-    const ld = asObj(buildBusinessJsonLd(SERVICES));
+    const ld = asObj(buildBusinessOffersJsonLd(SERVICES));
     const offer0 = asObj((ld.makesOffer as unknown[])[0]);
     expect(offer0.price).toBeUndefined();
     expect(offer0.priceSpecification).toBeUndefined();
+  });
+
+  it("returns null with no services rather than an empty offer list", () => {
+    expect(buildBusinessOffersJsonLd([])).toBeNull();
+    expect(businessId()).toContain("#business");
   });
 });
 
