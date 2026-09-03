@@ -2,7 +2,8 @@
  * createBookingCore — core booking creation logic.
  */
 
-import type { BookingStatusDb } from "./booking-repository";
+import { asJson } from "./booking-repository-types";
+import type { BookingStatusDb } from "./booking-repository-types";
 import type { MutationPolicy } from "./mutation-policy";
 import { CLIENT_POLICY } from "./mutation-policy";
 import { transition } from "./state-machine";
@@ -19,11 +20,7 @@ import {
   type BookingServiceDeps,
   type CreateBookingInput,
 } from "./booking-service-shared";
-import {
-  driveBufferMinutes,
-  driveBufferMinutesFromMiles,
-} from "./drive-buffer";
-import { overlapsHalfOpen } from "./calendar-model";
+import { findDriveBufferConflicts } from "./drive-buffer-guard";
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Result type
@@ -42,6 +39,9 @@ export type CreateBookingResult =
 
 // Re-export CreateBookingInput so existing importers from booking-service work.
 export type { CreateBookingInput };
+
+/** The one message an unexpected create failure shows; details go to the log. */
+const CREATE_ERROR_MESSAGE = "Something went wrong. Please try again.";
 
 // ──────────────────────────────────────────────────────────────────────────────
 // createBookingCore
@@ -62,7 +62,7 @@ export type { CreateBookingInput };
  *     design intent: windows/nights define Cal's availability.
  *  8–9. Derive initial status via state machine.
  * 10. Insert all rows (reusing the one quoteInput/breakdown) via service role;
- *     catch 23P01 → slot_taken.
+ *     catch 23P01 → slot_taken, any other insert failure → error.
  */
 export async function createBookingCore(
   deps: BookingServiceDeps,
@@ -177,70 +177,32 @@ export async function createBookingCore(
   // all same-class active bookings. House-sitting (resident) is excluded —
   // it is a stay, not a round-trip visit, so no drive-time buffer applies.
   //
-  // Candidate buffer: 0 for house_sitting, else derived from distanceMiles.
-  // Existing buffers: each existing booking widens by ITS own buffer
-  // (resident existing → 0, exclusive → computed from client coords).
-  const driveCfg = {
-    roadFactor: settings.road_factor,
-    avgSpeedMph: settings.avg_speed_mph,
-    pct: settings.drive_buffer_pct,
-  };
-  const origin = { lat: settings.origin_lat, lng: settings.origin_lng };
-  const candBufMin =
-    service.pricing_type === "house_sitting"
-      ? 0
-      : driveBufferMinutesFromMiles(result.artifacts.distanceMiles, driveCfg);
-
+  // The guard runs for every time-based service regardless of the candidate's
+  // own buffer: an existing exclusive booking has its OWN buffer that can reach
+  // into the candidate's raw slot even when the candidate has no coordinates.
   if (service.pricing_type !== "house_sitting") {
-    // Run the guard for every time-based (non-house_sitting) service, regardless
-    // of the candidate's own buffer. An existing exclusive booking has its OWN
-    // buffer that can reach into the candidate's raw slot even when the candidate's
-    // buffer is 0 (e.g. candidate client has no coords → distanceMiles null →
-    // candBufMin 0, but an existing booking 10 min away widens its end by 10 min
-    // which overlaps the candidate's raw start). house_sitting is excluded: it is
-    // a resident stay with no drive-time semantics.
-    const existing = await repo.getActiveBusyRanges(now, service.concurrency);
-    const widenedExisting = existing.map((e) => {
-      const eBufMin =
-        e.concurrency === "resident"
-          ? 0
-          : driveBufferMinutes(
-              origin,
-              { lat: e.clientLat, lng: e.clientLng },
-              driveCfg,
-            );
-      const eBufMs = eBufMin * 60_000;
-      return {
-        startsAt: new Date(e.startsAt.getTime() - eBufMs),
-        endsAt: new Date(e.endsAt.getTime() + eBufMs),
-      };
+    const conflicts = findDriveBufferConflicts({
+      candidates: occurrences.map((occStart) => ({
+        startsAt: occStart,
+        endsAt: new Date(occStart.getTime() + durationMs),
+      })),
+      candidateDistanceMiles: result.artifacts.distanceMiles,
+      existing: await repo.getActiveBusyRanges(now, service.concurrency),
+      openWindows,
+      settings,
     });
 
-    const bufMs = candBufMin * 60_000;
-    for (const occStart of occurrences) {
-      const occEnd = new Date(occStart.getTime() + durationMs);
-      const bufferedCandidate = {
-        startsAt: new Date(occStart.getTime() - bufMs),
-        endsAt: new Date(occEnd.getTime() + bufMs),
-      };
-
-      const windowOk = fitsWindow(bufferedCandidate, openWindows);
-      const overlapOk = !widenedExisting.some((we) =>
-        overlapsHalfOpen(bufferedCandidate, we),
-      );
-
-      if (!windowOk || !overlapOk) {
-        if (policy.skipBufferGuard) {
-          warnings.push(
-            `Occurrence at ${occStart.toISOString()} conflicts with drive-time spacing.`,
-          );
-        } else {
-          return {
-            kind: "unavailable",
-            reason:
-              "That time doesn't leave enough travel time around another booking. Please pick another slot.",
-          };
-        }
+    for (const conflict of conflicts) {
+      if (policy.skipBufferGuard) {
+        warnings.push(
+          `Occurrence at ${conflict.startsAt.toISOString()} conflicts with drive-time spacing.`,
+        );
+      } else {
+        return {
+          kind: "unavailable",
+          reason:
+            "That time doesn't leave enough travel time around another booking. Please pick another slot.",
+        };
       }
     }
   }
@@ -248,10 +210,25 @@ export async function createBookingCore(
   // 8–9. Derive initial status PER OCCURRENCE (a series can straddle the time
   // horizon: near occurrences confirm, far ones pend — requires_approval is
   // computed per occurrence in computeBookingArtifacts).
-  const statuses: BookingStatusDb[] = [];
-  for (const occRequiresApproval of requiresApprovalByOccurrence) {
+  const scheduled: Array<{
+    startsAt: Date;
+    status: BookingStatusDb;
+    requiresApproval: boolean;
+  }> = [];
+  for (const [idx, occStart] of occurrences.entries()) {
+    // computeBookingArtifacts pushes exactly one flag per occurrence, so a gap
+    // here would mean the two are out of step — a broken invariant, not a case
+    // to paper over with a default.
+    const occRequiresApproval = requiresApprovalByOccurrence[idx];
+    if (occRequiresApproval === undefined) {
+      return { kind: "error", message: CREATE_ERROR_MESSAGE };
+    }
     if (policy.forceStatus) {
-      statuses.push(policy.forceStatus);
+      scheduled.push({
+        startsAt: occStart,
+        status: policy.forceStatus,
+        requiresApproval: occRequiresApproval,
+      });
       continue;
     }
     const statResult = transition("draft", "submit", {
@@ -260,7 +237,11 @@ export async function createBookingCore(
     if ("error" in statResult) {
       return { kind: "error", message: statResult.error };
     }
-    statuses.push(statResult.state);
+    scheduled.push({
+      startsAt: occStart,
+      status: statResult.state,
+      requiresApproval: occRequiresApproval,
+    });
   }
 
   // A recurring submit writes a durable booking_series rule (frozen quote_inputs)
@@ -286,7 +267,7 @@ export async function createBookingCore(
       open_ended: openEnded,
       template_starts_at: input.startsAt.toISOString(),
       duration_min: Math.round(durationMs / 60_000),
-      quote_inputs: quoteInput as unknown,
+      quote_inputs: asJson(quoteInput),
     });
   }
 
@@ -294,21 +275,21 @@ export async function createBookingCore(
   // depends only on quantities/config/modifiers, never on the date), so all
   // rows reuse the single quoteInput + breakdown computed above. Status and
   // requires_approval, however, are per-occurrence (time horizon).
-  const insertRows = occurrences.map((occStart, idx) => {
-    const occEnd = new Date(occStart.getTime() + durationMs);
+  const insertRows = scheduled.map(({ startsAt, status, requiresApproval }) => {
+    const occEnd = new Date(startsAt.getTime() + durationMs);
     return {
       client_id: input.userId,
       service_id: service.id,
-      starts_at: occStart.toISOString(),
+      starts_at: startsAt.toISOString(),
       ends_at: occEnd.toISOString(),
       series_id: seriesId,
-      status: statuses[idx],
+      status,
       concurrency: service.concurrency,
       distance_miles: result.artifacts.distanceMiles,
-      quote_inputs: quoteInput as unknown,
-      quote_breakdown: breakdown as unknown,
+      quote_inputs: asJson(quoteInput),
+      quote_breakdown: asJson(breakdown),
       final_cents: breakdown.finalCents,
-      requires_approval: requiresApprovalByOccurrence[idx],
+      requires_approval: requiresApproval,
       discount_cents: 0, // see DISCOUNT_CENTS note in module header
       comments: input.comments ?? null,
       kiche_welcome: input.kicheWelcome,
@@ -326,12 +307,14 @@ export async function createBookingCore(
     }
     return { kind: "success", bookingIds: ids, warnings };
   } catch (e: unknown) {
-    const code = (e as { code?: string }).code;
-    if (code === "23P01") {
-      if (seriesId) await repo.deleteSeries(seriesId);
+    if (seriesId) await repo.deleteSeries(seriesId);
+    if ((e as { code?: string }).code === "23P01") {
       return { kind: "slot_taken" };
     }
-    if (seriesId) await repo.deleteSeries(seriesId);
-    throw e;
+    // Anything else is a real insert failure. Rethrowing would escape
+    // CreateBookingResult into the error boundary and lose the booking form;
+    // the caller renders `error` as a message the client can retry from.
+    console.error("createBookingCore: booking insert failed", e);
+    return { kind: "error", message: CREATE_ERROR_MESSAGE };
   }
 }

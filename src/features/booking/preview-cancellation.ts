@@ -8,6 +8,7 @@
  */
 
 import { redirect } from "next/navigation";
+import { netPaid } from "@/features/payments";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { createSupabaseBookingRepository } from "./booking-repository";
@@ -35,9 +36,7 @@ export async function previewBookingCancellation(
   if (booking.client_id !== user.id) return { kind: "forbidden" };
 
   const settings = await repo.getSettings();
-  const paidCents = booking.payments
-    .filter((p) => p.status === "succeeded")
-    .reduce((sum, p) => sum + p.amountCents, 0);
+  const paidCents = netPaid(booking.payments);
 
   const outcome = previewCancellation({
     finalCents: booking.finalCents,

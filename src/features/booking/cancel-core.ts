@@ -4,7 +4,14 @@
 
 import { z } from "zod";
 import { previewCancellation } from "./cancellation";
-import type { PaymentGateway } from "@/features/payments";
+// Client entry point: this core is re-exported through the booking feature's
+// client barrel, so it must not pull in the server-only StripeGateway.
+import {
+  netPaid,
+  planRefunds,
+  type PaymentGateway,
+} from "@/features/payments/index.client";
+import type { BookingPaymentTxn } from "./booking-repository";
 import { transition } from "./state-machine";
 import {
   cancelBookingInputSchema,
@@ -22,6 +29,34 @@ export type CancelBookingResult =
   | { kind: "error"; message: string };
 
 export type CancelBookingInput = z.input<typeof cancelBookingInputSchema>;
+
+/** The one message any failed cancel shows the client; details go to the log. */
+const CANCEL_ERROR_MESSAGE = "Something went wrong. Please try again.";
+
+/**
+ * Issues `refundCents` across the booking's captured intents, each clamped to
+ * what it has left. Returns false when the gateway rejected a call: the refund
+ * has to succeed before the booking may be marked cancelled, or the client is
+ * told they were refunded when they were not.
+ */
+async function refundAcrossIntents(
+  gateway: PaymentGateway,
+  payments: BookingPaymentTxn[],
+  refundCents: number,
+): Promise<boolean> {
+  for (const { txn, amountCents } of planRefunds(payments, refundCents)) {
+    try {
+      await gateway.refund(txn.paymentIntentId, amountCents);
+    } catch (error) {
+      console.error(
+        `cancelBookingCore: refund of ${amountCents} against ${txn.paymentIntentId} failed`,
+        error,
+      );
+      return false;
+    }
+  }
+  return true;
+}
 
 /** Deps for the cancel + refund/no-show paths: a gateway is required to refund. */
 export interface CancelDeps extends BookingServiceDeps {
@@ -42,6 +77,10 @@ export interface CancelDeps extends BookingServiceDeps {
  *
  * Ownership is checked here; the admin-override path passes the booking's own
  * client_id (see actions.ts).
+ *
+ * The refund is issued before the status write, so a gateway rejection returns
+ * `error` with the booking untouched rather than cancelling a booking whose
+ * money never moved.
  */
 export async function cancelBookingCore(
   deps: CancelDeps,
@@ -53,10 +92,7 @@ export async function cancelBookingCore(
       "cancelBookingCore: input validation failed",
       parseResult.error.issues,
     );
-    return {
-      kind: "error",
-      message: "Something went wrong. Please try again.",
-    };
+    return { kind: "error", message: CANCEL_ERROR_MESSAGE };
   }
   const input = parseResult.data;
   const { repo, now, gateway } = deps;
@@ -77,16 +113,20 @@ export async function cancelBookingCore(
   }
 
   const settings = await repo.getSettings();
-  const paidCents = booking.payments
-    .filter((p) => p.status === "succeeded")
-    .reduce((sum, p) => sum + p.amountCents, 0);
+  // Net, not gross: money already refunded (an admin Kiche discount, say) is not
+  // refundable a second time, and asking Stripe for it fails the whole cancel.
+  const paidCents = netPaid(booking.payments);
 
   // Admin/Cal cancels always refund 100% (fullRefund path in the input); the
   // client path uses the timing-based projection. Preserve that split.
   if (input.fullRefund ?? false) {
-    const succeeded = booking.payments.find((p) => p.status === "succeeded");
-    if (succeeded && paidCents > 0) {
-      await gateway.refund(succeeded.paymentIntentId, paidCents);
+    if (paidCents > 0) {
+      const refunded = await refundAcrossIntents(
+        gateway,
+        booking.payments,
+        paidCents,
+      );
+      if (!refunded) return { kind: "error", message: CANCEL_ERROR_MESSAGE };
     }
   } else {
     const outcome = previewCancellation({
@@ -101,10 +141,12 @@ export async function cancelBookingCore(
 
     // Initiate the default-tier refund (webhook re-projects payment_status).
     if (outcome.refundCents > 0) {
-      const succeeded = booking.payments.find((p) => p.status === "succeeded");
-      if (succeeded) {
-        await gateway.refund(succeeded.paymentIntentId, outcome.refundCents);
-      }
+      const refunded = await refundAcrossIntents(
+        gateway,
+        booking.payments,
+        outcome.refundCents,
+      );
+      if (!refunded) return { kind: "error", message: CANCEL_ERROR_MESSAGE };
     }
 
     // Unpaid late cancel → debt for the forfeited amount.

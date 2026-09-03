@@ -1,13 +1,14 @@
 /**
  * Pure inverse of `quantitiesToRecord` — rebuilds a `QuantityState` from a stored
  * jsonb so the edit form can seed its inputs. Handles both shapes the input can
- * take: the raw `quantitiesToRecord` record (carries `maxHoursAway` /
- * `leashManners`) and the persisted `QuoteInput` (carries `needyTier` /
- * `leashManners`). `nights` (house-sitting) is ignored — re-derived from the date
- * range, as the create flow does.
+ * take: the raw `quantitiesToRecord` record (carries `walkMinutesPerDay` /
+ * `maxHoursAway` / `leashManners`) and the persisted `QuoteInput` (carries
+ * `exerciseMinutesPerDay` / `needyTier` / `leashManners`). `nights`
+ * (house-sitting) is ignored — re-derived from the date range, as the create
+ * flow does.
  */
 import type { PricingType } from "@/features/pricing";
-import type { QuantityState } from "@/features/booking/_components/quantity-forms";
+import type { QuantityState } from "./quantities";
 import { representativeHoursFromNeedyTier } from "./needy-tier";
 
 function num(v: unknown, fallback: number): number {
@@ -32,7 +33,11 @@ export function quantityStateFromQuoteInputs(
       return {
         type: "house_sitting",
         qty: {
-          walkMinutesPerDay: num(q.walkMinutesPerDay, 0),
+          // Walk minutes persist on the QuoteInput under the engine's name.
+          walkMinutesPerDay: num(
+            q.walkMinutesPerDay,
+            num(q.exerciseMinutesPerDay, 0),
+          ),
           maxHoursAway: reconstructMaxHoursAway(q),
         },
       };

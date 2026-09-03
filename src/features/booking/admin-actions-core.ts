@@ -1,15 +1,24 @@
 /**
- * Admin booking operations: grant-full-refund, mark-no-show, settle-debt.
+ * Admin booking operations: grant-full-refund, mark-no-show, manual discounts,
+ * settle-debt.
  */
 
 import { noShowDebtCents } from "./cancellation";
 import { transition } from "./state-machine";
 import {
-  quoteInputSupportsManual,
-  requoteWithKiche,
-  kicheOverpayRefundCents,
-} from "./kiche";
-import type { QuoteInput } from "@/features/pricing";
+  KICHE_ID,
+  manualDiscounts,
+  manualOverpayRefundCents,
+  requoteWithManual,
+  storedManualInputs,
+  toggleManualIds,
+} from "./manual-discounts";
+// Client entry point — see the note in cancel-core.ts.
+import { netPaid, planRefunds } from "@/features/payments/index.client";
+import { parsePricingConfig } from "@/features/pricing";
+import type { QuoteInput, ServicePricingConfig } from "@/features/pricing";
+import { asJson } from "./booking-repository-types";
+import type { BookingStatusDb } from "./booking-repository-types";
 import type { BookingServiceDeps } from "./booking-service-shared";
 import type { CancelDeps } from "./cancel-core";
 
@@ -23,8 +32,8 @@ export type AdminBookingResult =
   | { kind: "invalid_state"; message: string }
   | { kind: "error"; message: string };
 
-/** Result of applying/removing the Kiche discount on a booking. */
-export type SetKicheAppliedResult =
+/** Result of applying/removing one manual discount on a booking. */
+export type SetManualAppliedResult =
   | {
       kind: "success";
       applied: boolean;
@@ -33,21 +42,37 @@ export type SetKicheAppliedResult =
       refundedCents: number;
     }
   | { kind: "not_found" }
-  /** Client never marked Kiche welcome — discount cannot be applied. */
+  /** Kiche only: the client never marked Kiche welcome, so it cannot be applied. */
   | { kind: "no_consent" }
-  /** Service carries no Kiche rate (not house-sitting / walk). */
+  /** The booking's frozen config declares no manual modifier with that id. */
   | { kind: "unsupported" }
   | { kind: "invalid_state"; message: string }
   | { kind: "error"; message: string };
+
+/** The one message a failed admin money operation shows; details go to the log. */
+const ADMIN_ERROR_MESSAGE = "Something went wrong. Please try again.";
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Admin operations
 // ──────────────────────────────────────────────────────────────────────────────
 
+/** Statuses on which granting the remainder of a refund makes sense. */
+const REFUNDABLE_STATUSES: readonly BookingStatusDb[] = [
+  "cancelled",
+  "declined",
+  "no_show",
+  "completed",
+];
+
 /**
  * Admin grants the remaining (full) refund beyond the default late-cancel tier:
  * refunds whatever paid amount has not yet been refunded. Authorization is the
  * caller's responsibility (admin-gated action wrapper).
+ *
+ * Only a booking that is over (cancelled, declined, no-show or completed) can be
+ * refunded out this way — granting the remainder on a live booking would leave
+ * Cal working an unpaid slot. Each gateway call carries a key derived from the
+ * amount outstanding, so a double click grants one refund, not two.
  */
 export async function grantFullRefundCore(
   deps: CancelDeps,
@@ -57,21 +82,28 @@ export async function grantFullRefundCore(
   const booking = await repo.getBookingWithPayments(bookingId);
   if (!booking) return { kind: "not_found" };
 
-  const paidCents = booking.payments
-    .filter((p) => p.status === "succeeded")
-    .reduce((sum, p) => sum + p.amountCents, 0);
-  const refundedCents = booking.payments
-    .filter((p) => p.status === "refunded")
-    .reduce((sum, p) => sum + p.amountCents, 0);
-  const remaining = paidCents - refundedCents;
+  if (!REFUNDABLE_STATUSES.includes(booking.status)) {
+    return { kind: "invalid_state", message: ADMIN_ERROR_MESSAGE };
+  }
+
+  const remaining = netPaid(booking.payments);
   if (remaining <= 0) return { kind: "success" }; // nothing left to refund
 
-  const intent =
-    booking.payments.find((p) => p.status === "succeeded")?.paymentIntentId ??
-    booking.payments[0]?.paymentIntentId;
-  if (!intent) return { kind: "success" };
-
-  await gateway.refund(intent, remaining);
+  for (const { txn, amountCents } of planRefunds(booking.payments, remaining)) {
+    try {
+      await gateway.refund(
+        txn.paymentIntentId,
+        amountCents,
+        `grant-full-refund:${bookingId}:${txn.paymentIntentId}:${remaining}`,
+      );
+    } catch (error) {
+      console.error(
+        `grantFullRefundCore: refund of ${amountCents} against ${txn.paymentIntentId} failed`,
+        error,
+      );
+      return { kind: "error", message: ADMIN_ERROR_MESSAGE };
+    }
+  }
   return { kind: "success" };
 }
 
@@ -98,9 +130,7 @@ export async function markNoShowCore(
   await repo.updateBookingStatus(bookingId, transitionResult.state);
 
   const settings = await repo.getSettings();
-  const paidCents = booking.payments
-    .filter((p) => p.status === "succeeded")
-    .reduce((sum, p) => sum + p.amountCents, 0);
+  const paidCents = netPaid(booking.payments);
   // Net against captured payment so a prepaid no-show is not double-charged.
   const debtCents = noShowDebtCents({
     finalCents: booking.finalCents,
@@ -121,27 +151,28 @@ export async function markNoShowCore(
 }
 
 /**
- * Admin applies (or removes) the Kiche discount on a single booking.
+ * Admin applies (or removes) one manual discount on a single booking.
  *
- * Re-quotes the booking's FROZEN stored quote with `applyKiche` flipped (so only
- * the Kiche line changes), persists the new total, and — when applying drops the
- * total below what the client already paid — initiates a Stripe refund for the
+ * Re-quotes the booking's FROZEN stored quote with `modifierId` flipped (so only
+ * that discount's line changes and any other manual discount already on the
+ * booking survives), persists the new total, and — when applying drops the total
+ * below what the client already paid — initiates a Stripe refund for the
  * overpayment. The `charge.refunded` webhook stays the sole writer of
  * `payment_status` (this path never writes it). Idempotent: re-applying the
  * current state is a no-op success.
  *
- * Guards (when applying): the service must carry a Kiche rate (house-sitting /
- * walk) and the client must have marked Kiche welcome. Authorization is the
- * caller's responsibility (admin-gated action wrapper).
+ * Guards (when applying): the booking's frozen config must declare that manual
+ * modifier, and for Kiche the client must have marked Kiche welcome.
+ * Authorization is the caller's responsibility (admin-gated action wrapper).
  *
  * Persist-then-refund: if the refund call fails the discount is still recorded
- * (client overpaid, not under-refunded) and Cal can retry the refund — money is
- * never lost, only pending.
+ * (client overpaid, not under-refunded) and the result is `error` so Cal knows
+ * to retry the refund — money is never lost, only pending.
  */
-export async function setKicheAppliedCore(
+export async function setManualAppliedCore(
   deps: CancelDeps,
-  args: { bookingId: string; applied: boolean },
-): Promise<SetKicheAppliedResult> {
+  args: { bookingId: string; modifierId: string; applied: boolean },
+): Promise<SetManualAppliedResult> {
   const { repo, gateway } = deps;
   const booking = await repo.getBookingForKiche(args.bookingId);
   if (!booking) return { kind: "not_found" };
@@ -153,14 +184,11 @@ export async function setKicheAppliedCore(
   ) {
     return {
       kind: "invalid_state",
-      message: `Cannot change the Kiche discount on a ${booking.status} booking.`,
+      message: "This booking can no longer be changed.",
     };
   }
 
-  // The frozen QuoteInput must carry a re-priceable modifier config. Kiche
-  // support is now read from the config itself: a booking supports the toggle
-  // iff its config defines a manual "kiche" modifier (replaces the old per-type
-  // serviceSupportsKiche check).
+  // The frozen QuoteInput must carry a re-priceable modifier config.
   const storedInput = booking.quote_inputs as Partial<QuoteInput> | null;
   if (!storedInput?.config) {
     return {
@@ -169,14 +197,52 @@ export async function setKicheAppliedCore(
     };
   }
 
+  // `quote_inputs` is jsonb, so its config is `unknown` until parsed. Validating
+  // it here — rather than casting into the engine — keeps a malformed or legacy
+  // stored quote from re-pricing a booking on made-up rates.
+  let config: ServicePricingConfig;
+  try {
+    config = parsePricingConfig(storedInput.config);
+  } catch (error) {
+    console.error(
+      `setManualAppliedCore: booking '${args.bookingId}' has an unparseable stored pricing config`,
+      error,
+    );
+    return { kind: "error", message: ADMIN_ERROR_MESSAGE };
+  }
+  // Same reason for the Cal-set lists: `enabledManualIds` and
+  // `customAdjustments` come off jsonb too, so a legacy or hand-edited row can
+  // hold anything. Sanitizing them here keeps junk out of both the re-quote and
+  // the ids written back.
+  const { enabledManualIds: enabledIds, customAdjustments } =
+    storedManualInputs(booking.quote_inputs);
+  const validatedInput: QuoteInput = {
+    ...storedInput,
+    config,
+    enabledManualIds: enabledIds,
+    customAdjustments,
+  };
+
+  // Which discounts a booking can carry is read from its frozen config: it
+  // supports a toggle iff that config declares a matching manual modifier.
   if (args.applied) {
-    if (!quoteInputSupportsManual(storedInput, "kiche"))
-      return { kind: "unsupported" };
-    if (!booking.kiche_welcome) return { kind: "no_consent" };
+    const supported = manualDiscounts(config.modifiers).some(
+      (discount) => discount.id === args.modifierId,
+    );
+    if (!supported) return { kind: "unsupported" };
+    if (args.modifierId === KICHE_ID && !booking.kiche_welcome)
+      return { kind: "no_consent" };
   }
 
+  // `kiche_applied` is the column the edit re-quote reads, so it stays the truth
+  // for Kiche; every other discount lives in the frozen input's id list.
+  const currentlyApplied =
+    args.modifierId === KICHE_ID
+      ? booking.kiche_applied
+      : enabledIds.includes(args.modifierId);
+
   // Idempotent: nothing to do if already in the requested state.
-  if (booking.kiche_applied === args.applied) {
+  if (currentlyApplied === args.applied) {
     return {
       kind: "success",
       applied: args.applied,
@@ -185,37 +251,46 @@ export async function setKicheAppliedCore(
     };
   }
 
-  const breakdown = requoteWithKiche(
-    booking.quote_inputs as QuoteInput,
+  const breakdown = requoteWithManual(
+    validatedInput,
+    args.modifierId,
     args.applied,
   );
 
-  // Persist the toggled "kiche" id in the frozen input's enabledManualIds so a
-  // later re-quote (e.g. series roll) reproduces this total.
-  const enabled = new Set(storedInput.enabledManualIds ?? []);
-  if (args.applied) enabled.add("kiche");
-  else enabled.delete("kiche");
+  // Persist the toggled id in the frozen input's enabledManualIds so a later
+  // re-quote (an edit, a series roll) reproduces this total.
   await repo.updateBookingKiche(args.bookingId, {
-    kiche_applied: args.applied,
-    quote_inputs: {
-      ...(booking.quote_inputs as object),
-      enabledManualIds: [...enabled],
-    },
-    quote_breakdown: breakdown,
+    kiche_applied:
+      args.modifierId === KICHE_ID ? args.applied : booking.kiche_applied,
+    quote_inputs: asJson({
+      ...storedInput,
+      enabledManualIds: toggleManualIds(
+        enabledIds,
+        args.modifierId,
+        args.applied,
+      ),
+    }),
+    quote_breakdown: asJson(breakdown),
     final_cents: breakdown.finalCents,
   });
 
   // Refund any overpayment created by a now-lower total (webhook re-projects status).
   let refundedCents = 0;
-  const paidCents = booking.payments
-    .filter((p) => p.status === "succeeded")
-    .reduce((sum, p) => sum + p.amountCents, 0);
-  const refundCents = kicheOverpayRefundCents(paidCents, breakdown.finalCents);
-  if (refundCents > 0) {
-    const succeeded = booking.payments.find((p) => p.status === "succeeded");
-    if (succeeded) {
-      await gateway.refund(succeeded.paymentIntentId, refundCents);
-      refundedCents = refundCents;
+  const paidCents = netPaid(booking.payments);
+  const refundCents = manualOverpayRefundCents(paidCents, breakdown.finalCents);
+  for (const { txn, amountCents } of planRefunds(
+    booking.payments,
+    refundCents,
+  )) {
+    try {
+      await gateway.refund(txn.paymentIntentId, amountCents);
+      refundedCents += amountCents;
+    } catch (error) {
+      console.error(
+        `setManualAppliedCore: refund of ${amountCents} against ${txn.paymentIntentId} failed`,
+        error,
+      );
+      return { kind: "error", message: ADMIN_ERROR_MESSAGE };
     }
   }
 

@@ -16,6 +16,7 @@ import { createClient } from "@supabase/supabase-js";
 import { createSupabaseBookingRepository } from "./booking-repository";
 import { createBookingCore, editBookingCore } from "./booking-service";
 import { ADMIN_POLICY } from "./mutation-policy";
+import { deleteFixtureClients } from "@/test-stubs/integration-cleanup";
 
 const url = process.env.SUPABASE_TEST_URL!;
 const serviceKey = process.env.SUPABASE_TEST_SERVICE_ROLE_KEY!;
@@ -36,6 +37,13 @@ const serviceClient = createClient(url, serviceKey, {
 const ts = Date.now();
 const TEST_PASS = "Admin1234!";
 
+/**
+ * This suite's own fixture-email prefix. Teardown deletes by it rather than by
+ * the ids `beforeAll` assigned, so an aborted run cannot leak confirmed slots
+ * into the next one. It must not overlap another suite's prefix.
+ */
+const EMAIL_PREFIX = "test-admin-create-";
+
 /** Client A: the booking owner. FAR from Boulder origin → beyond hard cutoff.
  *  This ensures that createBookingCore with CLIENT_POLICY would block but
  *  ADMIN_POLICY warns instead. */
@@ -51,18 +59,24 @@ let otherUserId: string;
 let walkServiceId: string;
 let petA: string;
 
-// Track created rows for afterAll cleanup (FK-safe order).
-const createdBookingIds: string[] = [];
-
 // ──────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ──────────────────────────────────────────────────────────────────────────────
 
-/** A future timestamp outside any availability window (no windows seeded). */
+/**
+ * A future timestamp outside any availability window (no windows seeded).
+ *
+ * The hour is this suite's slot separator. Integration suites share one local
+ * database at overlapping day offsets, and the drive-time buffer guard refuses a
+ * slot that merely sits NEAR another active booking, so two suites pinning the
+ * same hour make each other fail at random. 15:00 UTC is 09:00 MDT / 08:00 MST —
+ * inside Denver open hours, and two hours clear of the edit-booking suite's
+ * 17:00 and five clear of booking-service's 20:00.
+ */
 function futureStart(offsetDays = 5): Date {
   const d = new Date();
   d.setUTCDate(d.getUTCDate() + offsetDays);
-  d.setUTCHours(17, 0, 0, 0);
+  d.setUTCHours(15, 0, 0, 0);
   return d;
 }
 
@@ -79,10 +93,7 @@ function deps() {
   };
 }
 
-/**
- * Direct-insert a booking row, bypassing gate logic.
- * Tracks the id in createdBookingIds for cleanup.
- */
+/** Direct-insert a booking row, bypassing gate logic. */
 async function insertBookingRow(opts: {
   clientId: string;
   serviceId: string;
@@ -116,7 +127,6 @@ async function insertBookingRow(opts: {
   if (error || !data) {
     throw new Error(`insertBookingRow failed: ${error?.message}`);
   }
-  createdBookingIds.push(data.id as string);
   return data.id as string;
 }
 
@@ -128,7 +138,7 @@ beforeAll(async () => {
   // 1. Create client A (far, approved — distance would block client policy).
   const { data: authA, error: errA } =
     await serviceClient.auth.admin.createUser({
-      email: `test-admin-create-clientA-${ts}@example.invalid`,
+      email: `${EMAIL_PREFIX}clientA-${ts}@example.invalid`,
       password: TEST_PASS,
       email_confirm: true,
     });
@@ -154,7 +164,7 @@ beforeAll(async () => {
   // 2. Create other user (near, approved — used as "other actor" in edit test).
   const { data: authOther, error: errOther } =
     await serviceClient.auth.admin.createUser({
-      email: `test-admin-create-other-${ts}@example.invalid`,
+      email: `${EMAIL_PREFIX}other-${ts}@example.invalid`,
       password: TEST_PASS,
       email_confirm: true,
     });
@@ -195,10 +205,11 @@ beforeAll(async () => {
       { client_id: clientAUserId, name: `PetA-admin-${ts}`, species: "dog" },
     ])
     .select("id");
-  if (petErr || !pets || pets.length < 1) {
+  const [petRowA] = pets ?? [];
+  if (petErr || !petRowA) {
     throw new Error(`pet fixture failed: ${petErr?.message}`);
   }
-  petA = pets[0].id as string;
+  petA = petRowA.id as string;
 
   // NOTE: No availability windows are inserted here. That is intentional —
   // the absence of any window covering the slot produces an out-of-window
@@ -208,27 +219,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  // Delete in FK-safe order: payments → booking_pets → bookings → then users.
-  if (createdBookingIds.length > 0) {
-    await serviceClient
-      .from("payments")
-      .delete()
-      .in("booking_id", createdBookingIds);
-    await serviceClient
-      .from("booking_pets")
-      .delete()
-      .in("booking_id", createdBookingIds);
-    await serviceClient.from("bookings").delete().in("id", createdBookingIds);
-  }
-
-  if (clientAUserId) {
-    await serviceClient.from("pets").delete().eq("client_id", clientAUserId);
-    await serviceClient.auth.admin.deleteUser(clientAUserId);
-  }
-
-  if (otherUserId) {
-    await serviceClient.auth.admin.deleteUser(otherUserId);
-  }
+  await deleteFixtureClients(serviceClient, EMAIL_PREFIX);
 });
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -260,11 +251,6 @@ describe("admin create-on-behalf", () => {
 
     expect(result.kind).toBe("success");
     if (result.kind === "success") {
-      // Register for cleanup first — before any assertion that could throw.
-      if (!createdBookingIds.includes(result.bookingIds[0])) {
-        createdBookingIds.push(result.bookingIds[0]);
-      }
-
       expect(result.warnings.length).toBeGreaterThan(0);
       expect(result.bookingIds.length).toBe(1);
 
@@ -304,11 +290,6 @@ describe("admin create-on-behalf", () => {
 
     expect(result.kind).toBe("success");
     if (result.kind === "success") {
-      // Register for cleanup first — before any assertion that could throw.
-      if (!createdBookingIds.includes(result.bookingIds[0])) {
-        createdBookingIds.push(result.bookingIds[0]);
-      }
-
       expect(result.bookingIds.length).toBe(1);
 
       // Read the row back and assert status === "confirmed".

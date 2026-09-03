@@ -17,9 +17,18 @@ describe("scheduler constraint reads", () => {
     expect(maxPetsOf(walk)).toBe(2);
     expect(maxPetsOf(houseSit)).toBeNull();
   });
-  it("allowedSpeciesOf narrows config species to the avatar's dog/cat set", () => {
-    // pets are dog/cat by DB enum, so non-dog/cat config entries are dropped
+  it("allowedSpeciesOf offers every species the service's config accepts", () => {
+    // A walk is dogs only, but a house-sit takes the whole taxonomy, and the
+    // pet step has to offer the bird the config says Cal will sit for.
     expect(allowedSpeciesOf(walk)).toEqual(["dog"]);
-    expect(allowedSpeciesOf(houseSit)).toEqual(["dog", "cat"]);
+    expect(allowedSpeciesOf(houseSit)).toEqual([
+      "dog",
+      "cat",
+      "bird",
+      "rodent",
+      "reptile",
+      "fish",
+      "other",
+    ]);
   });
 });

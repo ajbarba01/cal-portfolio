@@ -6,6 +6,11 @@
  * tests from Next.js server-action machinery (headers, cookies, redirects)
  * while still hitting the real DB schema, RLS, and the exclusion constraint.
  *
+ * Everything here needs the database. The gates that do not were split into
+ * sibling unit suites, so they run in the parallel unit project instead of this
+ * serialized one: create-booking-policy, preview-edit, compute-artifacts-approval
+ * and compute-artifacts-manual-discounts.
+ *
  * Prerequisites: local Supabase stack running (`npx supabase start`).
  * Credentials loaded from .env.test (gitignored).
  *
@@ -20,30 +25,22 @@
  * 1° lat ≈ 69 mi; only latitude is adjusted here (lng fixed at origin).
  */
 
-import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
+import { assert, describe, it, expect, beforeAll, afterAll } from "vitest";
 import { createClient } from "@supabase/supabase-js";
 import {
   createBookingCore,
   cancelBookingCore,
   computeBookingQuoteCore,
-  computeBookingArtifacts,
   markNoShowCore,
+  grantFullRefundCore,
   settleDebtCore,
-  previewEditCore,
-  editBookingCore,
 } from "./booking-service";
-import type { CreateBookingInput } from "./booking-service";
 import { createSupabaseBookingRepository } from "./booking-repository";
-import type {
-  OnboardingStatus,
-  BookingRepository,
-  BookingEditRow,
-  BookingInsert,
-  BusyRange,
-} from "./booking-repository";
+import { deleteFixtureClients } from "@/test-stubs/integration-cleanup";
+import type { OnboardingStatus } from "./booking-repository";
 import { quote } from "@/features/pricing/quote";
 import type { QuoteInput } from "@/features/pricing";
-import { ADMIN_POLICY, CLIENT_POLICY } from "./mutation-policy";
+import { ADMIN_POLICY } from "./mutation-policy";
 
 const url = process.env.SUPABASE_TEST_URL!;
 const serviceKey = process.env.SUPABASE_TEST_SERVICE_ROLE_KEY!;
@@ -73,6 +70,13 @@ const REFUSE_LNG = -105.27;
 const TEST_PASS = "Test1234!";
 const ts = Date.now();
 
+/**
+ * This suite's own fixture-email prefix. Teardown deletes by it rather than by
+ * the ids `beforeAll` assigned, so an aborted run cannot leak confirmed slots
+ * into the next one. It must not overlap another suite's prefix.
+ */
+const EMAIL_PREFIX = "test-booking-";
+
 let nearUserId: string;
 let farUserId: string;
 let refuseUserId: string;
@@ -82,15 +86,26 @@ let meetGreetPendingUserId: string;
 let infoPendingUserId: string;
 let declinedUserId: string;
 let coveringWindowId: string;
+let seededNightKeys: string[] = [];
 
 // A future start time well within the booking window. We offset a fixed number
 // of days from now so the lead-time guard (24h) is always met, and pin the
-// clock to 17:00 UTC = 11:00 MDT / 10:00 MST — always within the 08-18 Denver
+// clock to 23:00 UTC = 17:00 MDT / 16:00 MST — always within the Denver
 // open-hours window enforced by passesGuards.
+//
+// Nobody else claims that hour, which is the whole point. Vitest runs files in
+// parallel against one shared local DB and the drive-time buffer guard rejects a
+// slot that merely sits NEAR another active booking, so anything already parked
+// at this hour makes suites fail each other at random. Two sets of neighbours:
+// the sibling suites (edit-booking 17:00, admin-create 15:00, series-cron
+// 14:23/16:41 UTC) and, on a seeded database, the demo seed — which books Denver
+// 7:00–16:00 and leaves the 17:00 hour free. Keep the hour under 24:00 UTC as
+// well: the overnight cases key nights by UTC calendar date and need it to agree
+// with the Denver day.
 function futureStart(offsetDays = 5): Date {
   const d = new Date();
   d.setUTCDate(d.getUTCDate() + offsetDays);
-  d.setUTCHours(17, 0, 0, 0);
+  d.setUTCHours(23, 0, 0, 0);
   return d;
 }
 
@@ -131,27 +146,27 @@ beforeAll(async () => {
   [nearUserId, farUserId, refuseUserId, debtorUserId, noShowUserId] =
     await Promise.all([
       createTestUser(
-        `test-booking-near-${ts}@example.invalid`,
+        `${EMAIL_PREFIX}near-${ts}@example.invalid`,
         NEAR_LAT,
         NEAR_LNG,
       ),
       createTestUser(
-        `test-booking-far-${ts}@example.invalid`,
+        `${EMAIL_PREFIX}far-${ts}@example.invalid`,
         FAR_LAT,
         FAR_LNG,
       ),
       createTestUser(
-        `test-booking-refuse-${ts}@example.invalid`,
+        `${EMAIL_PREFIX}refuse-${ts}@example.invalid`,
         REFUSE_LAT,
         REFUSE_LNG,
       ),
       createTestUser(
-        `test-booking-debtor-${ts}@example.invalid`,
+        `${EMAIL_PREFIX}debtor-${ts}@example.invalid`,
         NEAR_LAT,
         NEAR_LNG,
       ),
       createTestUser(
-        `test-booking-noshow-${ts}@example.invalid`,
+        `${EMAIL_PREFIX}noshow-${ts}@example.invalid`,
         NEAR_LAT,
         NEAR_LNG,
       ),
@@ -163,17 +178,17 @@ beforeAll(async () => {
   [meetGreetPendingUserId, infoPendingUserId, declinedUserId] =
     await Promise.all([
       createTestUser(
-        `test-booking-mgpending-${ts}@example.invalid`,
+        `${EMAIL_PREFIX}mgpending-${ts}@example.invalid`,
         NEAR_LAT,
         NEAR_LNG,
       ),
       createTestUser(
-        `test-booking-infopending-${ts}@example.invalid`,
+        `${EMAIL_PREFIX}infopending-${ts}@example.invalid`,
         NEAR_LAT,
         NEAR_LNG,
       ),
       createTestUser(
-        `test-booking-declined-${ts}@example.invalid`,
+        `${EMAIL_PREFIX}declined-${ts}@example.invalid`,
         NEAR_LAT,
         NEAR_LNG,
       ),
@@ -183,6 +198,34 @@ beforeAll(async () => {
     setOnboarding(infoPendingUserId, "info_pending"),
     setOnboarding(declinedUserId, "declined"),
   ]);
+
+  // Required intake profiles. createBookingCore refuses with
+  // `profiles_incomplete` unless every account-scoped profile the service's
+  // manifest needs is on file AND fresh. submitted_at defaults to now(), so the
+  // fixture stays fresh no matter when the suite runs.
+  const seededUserIds = [
+    nearUserId,
+    farUserId,
+    refuseUserId,
+    debtorUserId,
+    noShowUserId,
+    meetGreetPendingUserId,
+    infoPendingUserId,
+    declinedUserId,
+  ];
+  const { error: formsErr } = await serviceClient.from("form_responses").insert(
+    seededUserIds.flatMap((clientId) =>
+      (["owner", "home_access", "home_sitting"] as const).map((formKey) => ({
+        client_id: clientId,
+        form_key: formKey,
+        pet_id: null,
+        data: {},
+      })),
+    ),
+  );
+  if (formsErr) {
+    throw new Error(`Failed to seed required profiles: ${formsErr.message}`);
+  }
 
   // Verify seeded services exist (used via slug in createBookingCore).
   const { data: services, error } = await serviceClient
@@ -196,7 +239,7 @@ beforeAll(async () => {
   }
 
   // Insert a wide availability window covering all test booking times.
-  // futureStart(offsetDays) at 17:00 UTC; tests use offsets 5–100.
+  // futureStart(offsetDays) at 23:00 UTC; tests use offsets 5–100.
   // Window: now+1d .. now+95d (wider than max offset=90, narrower than 100d
   // so the "max advance" test still returns unavailable before fitsWindow runs).
   const windowStart = new Date();
@@ -222,34 +265,30 @@ beforeAll(async () => {
     );
   }
   coveringWindowId = windowData.id as string;
+
+  // Overnight (house-sitting) availability is the per-night `overnight_nights`
+  // set — migration 20260603140000 made it the sole source of truth, so the
+  // intraday window above does nothing for stays. Publish every night the window
+  // spans. futureStart() is 23:00 UTC = 17:00 Denver, so the UTC calendar date
+  // and the Denver day key agree.
+  seededNightKeys = Array.from({ length: 95 }, (_, i) => {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() + i + 1);
+    return d.toISOString().slice(0, 10);
+  });
+  const { error: nightsErr } = await serviceClient
+    .from("overnight_nights")
+    .upsert(
+      seededNightKeys.map((night) => ({ night })),
+      { onConflict: "night" },
+    );
+  if (nightsErr) {
+    throw new Error(`Failed to seed overnight nights: ${nightsErr.message}`);
+  }
 });
 
 afterAll(async () => {
-  // Delete bookings first (FK bookings.client_id → profiles cascade restrict,
-  // so delete bookings then users; admin.deleteUser cascades auth → profiles).
-  const allUserIds = [
-    nearUserId,
-    farUserId,
-    refuseUserId,
-    debtorUserId,
-    noShowUserId,
-    meetGreetPendingUserId,
-    infoPendingUserId,
-    declinedUserId,
-  ].filter(Boolean);
-
-  await serviceClient.from("bookings").delete().in("client_id", allUserIds);
-
-  // Deleting the auth user cascades profiles → client_debits, but delete
-  // explicitly too in case a booking FK held a debit row.
-  await serviceClient
-    .from("client_debits")
-    .delete()
-    .in("client_id", allUserIds);
-
-  await Promise.all(
-    allUserIds.map((id) => serviceClient.auth.admin.deleteUser(id)),
-  );
+  await deleteFixtureClients(serviceClient, EMAIL_PREFIX);
 
   // Clean up the covering availability window.
   if (coveringWindowId) {
@@ -257,6 +296,14 @@ afterAll(async () => {
       .from("availability_windows")
       .delete()
       .eq("id", coveringWindowId);
+  }
+
+  // Clean up the published overnight nights.
+  if (seededNightKeys.length > 0) {
+    await serviceClient
+      .from("overnight_nights")
+      .delete()
+      .in("night", seededNightKeys);
   }
 });
 
@@ -279,12 +326,20 @@ function deps() {
 
 /** Records refund calls so cancellation tests can assert on them without Stripe. */
 class FakeGateway {
-  refunds: Array<{ paymentIntentId: string; amountCents: number }> = [];
+  refunds: Array<{
+    paymentIntentId: string;
+    amountCents: number;
+    idempotencyKey?: string;
+  }> = [];
   async createIntent() {
     return { paymentIntentId: "pi_fake", clientSecret: "pi_fake_secret" };
   }
-  async refund(paymentIntentId: string, amountCents: number): Promise<void> {
-    this.refunds.push({ paymentIntentId, amountCents });
+  async refund(
+    paymentIntentId: string,
+    amountCents: number,
+    idempotencyKey?: string,
+  ): Promise<void> {
+    this.refunds.push({ paymentIntentId, amountCents, idempotencyKey });
   }
   async retrieveIntent(id: string) {
     return {
@@ -429,15 +484,23 @@ describe("createBookingCore", () => {
     });
     expect(first.kind).toBe("success");
 
-    // Second booking — same exclusive class, overlapping time → rejected by constraint.
-    const second = await createBookingCore(deps(), {
-      userId: nearUserId,
-      serviceSlug: "check-in", // also exclusive
-      startsAt: start,
-      endsAt: end,
-      quantities: { hours: 1 },
-      recurringRule: null,
-    });
+    // Second booking — same exclusive class, overlapping time → rejected by the
+    // Postgres exclusion constraint. Sent under ADMIN_POLICY because the
+    // drive-time spacing guard (an app-level gate) now rejects an overlapping
+    // slot with `unavailable` long before the insert; skipBufferGuard is the
+    // only way to reach the constraint, which no policy can bypass.
+    const second = await createBookingCore(
+      deps(),
+      {
+        userId: nearUserId,
+        serviceSlug: "check-in", // also exclusive
+        startsAt: start,
+        endsAt: end,
+        quantities: { hours: 1 },
+        recurringRule: null,
+      },
+      ADMIN_POLICY,
+    );
     expect(second.kind).toBe("slot_taken");
 
     // Exactly one row persisted at this start time (the second insert produced none).
@@ -658,7 +721,8 @@ describe("cancelBookingCore", () => {
     expect(created.kind).toBe("success");
     if (created.kind !== "success") return;
 
-    const bookingId = created.bookingIds[0];
+    const [bookingId] = created.bookingIds;
+    assert(bookingId, "expected the created booking id");
 
     const result = await cancelBookingCore(cancelDeps(), {
       userId: nearUserId,
@@ -692,9 +756,11 @@ describe("cancelBookingCore", () => {
     if (created.kind !== "success") return;
 
     // farUser tries to cancel nearUser's booking.
+    const [bookingId] = created.bookingIds;
+    assert(bookingId, "expected the created booking id");
     const result = await cancelBookingCore(cancelDeps(), {
       userId: farUserId,
-      bookingId: created.bookingIds[0],
+      bookingId,
     });
 
     expect(result.kind).toBe("forbidden");
@@ -744,15 +810,22 @@ async function insertSucceededPayment(opts: {
   bookingId: string;
   clientId: string;
   amountCents: number;
-}): Promise<void> {
+  /** Cents already refunded against this intent (a partially refunded prepay). */
+  refundedCents?: number;
+  intentId?: string;
+}): Promise<string> {
+  const intentId =
+    opts.intentId ?? `pi_test_${opts.bookingId}_${opts.amountCents}`;
   const { error } = await serviceClient.from("payments").insert({
     booking_id: opts.bookingId,
     client_id: opts.clientId,
-    stripe_payment_intent_id: `pi_test_${opts.bookingId}_${opts.amountCents}`,
+    stripe_payment_intent_id: intentId,
     amount_cents: opts.amountCents,
+    refunded_cents: opts.refundedCents ?? 0,
     status: "succeeded",
   });
   if (error) throw new Error(`insertSucceededPayment failed: ${error.message}`);
+  return intentId;
 }
 
 describe("cancellation + debt gate", () => {
@@ -940,6 +1013,146 @@ describe("cancellation + debt gate", () => {
   });
 });
 
+describe("refunds net what was already given back", () => {
+  it("a cancel after a partial refund asks Stripe only for the remainder", async () => {
+    const start = futureStart(205);
+    start.setUTCMinutes(11, 0, 0);
+    const bookingId = await insertBookingRow({
+      clientId: debtorUserId,
+      startsAt: start,
+      endsAt: new Date(start.getTime() + 60 * 60 * 1000),
+      status: "confirmed",
+      finalCents: 4000,
+    });
+    // The live shape: Cal applied a discount, which refunded 1000 of the prepay.
+    const intentId = await insertSucceededPayment({
+      bookingId,
+      clientId: debtorUserId,
+      amountCents: 4000,
+      refundedCents: 1000,
+    });
+
+    const gateway = new FakeGateway();
+    const result = await cancelBookingCore(
+      { repo: makeRepo(), now: new Date(), gateway },
+      { userId: debtorUserId, bookingId },
+    );
+
+    expect(result.kind).toBe("success");
+    expect(gateway.refunds).toEqual([
+      {
+        paymentIntentId: intentId,
+        amountCents: 3000,
+        idempotencyKey: undefined,
+      },
+    ]);
+
+    const { data: booking } = await serviceClient
+      .from("bookings")
+      .select("status")
+      .eq("id", bookingId)
+      .single();
+    expect(booking?.status).toBe("cancelled");
+  });
+
+  it("a rejected refund fails the cancel instead of cancelling an unrefunded booking", async () => {
+    const start = futureStart(206);
+    start.setUTCMinutes(12, 0, 0);
+    const bookingId = await insertBookingRow({
+      clientId: debtorUserId,
+      startsAt: start,
+      endsAt: new Date(start.getTime() + 60 * 60 * 1000),
+      status: "confirmed",
+      finalCents: 4000,
+    });
+    await insertSucceededPayment({
+      bookingId,
+      clientId: debtorUserId,
+      amountCents: 4000,
+    });
+
+    const gateway = new FakeGateway();
+    gateway.refund = async () => {
+      throw new Error("stripe rejected the refund");
+    };
+
+    const result = await cancelBookingCore(
+      { repo: makeRepo(), now: new Date(), gateway },
+      { userId: debtorUserId, bookingId },
+    );
+
+    expect(result.kind).toBe("error");
+    const { data: booking } = await serviceClient
+      .from("bookings")
+      .select("status")
+      .eq("id", bookingId)
+      .single();
+    expect(booking?.status).toBe("confirmed");
+  });
+});
+
+describe("grantFullRefundCore", () => {
+  it("refuses to refund a booking that is still going ahead", async () => {
+    const start = futureStart(207);
+    start.setUTCMinutes(13, 0, 0);
+    const bookingId = await insertBookingRow({
+      clientId: debtorUserId,
+      startsAt: start,
+      endsAt: new Date(start.getTime() + 60 * 60 * 1000),
+      status: "confirmed",
+      finalCents: 4000,
+    });
+    await insertSucceededPayment({
+      bookingId,
+      clientId: debtorUserId,
+      amountCents: 4000,
+    });
+
+    const gateway = new FakeGateway();
+    const result = await grantFullRefundCore(
+      { repo: makeRepo(), now: new Date(), gateway },
+      bookingId,
+    );
+
+    expect(result.kind).toBe("invalid_state");
+    expect(gateway.refunds).toHaveLength(0);
+  });
+
+  it("grants only what is left, under a key that survives a double click", async () => {
+    const start = futureStart(208);
+    start.setUTCMinutes(14, 0, 0);
+    const bookingId = await insertBookingRow({
+      clientId: debtorUserId,
+      startsAt: start,
+      endsAt: new Date(start.getTime() + 60 * 60 * 1000),
+      status: "cancelled",
+      finalCents: 4000,
+    });
+    const intentId = await insertSucceededPayment({
+      bookingId,
+      clientId: debtorUserId,
+      amountCents: 4000,
+      refundedCents: 2500,
+    });
+
+    const gateway = new FakeGateway();
+    const deps = { repo: makeRepo(), now: new Date(), gateway };
+    expect((await grantFullRefundCore(deps, bookingId)).kind).toBe("success");
+    expect((await grantFullRefundCore(deps, bookingId)).kind).toBe("success");
+
+    expect(gateway.refunds).toHaveLength(2);
+    const [firstRefund, secondRefund] = gateway.refunds;
+    assert(firstRefund && secondRefund, "expected two recorded refunds");
+    expect(firstRefund).toMatchObject({
+      paymentIntentId: intentId,
+      amountCents: 1500,
+    });
+    // Same key both times, so Stripe collapses the second call into the first.
+    expect(firstRefund.idempotencyKey).toBe(secondRefund.idempotencyKey);
+    expect(firstRefund.idempotencyKey).toBeTruthy();
+  });
+});
+
 // ──────────────────────────────────────────────────────────────────────────────
 // computeBookingQuoteCore
 // ──────────────────────────────────────────────────────────────────────────────
@@ -1079,8 +1292,8 @@ describe("createBookingCore — fitsWindow enforcement", () => {
         .delete()
         .eq("id", coveringWindowId);
 
-      // Booking at offset=58 (17:00 UTC) is OUTSIDE the narrow window (10:00–12:00 UTC at day+60).
-      const start = futureStart(58); // day+58 at 17:00 UTC → not inside day+60 narrow window
+      // Booking at offset=58 (23:00 UTC) is OUTSIDE the narrow window (10:00–12:00 UTC at day+60).
+      const start = futureStart(58); // day+58 at 23:00 UTC → not inside day+60 narrow window
       const end = futureEnd(start);
 
       const before = await countRows(nearUserId);
@@ -1150,9 +1363,37 @@ describe("createBookingCore: pet assignment", () => {
       .select("id, species");
     if (error || !data)
       throw new Error(`pet fixture failed: ${error?.message}`);
-    dog1 = data.find((p) => p.species === "dog")!.id as string;
-    dog2 = data.filter((p) => p.species === "dog")[1].id as string;
-    cat1 = data.find((p) => p.species === "cat")!.id as string;
+    const [dogRow1, dogRow2] = data.filter((p) => p.species === "dog");
+    const catRow = data.find((p) => p.species === "cat");
+    assert(
+      dogRow1 && dogRow2 && catRow,
+      "pet fixture failed: expected two dogs and a cat",
+    );
+    dog1 = dogRow1.id as string;
+    dog2 = dogRow2.id as string;
+    cat1 = catRow.id as string;
+
+    // Pet-scoped required profiles for the assigned pets (pet_care for every
+    // pet, pet_walk for dogs) — without them the commit gate returns
+    // profiles_incomplete. submitted_at defaults to now() → always fresh.
+    const { error: petFormsErr } = await serviceClient
+      .from("form_responses")
+      .insert(
+        data.flatMap((p) =>
+          (p.species === "dog"
+            ? (["pet_care", "pet_walk"] as const)
+            : (["pet_care"] as const)
+          ).map((formKey) => ({
+            client_id: nearUserId,
+            form_key: formKey,
+            pet_id: p.id as string,
+            data: {},
+          })),
+        ),
+      );
+    if (petFormsErr) {
+      throw new Error(`pet profile fixture failed: ${petFormsErr.message}`);
+    }
   });
 
   it("walk: derives dog count from assigned pets and links booking_pets", async () => {
@@ -1222,186 +1463,6 @@ describe("createBookingCore: pet assignment", () => {
       recurringRule: null,
     });
     expect(result.kind).toBe("validation_error");
-  });
-});
-
-// ──────────────────────────────────────────────────────────────────────────────
-// computeBookingArtifacts — policy gates (unit tests, no DB)
-// ──────────────────────────────────────────────────────────────────────────────
-
-/**
- * Build a minimal mock BookingRepository for policy-gate unit tests.
- *
- * opts:
- *   outstandingDebtCents  — controls the debt gate (default 0)
- *   openWindows           — returned by getOpenWindows (default [])
- *   profileLatLng         — returned by getProfileLatLng (default near-client coords)
- *   captureInserts        — when true, records rows passed to insertBookings;
- *                           access via the returned getLastInsertedStatuses accessor
- */
-function makeMockRepo(
-  opts: {
-    outstandingDebtCents?: number;
-    openWindows?: { startsAt: Date; endsAt: Date }[];
-    profileLatLng?: { lat: number | null; lng: number | null };
-    captureInserts?: boolean;
-    activeBusyRanges?: BusyRange[];
-  } = {},
-): {
-  repo: BookingRepository;
-  getLastInsertedStatuses: () => string[];
-} {
-  let lastInsertedStatuses: string[] = [];
-
-  const repo: BookingRepository = {
-    getOutstandingDebtCents: vi.fn(async () => opts.outstandingDebtCents ?? 0),
-    getOnboardingStatus: vi.fn(async () => "approved" as const),
-    hasActiveBookingForServiceSlug: vi.fn(async () => false),
-    getServiceBySlug: vi.fn(async () => ({
-      id: "svc-checkin",
-      slug: "check-in",
-      pricing_type: "check_in" as const,
-      pricing_config: { rate_cents_per_hour: 3000, minimum_cents: 1500 },
-      concurrency: "exclusive" as const,
-      requires_approval: false,
-      form_key: null,
-    })),
-    getSettings: vi.fn(async () => ({
-      origin_lat: 40.015,
-      origin_lng: -105.27,
-      road_factor: 1.3,
-      avg_speed_mph: 30,
-      auto_approve_threshold_miles: 8,
-      hard_cutoff_miles: 50,
-      gate_use_road_miles: false,
-      booking_open_minute: 0,
-      booking_close_minute: 1440,
-      min_lead_time_hours: 0,
-      auto_confirm_horizon_days: 30,
-      hard_max_advance_days: 365,
-      recurrence_generation_horizon_days: 42,
-      recurring_discount_pct: 10,
-      recurring_min_occurrences: 3,
-      cancellation_full_refund_hours: 48,
-      late_cancel_refund_pct: 50,
-      no_show_charge_pct: 100,
-      holiday_dates: [],
-      holiday_surcharge_cents: 0,
-      drive_buffer_pct: 0,
-    })),
-    getProfileLatLng: vi.fn(
-      async () => opts.profileLatLng ?? { lat: 40.087, lng: -105.27 },
-    ),
-    getPetsByIds: vi.fn(async () => []),
-    getFormStatuses: vi.fn(async () => [
-      { formKey: "owner", petId: null, submittedAt: "2026-06-10T00:00:00Z" },
-      {
-        formKey: "home_access",
-        petId: null,
-        submittedAt: "2026-06-10T00:00:00Z",
-      },
-      {
-        formKey: "home_sitting",
-        petId: null,
-        submittedAt: "2026-06-10T00:00:00Z",
-      },
-    ]),
-    getOpenWindows: vi.fn(async () => opts.openWindows ?? []),
-    getActiveBusyRanges: vi.fn(async () => opts.activeBusyRanges ?? []),
-    insertBookings: vi.fn(async (rows: BookingInsert[]) => {
-      if (opts.captureInserts) {
-        lastInsertedStatuses = rows.map((r) => r.status as string);
-      }
-      return ["bk-1"];
-    }),
-    insertBookingPets: vi.fn(async () => {}),
-    insertSeries: vi.fn(async () => "series-1"),
-    deleteSeries: vi.fn(async () => {}),
-    // Stub remaining interface methods (not exercised by policy gate tests)
-    getServiceById: vi.fn(),
-    getBookingById: vi.fn(),
-    updateBookingStatus: vi.fn(),
-    getBookingTimes: vi.fn(),
-    updateBookingTimes: vi.fn(),
-    getActiveSeries: vi.fn(),
-    getMaterializedOccurrenceStarts: vi.fn(),
-    getBookingWithPayments: vi.fn(),
-    insertDebit: vi.fn(),
-    settleDebit: vi.fn(),
-    getActiveBusyRangesEnriched: vi.fn(),
-    getBookingForEdit: vi.fn(),
-    updateBookingEdited: vi.fn(),
-    swapBookingPets: vi.fn(),
-    appendSeriesSkip: vi.fn(),
-    hasFormResponse: vi.fn(async () => true),
-  } as unknown as BookingRepository;
-
-  return { repo, getLastInsertedStatuses: () => lastInsertedStatuses };
-}
-
-/** A valid check-in input for the near-client mock profile. */
-const MOCK_NOW = new Date("2026-06-10T12:00:00Z");
-const mockValidInput: CreateBookingInput = {
-  userId: "a0000000-0000-4000-8000-000000000001",
-  serviceSlug: "check-in",
-  startsAt: new Date("2026-06-20T17:00:00Z"),
-  endsAt: new Date("2026-06-20T18:00:00Z"),
-  quantities: { hours: 1 },
-  recurringRule: null,
-};
-
-describe("computeBookingQuoteCore — policy gates", () => {
-  it("ADMIN_POLICY: out-of-horizon occurrence requires approval (not auto-confirmed)", async () => {
-    // Near client (lat=40.087 → under 8 mi auto threshold → baseRequiresApproval=false).
-    // Start is NOW + 2 years → beyond hard_max_advance_days=365 → timeDecision="refuse".
-    // skipHorizonRefuse=true (ADMIN_POLICY) → should warn + set requiresApproval=true.
-    const { repo } = makeMockRepo();
-    const farFutureStart = new Date(
-      MOCK_NOW.getTime() + 2 * 365 * 24 * 60 * 60 * 1000,
-    );
-    const farFutureEnd = new Date(farFutureStart.getTime() + 60 * 60 * 1000);
-    const input: CreateBookingInput = {
-      userId: "a0000000-0000-4000-8000-000000000001",
-      serviceSlug: "check-in",
-      startsAt: farFutureStart,
-      endsAt: farFutureEnd,
-      quantities: { hours: 1 },
-      recurringRule: null,
-    };
-
-    const result = await computeBookingQuoteCore(
-      { repo, now: MOCK_NOW },
-      input,
-      ADMIN_POLICY,
-    );
-
-    expect(result.kind).toBe("success");
-    if (result.kind !== "success") return;
-    expect(result.preview.requiresApproval).toBe(true);
-    expect(result.preview.warnings.join(" ")).toMatch(/beyond|limit/i);
-  });
-
-  it("blocks a debtor under CLIENT_POLICY", async () => {
-    const { repo } = makeMockRepo({ outstandingDebtCents: 4000 });
-    const result = await computeBookingQuoteCore(
-      { repo, now: MOCK_NOW },
-      mockValidInput,
-      CLIENT_POLICY,
-    );
-    expect(result.kind).toBe("blocked_debt");
-  });
-
-  it("warns (not blocks) a debtor under ADMIN_POLICY", async () => {
-    const { repo } = makeMockRepo({ outstandingDebtCents: 4000 });
-    const result = await computeBookingQuoteCore(
-      { repo, now: MOCK_NOW },
-      mockValidInput,
-      ADMIN_POLICY,
-    );
-    expect(result.kind).toBe("success");
-    if (result.kind === "success") {
-      expect(result.preview.warnings.join(" ")).toMatch(/owes/i);
-    }
   });
 });
 
@@ -1486,709 +1547,5 @@ describe("createBookingCore: onboarding gate", () => {
       recurringRule: null,
     });
     expect(result.kind).toBe("success");
-  });
-});
-
-// ──────────────────────────────────────────────────────────────────────────────
-// createBookingCore policy-aware — unit tests (in-memory fake repo, no Supabase)
-// ──────────────────────────────────────────────────────────────────────────────
-
-const CREATE_POLICY_NOW = new Date("2026-06-10T12:00:00Z");
-
-/** A valid check-in input within the auto-confirm horizon (10 days out). */
-const validClientInput: CreateBookingInput = {
-  userId: "a0000000-0000-4000-8000-000000000001",
-  serviceSlug: "check-in",
-  startsAt: new Date("2026-06-20T17:00:00Z"),
-  endsAt: new Date("2026-06-20T18:00:00Z"),
-  quantities: { hours: 1 },
-  recurringRule: null,
-};
-
-/**
- * An availability window that covers the validClientInput slot
- * (2026-06-20T17:00–18:00Z).
- */
-const openWindowCoveringSlot = {
-  startsAt: new Date("2026-06-20T15:00:00Z"),
-  endsAt: new Date("2026-06-20T20:00:00Z"),
-};
-
-describe("createBookingCore policy-aware", () => {
-  // 1. Client policy unchanged: a slot outside all windows → unavailable.
-  it("client policy still blocks an out-of-window slot", async () => {
-    const { repo } = makeMockRepo({ openWindows: [] });
-    const result = await createBookingCore(
-      { repo, now: CREATE_POLICY_NOW },
-      validClientInput,
-    );
-    expect(result.kind).toBe("unavailable");
-  });
-
-  // 2. Admin policy: same out-of-window slot succeeds with a warning.
-  it("admin policy turns out-of-window into a warning, not a block", async () => {
-    const { repo } = makeMockRepo({ openWindows: [] });
-    const result = await createBookingCore(
-      { repo, now: CREATE_POLICY_NOW },
-      validClientInput,
-      ADMIN_POLICY,
-    );
-    expect(result.kind).toBe("success");
-    if (result.kind === "success") {
-      expect(result.warnings.some((w) => /availability window/i.test(w))).toBe(
-        true,
-      );
-    }
-  });
-
-  // 3. Admin forceStatus forces the inserted status regardless of derived approval.
-  it("admin forceStatus forces the inserted status", async () => {
-    // Use null lat/lng so distance gate → manual approval → pending_approval by default.
-    // The input itself is identical to validClientInput; manual-approval is triggered
-    // by the repo mock's profileLatLng: { lat: null, lng: null }.
-    const { repo, getLastInsertedStatuses } = makeMockRepo({
-      openWindows: [openWindowCoveringSlot],
-      profileLatLng: { lat: null, lng: null },
-      captureInserts: true,
-    });
-    const policy = { ...ADMIN_POLICY, forceStatus: "confirmed" as const };
-    const result = await createBookingCore(
-      { repo, now: CREATE_POLICY_NOW },
-      validClientInput,
-      policy,
-    );
-    expect(result.kind).toBe("success");
-    const statuses = getLastInsertedStatuses();
-    expect(statuses.every((s) => s === "confirmed")).toBe(true);
-  });
-
-  // 4. Client success now carries an empty warnings array (back-compat shape).
-  it("client success returns empty warnings", async () => {
-    const { repo } = makeMockRepo({
-      openWindows: [openWindowCoveringSlot],
-    });
-    const result = await createBookingCore(
-      { repo, now: CREATE_POLICY_NOW },
-      validClientInput,
-    );
-    expect(result.kind).toBe("success");
-    if (result.kind === "success") expect(result.warnings).toEqual([]);
-  });
-
-  // 5. Buffer guard (CLIENT_POLICY): buffered candidate overlaps existing booking → unavailable.
-  //    Raw ranges do NOT overlap; buffers make them conflict.
-  //    Candidate: check-in 2026-06-20T17:00–18:00Z (1h)
-  //    Client is ~5mi from origin (lat=40.087, lng=-105.27).
-  //    driveBufferPct=200 → large buffer → makes the padded range wide.
-  //    Existing exclusive booking: ends at 2026-06-20T16:55Z (5 min before candidate start).
-  //    Raw ranges do not overlap; but with a multi-minute buffer they do.
-  it("buffer guard (CLIENT_POLICY): buffered overlap with existing booking → unavailable", async () => {
-    // Existing exclusive booking that ends 5 minutes before the candidate starts.
-    // Raw: [16:00, 16:55) — no raw overlap with candidate [17:00, 18:00).
-    // Existing client is also ~5mi away → its buffer widens [16:00, 16:55) outward.
-    // Candidate buffer also widens [17:00, 18:00) backward — they overlap.
-    const existingBusy: BusyRange = {
-      startsAt: new Date("2026-06-20T16:00:00Z"),
-      endsAt: new Date("2026-06-20T16:55:00Z"),
-      concurrency: "exclusive",
-      clientLat: 40.087, // ~5mi from origin → non-zero existing buffer
-      clientLng: -105.27,
-      pets: [],
-    };
-    const { repo } = makeMockRepo({
-      openWindows: [
-        // Wide window covering both the candidate and its buffered span.
-        {
-          startsAt: new Date("2026-06-20T00:00:00Z"),
-          endsAt: new Date("2026-06-21T00:00:00Z"),
-        },
-      ],
-      // drive_buffer_pct is in the settings stub (default 0) — override via a
-      // custom settings mock so the buffer is large enough to trigger conflict.
-      // We patch getSettings to return drive_buffer_pct=200.
-      activeBusyRanges: [existingBusy],
-    });
-    // Override settings to have a large buffer pct.
-    (repo.getSettings as ReturnType<typeof vi.fn>).mockResolvedValue({
-      origin_lat: 40.015,
-      origin_lng: -105.27,
-      road_factor: 1.3,
-      avg_speed_mph: 30,
-      auto_approve_threshold_miles: 8,
-      hard_cutoff_miles: 50,
-      gate_use_road_miles: false,
-      booking_open_minute: 0,
-      booking_close_minute: 1440,
-      min_lead_time_hours: 0,
-      auto_confirm_horizon_days: 30,
-      hard_max_advance_days: 365,
-      recurrence_generation_horizon_days: 42,
-      recurring_discount_pct: 10,
-      recurring_min_occurrences: 3,
-      cancellation_full_refund_hours: 48,
-      late_cancel_refund_pct: 50,
-      no_show_charge_pct: 100,
-      holiday_dates: [],
-      holiday_surcharge_cents: 0,
-      drive_buffer_pct: 200,
-    });
-
-    const result = await createBookingCore(
-      { repo, now: CREATE_POLICY_NOW },
-      validClientInput,
-      CLIENT_POLICY,
-    );
-    expect(result.kind).toBe("unavailable");
-    if (result.kind === "unavailable") {
-      expect(result.reason).toMatch(/travel time/i);
-    }
-  });
-
-  // 6. Buffer guard (ADMIN_POLICY): same scenario → success with a warning (warn-don't-block).
-  it("buffer guard (ADMIN_POLICY): buffered overlap downgrades to warning, not block", async () => {
-    const existingBusy: BusyRange = {
-      startsAt: new Date("2026-06-20T16:00:00Z"),
-      endsAt: new Date("2026-06-20T16:55:00Z"),
-      concurrency: "exclusive",
-      clientLat: 40.087,
-      clientLng: -105.27,
-      pets: [],
-    };
-    const { repo } = makeMockRepo({
-      openWindows: [
-        {
-          startsAt: new Date("2026-06-20T00:00:00Z"),
-          endsAt: new Date("2026-06-21T00:00:00Z"),
-        },
-      ],
-      activeBusyRanges: [existingBusy],
-    });
-    (repo.getSettings as ReturnType<typeof vi.fn>).mockResolvedValue({
-      origin_lat: 40.015,
-      origin_lng: -105.27,
-      road_factor: 1.3,
-      avg_speed_mph: 30,
-      auto_approve_threshold_miles: 8,
-      hard_cutoff_miles: 50,
-      gate_use_road_miles: false,
-      booking_open_minute: 0,
-      booking_close_minute: 1440,
-      min_lead_time_hours: 0,
-      auto_confirm_horizon_days: 30,
-      hard_max_advance_days: 365,
-      recurrence_generation_horizon_days: 42,
-      recurring_discount_pct: 10,
-      recurring_min_occurrences: 3,
-      cancellation_full_refund_hours: 48,
-      late_cancel_refund_pct: 50,
-      no_show_charge_pct: 100,
-      holiday_dates: [],
-      holiday_surcharge_cents: 0,
-      drive_buffer_pct: 200,
-    });
-
-    const result = await createBookingCore(
-      { repo, now: CREATE_POLICY_NOW },
-      validClientInput,
-      ADMIN_POLICY,
-    );
-    expect(result.kind).toBe("success");
-    if (result.kind === "success") {
-      expect(result.warnings.some((w) => /drive-time spacing/i.test(w))).toBe(
-        true,
-      );
-    }
-  });
-
-  // 7. Buffer guard: zero-buffer candidate (no coords) still blocked by existing booking's buffer.
-  //    Candidate client has NO coords → distanceMiles=null → candBufMin=0.
-  //    Existing exclusive booking: raw [16:00, 16:55) — no raw overlap with candidate [17:00, 18:00).
-  //    Existing client is ~70 mi away (lat=41.029); with drive_buffer_pct=200:
-  //      dist≈70mi, road_factor=1.3, avg_speed=30mph → drive=(70*1.3/30)*60≈182min × 2=364min buffer.
-  //      Widened existing: [16:00-364min, 16:55+364min) → covers [17:00,18:00) → conflict.
-  //    The old `candBufMin > 0` gate silently skipped this check; the new
-  //    `service.pricing_type !== "house_sitting"` gate runs it and returns unavailable.
-  it("buffer guard: zero-buffer candidate still blocked by an existing booking's buffer", async () => {
-    const existingBusy: BusyRange = {
-      startsAt: new Date("2026-06-20T16:00:00Z"),
-      endsAt: new Date("2026-06-20T16:55:00Z"),
-      concurrency: "exclusive",
-      // Distant client (~70 mi N of origin) so its own buffer is very large.
-      clientLat: 41.029,
-      clientLng: -105.27,
-      pets: [],
-    };
-    // Candidate client has NO coordinates → distanceMiles=null → candBufMin=0.
-    const { repo } = makeMockRepo({
-      openWindows: [
-        {
-          startsAt: new Date("2026-06-20T00:00:00Z"),
-          endsAt: new Date("2026-06-21T00:00:00Z"),
-        },
-      ],
-      profileLatLng: { lat: null, lng: null },
-      activeBusyRanges: [existingBusy],
-    });
-    (repo.getSettings as ReturnType<typeof vi.fn>).mockResolvedValue({
-      origin_lat: 40.015,
-      origin_lng: -105.27,
-      road_factor: 1.3,
-      avg_speed_mph: 30,
-      auto_approve_threshold_miles: 8,
-      hard_cutoff_miles: 50,
-      gate_use_road_miles: false,
-      booking_open_minute: 0,
-      booking_close_minute: 1440,
-      min_lead_time_hours: 0,
-      auto_confirm_horizon_days: 30,
-      hard_max_advance_days: 365,
-      recurrence_generation_horizon_days: 42,
-      recurring_discount_pct: 10,
-      recurring_min_occurrences: 3,
-      cancellation_full_refund_hours: 48,
-      late_cancel_refund_pct: 50,
-      no_show_charge_pct: 100,
-      holiday_dates: [],
-      holiday_surcharge_cents: 0,
-      drive_buffer_pct: 200,
-    });
-
-    const result = await createBookingCore(
-      { repo, now: CREATE_POLICY_NOW },
-      validClientInput,
-      CLIENT_POLICY,
-    );
-    expect(result.kind).toBe("unavailable");
-  });
-});
-
-// ──────────────────────────────────────────────────────────────────────────────
-// previewEditCore — unit tests (in-memory fake repo, no Supabase needed)
-// ──────────────────────────────────────────────────────────────────────────────
-
-const PREVIEW_NOW = new Date("2026-06-10T12:00:00Z");
-const PREVIEW_USER = "00000000-0000-4000-8000-000000000001";
-const PREVIEW_BOOKING = "00000000-0000-4000-8000-000000000002";
-
-const PREVIEW_SETTINGS = {
-  origin_lat: 40.0,
-  origin_lng: -105.27,
-  road_factor: 1.3,
-  avg_speed_mph: 30,
-  auto_approve_threshold_miles: 8,
-  hard_cutoff_miles: 50,
-  gate_use_road_miles: false,
-  booking_open_minute: 0,
-  booking_close_minute: 1440,
-  min_lead_time_hours: 0,
-  auto_confirm_horizon_days: 30,
-  hard_max_advance_days: 365,
-  recurrence_generation_horizon_days: 42,
-  recurring_discount_pct: 10,
-  recurring_min_occurrences: 3,
-  cancellation_full_refund_hours: 48,
-  late_cancel_refund_pct: 50,
-  no_show_charge_pct: 100,
-  holiday_dates: [],
-  holiday_surcharge_cents: 0,
-  drive_buffer_pct: 0,
-};
-
-function previewBaseRow(over: Partial<BookingEditRow> = {}): BookingEditRow {
-  return {
-    id: PREVIEW_BOOKING,
-    client_id: PREVIEW_USER,
-    service_slug: "check-in",
-    status: "confirmed",
-    startsAt: new Date("2026-06-20T16:00:00Z"),
-    endsAt: new Date("2026-06-20T17:00:00Z"),
-    series_id: null,
-    comments: null,
-    quote_inputs: { pricingType: "check_in", hours: 1 },
-    petIds: [],
-    paidCents: 0,
-    kiche_applied: false,
-    ...over,
-  };
-}
-
-function makePreviewRepo(
-  row: BookingEditRow | null,
-  over: Partial<Record<string, unknown>> = {},
-) {
-  const updateBookingEdited = vi.fn(async () => {});
-  const swapBookingPets = vi.fn(async () => {});
-  const appendSeriesSkip = vi.fn(async () => {});
-  return {
-    getBookingForEdit: vi.fn(async () => row),
-    getServiceBySlug: vi.fn(async () => ({
-      id: "svc-checkin",
-      slug: "check-in",
-      pricing_type: "check_in",
-      pricing_config: { rate_cents_per_hour: 3000, minimum_cents: 1500 },
-      concurrency: "exclusive",
-      requires_approval: false,
-      form_key: null,
-    })),
-    getSettings: vi.fn(async () => PREVIEW_SETTINGS),
-    getProfileLatLng: vi.fn(async () => ({ lat: 40.0, lng: -105.27 })),
-    getOutstandingDebtCents: vi.fn(async () => 0),
-    getOnboardingStatus: vi.fn(async () => "approved"),
-    hasActiveBookingForServiceSlug: vi.fn(async () => false),
-    hasFormResponse: vi.fn(async () => true),
-    getPetsByIds: vi.fn(async () => []),
-    getFormStatuses: vi.fn(async () => [
-      { formKey: "owner", petId: null, submittedAt: "2026-06-10T00:00:00Z" },
-      {
-        formKey: "home_access",
-        petId: null,
-        submittedAt: "2026-06-10T00:00:00Z",
-      },
-      {
-        formKey: "home_sitting",
-        petId: null,
-        submittedAt: "2026-06-10T00:00:00Z",
-      },
-    ]),
-    getOpenWindows: vi.fn(async () => [
-      {
-        startsAt: new Date("2026-06-20T15:00:00Z"),
-        endsAt: new Date("2026-06-20T20:00:00Z"),
-      },
-    ]),
-    updateBookingEdited,
-    swapBookingPets,
-    appendSeriesSkip,
-    ...over,
-  } as unknown as BookingRepository & {
-    updateBookingEdited: typeof updateBookingEdited;
-    swapBookingPets: typeof swapBookingPets;
-    appendSeriesSkip: typeof appendSeriesSkip;
-  };
-}
-
-describe("previewEditCore", () => {
-  it("returns forbidden on ownership mismatch under client policy", async () => {
-    const repo = makePreviewRepo(previewBaseRow({ client_id: "other-user" }));
-    const result = await previewEditCore(
-      { repo, now: PREVIEW_NOW },
-      {
-        bookingId: PREVIEW_BOOKING,
-        actorUserId: PREVIEW_USER,
-        policy: CLIENT_POLICY,
-        patch: { comments: "x" },
-      },
-    );
-    expect(result.kind).toBe("forbidden");
-  });
-
-  it("returns invalid_status for a completed booking", async () => {
-    const repo = makePreviewRepo(previewBaseRow({ status: "completed" }));
-    const result = await previewEditCore(
-      { repo, now: PREVIEW_NOW },
-      {
-        bookingId: PREVIEW_BOOKING,
-        actorUserId: PREVIEW_USER,
-        policy: CLIENT_POLICY,
-        patch: { comments: "x" },
-      },
-    );
-    expect(result.kind).toBe("invalid_status");
-  });
-
-  it("returns price_locked for a paid booking with a price-affecting patch", async () => {
-    const repo = makePreviewRepo(previewBaseRow({ paidCents: 3000 }));
-    const result = await previewEditCore(
-      { repo, now: PREVIEW_NOW },
-      {
-        bookingId: PREVIEW_BOOKING,
-        actorUserId: PREVIEW_USER,
-        policy: CLIENT_POLICY,
-        patch: { quantities: { hours: 2 } },
-      },
-    );
-    expect(result.kind).toBe("price_locked");
-  });
-
-  it("drift guard: unpaid quantities change — preview.finalCents matches editBookingCore persisted value", async () => {
-    const patch = { quantities: { hours: 2 } };
-
-    // preview
-    const previewRepo = makePreviewRepo(previewBaseRow());
-    const previewResult = await previewEditCore(
-      { repo: previewRepo, now: PREVIEW_NOW },
-      {
-        bookingId: PREVIEW_BOOKING,
-        actorUserId: PREVIEW_USER,
-        policy: CLIENT_POLICY,
-        patch,
-      },
-    );
-    expect(previewResult.kind).toBe("preview");
-    if (previewResult.kind !== "preview") throw new Error("unreachable");
-    const previewCents = previewResult.preview.finalCents;
-
-    // edit (persist)
-    const editRepo = makePreviewRepo(previewBaseRow());
-    const editResult = await editBookingCore(
-      { repo: editRepo, now: PREVIEW_NOW },
-      {
-        bookingId: PREVIEW_BOOKING,
-        actorUserId: PREVIEW_USER,
-        policy: CLIENT_POLICY,
-        patch,
-      },
-    );
-    expect(editResult.kind).toBe("success");
-
-    const persistedCall = (
-      editRepo.updateBookingEdited.mock.calls[0] as unknown as [
-        string,
-        { final_cents: number },
-      ]
-    )[1];
-    expect(persistedCall.final_cents).toBe(previewCents);
-  });
-
-  it("unpaid time-only move on confirmed booking → preview with requiresApproval reflecting re-derivation", async () => {
-    const repo = makePreviewRepo(previewBaseRow());
-    const result = await previewEditCore(
-      { repo, now: PREVIEW_NOW },
-      {
-        bookingId: PREVIEW_BOOKING,
-        actorUserId: PREVIEW_USER,
-        policy: CLIENT_POLICY,
-        patch: {
-          startsAt: new Date("2026-06-20T18:00:00Z"),
-          endsAt: new Date("2026-06-20T19:00:00Z"),
-        },
-      },
-    );
-    expect(result.kind).toBe("preview");
-    if (result.kind !== "preview") throw new Error("unreachable");
-    // Near user (distance < auto threshold) → should not require approval
-    expect(result.preview.requiresApproval).toBe(false);
-    expect(result.requiresApproval).toBe(false);
-  });
-
-  it("not_found: getBookingForEdit returns null → not_found", async () => {
-    const repo = makePreviewRepo(null);
-    const result = await previewEditCore(
-      { repo, now: PREVIEW_NOW },
-      {
-        bookingId: PREVIEW_BOOKING,
-        actorUserId: PREVIEW_USER,
-        policy: CLIENT_POLICY,
-        patch: { comments: "x" },
-      },
-    );
-    expect(result.kind).toBe("not_found");
-  });
-
-  it("unavailable: unpaid patch whose new start is outside the open window → unavailable", async () => {
-    // Open window: 2026-06-20 15:00–20:00 UTC (from makePreviewRepo default).
-    // Patch to a start OUTSIDE the window: 2026-06-20 21:00 UTC.
-    const repo = makePreviewRepo(previewBaseRow());
-    const result = await previewEditCore(
-      { repo, now: PREVIEW_NOW },
-      {
-        bookingId: PREVIEW_BOOKING,
-        actorUserId: PREVIEW_USER,
-        policy: CLIENT_POLICY,
-        patch: {
-          startsAt: new Date("2026-06-20T21:00:00Z"),
-          endsAt: new Date("2026-06-20T22:00:00Z"),
-        },
-      },
-    );
-    expect(result.kind).toBe("unavailable");
-  });
-});
-
-// ──────────────────────────────────────────────────────────────────────────────
-// computeBookingArtifacts — house-sitting always requires approval
-// ──────────────────────────────────────────────────────────────────────────────
-
-describe("computeBookingArtifacts — house-sitting approval gate", () => {
-  /**
-   * House-sitting service with requires_approval=false.
-   * A client within the auto-approve distance threshold would normally
-   * auto-confirm. The house-sitting rule must override this.
-   */
-  const HOUSE_SIT_NOW = new Date("2026-06-10T12:00:00Z");
-  const HOUSE_SIT_USER = "b0000000-0000-4000-8000-000000000001";
-
-  /** House-sitting service row: requires_approval explicitly false. */
-  const houseSittingService = {
-    id: "svc-house-sit",
-    slug: "house-sitting",
-    pricing_type: "house_sitting" as const,
-    pricing_config: {
-      modifiers: [
-        { kind: "base_per_night", cents: 6000 },
-        {
-          kind: "tiered_per_unit",
-          unit: "dog",
-          tiers: [{ from: 2, cents: 1500 }],
-        },
-        { kind: "flat_per_unit", unit: "cat", cents: 800 },
-        {
-          kind: "allowance_then_per_unit",
-          unit: "mile",
-          label: "Travel",
-          freeUnits: 5,
-          cents: 250,
-        },
-      ],
-      constraints: { intervalMin: 60, allowedSpecies: ["dog", "cat"] },
-    },
-    concurrency: "resident" as const,
-    requires_approval: false, // explicitly off — the house-sit rule must override
-    form_key: null,
-  };
-
-  function makeHouseSitRepo(
-    openNights: Set<string> = new Set(),
-  ): BookingRepository {
-    return {
-      getOutstandingDebtCents: vi.fn(async () => 0),
-      getOnboardingStatus: vi.fn(async () => "approved" as const),
-      hasActiveBookingForServiceSlug: vi.fn(async () => false),
-      getServiceBySlug: vi.fn(async () => houseSittingService),
-      getSettings: vi.fn(async () => ({
-        origin_lat: 40.015,
-        origin_lng: -105.27,
-        road_factor: 1.3,
-        avg_speed_mph: 30,
-        auto_approve_threshold_miles: 8,
-        hard_cutoff_miles: 50,
-        gate_use_road_miles: false,
-        booking_open_minute: 0,
-        booking_close_minute: 1440,
-        min_lead_time_hours: 0,
-        auto_confirm_horizon_days: 30,
-        hard_max_advance_days: 365,
-        recurrence_generation_horizon_days: 42,
-        recurring_discount_pct: 10,
-        recurring_min_occurrences: 3,
-        cancellation_full_refund_hours: 48,
-        late_cancel_refund_pct: 50,
-        no_show_charge_pct: 100,
-        holiday_dates: [],
-        holiday_surcharge_cents: 0,
-        drive_buffer_pct: 0,
-      })),
-      // Near-client: ~5 mi from origin — within the 8 mi auto-approve threshold.
-      getProfileLatLng: vi.fn(async () => ({
-        lat: NEAR_LAT,
-        lng: NEAR_LNG,
-      })),
-      getPetsByIds: vi.fn(async () => []),
-      getFormStatuses: vi.fn(async () => [
-        { formKey: "owner", petId: null, submittedAt: "2026-06-10T00:00:00Z" },
-        {
-          formKey: "home_access",
-          petId: null,
-          submittedAt: "2026-06-10T00:00:00Z",
-        },
-        {
-          formKey: "home_sitting",
-          petId: null,
-          submittedAt: "2026-06-10T00:00:00Z",
-        },
-      ]),
-      getOpenWindows: vi.fn(async () => []),
-      getOpenNights: vi.fn(async () => openNights),
-      getActiveBusyRanges: vi.fn(async () => []),
-      insertBookings: vi.fn(async () => ["bk-hs-1"]),
-      insertBookingPets: vi.fn(async () => {}),
-      insertSeries: vi.fn(async () => "series-hs-1"),
-      deleteSeries: vi.fn(async () => {}),
-      getServiceById: vi.fn(),
-      getBookingById: vi.fn(),
-      updateBookingStatus: vi.fn(),
-      getBookingTimes: vi.fn(),
-      updateBookingTimes: vi.fn(),
-      getActiveSeries: vi.fn(),
-      getMaterializedOccurrenceStarts: vi.fn(),
-      getBookingWithPayments: vi.fn(),
-      insertDebit: vi.fn(),
-      settleDebit: vi.fn(),
-      getActiveBusyRangesEnriched: vi.fn(),
-      getBookingForEdit: vi.fn(),
-      updateBookingEdited: vi.fn(),
-      swapBookingPets: vi.fn(),
-      appendSeriesSkip: vi.fn(),
-      hasFormResponse: vi.fn(async () => true),
-    } as unknown as BookingRepository;
-  }
-
-  it("house-sitting always requires approval regardless of the service flag", async () => {
-    // The client is near (<8 mi), so distance alone would auto-approve.
-    // The service has requires_approval=false, so the service flag alone would auto-approve.
-    // The house-sitting rule must force requiresApproval=true regardless.
-    const repo = makeHouseSitRepo();
-    const result = await computeBookingArtifacts(
-      { repo, now: HOUSE_SIT_NOW },
-      {
-        userId: HOUSE_SIT_USER,
-        serviceSlug: "house-sitting",
-        startsAt: new Date("2026-06-20T17:00:00Z"),
-        endsAt: new Date("2026-06-22T17:00:00Z"), // 2-night stay
-        quantities: { dogs: 1, cats: 0, nights: 2 },
-        recurringRule: null,
-      },
-      CLIENT_POLICY,
-    );
-
-    expect(result.kind).toBe("success");
-    if (result.kind !== "success") return;
-    expect(result.artifacts.requiresApproval).toBe(true);
-    expect(
-      result.artifacts.approvalReasons.some(
-        (r) => r.code === "service_manual_only",
-      ),
-    ).toBe(true);
-  });
-
-  // A multi-day stay is ONE occurrence spanning N×24h — it can never fit an
-  // intraday availability_window. House_sitting is gated by overnight_nights
-  // instead; these two cases pin that the server uses the night set, not windows.
-  const HS_STAY = {
-    userId: HOUSE_SIT_USER,
-    serviceSlug: "house-sitting",
-    startsAt: new Date("2026-06-20T17:00:00Z"),
-    endsAt: new Date("2026-06-22T17:00:00Z"), // nights 06-20, 06-21
-    quantities: { dogs: 1, cats: 0, nights: 2 },
-    recurringRule: null,
-  };
-  // Enforce availability but skip the forms gate so the test isolates the night
-  // check (the mock's form set is incidental to overnight availability).
-  const HS_POLICY = { ...CLIENT_POLICY, skipFormsGate: true };
-
-  it("house-sitting create: succeeds when every covered night is published (no windows)", async () => {
-    const repo = makeHouseSitRepo(new Set(["2026-06-20", "2026-06-21"]));
-    const result = await createBookingCore(
-      { repo, now: HOUSE_SIT_NOW },
-      HS_STAY,
-      HS_POLICY,
-    );
-    expect(result.kind).toBe("success");
-    // Window list must be irrelevant — never consulted for house_sitting.
-    expect(repo.getOpenWindows).not.toHaveBeenCalled();
-    expect(repo.getOpenNights).toHaveBeenCalled();
-  });
-
-  it("house-sitting create: unavailable when a covered night is unpublished", async () => {
-    const repo = makeHouseSitRepo(new Set(["2026-06-20"])); // 06-21 missing
-    const result = await createBookingCore(
-      { repo, now: HOUSE_SIT_NOW },
-      HS_STAY,
-      HS_POLICY,
-    );
-    expect(result.kind).toBe("unavailable");
-    if (result.kind === "unavailable") {
-      expect(result.reason).toMatch(/overnight availability/i);
-    }
   });
 });

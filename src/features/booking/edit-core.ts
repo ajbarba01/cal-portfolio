@@ -2,18 +2,26 @@
  * editBookingCore / previewEditCore — in-place edit (time / pets / quantities / comments).
  */
 
-import type { BookingStatusDb, BookingEditRow } from "./booking-repository";
+import { asJson } from "./booking-repository-types";
+import type {
+  BookingStatusDb,
+  BookingEditRow,
+} from "./booking-repository-types";
 import type { MutationPolicy } from "./mutation-policy";
 import { transition } from "./state-machine";
 import { representativeHoursFromNeedyTier } from "./needy-tier";
 import {
   computeBookingArtifacts,
+  deriveHolidayDays,
   toRuleSettings,
   passesGuards,
   slotIsAvailable,
+  fitsWindow,
+  fitsOvernightNights,
   type BookingServiceDeps,
   type CreateBookingInput,
 } from "./booking-service-shared";
+import { findDriveBufferConflicts } from "./drive-buffer-guard";
 import type { BookingQuotePreview } from "./quote-core";
 import {
   requirementsSatisfied,
@@ -25,7 +33,16 @@ import {
 // ──────────────────────────────────────────────────────────────────────────────
 
 export type EditBookingResult =
-  | { kind: "success"; warnings: string[] }
+  | {
+      kind: "success";
+      warnings: string[];
+      /**
+       * The edit moved the booking into `confirmed` from another status, so the
+       * caller owes the client a confirmation email. False for an edit of a
+       * booking that was already confirmed — that is not a new confirmation.
+       */
+      becameConfirmed: boolean;
+    }
   | { kind: "not_found" }
   | { kind: "forbidden" }
   | { kind: "invalid_status" }
@@ -95,9 +112,60 @@ function quantitiesFromQuoteInputs(qi: unknown): Record<string, unknown> {
   // the same tier).
   if (typeof q.needyTier === "number")
     out.maxHoursAway = representativeHoursFromNeedyTier(q.needyTier);
+  // Walk minutes (house-sit) are stored under the engine's name; without this
+  // the merge drops the add-on and every re-quote silently lowers the price.
+  if (typeof q.walkMinutesPerDay === "number")
+    out.walkMinutesPerDay = q.walkMinutesPerDay;
+  else if (typeof q.exerciseMinutesPerDay === "number")
+    out.walkMinutesPerDay = q.exerciseMinutesPerDay;
   // leashManners (walk) round-trips directly.
   if (typeof q.leashManners === "boolean") out.leashManners = q.leashManners;
   return out;
+}
+
+/**
+ * Whether an edit patch touches a priced input, and so may not be applied to a
+ * booking the client has already paid for. Pets and quantities are priced
+ * directly; the booked duration is priced through the nights/hours the re-quote
+ * derives from it (see buildEditQuoteInput). Editing comments is never
+ * price-affecting; a same-length move is caught by premiumDaysChanged, which
+ * needs rows this check does not have.
+ */
+function patchAffectsPrice(
+  booking: BookingEditRow,
+  patch: EditBookingPatch,
+  merged: { startsAt: Date; endsAt: Date },
+): boolean {
+  if (patch.petIds !== undefined || patch.quantities !== undefined) return true;
+  return (
+    merged.endsAt.getTime() - merged.startsAt.getTime() !==
+    booking.endsAt.getTime() - booking.startsAt.getTime()
+  );
+}
+
+/**
+ * The date-derived half of the paid-lock: whether the merged range covers a
+ * different number of premium (holiday) days than the booked one. Premium days
+ * come from the dates plus the admin holiday list, so a same-length move can
+ * re-price a booking even though the patch names no priced field. Needs the
+ * loaded service and settings, so it runs after the re-quote rather than beside
+ * patchAffectsPrice.
+ */
+function premiumDaysChanged(
+  booking: BookingEditRow,
+  merged: { startsAt: Date; endsAt: Date },
+  pricingType: string,
+  holidayDates: string[],
+): boolean {
+  return (
+    deriveHolidayDays(
+      pricingType,
+      booking.startsAt,
+      booking.endsAt,
+      holidayDates,
+    ) !==
+    deriveHolidayDays(pricingType, merged.startsAt, merged.endsAt, holidayDates)
+  );
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -178,10 +246,25 @@ export async function editBookingCore(
     return { kind: "invalid_status" };
   }
 
-  // Paid-lock: a price-affecting patch (pets/quantities) is rejected once paid.
-  const priceAffecting =
-    patch.petIds !== undefined || patch.quantities !== undefined;
-  if (booking.paidCents > 0 && priceAffecting) {
+  // Build the merged shape up front — pure, and the paid-lock needs its range.
+  const {
+    merged: mergedInput,
+    startsAt,
+    endsAt,
+  } = buildEditQuoteInput(booking, patch);
+
+  // Whether the patch actually moves the booking. Compared by instant rather
+  // than by patch key, so a patch that re-sends the current time counts as a
+  // move of zero — see the drive-time guard below, the only thing that reads it.
+  const timeChanged =
+    startsAt.getTime() !== booking.startsAt.getTime() ||
+    endsAt.getTime() !== booking.endsAt.getTime();
+
+  // Paid-lock: a price-affecting patch is rejected once paid.
+  if (
+    booking.paidCents > 0 &&
+    patchAffectsPrice(booking, patch, { startsAt, endsAt })
+  ) {
     return { kind: "price_locked" };
   }
 
@@ -200,17 +283,13 @@ export async function editBookingCore(
     }
   }
 
-  // Build the merged shape and re-quote via the shared pipeline.
-  const {
-    merged: mergedInput,
-    startsAt,
-    endsAt,
-  } = buildEditQuoteInput(booking, patch);
-
-  // Preserve a Cal-granted Kiche discount across the re-quote (a date/pet edit
-  // must not silently drop it).
+  // Re-quote the merged shape via the shared pipeline.
+  // Preserve every price Cal set by hand across the re-quote — the Kiche column
+  // and the manual discounts and one-off adjustments carried in the frozen quote
+  // inputs. A date/pet/comment edit must not silently drop them.
   const artifacts = await computeBookingArtifacts(deps, mergedInput, policy, {
     applyKiche: booking.kiche_applied,
+    storedQuoteInputs: booking.quote_inputs,
   });
   if (artifacts.kind === "validation_error")
     return { kind: "validation_error", message: artifacts.message };
@@ -229,9 +308,24 @@ export async function editBookingCore(
     settings: s,
     quoteInput,
     breakdown,
+    distanceMiles,
     requiresApprovalByOccurrence,
     requirements,
   } = artifacts.artifacts;
+
+  // Paid-lock, date half: a same-length move onto (or off) a premium day
+  // re-prices the stay, and the persisted price is the re-quote's.
+  if (
+    booking.paidCents > 0 &&
+    premiumDaysChanged(
+      booking,
+      { startsAt, endsAt },
+      service.pricing_type,
+      s.holiday_dates,
+    )
+  ) {
+    return { kind: "price_locked" };
+  }
 
   // Required-profiles gate — enforced on COMMIT only (previewEditCore renders the
   // quote regardless). A client may not save an edit until every required profile
@@ -255,11 +349,16 @@ export async function editBookingCore(
     );
   }
 
-  // Availability containment, gated by service type (window vs overnight nights).
-  const available = await slotIsAvailable(repo, now, service.pricing_type, {
-    startsAt,
-    endsAt,
-  });
+  // Availability containment, gated by service type (window vs overnight
+  // nights). The pair slotIsAvailable wraps is inlined here because the buffer
+  // guard below needs the same window list — create-core inlines it for the
+  // same reason rather than reading the windows twice.
+  const slot = { startsAt, endsAt };
+  const isHouseSitting = service.pricing_type === "house_sitting";
+  const openWindows = isHouseSitting ? [] : await repo.getOpenWindows(now);
+  const available = isHouseSitting
+    ? fitsOvernightNights(slot, await repo.getOpenNights(now))
+    : fitsWindow(slot, openWindows);
   if (!available) {
     if (!policy.skipWindowFit) {
       return {
@@ -270,8 +369,49 @@ export async function editBookingCore(
     warnings.push("Selected time is outside Cal's published availability.");
   }
 
-  // Re-derive status (per-occurrence array has exactly one element for an edit).
-  const requiresApproval = requiresApprovalByOccurrence[0];
+  // Drive-time spacing — the same guard create enforces, so an edit can never
+  // land in a slot the client could not have booked in the first place.
+  //
+  // Skipped in two cases. House-sitting: a stay is resident, reserves no travel
+  // time, and fits no intraday window, so a padded window check would refuse
+  // every stay. An edit that does not move the booking: it places nothing new
+  // on the calendar, and the guard pads the candidate by the client's own
+  // buffer before checking window fit — a booking already sitting within its
+  // buffer of a window edge would otherwise refuse every comment or pet edit.
+  //
+  // When the time does move, the booking being edited is dropped twice over —
+  // from the query and again inside the guard — so its own range cannot block
+  // its own move.
+  if (!isHouseSitting && timeChanged) {
+    const conflicts = findDriveBufferConflicts({
+      candidates: [slot],
+      candidateDistanceMiles: distanceMiles,
+      existing: await repo.getActiveBusyRanges(
+        now,
+        service.concurrency,
+        input.bookingId,
+      ),
+      openWindows,
+      settings: s,
+      excludeBookingId: input.bookingId,
+    });
+    if (conflicts.length > 0) {
+      if (!policy.skipBufferGuard) {
+        return {
+          kind: "unavailable",
+          reason:
+            "That time doesn't leave enough travel time around another booking. Please pick another slot.",
+        };
+      }
+      warnings.push(
+        `Occurrence at ${startsAt.toISOString()} conflicts with drive-time spacing.`,
+      );
+    }
+  }
+
+  // Re-derive status (per-occurrence array has exactly one element for an edit;
+  // the fallback only covers an empty array, which an edit cannot produce).
+  const requiresApproval = requiresApprovalByOccurrence[0] ?? false;
   let status: BookingStatusDb;
   if (policy.forceStatus) {
     status = policy.forceStatus;
@@ -297,8 +437,8 @@ export async function editBookingCore(
       starts_at: startsAt.toISOString(),
       ends_at: endsAt.toISOString(),
       status,
-      quote_inputs: quoteInput as unknown,
-      quote_breakdown: breakdown as unknown,
+      quote_inputs: asJson(quoteInput),
+      quote_breakdown: asJson(breakdown),
       final_cents: breakdown.finalCents,
       requires_approval: requiresApproval,
       comments: patch.comments ?? booking.comments,
@@ -307,7 +447,11 @@ export async function editBookingCore(
     if (patch.petIds !== undefined) {
       await repo.swapBookingPets(input.bookingId, patch.petIds);
     }
-    return { kind: "success", warnings };
+    return {
+      kind: "success",
+      warnings,
+      becameConfirmed: status === "confirmed" && booking.status !== "confirmed",
+    };
   } catch (e: unknown) {
     if ((e as { code?: string }).code === "23P01")
       return { kind: "slot_taken" };
@@ -344,19 +488,23 @@ export async function previewEditCore(
   if (!EDITABLE_STATUSES.includes(booking.status)) {
     return { kind: "invalid_status" };
   }
-  const priceAffecting =
-    patch.petIds !== undefined || patch.quantities !== undefined;
-  if (booking.paidCents > 0 && priceAffecting) {
-    return { kind: "price_locked" };
-  }
 
   const {
     merged: mergedInput,
     startsAt,
     endsAt,
   } = buildEditQuoteInput(booking, patch);
+  if (
+    booking.paidCents > 0 &&
+    patchAffectsPrice(booking, patch, { startsAt, endsAt })
+  ) {
+    return { kind: "price_locked" };
+  }
+
+  // Same carry-through as the save above, so the preview quotes what Save writes.
   const artifacts = await computeBookingArtifacts(deps, mergedInput, policy, {
     applyKiche: booking.kiche_applied,
+    storedQuoteInputs: booking.quote_inputs,
   });
   if (artifacts.kind === "validation_error")
     return { kind: "validation_error", message: artifacts.message };
@@ -381,8 +529,31 @@ export async function previewEditCore(
     requirements,
   } = artifacts.artifacts;
 
-  // Slot/window validation — mirrors editBookingCore (Fix 3). Read-only: no
-  // persistence; admin-skip branches are silent (no warnings array to surface).
+  // Paid-lock, date half: a same-length move onto (or off) a premium day
+  // re-prices the stay, and the persisted price is the re-quote's.
+  if (
+    booking.paidCents > 0 &&
+    premiumDaysChanged(
+      booking,
+      { startsAt, endsAt },
+      service.pricing_type,
+      s.holiday_dates,
+    )
+  ) {
+    return { kind: "price_locked" };
+  }
+
+  // Slot/window validation — the hours/lead and window-fit halves of
+  // editBookingCore. Read-only: no persistence; admin-skip branches are silent
+  // (no warnings array to surface).
+  //
+  // The drive-time guard is deliberately NOT run here. It needs the busy ranges
+  // and the open windows, and this preview re-runs on every keystroke of an
+  // edit, so the two extra reads would be paid per keystroke to re-state what
+  // the picker already enforces: both edit pickers pad their candidate starts
+  // by the same buffer, so a violating slot cannot be selected in the UI. A
+  // direct call that skips the picker can therefore still be quoted a slot Save
+  // refuses; the refusal is the authority, and it names the reason.
   const ruleSettings = toRuleSettings(s);
   if (!policy.skipHoursLeadGuards) {
     if (!passesGuards({ startsAt, endsAt }, ruleSettings, deps.now)) {

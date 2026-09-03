@@ -14,16 +14,18 @@ describe("quantityStateFromQuoteInputs", () => {
     );
   });
 
-  it("reconstructs maxHoursAway from a stored needyTier (price-exact bucket)", () => {
-    // Stored QuoteInput shape: carries needyTier, not the raw hours.
+  it("reconstructs the walk add-on and maxHoursAway from a stored QuoteInput", () => {
+    // Stored QuoteInput shape: walk minutes persist as exerciseMinutesPerDay and
+    // the needy tier stands in for the raw hours.
     expect(
       quantityStateFromQuoteInputs("house_sitting", {
         nights: 3,
+        exerciseMinutesPerDay: 45,
         needyTier: 3,
       }),
     ).toEqual({
       type: "house_sitting",
-      qty: { walkMinutesPerDay: 0, maxHoursAway: 3 },
+      qty: { walkMinutesPerDay: 45, maxHoursAway: 3 },
     });
   });
 

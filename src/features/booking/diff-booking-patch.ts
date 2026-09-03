@@ -1,8 +1,5 @@
 import type { EditBookingPatch } from "@/features/booking/booking-service";
-import {
-  quantitiesToRecord,
-  type QuantityState,
-} from "@/features/booking/_components/quantity-forms";
+import { quantitiesToRecord, type QuantityState } from "./quantities";
 
 export interface EditPatchInitial {
   startsAtIso: string;

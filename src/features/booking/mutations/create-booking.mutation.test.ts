@@ -1,16 +1,17 @@
 /**
  * Unit tests for createBookingMutation.
  *
- * Tests the auth-free orchestration layer: core delegation + best-effort email.
- * No Next.js runtime, no real DB. All deps are stubbed.
+ * Tests the auth-free orchestration layer: core delegation + the best-effort
+ * hand-off to the confirmation sender. No Next.js runtime, no real DB. All deps
+ * are stubbed.
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { assert, describe, it, expect, vi } from "vitest";
 import { createBookingMutation } from "./create-booking.mutation";
 import type { CreateBookingMutationDeps } from "./create-booking.mutation";
 import type { BookingRepository, SettingsRow } from "../booking-repository";
-import type { Notifier } from "@/features/notifications";
 import type { CreateBookingInput } from "../create-core";
+import { ADMIN_POLICY } from "../mutation-policy";
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Minimal stubs
@@ -48,7 +49,6 @@ const NEAR_LAT = 40.087;
 const NEAR_LNG = -105.27;
 
 const USER_ID = "11111111-1111-4111-a111-111111111111";
-const USER_EMAIL = "client@example.com";
 
 /** A walk service stub — sufficient for createBookingCore to quote it. */
 const walkService = {
@@ -64,10 +64,10 @@ const walkService = {
   form_key: null,
 };
 
-/** A single 1h window that covers our test slot. */
+/** A window wide enough to hold the slot PLUS the drive-time buffer on both sides. */
 const WINDOW = {
-  startsAt: new Date("2026-07-01T14:00:00Z"),
-  endsAt: new Date("2026-07-01T16:00:00Z"),
+  startsAt: new Date("2026-07-01T13:00:00Z"),
+  endsAt: new Date("2026-07-01T17:00:00Z"),
 };
 
 /** Minimal CreateBookingInput — no recurrence, one walk with one dog. */
@@ -79,6 +79,14 @@ const BASE_INPUT: Omit<CreateBookingInput, "userId"> = {
   petIds: [],
   recurringRule: null,
 };
+
+/** The rows handed to the stub repo's first (and only) insertBookings call. */
+function firstInsertedBatch(repo: BookingRepository) {
+  const [call] = vi.mocked(repo.insertBookings).mock.calls;
+  assert(call, "expected insertBookings to have been called");
+  const [rows] = call;
+  return rows;
+}
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Factory for stub repo + notifier
@@ -140,34 +148,24 @@ function makeRepo(
   } as unknown as BookingRepository;
 }
 
-function makeNotifier(
-  opts: { failNotify?: boolean; throwNotify?: boolean } = {},
-): Notifier & { notify: ReturnType<typeof vi.fn> } {
-  const notify = vi.fn(async () => {
-    if (opts.throwNotify) throw new Error("SMTP unavailable");
-    // best-effort: notify never rejects (failures are swallowed inside ResendNotifier)
-    // For the failNotify stub we just resolve (notifier swallows errors internally)
+/** Stub confirmation sender — the real one decides for itself whether to send. */
+function makeSendConfirmation(
+  opts: { throws?: boolean } = {},
+): CreateBookingMutationDeps["sendConfirmation"] & ReturnType<typeof vi.fn> {
+  return vi.fn(async () => {
+    if (opts.throws) throw new Error("SMTP unavailable");
   });
-  return { notify };
 }
-
-/** Stub for loadConfirmationRow — returns a valid booking row for email. */
-const stubLoadRow = vi.fn(async () => ({
-  starts_at: "2026-07-01T14:00:00Z",
-  ends_at: "2026-07-01T15:00:00Z",
-  final_cents: 3000,
-  services: { name: "Walk" },
-}));
 
 function makeDeps(
   repoOverrides: Parameters<typeof makeRepo>[0] = {},
-  notifierOpts: Parameters<typeof makeNotifier>[0] = {},
-  loadRow: CreateBookingMutationDeps["loadConfirmationRow"] = stubLoadRow,
-): CreateBookingMutationDeps {
+  sendConfirmation = makeSendConfirmation(),
+): CreateBookingMutationDeps & {
+  sendConfirmation: ReturnType<typeof vi.fn>;
+} {
   return {
     repo: makeRepo(repoOverrides),
-    notifier: makeNotifier(notifierOpts),
-    loadConfirmationRow: loadRow,
+    sendConfirmation,
     now: NOW,
   };
 }
@@ -182,7 +180,6 @@ describe("createBookingMutation", () => {
     const result = await createBookingMutation(deps, {
       ...BASE_INPUT,
       userId: USER_ID,
-      userEmail: USER_EMAIL,
     });
 
     expect(result.kind).toBe("success");
@@ -191,154 +188,78 @@ describe("createBookingMutation", () => {
     }
   });
 
-  it("sends confirmation notification on success and does NOT alter result when notify succeeds", async () => {
-    const deps = makeDeps();
+  it("hands the new booking to the confirmation sender exactly once", async () => {
+    const deps = makeDeps({ insertReturns: ["bk-111"] });
     const result = await createBookingMutation(deps, {
       ...BASE_INPUT,
       userId: USER_ID,
-      userEmail: USER_EMAIL,
     });
 
     expect(result.kind).toBe("success");
-    // notifier.notify was called once
-    expect(
-      (deps.notifier as ReturnType<typeof makeNotifier>).notify,
-    ).toHaveBeenCalledTimes(1);
-    // result still has the expected structure
-    if (result.kind === "success") {
-      expect(result.bookingIds).toHaveLength(1);
-    }
+    expect(deps.sendConfirmation).toHaveBeenCalledTimes(1);
+    expect(deps.sendConfirmation).toHaveBeenCalledWith("bk-111");
   });
 
-  it("does NOT alter success result when notifier resolves silently (best-effort)", async () => {
-    const deps = makeDeps({}, { failNotify: true });
-    const result = await createBookingMutation(deps, {
-      ...BASE_INPUT,
-      userId: USER_ID,
-      userEmail: USER_EMAIL,
-    });
+  it("sends one confirmation for a series, not one per occurrence", async () => {
+    const deps = makeDeps({ insertReturns: ["bk-1", "bk-2", "bk-3"] });
+    await createBookingMutation(deps, { ...BASE_INPUT, userId: USER_ID });
 
-    // Core succeeded — email failure must NOT change the result kind
-    expect(result.kind).toBe("success");
+    expect(deps.sendConfirmation).toHaveBeenCalledTimes(1);
+    expect(deps.sendConfirmation).toHaveBeenCalledWith("bk-1");
   });
 
-  it("does NOT alter success result when notifier throws (best-effort)", async () => {
-    const throwingNotifier: Notifier = {
-      notify: vi.fn(async () => {
-        throw new Error("SMTP unavailable");
-      }),
-    };
-    const deps: CreateBookingMutationDeps = {
-      repo: makeRepo(),
-      notifier: throwingNotifier,
-      loadConfirmationRow: stubLoadRow,
-      now: NOW,
-    };
+  it("does NOT alter the success result when the confirmation sender throws", async () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    const deps = makeDeps({}, makeSendConfirmation({ throws: true }));
 
     const result = await createBookingMutation(deps, {
       ...BASE_INPUT,
       userId: USER_ID,
-      userEmail: USER_EMAIL,
     });
 
     expect(result.kind).toBe("success");
+    expect(logged).toHaveBeenCalled();
+    logged.mockRestore();
   });
 
-  it("skips email when userEmail is undefined", async () => {
-    const notifier = makeNotifier();
-    const deps: CreateBookingMutationDeps = {
-      repo: makeRepo(),
-      notifier,
-      loadConfirmationRow: stubLoadRow,
-      now: NOW,
-    };
-
-    const result = await createBookingMutation(deps, {
-      ...BASE_INPUT,
-      userId: USER_ID,
-      userEmail: undefined,
-    });
-
-    expect(result.kind).toBe("success");
-    expect(notifier.notify).not.toHaveBeenCalled();
-  });
-
-  it("skips email when loadConfirmationRow fails to parse (best-effort)", async () => {
-    const badLoadRow = vi.fn(async () => null);
-    const notifier = makeNotifier();
-    const deps: CreateBookingMutationDeps = {
-      repo: makeRepo(),
-      notifier,
-      loadConfirmationRow: badLoadRow,
-      now: NOW,
-    };
-
-    const result = await createBookingMutation(deps, {
-      ...BASE_INPUT,
-      userId: USER_ID,
-      userEmail: USER_EMAIL,
-    });
-
-    // Still success — email step is best-effort
-    expect(result.kind).toBe("success");
-    expect(notifier.notify).not.toHaveBeenCalled();
-  });
-
-  it("returns slot_taken when the core signals a conflict", async () => {
+  it("does not try to confirm anything when the core did not succeed", async () => {
     const conflict = Object.assign(new Error("overlap"), { code: "23P01" });
     const deps = makeDeps({ insertThrows: conflict });
     const result = await createBookingMutation(deps, {
       ...BASE_INPUT,
       userId: USER_ID,
-      userEmail: USER_EMAIL,
     });
 
     expect(result.kind).toBe("slot_taken");
+    expect(deps.sendConfirmation).not.toHaveBeenCalled();
   });
 
   it("passes comments to insertBookings when provided", async () => {
     const repo = makeRepo({ insertReturns: ["bk-comments"] });
     const result = await createBookingMutation(
-      {
-        repo,
-        notifier: makeNotifier(),
-        loadConfirmationRow: stubLoadRow,
-        now: NOW,
-      },
+      { repo, sendConfirmation: makeSendConfirmation(), now: NOW },
       {
         ...BASE_INPUT,
         userId: USER_ID,
-        userEmail: USER_EMAIL,
         comments: "Please use the side door.",
       },
     );
 
     expect(result.kind).toBe("success");
-    const insertedRows = (repo.insertBookings as ReturnType<typeof vi.fn>).mock
-      .calls[0][0] as Array<{ comments: string | null }>;
-    expect(insertedRows[0].comments).toBe("Please use the side door.");
+    const insertedRows = firstInsertedBatch(repo);
+    expect(insertedRows[0]?.comments).toBe("Please use the side door.");
   });
 
   it("passes null comments to insertBookings when comments not provided", async () => {
     const repo = makeRepo({ insertReturns: ["bk-no-comments"] });
     const result = await createBookingMutation(
-      {
-        repo,
-        notifier: makeNotifier(),
-        loadConfirmationRow: stubLoadRow,
-        now: NOW,
-      },
-      {
-        ...BASE_INPUT,
-        userId: USER_ID,
-        userEmail: USER_EMAIL,
-      },
+      { repo, sendConfirmation: makeSendConfirmation(), now: NOW },
+      { ...BASE_INPUT, userId: USER_ID },
     );
 
     expect(result.kind).toBe("success");
-    const insertedRows = (repo.insertBookings as ReturnType<typeof vi.fn>).mock
-      .calls[0][0] as Array<{ comments: string | null }>;
-    expect(insertedRows[0].comments).toBeNull();
+    const insertedRows = firstInsertedBatch(repo);
+    expect(insertedRows[0]?.comments).toBeNull();
   });
 
   it("returns refuse when the core refuses (e.g. too far)", async () => {
@@ -352,17 +273,40 @@ describe("createBookingMutation", () => {
     );
     const deps: CreateBookingMutationDeps = {
       repo: refuseRepo,
-      notifier: makeNotifier(),
-      loadConfirmationRow: stubLoadRow,
+      sendConfirmation: makeSendConfirmation(),
       now: NOW,
     };
 
     const result = await createBookingMutation(deps, {
       ...BASE_INPUT,
       userId: USER_ID,
-      userEmail: USER_EMAIL,
     });
 
     expect(result.kind).toBe("refuse");
+  });
+
+  it("applies the policy it is given (admin policy skips the client gates)", async () => {
+    const repo = makeRepo({ insertReturns: ["bk-admin"] });
+    (repo.getOnboardingStatus as ReturnType<typeof vi.fn>).mockResolvedValue(
+      "info_pending",
+    );
+    const deps: CreateBookingMutationDeps = {
+      repo,
+      sendConfirmation: makeSendConfirmation(),
+      now: NOW,
+    };
+
+    const asClient = await createBookingMutation(deps, {
+      ...BASE_INPUT,
+      userId: USER_ID,
+    });
+    expect(asClient.kind).toBe("onboarding_incomplete");
+
+    const asAdmin = await createBookingMutation(
+      deps,
+      { ...BASE_INPUT, userId: USER_ID },
+      ADMIN_POLICY,
+    );
+    expect(asAdmin.kind).toBe("success");
   });
 });

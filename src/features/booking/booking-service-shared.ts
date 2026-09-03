@@ -7,13 +7,21 @@
 import { z } from "zod";
 import { FIELD_LIMITS } from "@/lib/field-limits";
 import { haversineMiles } from "@/lib/haversine";
-import { deriveApprovalWithReasons } from "@/features/pricing";
+import {
+  deriveApprovalWithReasons,
+  isPetAware,
+  parsePricingConfig,
+  quote,
+} from "@/features/pricing";
 import type { ApprovalReason } from "@/features/pricing";
 import { deriveTimeApproval } from "./time-gate";
 import { needyTierFromHoursAway } from "./needy-tier";
 import { isUnderSixMonths } from "./puppy-age";
-import { quote } from "@/features/pricing";
-import { parsePricingConfig } from "@/features/pricing";
+import {
+  KICHE_ID,
+  storedManualInputs,
+  toggleManualIds,
+} from "./manual-discounts";
 import { expandOccurrences } from "./recurrence";
 import {
   bookingRequirements,
@@ -27,10 +35,11 @@ import {
   fitsWindow,
   fitsOvernightNights,
   denverDayKey,
-  denverMidnight,
+  nextDenverMidnight,
 } from "./availability";
 import type {
   BookingRepository,
+  FormStatusRow,
   ServiceRow,
   SettingsRow,
 } from "./booking-repository";
@@ -66,16 +75,14 @@ export const BOOKING_COMMENTS_MAX = FIELD_LIMITS.note;
  *   house_sitting — count calendar days in the HALF-OPEN stay range [checkIn,
  *   checkOut) that appear in `holidayDates`. The checkout day itself is
  *   EXCLUDED because the guest has departed; only nights-that-are-days matter.
- *   Iterates DST-safely using `denverDayKey` + `denverMidnight` (same pattern
- *   as `validateStayRange`). Result aligns with `walkDays = Math.ceil(nights)`
- *   in `quote.ts` — both are "days in the stay window".
+ *   Iterates DST-safely using `denverDayKey` + `nextDenverMidnight` (same pattern
+ *   as `validateStayRange`). Counts the same "days in the stay window" the
+ *   engine's per-night add-ons bill against.
  *
  *   Hourly (walk, check_in, training) — the booking covers exactly one Denver
  *   calendar day (service is sub-24h). Returns 1 if `startsAt`'s Denver day
- *   key is in `holidayDates`, otherwise 0. NOTE: walk/check_in/training
- *   `QuoteInput` types do not carry a `holidayDays` field; this function
- *   returns the count for completeness / future use, but `buildQuoteInput`
- *   only applies it to house_sitting.
+ *   key is in `holidayDates`, otherwise 0. Every type's count reaches the engine
+ *   the same way, as `premiumNights` on the quote input.
  *
  *   meet_greet — always 0 (free service, no surcharge applies).
  *
@@ -100,11 +107,7 @@ export function deriveHolidayDays(
     while (cursor.getTime() < endsAt.getTime()) {
       const dayKey = denverDayKey(cursor);
       if (premiumSet.has(dayKey)) count++;
-      // Advance to next Denver midnight — DST-correct via denverMidnight.
-      const [y, m, d] = dayKey.split("-").map((n) => parseInt(n, 10));
-      cursor = denverMidnight(
-        `${String(y).padStart(4, "0")}-${String(m).padStart(2, "0")}-${String(d + 1).padStart(2, "0")}`,
-      );
+      cursor = nextDenverMidnight(dayKey);
     }
     return count;
   }
@@ -158,9 +161,9 @@ export const createBookingInputSchema = z
     endsAt: z.coerce.date(),
     quantities: z.record(z.string(), z.unknown()),
     /**
-     * Assigned pet ids (pet-aware services only). When present, the dog/cat
-     * COUNTS are derived server-side from these (overriding any client-supplied
-     * counts, like money) and the pets are linked via booking_pets. Optional for
+     * Assigned pet ids (pet-aware services only). When present, the pet COUNTS
+     * are derived server-side from these (overriding any client-supplied counts,
+     * like money) and the pets are linked via booking_pets. Optional for
      * backward compatibility — count-only submits still quote correctly.
      */
     petIds: z.array(uuidLike).optional(),
@@ -223,33 +226,30 @@ const houseSittingQuantitiesSchema = z.object({
   // enforced at the booking layer (petsOk), not here.
   dogs: z.number().int().min(0),
   cats: z.number().int().min(0),
+  /**
+   * Pets that are neither dogs nor cats — birds, rabbits, reptiles, fish.
+   * Optional so
+   * a count-only submit that predates the field still quotes; the server derives
+   * it from the assigned pets whenever there are any.
+   */
+  others: z.number().int().min(0).optional(),
   nights: z.number().positive(),
   walkMinutesPerDay: z.number().min(0).optional(),
   maxHoursAway: z.number().min(0).optional(),
-  holidayDays: z.number().int().min(0).optional(),
 });
 
 const checkInQuantitiesSchema = z.object({
   hours: z.number().positive(),
-  // Server-injected after Zod parse — accepted here so buildQuoteInput can propagate them.
-  holidayDays: z.number().int().min(0).optional(),
-  holidaySurchargeCents: z.number().int().nonnegative().optional(),
 });
 
 const walkQuantitiesSchema = z.object({
   hours: z.number().positive(),
   dogs: z.number().int().min(1),
   leashManners: z.boolean().optional(),
-  // Server-injected after Zod parse — accepted here so buildQuoteInput can propagate them.
-  holidayDays: z.number().int().min(0).optional(),
-  holidaySurchargeCents: z.number().int().nonnegative().optional(),
 });
 
 const trainingQuantitiesSchema = z.object({
   hours: z.number().positive(),
-  // Server-injected after Zod parse — accepted here so buildQuoteInput can propagate them.
-  holidayDays: z.number().int().min(0).optional(),
-  holidaySurchargeCents: z.number().int().nonnegative().optional(),
 });
 
 const meetGreetQuantitiesSchema = z.object({}).strict();
@@ -336,7 +336,7 @@ export function parseQuantities(
  *
  * `quantities` is typed (output of `parseQuantities`) — no `as number` casts.
  * Per-type quantities map onto the flat shape:
- *   - house_sitting → dogs/cats/nights + exerciseMinutesPerDay (walk minutes)
+ *   - house_sitting → dogs/cats/others/nights + exerciseMinutesPerDay (walk minutes)
  *   - walk          → hours/dogs
  *   - check_in/training → hours
  *   - meet_greet    → (no quantities)
@@ -359,11 +359,13 @@ export function buildQuoteInput(opts: {
   /** Whether this booking is part of a qualifying recurring series. */
   recurringSeries: boolean;
   /**
-   * Whether the service's Kiche discount applies. False on create/preview
-   * (Kiche is Cal-applied AFTER booking via setKicheApplied); the edit path
-   * passes the existing booking's kiche_applied so a re-quote preserves it.
+   * The manual discounts that apply to this quote. Empty on create/preview
+   * (manual discounts are Cal-applied AFTER booking); the edit path passes the
+   * ids the existing booking carries so a re-quote preserves them.
    */
-  applyKiche: boolean;
+  enabledManualIds: readonly string[];
+  /** One-off adjustments carried on the existing booking's frozen quote. */
+  customAdjustments?: QuoteInput["customAdjustments"];
   /** Server-derived: any assigned dog under 6 months at the booking start. */
   anyDogUnder6mo: boolean;
 }): QuoteInput {
@@ -375,7 +377,8 @@ export function buildQuoteInput(opts: {
     billableMiles: opts.billableMiles,
     recurringSeries: opts.recurringSeries,
     anyDogUnder6mo: opts.anyDogUnder6mo,
-    enabledManualIds: opts.applyKiche ? ["kiche"] : [],
+    customAdjustments: opts.customAdjustments,
+    enabledManualIds: [...new Set(opts.enabledManualIds)],
   };
 
   switch (q.pricingType) {
@@ -384,6 +387,7 @@ export function buildQuoteInput(opts: {
         ...base,
         dogs: q.data.dogs,
         cats: q.data.cats,
+        others: q.data.others,
         nights: q.data.nights,
         exerciseMinutesPerDay: q.data.walkMinutesPerDay,
         needyTier: needyTierFromHoursAway(q.data.maxHoursAway),
@@ -470,6 +474,85 @@ export type ArtifactsResult =
   | { kind: "validation_error"; message: string }
   | { kind: "error"; message: string };
 
+/** The one message a failed quote shows; details go to the log. */
+const ARTIFACTS_ERROR_MESSAGE = "Something went wrong. Please try again.";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The two front gates of computeBookingArtifacts
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type ValidatedBookingInput =
+  | { kind: "ok"; input: z.output<typeof createBookingInputSchema> }
+  | Extract<ArtifactsResult, { kind: "validation_error" }>;
+
+/**
+ * Gate 1 — validate the raw booking request.
+ *
+ * Zod v4's `error.message` is the serialized issue array (code/path/pattern), so
+ * the issues go to the server log and the caller gets one static sentence.
+ */
+export function validateBookingInput(
+  rawInput: CreateBookingInput,
+): ValidatedBookingInput {
+  const parseResult = createBookingInputSchema.safeParse(rawInput);
+  if (!parseResult.success) {
+    console.error(
+      "computeBookingArtifacts: booking input failed validation",
+      parseResult.error.issues,
+    );
+    return {
+      kind: "validation_error",
+      message: "Please check your booking details and try again.",
+    };
+  }
+  return { kind: "ok", input: parseResult.data };
+}
+
+/**
+ * Gate 2 — the required-profiles checklist for this booking: the
+ * REQUIRED_PROFILES manifest for the service's pricing type × the assigned pets,
+ * each item tagged complete/stale/missing against the client's submitted forms.
+ *
+ * Pure (`now` is injected). The checklist is reported, never enforced here: a
+ * price receipt must compute while forms are outstanding, so the commit cores
+ * are what block on it. `services.form_key` is legacy and no longer consulted.
+ */
+export function deriveBookingRequirements(args: {
+  pricingType: PricingType;
+  assignedPets: { id: string; species: PetSpecies }[];
+  formStatuses: FormStatusRow[];
+  now: Date;
+}): RequirementItem[] {
+  const findStatus = (formKey: string, petId: string | null) =>
+    args.formStatuses.find((r) => r.formKey === formKey && r.petId === petId)
+      ?.submittedAt ?? null;
+  const petForms: Record<
+    string,
+    { pet_care?: string | null; pet_walk?: string | null }
+  > = {};
+  for (const p of args.assignedPets) {
+    petForms[p.id] = {
+      pet_care: findStatus("pet_care", p.id),
+      pet_walk: findStatus("pet_walk", p.id),
+    };
+  }
+  return bookingRequirements({
+    pricingType: args.pricingType,
+    assignedPets: args.assignedPets.map((p) => ({
+      id: p.id,
+      name: "",
+      species: p.species,
+    })),
+    accountForms: {
+      owner: findStatus("owner", null),
+      home_access: findStatus("home_access", null),
+      home_sitting: findStatus("home_sitting", null),
+    },
+    petForms,
+    now: args.now,
+  });
+}
+
 /**
  * Pure quote/approval computation — no guard/window enforcement, no DB write.
  *
@@ -498,23 +581,20 @@ export async function computeBookingArtifacts(
      * discount Cal already granted.
      */
     applyKiche?: boolean;
+    /**
+     * The booking's frozen `quote_inputs` when this is a re-quote of an
+     * existing booking. Every manual discount and one-off adjustment recorded
+     * there is carried into the new quote, so an unrelated edit (a date move, a
+     * note) cannot silently undo a price Cal set by hand. Malformed or legacy
+     * jsonb contributes nothing.
+     */
+    storedQuoteInputs?: unknown;
   },
 ): Promise<ArtifactsResult> {
   // 1. Validate
-  const parseResult = createBookingInputSchema.safeParse(rawInput);
-  if (!parseResult.success) {
-    // zod v4's error.message is the serialized issues array (code/path/pattern).
-    // Log it for diagnosis; never show it to a user.
-    console.error(
-      "computeBookingArtifacts: booking input failed validation",
-      parseResult.error.issues,
-    );
-    return {
-      kind: "validation_error",
-      message: "Please check your booking details and try again.",
-    };
-  }
-  const input = parseResult.data;
+  const validated = validateBookingInput(rawInput);
+  if (validated.kind !== "ok") return validated;
+  const { input } = validated;
   const { repo } = deps;
 
   const warnings: string[] = [];
@@ -564,10 +644,12 @@ export async function computeBookingArtifacts(
   ]);
 
   if (!service) {
-    return {
-      kind: "error",
-      message: `Service '${input.serviceSlug}' not found`,
-    };
+    // A missing service is Cal's problem, not the client's: name the slug in
+    // the log and show the standard text.
+    console.error(
+      `computeBookingArtifacts: no service row for slug '${input.serviceSlug}'`,
+    );
+    return { kind: "error", message: ARTIFACTS_ERROR_MESSAGE };
   }
 
   // Requirements gate: a booking requires the reusable Owner/Home/Pet profiles
@@ -581,28 +663,30 @@ export async function computeBookingArtifacts(
   try {
     pricingConfig = parsePricingConfig(service.pricing_config);
   } catch (e) {
-    return {
-      kind: "error",
-      message: `Invalid pricing_config for service '${input.serviceSlug}': ${e instanceof Error ? e.message : String(e)}`,
-    };
+    // A mis-configured service is Cal's problem, not the client's: the parser's
+    // message names schema internals, so log it and show the standard text.
+    console.error(
+      `computeBookingArtifacts: invalid pricing_config for service '${input.serviceSlug}'`,
+      e,
+    );
+    return { kind: "error", message: ARTIFACTS_ERROR_MESSAGE };
   }
 
   // Pet-aware services let the client assign pets; only house_sitting/walk price
   // by headcount. check_in/training are hours-only — they assign pets purely so
   // the per-pet care requirement is satisfiable, and derive no counts.
   const petIds = input.petIds ?? [];
-  const petAware =
-    service.pricing_type === "house_sitting" ||
-    service.pricing_type === "walk" ||
-    service.pricing_type === "check_in" ||
-    service.pricing_type === "training";
+  const petAware = isPetAware(service.pricing_type);
 
   let ownedPets: {
     id: string;
     species: PetSpecies;
     birthdate: string | null;
   }[] = [];
-  if (petAware && petIds.length > 0) {
+  // Ownership is checked for EVERY service that was sent pet ids, not just the
+  // pet-aware ones: meet_greet also accepts petIds, and skipping the check let a
+  // client attach another client's pets to their booking.
+  if (petIds.length > 0) {
     ownedPets = await repo.getPetsByIds(input.userId, petIds);
     if (ownedPets.length !== petIds.length) {
       return {
@@ -612,36 +696,10 @@ export async function computeBookingArtifacts(
     }
   }
 
-  // Requirements gate: a booking requires the reusable profiles its pricing_type
-  // calls for (REQUIRED_PROFILES), each complete and fresh. services.form_key is
-  // legacy and no longer consulted.
-  const formStatuses = await formStatusesPromise;
-  const findStatus = (formKey: string, petId: string | null) =>
-    formStatuses.find((r) => r.formKey === formKey && r.petId === petId)
-      ?.submittedAt ?? null;
-  const petForms: Record<
-    string,
-    { pet_care?: string | null; pet_walk?: string | null }
-  > = {};
-  for (const p of ownedPets) {
-    petForms[p.id] = {
-      pet_care: findStatus("pet_care", p.id),
-      pet_walk: findStatus("pet_walk", p.id),
-    };
-  }
-  const requirements = bookingRequirements({
+  const requirements = deriveBookingRequirements({
     pricingType: service.pricing_type,
-    assignedPets: ownedPets.map((p) => ({
-      id: p.id,
-      name: "",
-      species: p.species,
-    })),
-    accountForms: {
-      owner: findStatus("owner", null),
-      home_access: findStatus("home_access", null),
-      home_sitting: findStatus("home_sitting", null),
-    },
-    petForms,
+    assignedPets: ownedPets,
+    formStatuses: await formStatusesPromise,
     now: deps.now,
   });
   // Forms gate is enforced on COMMIT (create/edit cores), NOT here: the price
@@ -665,7 +723,14 @@ export async function computeBookingArtifacts(
     const dogs = ownedPets.filter((p) => p.species === "dog").length;
     const cats = ownedPets.filter((p) => p.species === "cat").length;
     if (service.pricing_type === "house_sitting") {
-      quantitiesRaw = { ...quantitiesRaw, dogs, cats };
+      // Every other species bills against the config's `other` unit, fish
+      // included: the nightly base covers the stay's first pet whatever it is,
+      // so leaving a species out of the count leaves a stay for that species
+      // alone with no base at all.
+      const others = ownedPets.filter(
+        (p) => p.species !== "dog" && p.species !== "cat",
+      ).length;
+      quantitiesRaw = { ...quantitiesRaw, dogs, cats, others };
     } else if (service.pricing_type === "walk") {
       quantitiesRaw = { ...quantitiesRaw, dogs };
     }
@@ -791,16 +856,29 @@ export async function computeBookingArtifacts(
     (p) => p.species === "dog" && isUnderSixMonths(p.birthdate, input.startsAt),
   );
 
+  // Manual discounts and one-off adjustments are Cal's, not the client's: they
+  // live on the booking's frozen quote and are carried into every later re-quote
+  // (the `applyKiche` flag is the same carry-through for the Kiche column).
+  const stored = storedManualInputs(opts?.storedQuoteInputs);
   const quoteInput = buildQuoteInput({
     config: pricingConfig,
     quantities,
     billableMiles,
     premiumNights,
     recurringSeries: recurringDiscountApplies,
-    applyKiche: opts?.applyKiche ?? false,
+    enabledManualIds: toggleManualIds(
+      stored.enabledManualIds,
+      KICHE_ID,
+      opts?.applyKiche ?? stored.enabledManualIds.includes(KICHE_ID),
+    ),
+    customAdjustments: stored.customAdjustments,
     anyDogUnder6mo,
   });
 
+  // `quoteInput` is what gets frozen onto the booking, so it keeps the real
+  // miles even for a complimentary booking: the engine leaves the travel line
+  // out while the discount stands, and removing the discount later has to
+  // re-price the travel the trip always had.
   const breakdown = quote(quoteInput);
 
   return {
@@ -813,7 +891,7 @@ export async function computeBookingArtifacts(
       occurrences,
       distanceMiles,
       requiresApprovalByOccurrence,
-      requiresApproval: requiresApprovalByOccurrence[0],
+      requiresApproval: requiresApprovalByOccurrence[0] ?? false,
       decision,
       approvalReasons,
       warnings,

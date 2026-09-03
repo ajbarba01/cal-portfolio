@@ -20,6 +20,7 @@ import { createClient } from "@supabase/supabase-js";
 import { createSupabaseBookingRepository } from "./booking-repository";
 import { editBookingCore } from "./booking-service";
 import { ADMIN_POLICY } from "./mutation-policy";
+import { deleteFixtureClients } from "@/test-stubs/integration-cleanup";
 
 const url = process.env.SUPABASE_TEST_URL!;
 const serviceKey = process.env.SUPABASE_TEST_SERVICE_ROLE_KEY!;
@@ -39,6 +40,13 @@ const serviceClient = createClient(url, serviceKey, {
 
 const ts = Date.now();
 const TEST_PASS = "Edit1234!";
+
+/**
+ * This suite's own fixture-email prefix. Teardown deletes by it rather than by
+ * the ids `beforeAll` assigned, so an aborted run cannot leak confirmed slots
+ * into the next one. It must not overlap another suite's prefix.
+ */
+const EMAIL_PREFIX = "test-edit-booking-";
 const NEAR_LAT = 40.087; // ~5 mi N of Boulder origin → auto-confirm
 const NEAR_LNG = -105.27;
 
@@ -47,10 +55,6 @@ let walkServiceId: string;
 let coveringWindowId: string;
 let petA: string;
 let petB: string;
-
-// Track all booking / series ids so afterAll can delete them.
-const createdBookingIds: string[] = [];
-const createdSeriesIds: string[] = [];
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -114,7 +118,6 @@ async function insertBookingRow(opts: {
   if (error || !data) {
     throw new Error(`insertBookingRow failed: ${error?.message}`);
   }
-  createdBookingIds.push(data.id as string);
   return data.id as string;
 }
 
@@ -126,7 +129,7 @@ beforeAll(async () => {
   // 1. Create a test user + approve their profile.
   const { data: authData, error: authErr } =
     await serviceClient.auth.admin.createUser({
-      email: `test-edit-booking-${ts}@example.invalid`,
+      email: `${EMAIL_PREFIX}${ts}@example.invalid`,
       password: TEST_PASS,
       email_confirm: true,
     });
@@ -162,11 +165,12 @@ beforeAll(async () => {
       { client_id: editUserId, name: `PetB-${ts}`, species: "dog" },
     ])
     .select("id");
-  if (petErr || !pets || pets.length < 2) {
+  const [petRowA, petRowB] = pets ?? [];
+  if (petErr || !petRowA || !petRowB) {
     throw new Error(`pet fixture failed: ${petErr?.message}`);
   }
-  petA = pets[0].id as string;
-  petB = pets[1].id as string;
+  petA = petRowA.id as string;
+  petB = petRowB.id as string;
 
   // 4. Wide availability window (now+1d … now+95d at 17:00 UTC) — covers all
   //    test offsets (5–30 days). ADMIN_POLICY skips window-fit, but this is
@@ -193,33 +197,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  // Delete in FK-safe order:
-  //   payments (on delete restrict) → booking_pets → bookings → booking_series → pets.
-  if (createdBookingIds.length > 0) {
-    await serviceClient
-      .from("payments")
-      .delete()
-      .in("booking_id", createdBookingIds);
-    await serviceClient
-      .from("booking_pets")
-      .delete()
-      .in("booking_id", createdBookingIds);
-    await serviceClient.from("bookings").delete().in("id", createdBookingIds);
-  }
-
-  if (createdSeriesIds.length > 0) {
-    await serviceClient
-      .from("booking_series")
-      .delete()
-      .in("id", createdSeriesIds);
-  }
-
-  if (editUserId) {
-    // Delete pets explicitly (auth.deleteUser cascades profiles but not pets).
-    await serviceClient.from("pets").delete().eq("client_id", editUserId);
-
-    await serviceClient.auth.admin.deleteUser(editUserId);
-  }
+  await deleteFixtureClients(serviceClient, EMAIL_PREFIX);
 
   if (coveringWindowId) {
     await serviceClient
@@ -374,7 +352,7 @@ describe("editBookingCore — pet swap", () => {
       .eq("booking_id", bookingId);
 
     expect(links).toHaveLength(1);
-    expect(links![0].pet_id).toBe(petB);
+    expect(links?.[0]?.pet_id).toBe(petB);
   });
 });
 
@@ -406,7 +384,6 @@ describe("editBookingCore — series detach", () => {
       throw new Error(`series insert failed: ${seriesErr?.message}`);
     }
     const seriesId = series.id as string;
-    createdSeriesIds.push(seriesId);
 
     // Insert a booking linked to this series.
     const seriesStart = futureStart(14);
@@ -544,7 +521,6 @@ describe("appendSeriesSkip (repo) — idempotency", () => {
       );
     }
     const seriesId = series.id as string;
-    createdSeriesIds.push(seriesId);
 
     const isoStart = futureStart(25).toISOString();
     const repo = createSupabaseBookingRepository(serviceClient);

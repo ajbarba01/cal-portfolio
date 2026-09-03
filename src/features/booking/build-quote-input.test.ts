@@ -24,18 +24,19 @@ describe("buildQuoteInput", () => {
       config: HS_CONFIG,
       quantities: {
         pricingType: "house_sitting",
-        data: { dogs: 2, cats: 1, nights: 3, walkMinutesPerDay: 60 },
+        data: { dogs: 2, cats: 1, others: 1, nights: 3, walkMinutesPerDay: 60 },
       },
       billableMiles: 6.5, // already road-adjusted by the caller
       premiumNights: 2,
       recurringSeries: true,
-      applyKiche: false,
+      enabledManualIds: [],
       anyDogUnder6mo: false,
     });
 
     expect(qi.config).toBe(HS_CONFIG);
     expect(qi.dogs).toBe(2);
     expect(qi.cats).toBe(1);
+    expect(qi.others).toBe(1);
     expect(qi.nights).toBe(3);
     expect(qi.exerciseMinutesPerDay).toBe(60);
     expect(qi.billableMiles).toBe(6.5);
@@ -45,7 +46,7 @@ describe("buildQuoteInput", () => {
     expect(qi.hours).toBeUndefined();
   });
 
-  it("walk: maps hours/dogs and sets enabledManualIds=['kiche'] when applyKiche", () => {
+  it("walk: maps hours/dogs and carries the manual discount ids it is given", () => {
     const qi = buildQuoteInput({
       config: WALK_CONFIG,
       quantities: {
@@ -55,7 +56,7 @@ describe("buildQuoteInput", () => {
       billableMiles: 0,
       premiumNights: 0,
       recurringSeries: false,
-      applyKiche: true,
+      enabledManualIds: ["kiche"],
       anyDogUnder6mo: false,
     });
 
@@ -64,7 +65,7 @@ describe("buildQuoteInput", () => {
     expect(qi.enabledManualIds).toEqual(["kiche"]);
   });
 
-  it("enabledManualIds is empty when applyKiche is false (preview/create path)", () => {
+  it("enabledManualIds stays empty on the preview/create path", () => {
     const qi = buildQuoteInput({
       config: WALK_CONFIG,
       quantities: {
@@ -74,7 +75,7 @@ describe("buildQuoteInput", () => {
       billableMiles: 0,
       premiumNights: 0,
       recurringSeries: false,
-      applyKiche: false,
+      enabledManualIds: [],
       anyDogUnder6mo: false,
     });
 
@@ -92,7 +93,7 @@ describe("buildQuoteInput", () => {
       billableMiles: 0,
       premiumNights: 0,
       recurringSeries: false,
-      applyKiche: false,
+      enabledManualIds: [],
       anyDogUnder6mo: false,
     });
 
@@ -112,7 +113,7 @@ describe("buildQuoteInput", () => {
       billableMiles: 0,
       premiumNights: 0,
       recurringSeries: false,
-      applyKiche: false,
+      enabledManualIds: [],
       anyDogUnder6mo: true,
     });
     expect(qi.needyTier).toBe(3); // [2,4) → tier 3
@@ -129,11 +130,29 @@ describe("buildQuoteInput", () => {
       billableMiles: 0,
       premiumNights: 0,
       recurringSeries: false,
-      applyKiche: false,
+      enabledManualIds: [],
       anyDogUnder6mo: false,
     });
     expect(qi.needyTier).toBe(0);
     expect(qi.anyDogUnder6mo).toBe(false);
+  });
+
+  it("house_sitting: a stay with only other pets carries the count that prices them", () => {
+    // A bird-only stay reaches the engine as `others`, which is what stops it
+    // pricing against a base that never fired.
+    const qi = buildQuoteInput({
+      config: HS_CONFIG,
+      quantities: {
+        pricingType: "house_sitting",
+        data: { dogs: 0, cats: 0, others: 2, nights: 1 },
+      },
+      billableMiles: 0,
+      premiumNights: 0,
+      recurringSeries: false,
+      enabledManualIds: [],
+      anyDogUnder6mo: false,
+    });
+    expect(qi.others).toBe(2);
   });
 
   it("walk: carries leashManners opt-in", () => {
@@ -146,9 +165,47 @@ describe("buildQuoteInput", () => {
       billableMiles: 0,
       premiumNights: 0,
       recurringSeries: false,
-      applyKiche: false,
+      enabledManualIds: [],
       anyDogUnder6mo: false,
     });
     expect(qi.leashManners).toBe(true);
+  });
+  it("carries every manual discount and one-off adjustment it is given", () => {
+    const qi = buildQuoteInput({
+      config: WALK_CONFIG,
+      quantities: { pricingType: "walk", data: { hours: 1, dogs: 1 } },
+      billableMiles: 12,
+      premiumNights: 0,
+      recurringSeries: false,
+      enabledManualIds: ["kiche", "friends_family"],
+      customAdjustments: [{ label: "Goodwill", amountCents: 500 }],
+      anyDogUnder6mo: false,
+    });
+
+    expect(qi.enabledManualIds).toEqual(["kiche", "friends_family"]);
+    expect(qi.customAdjustments).toEqual([
+      { label: "Goodwill", amountCents: 500 },
+    ]);
+    expect(qi.billableMiles).toBe(12);
+  });
+
+  it("keeps the real travel miles even when Complimentary is applied", () => {
+    // A complimentary booking is quoted with no travel line, but the miles are
+    // a fact about the trip, not about the discount. This input is the one
+    // frozen onto the booking, so it keeps them: dropping the discount later
+    // has to re-price the travel the booking always had. The zeroing happens at
+    // quote time (see `withManualIds`).
+    const qi = buildQuoteInput({
+      config: WALK_CONFIG,
+      quantities: { pricingType: "walk", data: { hours: 1, dogs: 1 } },
+      billableMiles: 12,
+      premiumNights: 0,
+      recurringSeries: false,
+      enabledManualIds: ["complimentary"],
+      anyDogUnder6mo: false,
+    });
+
+    expect(qi.billableMiles).toBe(12);
+    expect(qi.enabledManualIds).toEqual(["complimentary"]);
   });
 });

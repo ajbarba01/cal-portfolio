@@ -1,172 +1,77 @@
 /**
- * Booking repository interface + Supabase-backed implementation.
+ * Supabase-backed implementation of the booking repository.
  *
  * All domain logic lives in booking-service.ts. This module is the IO
- * adapter — it owns the DB read/write and exposes a typed interface so the
+ * adapter — it owns the DB read/write and implements the typed interface so the
  * service can be tested with any implementation (ENGINEERING #4).
  *
- * The interface is intentionally minimal: only the operations the service
- * actually needs, typed with explicit interfaces rather than the generic
- * Supabase types. No `any`.
+ * The contract itself — the row shapes, the settings schema and the
+ * `BookingRepository` interface — lives in booking-repository-types.ts and is
+ * re-exported below, so importing a type from either path is equivalent.
  */
 
+import { cache } from "react";
 import { z } from "zod";
-import type { SupabaseClient } from "@supabase/supabase-js";
-import type { PricingType } from "@/features/pricing";
+import type { DbClient } from "@/lib/supabase/db-client";
+import { speciesEnum } from "@/features/pets";
+import { netPaid } from "@/features/payments";
 import { denverDayKey } from "./availability";
+import {
+  bookingStatusDbSchema,
+  onboardingStatusSchema,
+  settingsRowSchema,
+} from "./booking-repository-types";
+import type {
+  BookingRepository,
+  SettingsRow,
+} from "./booking-repository-types";
 
-// ──────────────────────────────────────────────────────────────────────────────
-// Row shapes (typed explicitly — no generated DB types to avoid coupling)
-// ──────────────────────────────────────────────────────────────────────────────
-
-export type ConcurrencyClass = "exclusive" | "resident";
-
-/** Onboarding lifecycle status. Schema + type single-sourced so they stay in sync. */
-export const onboardingStatusSchema = z.enum([
-  "info_pending",
-  "meet_greet_pending",
-  "approved",
-  "declined",
-]);
-export type OnboardingStatus = z.infer<typeof onboardingStatusSchema>;
-
-export type BookingStatusDb =
-  | "pending_approval"
-  | "confirmed"
-  | "completed"
-  | "declined"
-  | "cancelled"
-  | "no_show";
-
-export interface ServiceRow {
-  id: string;
-  slug: string;
-  pricing_type: PricingType;
-  pricing_config: unknown; // validated by parsePricingConfig before use
-  concurrency: ConcurrencyClass;
-  requires_approval: boolean;
-  /** Null when the service has no required form. */
-  form_key: string | null;
-}
-
-export interface SettingsRow {
-  origin_lat: number;
-  origin_lng: number;
-  road_factor: number;
-  avg_speed_mph: number;
-  auto_approve_threshold_miles: number;
-  hard_cutoff_miles: number;
-  gate_use_road_miles: boolean;
-  booking_open_minute: number;
-  booking_close_minute: number;
-  min_lead_time_hours: number;
-  auto_confirm_horizon_days: number;
-  hard_max_advance_days: number;
-  recurrence_generation_horizon_days: number;
-  recurring_discount_pct: number;
-  recurring_min_occurrences: number;
-  cancellation_full_refund_hours: number;
-  late_cancel_refund_pct: number;
-  no_show_charge_pct: number;
-  /** ISO "YYYY-MM-DD" day keys for premium (holiday) days. Empty when none set. */
-  holiday_dates: string[];
-  /** Per-day surcharge (cents) for bookings on premium days. Applied to all service types. */
-  holiday_surcharge_cents: number;
-  /** Percent of one-way drive time to reserve as a scheduling buffer (e.g. 120 = 1.2×). */
-  drive_buffer_pct: number;
-}
-
-export interface ProfileLatLng {
-  lat: number | null;
-  lng: number | null;
-}
-
-export interface BookingInsert {
-  client_id: string;
-  service_id: string;
-  starts_at: string; // ISO UTC
-  ends_at: string; // ISO UTC
-  series_id: string | null;
-  status: BookingStatusDb;
-  concurrency: ConcurrencyClass;
-  distance_miles: number | null;
-  /** jsonb column — typed as unknown at the DB boundary (honest about the json shape). */
-  quote_inputs: unknown;
-  /** jsonb column — typed as unknown at the DB boundary. */
-  quote_breakdown: unknown;
-  final_cents: number;
-  requires_approval: boolean;
-  discount_cents: number;
-  /** Freeform client note for Cal. Null when not provided. */
-  comments: string | null;
-  /** Client consent that Kiche may tag along (default true). Never affects price. */
-  kiche_welcome: boolean;
-}
-
-/**
- * A durable weekly-recurrence rule. `step_interval` is the DB column for the
- * rule's interval (the literal word `interval` is a Postgres type keyword).
- * `quote_inputs` is frozen at submit so every occurrence re-quotes identically.
- */
-export interface BookingSeriesRow {
-  id: string;
-  client_id: string;
-  service_id: string;
-  freq: "weekly";
-  step_interval: number;
-  count: number | null;
-  until: string | null; // ISO UTC
-  open_ended: boolean;
-  template_starts_at: string; // ISO UTC
-  duration_min: number;
-  quote_inputs: unknown;
-  active: boolean;
-  /** RFC 5545 EXDATE cadence starts (ISO UTC) removed by occurrence edits. */
-  skipped_starts: string[];
-}
-
-/** Insert shape for a booking_series row (id/active/created_at are DB-defaulted). */
-export interface BookingSeriesInsert {
-  client_id: string;
-  service_id: string;
-  freq: "weekly";
-  step_interval: number;
-  count: number | null;
-  until: string | null;
-  open_ended: boolean;
-  template_starts_at: string;
-  duration_min: number;
-  quote_inputs: unknown;
-}
+export {
+  asJson,
+  bookingStatusDbSchema,
+  onboardingStatusSchema,
+} from "./booking-repository-types";
+export type {
+  AdminBusyRange,
+  BookingEditRow,
+  BookingEditUpdate,
+  BookingForKiche,
+  BookingInsert,
+  BookingKicheUpdate,
+  BookingPaymentTxn,
+  BookingRepository,
+  BookingRow,
+  BookingSeriesInsert,
+  BookingSeriesRow,
+  BookingStatusDb,
+  BookingWithPayments,
+  BusyRange,
+  ClientDebitInsert,
+  ConcurrencyClass,
+  DebitReason,
+  FormStatusRow,
+  OnboardingStatus,
+  PetRef,
+  PetSpeciesDb,
+  ProfileLatLng,
+  ServiceRow,
+  SettingsRow,
+} from "./booking-repository-types";
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Zod schemas for DB rows (parse at the edge — ENGINEERING #11)
 // ──────────────────────────────────────────────────────────────────────────────
 
-/** Parsed and validated settings row. All numeric fields verified as numbers. */
-const settingsRowSchema = z.object({
-  origin_lat: z.number(),
-  origin_lng: z.number(),
-  road_factor: z.number(),
-  avg_speed_mph: z.number(),
-  auto_approve_threshold_miles: z.number(),
-  hard_cutoff_miles: z.number(),
-  gate_use_road_miles: z.boolean(),
-  booking_open_minute: z.number(),
-  booking_close_minute: z.number(),
-  min_lead_time_hours: z.number(),
-  auto_confirm_horizon_days: z.number(),
-  hard_max_advance_days: z.number(),
-  recurrence_generation_horizon_days: z.number(),
-  recurring_discount_pct: z.number(),
-  recurring_min_occurrences: z.number(),
-  cancellation_full_refund_hours: z.number(),
-  late_cancel_refund_pct: z.number(),
-  no_show_charge_pct: z.number(),
-  holiday_dates: z.array(z.string()).default([]),
-  holiday_surcharge_cents: z.number().int().nonnegative().default(0),
-  drive_buffer_pct: z.number(),
-});
+/**
+ * Derived from the schema that parses the result, so the two cannot drift.
+ *
+ * Being built at runtime, it is not a string literal, so PostgREST's generated
+ * types cannot resolve it and the read below comes back untyped. The zod parse
+ * is therefore the only check that the columns still exist — which is what it
+ * was written to be. Inlining the list to regain the static check would
+ * reintroduce the drift this constant exists to prevent.
+ */
+const SETTINGS_COLUMNS = Object.keys(settingsRowSchema.shape).join(", ");
 
 /** Parsed and validated service row. pricing_type is the closed enum. */
 const serviceRowSchema = z.object({
@@ -213,33 +118,10 @@ const overnightNightRowSchema = z.object({
   night: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
 });
 
-export interface BookingRow {
-  id: string;
-  client_id: string;
-  status: BookingStatusDb;
-}
-
-/** A single payment txn attached to a booking (for refund + paid-amount math). */
-export interface BookingPaymentTxn {
-  status: "requires_payment" | "succeeded" | "refunded" | "failed";
-  amountCents: number;
-  paymentIntentId: string;
-}
-
-/** A booking joined with its payments — used by the cancel / refund path. */
-export interface BookingWithPayments {
-  id: string;
-  client_id: string;
-  status: BookingStatusDb;
-  startsAt: Date;
-  finalCents: number;
-  payments: BookingPaymentTxn[];
-}
-
 const bookingWithPaymentsRowSchema = z.object({
   id: z.string(),
   client_id: z.string(),
-  status: z.string(),
+  status: bookingStatusDbSchema,
   starts_at: z.string(),
   final_cents: z.number(),
   payments: z
@@ -247,6 +129,7 @@ const bookingWithPaymentsRowSchema = z.object({
       z.object({
         status: z.enum(["requires_payment", "succeeded", "refunded", "failed"]),
         amount_cents: z.number(),
+        refunded_cents: z.number(),
         stripe_payment_intent_id: z.string(),
       }),
     )
@@ -256,7 +139,7 @@ const bookingWithPaymentsRowSchema = z.object({
 const bookingForKicheRowSchema = z.object({
   id: z.string(),
   client_id: z.string(),
-  status: z.string(),
+  status: bookingStatusDbSchema,
   quote_inputs: z.unknown(),
   kiche_welcome: z.boolean(),
   kiche_applied: z.boolean(),
@@ -266,112 +149,17 @@ const bookingForKicheRowSchema = z.object({
       z.object({
         status: z.enum(["requires_payment", "succeeded", "refunded", "failed"]),
         amount_cents: z.number(),
+        refunded_cents: z.number(),
         stripe_payment_intent_id: z.string(),
       }),
     )
     .nullable(),
 });
 
-/** Full shape needed to edit a booking in place. */
-export interface BookingEditRow {
-  id: string;
-  client_id: string;
-  service_slug: string;
-  status: BookingStatusDb;
-  startsAt: Date;
-  endsAt: Date;
-  series_id: string | null;
-  comments: string | null;
-  /** Stored QuoteInput (jsonb) — source of current quantities for re-quote. */
-  quote_inputs: unknown;
-  /** Currently-assigned pet ids (from booking_pets). */
-  petIds: string[];
-  /** Sum of succeeded payment cents (0 or final_cents under prepay-full). */
-  paidCents: number;
-  /** Whether Cal applied the Kiche discount — preserved across a re-quote. */
-  kiche_applied: boolean;
-}
-
-/** Fields an edit may update on the bookings row. */
-export interface BookingEditUpdate {
-  starts_at: string; // ISO UTC
-  ends_at: string; // ISO UTC
-  status: BookingStatusDb;
-  quote_inputs: unknown;
-  quote_breakdown: unknown;
-  final_cents: number;
-  requires_approval: boolean;
-  comments: string | null;
-  /** Set to null to detach from a series. */
-  series_id: string | null;
-}
-
-/** Debit reason, mirrors the client_debits CHECK constraint. */
-export type DebitReason = "late_cancel" | "no_show";
-
-export interface ClientDebitInsert {
-  client_id: string;
-  booking_id: string | null;
-  amount_cents: number;
-  reason: DebitReason;
-}
-
-export type PetSpeciesDb = "dog" | "cat";
-
-/** A pet owned by the caller, used to derive server-trusted booking counts. */
-export interface PetRef {
-  id: string;
-  species: PetSpeciesDb;
-  birthdate: string | null;
-}
-
-/** One form_responses row reduced to what the requirement gate needs. */
-export interface FormStatusRow {
-  formKey: string;
-  petId: string | null;
-  submittedAt: string;
-}
-
-/**
- * Identity-free busy range for the PUBLIC calendar. Carries pet thumbnails
- * (species + storage path) but NEVER an owner name or id — privacy by
- * construction (the projection cannot select identity columns).
- *
- * The repo-internal fields `concurrency`, `clientLat`, `clientLng` are used
- * server-side to compute a drive-time buffer; they are never forwarded to the
- * client (PublicBusyRange has no such fields).
- */
-export interface BusyRange {
-  startsAt: Date;
-  endsAt: Date;
-  pets: { species: PetSpeciesDb; photoPath: string | null }[];
-  /** Repo-internal: used to decide whether to apply drive-time buffer. */
-  concurrency: ConcurrencyClass;
-  /** Repo-internal: booking owner's lat (ZIP centroid). Null when profile missing. */
-  clientLat: number | null;
-  /** Repo-internal: booking owner's lng (ZIP centroid). Null when profile missing. */
-  clientLng: number | null;
-}
-
-/** Enriched busy range for the ADMIN calendar — adds booking id, owner, status. */
-export interface AdminBusyRange {
-  bookingId: string;
-  startsAt: Date;
-  endsAt: Date;
-  status: BookingStatusDb;
-  clientId: string;
-  clientName: string | null;
-  /** Booking total (cents). Under prepay-full this is what a Cal-cancel refunds. */
-  finalCents: number;
-  pets: {
-    id: string;
-    name: string;
-    species: PetSpeciesDb;
-    photoPath: string | null;
-  }[];
-}
-
 const publicBusyRowSchema = z.object({
+  // Optional only because fixtures written before the column was selected omit
+  // it; the live select always asks for it and the column is NOT NULL.
+  id: z.string().optional(),
   starts_at: z.string(),
   ends_at: z.string(),
   concurrency: z.enum(["exclusive", "resident"]),
@@ -383,7 +171,7 @@ const publicBusyRowSchema = z.object({
       z.object({
         pets: z
           .object({
-            species: z.enum(["dog", "cat"]),
+            species: speciesEnum,
             photo_url: z.string().nullable(),
           })
           .nullable(),
@@ -396,7 +184,7 @@ const adminBusyRowSchema = z.object({
   id: z.string(),
   starts_at: z.string(),
   ends_at: z.string(),
-  status: z.string(),
+  status: bookingStatusDbSchema,
   client_id: z.string(),
   final_cents: z.number(),
   profiles: z.object({ full_name: z.string().nullable() }).nullable(),
@@ -407,7 +195,7 @@ const adminBusyRowSchema = z.object({
           .object({
             id: z.string(),
             name: z.string(),
-            species: z.enum(["dog", "cat"]),
+            species: speciesEnum,
             photo_url: z.string().nullable(),
           })
           .nullable(),
@@ -420,14 +208,7 @@ const adminBusyRowSchema = z.object({
 const bookingEditRowSchema = z.object({
   id: z.string(),
   client_id: z.string(),
-  status: z.enum([
-    "pending_approval",
-    "confirmed",
-    "completed",
-    "declined",
-    "cancelled",
-    "no_show",
-  ]),
+  status: bookingStatusDbSchema,
   starts_at: z.string(),
   ends_at: z.string(),
   series_id: z.string().nullable(),
@@ -444,197 +225,71 @@ const bookingEditRowSchema = z.object({
     .nullable(),
   booking_pets: z.array(z.object({ pet_id: z.string() })).nullable(),
   payments: z
-    .array(z.object({ status: z.string(), amount_cents: z.number() }))
+    .array(
+      z.object({
+        status: z.enum(["requires_payment", "succeeded", "refunded", "failed"]),
+        amount_cents: z.number(),
+        refunded_cents: z.number(),
+      }),
+    )
     .nullable(),
 });
 
 const ACTIVE_BUSY_STATUSES = ["pending_approval", "confirmed"] as const;
 
-// ──────────────────────────────────────────────────────────────────────────────
-// Repository interface
-// ──────────────────────────────────────────────────────────────────────────────
+/**
+ * Row ceiling for the list reads that are filtered by time or a flag rather
+ * than by key. Each is ordered nearest-first, so the cap can only ever drop the
+ * furthest-future rows — years past anything a booking flow can select — while
+ * keeping a runaway table from being read into a request's memory.
+ */
+const MAX_LIST_ROWS = 2000;
 
-export interface BookingRepository {
-  /** Fetch a service by slug. Returns null if not found. */
-  getServiceBySlug(slug: string): Promise<ServiceRow | null>;
-
-  /** Fetch a service by id (no active filter — used to materialize an existing series). */
-  getServiceById(id: string): Promise<ServiceRow | null>;
-
-  /** Fetch the singleton settings row. Throws if missing. */
-  getSettings(): Promise<SettingsRow>;
-
-  /** Fetch profile lat/lng for a user. Returns { lat: null, lng: null } if profile missing. */
-  getProfileLatLng(userId: string): Promise<ProfileLatLng>;
-
-  /**
-   * Insert one or more booking rows. Returns the generated IDs.
-   * Throws on DB error. Callers catch error code `23P01` (exclusion_violation)
-   * and surface it as a slot_taken result.
-   */
-  insertBookings(rows: BookingInsert[]): Promise<string[]>;
-
-  /** Fetch a single booking by ID. Returns null if not found. */
-  getBookingById(id: string): Promise<BookingRow | null>;
-
-  /** Update a booking's status. */
-  updateBookingStatus(id: string, status: BookingStatusDb): Promise<void>;
-
-  /**
-   * Fetch ownership + status + current time range for a reschedule. The range is
-   * needed to preserve the booking's duration (only the start moves). Null if
-   * not found.
-   */
-  getBookingTimes(id: string): Promise<{
-    id: string;
-    client_id: string;
-    status: BookingStatusDb;
-    startsAt: Date;
-    endsAt: Date;
-    /** Service pricing type — drives which availability model gates the new slot. */
-    pricingType: PricingType;
-  } | null>;
-
-  /**
-   * Move a booking to a new time range in place (status/price unchanged). Throws
-   * on the `no_same_class_overlap` exclusion violation with `code = '23P01'` so
-   * the core can surface it as `slot_taken` — the same arbiter as insert.
-   */
-  updateBookingTimes(id: string, startsAt: Date, endsAt: Date): Promise<void>;
-
-  /**
-   * Fetch all open availability windows (ends_at >= now).
-   * `now` is injected (no clock read inside the repo) for testability and to
-   * match the booking core's "inject now" contract.
-   * Returns an empty array when no windows are defined.
-   */
-  getOpenWindows(now: Date): Promise<{ startsAt: Date; endsAt: Date }[]>;
-
-  /**
-   * Fetch the set of overnight-bookable nights (Denver day-keys "YYYY-MM-DD")
-   * from `overnight_nights` whose night is today (Denver) or later. Sole source
-   * of truth for house_sitting availability (see migration 20260603140000).
-   * `now` is injected (no clock read inside the repo). Empty set when none.
-   */
-  getOpenNights(now: Date): Promise<Set<string>>;
-
-  /** Insert a booking_series rule. Returns the generated id. */
-  insertSeries(row: BookingSeriesInsert): Promise<string>;
-
-  /** Delete a booking_series rule by id (cleanup when the first insert conflicts). */
-  deleteSeries(id: string): Promise<void>;
-
-  /** Fetch all active series rules (the series-roll cron materializes these forward). */
-  getActiveSeries(): Promise<BookingSeriesRow[]>;
-
-  /**
-   * Fetch the already-materialized occurrence start times (epoch ms) for a
-   * series, used to dedupe before materializing newly-in-horizon occurrences.
-   */
-  getMaterializedOccurrenceStarts(seriesId: string): Promise<number[]>;
-
-  /** Fetch a booking joined with its payments. Returns null if not found. */
-  getBookingWithPayments(id: string): Promise<BookingWithPayments | null>;
-
-  /** Sum of unsettled debit amounts (cents) for a user. 0 when none outstanding. */
-  getOutstandingDebtCents(userId: string): Promise<number>;
-
-  /** Insert a client_debits row. */
-  insertDebit(row: ClientDebitInsert): Promise<void>;
-
-  /** Mark a debit settled at `now`. */
-  settleDebit(debitId: string, now: Date): Promise<void>;
-
-  /**
-   * Fetch the caller's pets among the given ids (client_id-filtered — never
-   * trusts the payload's ownership claim). Used to derive server-trusted
-   * dog/cat counts. Returns only ids the caller actually owns.
-   */
-  getPetsByIds(userId: string, petIds: string[]): Promise<PetRef[]>;
-
-  /** Attach pets to bookings (cartesian of bookingIds × petIds). */
-  insertBookingPets(bookingIds: string[], petIds: string[]): Promise<void>;
-
-  /**
-   * Active busy ranges for the PUBLIC calendar — identity-free, filtered to the
-   * given concurrency class (null = all classes). Includes pet thumbnails only.
-   */
-  getActiveBusyRanges(
-    now: Date,
-    concurrency: ConcurrencyClass | null,
-  ): Promise<BusyRange[]>;
-
-  /** Active busy ranges for the ADMIN calendar — enriched with owner + status. */
-  getActiveBusyRangesEnriched(now: Date): Promise<AdminBusyRange[]>;
-
-  /** The caller's onboarding lifecycle status (gate input). */
-  getOnboardingStatus(userId: string): Promise<OnboardingStatus>;
-
-  /**
-   * True when the user already has a NON-TERMINAL booking (pending_approval |
-   * confirmed) for the given service slug — used to enforce one meet-and-greet
-   * at a time.
-   */
-  hasActiveBookingForServiceSlug(
-    userId: string,
-    slug: string,
-  ): Promise<boolean>;
-
-  /** Load the full edit shape (service slug, times, quote, pets, paid total). */
-  getBookingForEdit(id: string): Promise<BookingEditRow | null>;
-
-  /** Update an edited booking's mutable fields in one UPDATE. Propagates 23P01. */
-  updateBookingEdited(id: string, fields: BookingEditUpdate): Promise<void>;
-
-  /** Replace a booking's pet assignment (delete all, then insert the given ids). */
-  swapBookingPets(bookingId: string, petIds: string[]): Promise<void>;
-
-  /** Append a cadence start (ISO UTC) to a series' skipped_starts. */
-  appendSeriesSkip(seriesId: string, startIso: string): Promise<void>;
-
-  /**
-   * True when the client has submitted the named form (any row in form_responses
-   * matching client_id + form_key). Legacy single-form gate helper.
-   */
-  hasFormResponse(userId: string, formKey: string): Promise<boolean>;
-
-  /**
-   * All of the client's form responses as (form_key, pet_id, submitted_at) tuples.
-   * Feeds the requirement-manifest gate in computeBookingArtifacts: account-scoped
-   * rows have pet_id null; pet-scoped rows ('pet') carry the pet's id.
-   */
-  getFormStatuses(userId: string): Promise<FormStatusRow[]>;
-
-  /** Load the data the Kiche apply action needs (frozen quote + consent + payments). Null if not found. */
-  getBookingForKiche(id: string): Promise<BookingForKiche | null>;
-
-  /** Persist a Kiche apply/remove: the flag plus the re-quoted price + breakdown. */
-  updateBookingKiche(id: string, fields: BookingKicheUpdate): Promise<void>;
+/**
+ * Surface a capped read. A result sitting exactly on the ceiling is almost
+ * certainly truncated, and these lists are not display-only: the busy ranges
+ * and windows feed the overlap and drive-time guards, and the active series
+ * feed the recurrence cron, so a dropped row silently weakens a check or skips
+ * a series. Logged rather than thrown — refusing to serve the page is worse
+ * than serving it with a loud server-side trace.
+ */
+function warnIfCapped(label: string, rows: readonly unknown[]): void {
+  if (rows.length === MAX_LIST_ROWS) {
+    console.warn(
+      `${label}: read hit the ${MAX_LIST_ROWS}-row cap — results are probably truncated`,
+    );
+  }
 }
 
-/** Everything setKicheAppliedCore needs about a booking. */
-export interface BookingForKiche {
-  id: string;
-  client_id: string;
-  status: BookingStatusDb;
-  /** Frozen server-written QuoteInput (jsonb) — re-quoted with applyKiche flipped. */
-  quote_inputs: unknown;
-  /** Client consent that Kiche may come (gate: cannot apply without it). */
-  kiche_welcome: boolean;
-  /** Current applied state (idempotency + un-apply). */
-  kiche_applied: boolean;
-  /** Current stored total (cents). */
-  finalCents: number;
-  payments: BookingPaymentTxn[];
-}
+/**
+ * The settings read, memoized per request by the client it is given (React
+ * `cache()` keys on the argument, and `createServiceClient` is itself
+ * per-request). Three call sites read this single row on one `/book` request —
+ * the form loader, the public busy ranges and the quote pipeline — and this
+ * collapses them into one query. Outside a request it calls straight through.
+ */
+const readSettings = cache(async (client: DbClient): Promise<SettingsRow> => {
+  const { data, error } = await client
+    .from("settings")
+    .select(SETTINGS_COLUMNS)
+    .limit(1)
+    .single();
 
-/** Fields the Kiche apply action updates on a booking. */
-export interface BookingKicheUpdate {
-  kiche_applied: boolean;
-  quote_inputs: unknown;
-  quote_breakdown: unknown;
-  final_cents: number;
-}
+  if (error) {
+    throw new Error(`Failed to load settings: ${error.message}`);
+  }
+
+  // Parse at the edge: every column verified, so a dropped or nulled one
+  // fails here instead of becoming NaN in the arithmetic downstream
+  // (ENGINEERING #11).
+  const parsed = settingsRowSchema.safeParse(data);
+  if (!parsed.success) {
+    throw new Error(
+      `Settings row has unexpected DB shape: ${parsed.error.message}`,
+    );
+  }
+  return parsed.data;
+});
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Supabase implementation
@@ -648,7 +303,7 @@ export interface BookingKicheUpdate {
  * authenticated user sessions.
  */
 export function createSupabaseBookingRepository(
-  client: SupabaseClient,
+  client: DbClient,
 ): BookingRepository {
   return {
     async getServiceBySlug(slug) {
@@ -699,36 +354,7 @@ export function createSupabaseBookingRepository(
       return parsed.data;
     },
 
-    async getSettings() {
-      const { data, error } = await client
-        .from("settings")
-        .select(
-          "origin_lat, origin_lng, road_factor, avg_speed_mph, " +
-            "auto_approve_threshold_miles, hard_cutoff_miles, gate_use_road_miles, " +
-            "booking_open_minute, booking_close_minute, " +
-            "min_lead_time_hours, auto_confirm_horizon_days, hard_max_advance_days, " +
-            "recurrence_generation_horizon_days, " +
-            "recurring_discount_pct, recurring_min_occurrences, " +
-            "cancellation_full_refund_hours, late_cancel_refund_pct, no_show_charge_pct, " +
-            "holiday_dates, holiday_surcharge_cents, drive_buffer_pct",
-        )
-        .limit(1)
-        .single();
-
-      if (error) {
-        throw new Error(`Failed to load settings: ${error.message}`);
-      }
-
-      // Parse at the edge: all numeric fields verified as numbers (guards against
-      // null/garbage values flowing into arithmetic as NaN — ENGINEERING #11).
-      const parsed = settingsRowSchema.safeParse(data);
-      if (!parsed.success) {
-        throw new Error(
-          `Settings row has unexpected DB shape: ${parsed.error.message}`,
-        );
-      }
-      return parsed.data;
-    },
+    getSettings: () => readSettings(client),
 
     async getProfileLatLng(userId) {
       const { data, error } = await client
@@ -768,7 +394,7 @@ export function createSupabaseBookingRepository(
 
       if (!data) throw new Error("Booking insert returned no data");
 
-      return data.map((r: { id: string }) => r.id);
+      return data.map((r) => r.id);
     },
 
     async getBookingById(id) {
@@ -783,7 +409,7 @@ export function createSupabaseBookingRepository(
         throw new Error(`Failed to load booking '${id}': ${error.message}`);
       }
 
-      return data as BookingRow;
+      return data;
     },
 
     async updateBookingStatus(id, status) {
@@ -803,7 +429,7 @@ export function createSupabaseBookingRepository(
       const { data, error } = await client
         .from("bookings")
         .select(
-          "id, client_id, status, starts_at, ends_at, services(pricing_type)",
+          "id, client_id, status, starts_at, ends_at, concurrency, profiles(lat, lng), services(pricing_type)",
         )
         .eq("id", id)
         .single();
@@ -821,12 +447,15 @@ export function createSupabaseBookingRepository(
       if (!svc) throw new Error(`Booking '${id}' has no service`);
 
       return {
-        id: data.id as string,
-        client_id: data.client_id as string,
-        status: data.status as BookingStatusDb,
-        startsAt: new Date(data.starts_at as string),
-        endsAt: new Date(data.ends_at as string),
-        pricingType: (svc as { pricing_type: PricingType }).pricing_type,
+        id: data.id,
+        client_id: data.client_id,
+        status: data.status,
+        startsAt: new Date(data.starts_at),
+        endsAt: new Date(data.ends_at),
+        pricingType: svc.pricing_type,
+        concurrency: data.concurrency,
+        clientLat: data.profiles?.lat ?? null,
+        clientLng: data.profiles?.lng ?? null,
       };
     },
 
@@ -853,7 +482,9 @@ export function createSupabaseBookingRepository(
       const { data, error } = await client
         .from("availability_windows")
         .select("starts_at, ends_at")
-        .gte("ends_at", now.toISOString());
+        .gte("ends_at", now.toISOString())
+        .order("starts_at", { ascending: true })
+        .limit(MAX_LIST_ROWS);
 
       if (error) {
         throw new Error(
@@ -862,8 +493,9 @@ export function createSupabaseBookingRepository(
       }
 
       if (!data) return [];
+      warnIfCapped("getOpenWindows", data);
 
-      return data.map((row: unknown) => {
+      return data.map((row) => {
         const parsed = availabilityWindowRowSchema.safeParse(row);
         if (!parsed.success) {
           throw new Error(
@@ -885,7 +517,9 @@ export function createSupabaseBookingRepository(
       const { data, error } = await client
         .from("overnight_nights")
         .select("night")
-        .gte("night", todayKey);
+        .gte("night", todayKey)
+        .order("night", { ascending: true })
+        .limit(MAX_LIST_ROWS);
 
       if (error) {
         throw new Error(`Failed to load overnight nights: ${error.message}`);
@@ -893,7 +527,8 @@ export function createSupabaseBookingRepository(
 
       const out = new Set<string>();
       if (!data) return out;
-      for (const row of data as unknown[]) {
+      warnIfCapped("getOpenNights", data);
+      for (const row of data) {
         const parsed = overnightNightRowSchema.safeParse(row);
         if (!parsed.success) {
           throw new Error(
@@ -916,7 +551,7 @@ export function createSupabaseBookingRepository(
         throw new Error(`Failed to insert booking_series: ${error.message}`);
       }
       if (!data) throw new Error("booking_series insert returned no data");
-      return data.id as string;
+      return data.id;
     },
 
     async deleteSeries(id) {
@@ -939,14 +574,17 @@ export function createSupabaseBookingRepository(
           "id, client_id, service_id, freq, step_interval, count, until, " +
             "open_ended, template_starts_at, duration_min, quote_inputs, active, skipped_starts",
         )
-        .eq("active", true);
+        .eq("active", true)
+        .order("template_starts_at", { ascending: true })
+        .limit(MAX_LIST_ROWS);
 
       if (error) {
         throw new Error(`Failed to load active series: ${error.message}`);
       }
       if (!data) return [];
+      warnIfCapped("getActiveSeries", data);
 
-      return data.map((row: unknown) => {
+      return data.map((row) => {
         const parsed = bookingSeriesRowSchema.safeParse(row);
         if (!parsed.success) {
           throw new Error(
@@ -970,9 +608,7 @@ export function createSupabaseBookingRepository(
       }
       if (!data) return [];
 
-      return data.map((r: { starts_at: string }) =>
-        new Date(r.starts_at).getTime(),
-      );
+      return data.map((r) => new Date(r.starts_at).getTime());
     },
 
     async getBookingWithPayments(id) {
@@ -980,7 +616,7 @@ export function createSupabaseBookingRepository(
         .from("bookings")
         .select(
           "id, client_id, status, starts_at, final_cents, " +
-            "payments(status, amount_cents, stripe_payment_intent_id)",
+            "payments(status, amount_cents, refunded_cents, stripe_payment_intent_id)",
         )
         .eq("id", id)
         .maybeSingle();
@@ -1002,12 +638,13 @@ export function createSupabaseBookingRepository(
       return {
         id: row.id,
         client_id: row.client_id,
-        status: row.status as BookingStatusDb,
+        status: row.status,
         startsAt: new Date(row.starts_at),
         finalCents: row.final_cents,
         payments: (row.payments ?? []).map((p) => ({
           status: p.status,
           amountCents: p.amount_cents,
+          refundedCents: p.refunded_cents,
           paymentIntentId: p.stripe_payment_intent_id,
         })),
       };
@@ -1025,10 +662,7 @@ export function createSupabaseBookingRepository(
           `Failed to load outstanding debt for '${userId}': ${error.message}`,
         );
       }
-      return (data ?? []).reduce(
-        (sum: number, r: { amount_cents: number }) => sum + r.amount_cents,
-        0,
-      );
+      return (data ?? []).reduce((sum, r) => sum + r.amount_cents, 0);
     },
 
     async insertDebit(row) {
@@ -1061,13 +695,11 @@ export function createSupabaseBookingRepository(
       if (error) {
         throw new Error(`Failed to load pets: ${error.message}`);
       }
-      return (data ?? []).map(
-        (r: { id: string; species: string; birthdate: string | null }) => ({
-          id: r.id,
-          species: r.species as PetSpeciesDb,
-          birthdate: r.birthdate ?? null,
-        }),
-      );
+      return (data ?? []).map((r) => ({
+        id: r.id,
+        species: r.species,
+        birthdate: r.birthdate,
+      }));
     },
 
     async insertBookingPets(bookingIds, petIds) {
@@ -1081,24 +713,32 @@ export function createSupabaseBookingRepository(
       }
     },
 
-    async getActiveBusyRanges(now, concurrency) {
+    async getActiveBusyRanges(now, concurrency, excludeBookingId) {
       let query = client
         .from("bookings")
         .select(
-          "starts_at, ends_at, concurrency, " +
+          "id, starts_at, ends_at, concurrency, " +
             "profiles(lat, lng), " +
             "booking_pets(pets(species, photo_url))",
         )
         .in("status", ACTIVE_BUSY_STATUSES)
-        .gte("ends_at", now.toISOString());
+        .gte("ends_at", now.toISOString())
+        .order("starts_at", { ascending: true })
+        .limit(MAX_LIST_ROWS);
       if (concurrency) query = query.eq("concurrency", concurrency);
+      if (excludeBookingId) query = query.neq("id", excludeBookingId);
 
       const { data, error } = await query;
       if (error) {
+        // The public calendar renders whatever comes back; without this log a
+        // failed read is invisible on the server as well as in the browser.
+        console.error("getActiveBusyRanges: query failed", error);
         throw new Error(`Failed to load busy ranges: ${error.message}`);
       }
 
-      return (data ?? []).map((row: unknown) => {
+      warnIfCapped("getActiveBusyRanges", data ?? []);
+
+      return (data ?? []).map((row) => {
         const parsed = publicBusyRowSchema.safeParse(row);
         if (!parsed.success) {
           throw new Error(
@@ -1107,6 +747,7 @@ export function createSupabaseBookingRepository(
         }
         const r = parsed.data;
         return {
+          id: r.id,
           startsAt: new Date(r.starts_at),
           endsAt: new Date(r.ends_at),
           concurrency: r.concurrency,
@@ -1129,7 +770,9 @@ export function createSupabaseBookingRepository(
             "booking_pets(pets(id, name, species, photo_url))",
         )
         .in("status", ACTIVE_BUSY_STATUSES)
-        .gte("ends_at", now.toISOString());
+        .gte("ends_at", now.toISOString())
+        .order("starts_at", { ascending: true })
+        .limit(MAX_LIST_ROWS);
 
       if (error) {
         throw new Error(
@@ -1137,7 +780,9 @@ export function createSupabaseBookingRepository(
         );
       }
 
-      return (data ?? []).map((row: unknown) => {
+      warnIfCapped("getActiveBusyRangesEnriched", data ?? []);
+
+      return (data ?? []).map((row) => {
         const parsed = adminBusyRowSchema.safeParse(row);
         if (!parsed.success) {
           throw new Error(
@@ -1149,7 +794,7 @@ export function createSupabaseBookingRepository(
           bookingId: r.id,
           startsAt: new Date(r.starts_at),
           endsAt: new Date(r.ends_at),
-          status: r.status as BookingStatusDb,
+          status: r.status,
           clientId: r.client_id,
           clientName: r.profiles?.full_name ?? null,
           finalCents: r.final_cents,
@@ -1212,7 +857,7 @@ export function createSupabaseBookingRepository(
         .select(
           "id, client_id, status, starts_at, ends_at, series_id, comments, " +
             "quote_inputs, kiche_applied, services(slug), booking_pets(pet_id), " +
-            "payments(status, amount_cents)",
+            "payments(status, amount_cents, refunded_cents)",
         )
         .eq("id", id)
         .maybeSingle();
@@ -1239,9 +884,13 @@ export function createSupabaseBookingRepository(
         throw new Error(`Booking '${id}' has no service`);
       }
 
-      const paidCents = (row.payments ?? [])
-        .filter((p) => p.status === "succeeded")
-        .reduce((sum, p) => sum + p.amount_cents, 0);
+      const paidCents = netPaid(
+        (row.payments ?? []).map((p) => ({
+          status: p.status,
+          amountCents: p.amount_cents,
+          refundedCents: p.refunded_cents,
+        })),
+      );
 
       return {
         id: row.id,
@@ -1318,7 +967,7 @@ export function createSupabaseBookingRepository(
           `Failed to load series '${seriesId}': ${error.message}`,
         );
       }
-      const current = (data?.skipped_starts as string[] | null) ?? [];
+      const current = data.skipped_starts;
       // Normalize to epoch ms before comparing: the DB returns timestamptz values
       // in "+00:00" notation but startIso is always a JS ".000Z" string — a plain
       // string includes() would never match and would silently duplicate the entry.
@@ -1337,22 +986,6 @@ export function createSupabaseBookingRepository(
       }
     },
 
-    async hasFormResponse(userId, formKey) {
-      const { data, error } = await client
-        .from("form_responses")
-        .select("id")
-        .eq("client_id", userId)
-        .eq("form_key", formKey)
-        .limit(1);
-
-      if (error) {
-        throw new Error(
-          `Failed to check form response for '${userId}' / '${formKey}': ${error.message}`,
-        );
-      }
-      return (data ?? []).length > 0;
-    },
-
     async getFormStatuses(userId) {
       const { data, error } = await client
         .from("form_responses")
@@ -1364,17 +997,11 @@ export function createSupabaseBookingRepository(
           `Failed to load form statuses for '${userId}': ${error.message}`,
         );
       }
-      return (data ?? []).map(
-        (r: {
-          form_key: string;
-          pet_id: string | null;
-          submitted_at: string;
-        }) => ({
-          formKey: r.form_key,
-          petId: r.pet_id,
-          submittedAt: r.submitted_at,
-        }),
-      );
+      return (data ?? []).map((r) => ({
+        formKey: r.form_key,
+        petId: r.pet_id,
+        submittedAt: r.submitted_at,
+      }));
     },
 
     async getBookingForKiche(id) {
@@ -1382,7 +1009,7 @@ export function createSupabaseBookingRepository(
         .from("bookings")
         .select(
           "id, client_id, status, quote_inputs, kiche_welcome, kiche_applied, final_cents, " +
-            "payments(status, amount_cents, stripe_payment_intent_id)",
+            "payments(status, amount_cents, refunded_cents, stripe_payment_intent_id)",
         )
         .eq("id", id)
         .maybeSingle();
@@ -1404,7 +1031,7 @@ export function createSupabaseBookingRepository(
       return {
         id: row.id,
         client_id: row.client_id,
-        status: row.status as BookingStatusDb,
+        status: row.status,
         quote_inputs: row.quote_inputs,
         kiche_welcome: row.kiche_welcome,
         kiche_applied: row.kiche_applied,
@@ -1412,6 +1039,7 @@ export function createSupabaseBookingRepository(
         payments: (row.payments ?? []).map((p) => ({
           status: p.status,
           amountCents: p.amount_cents,
+          refundedCents: p.refunded_cents,
           paymentIntentId: p.stripe_payment_intent_id,
         })),
       };
