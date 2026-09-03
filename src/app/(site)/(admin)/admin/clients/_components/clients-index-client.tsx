@@ -25,12 +25,9 @@ import {
   type ClientListRow,
   type ClientSortKey,
   type SortDir,
-} from "@/features/admin";
+} from "@/features/admin/index.client";
+import { centsToDollars } from "@/features/pricing";
 import { paginate } from "@/lib/pagination";
-
-function dollars(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
-}
 
 const PAGE_SIZE = 20;
 
@@ -65,14 +62,19 @@ function SortableHeader({
   const isActive = current?.key === sortKey;
   return (
     <th
-      className="cursor-pointer px-4 py-2.5 text-left font-medium select-none"
-      onClick={() => onSort(sortKey)}
+      className="px-4 py-2.5 text-left font-medium"
       aria-sort={
         isActive ? (current.dir === "asc" ? "ascending" : "descending") : "none"
       }
     >
-      {label}
-      {isActive && <SortIcon dir={current.dir} />}
+      <button
+        type="button"
+        onClick={() => onSort(sortKey)}
+        className="focus-visible:ring-ring cursor-pointer rounded-sm select-none focus-visible:ring-2 focus-visible:outline-none"
+      >
+        {label}
+        {isActive && <SortIcon dir={current.dir} />}
+      </button>
     </th>
   );
 }
@@ -174,20 +176,16 @@ export function ClientsIndexClient({ clients }: { clients: ClientListRow[] }) {
                   <tr
                     key={client.id}
                     className="border-border/60 hover:bg-muted cursor-pointer border-b transition-colors"
+                    // Click-anywhere-in-row is a mouse convenience layered on
+                    // top of the real <Link> below, which is the row's actual
+                    // keyboard- and screen-reader-reachable navigation target.
                     onClick={() => navigateToClient(client.id)}
-                    // Keyboard: Enter navigates (the inner name <Link> handles Tab focus)
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") navigateToClient(client.id);
-                    }}
-                    tabIndex={0}
-                    role="link"
-                    aria-label={`View ${client.full_name ?? client.email ?? "client"}`}
                   >
                     <td className="max-w-45 px-4 py-2.5">
                       {/* Real <Link> for a11y + middle-click; stops propagation so click doesn't double-navigate */}
                       <Link
                         href={`/admin/clients/${client.id}`}
-                        className="text-brand-strong block truncate font-medium underline-offset-2 hover:underline"
+                        className="text-brand-strong focus-visible:ring-ring block truncate rounded-sm font-medium underline-offset-2 hover:underline focus-visible:ring-2 focus-visible:outline-none"
                         title={client.full_name ?? client.email ?? "(no name)"}
                         onClick={(e) => e.stopPropagation()}
                       >
@@ -215,7 +213,7 @@ export function ClientsIndexClient({ clients }: { clients: ClientListRow[] }) {
                     <td className="px-4 py-2.5">
                       {client.outstandingCents > 0 ? (
                         <span className="text-destructive font-medium">
-                          {dollars(client.outstandingCents)}
+                          {centsToDollars(client.outstandingCents)}
                         </span>
                       ) : (
                         "-"
@@ -249,18 +247,15 @@ export function ClientsIndexClient({ clients }: { clients: ClientListRow[] }) {
                 variant="plain"
                 key={client.id}
                 className="hover:bg-muted cursor-pointer p-3 transition-colors"
+                // Click-anywhere-in-card is a mouse convenience layered on
+                // top of the real <Link> below, which is the card's actual
+                // keyboard- and screen-reader-reachable navigation target.
                 onClick={() => navigateToClient(client.id)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") navigateToClient(client.id);
-                }}
-                tabIndex={0}
-                role="link"
-                aria-label={`View ${client.full_name ?? client.email ?? "client"}`}
               >
                 <div className="flex items-center justify-between gap-2">
                   <Link
                     href={`/admin/clients/${client.id}`}
-                    className="text-brand-strong min-w-0 truncate font-medium"
+                    className="text-brand-strong focus-visible:ring-ring min-w-0 truncate rounded-sm font-medium focus-visible:ring-2 focus-visible:outline-none"
                     title={client.full_name ?? client.email ?? "(no name)"}
                     onClick={(e) => e.stopPropagation()}
                   >
@@ -291,7 +286,7 @@ export function ClientsIndexClient({ clients }: { clients: ClientListRow[] }) {
                   />
                   {client.outstandingCents > 0 ? (
                     <Badge variant="destructive">
-                      {dollars(client.outstandingCents)} owed
+                      {centsToDollars(client.outstandingCents)} owed
                     </Badge>
                   ) : null}
                 </div>

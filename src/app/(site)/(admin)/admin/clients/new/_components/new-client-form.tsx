@@ -16,10 +16,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Surface } from "@/components/ui/surface";
+import { TextLink } from "@/components/ui/text-link";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/feedback/toast";
 import { FIELD_LIMITS } from "@/lib/field-limits";
-import { createUnclaimedClient } from "@/features/admin";
+import { createUnclaimedClient } from "@/features/admin/index.client";
+import { OUTSIDE_SERVICE_AREA_MESSAGE } from "@/features/accounts";
 import type { OnboardingStatus } from "@/features/booking";
 import type { FormActionResult } from "@/lib/form-action-result";
 import {
@@ -29,12 +31,12 @@ import {
   submitAction,
 } from "@/components/form";
 
-const STATUS_OPTIONS: { value: OnboardingStatus; label: string }[] = [
+const STATUS_OPTIONS = [
   { value: "approved", label: "Approved (skip onboarding)" },
   { value: "info_pending", label: "Needs onboarding info" },
   { value: "meet_greet_pending", label: "Needs meet & greet" },
   { value: "declined", label: "Declined" },
-];
+] as const satisfies readonly { value: OnboardingStatus; label: string }[];
 
 const newClientSchema = z.object({
   fullName: z
@@ -56,6 +58,12 @@ export function NewClientForm() {
   const router = useRouter();
   const toast = useToast();
   const [status, setStatus] = useState<OnboardingStatus>("approved");
+  // Tied to the email that produced it, not just a bare id: if the field is
+  // edited afterwards the link must not keep pointing at a stale address.
+  const [duplicate, setDuplicate] = useState<{
+    clientId: string;
+    email: string;
+  } | null>(null);
 
   const form = useAppForm(newClientSchema, {
     defaultValues: {
@@ -67,26 +75,43 @@ export function NewClientForm() {
     },
   });
 
+  const emailValue = form.watch("email");
+  const duplicateClientId =
+    duplicate && duplicate.email === emailValue.trim()
+      ? duplicate.clientId
+      : null;
+
   async function submit(
     values: z.infer<typeof newClientSchema>,
   ): Promise<FormActionResult> {
+    setDuplicate(null);
     const result = await createUnclaimedClient({
       ...values,
       onboardingStatus: status,
     });
     switch (result.kind) {
       case "success":
-        toast.add({ type: "success", title: "Client created" });
+        // The gate only warns here: Cal pre-creates people he has already
+        // agreed to serve, so an out-of-area ZIP rides along on the same
+        // success toast and the navigation below is untouched.
+        toast.add({
+          type: "success",
+          title: "Client created",
+          ...(result.isOutsideServiceArea
+            ? { description: OUTSIDE_SERVICE_AREA_MESSAGE }
+            : {}),
+        });
         router.push(`/admin/clients/${result.clientId}`);
         router.refresh();
         return { ok: true };
       case "email_exists":
+        if (result.clientId) {
+          setDuplicate({ clientId: result.clientId, email: values.email });
+        }
         return {
           ok: false,
           fieldErrors: {
-            email: result.clientId
-              ? "A client with this email already exists. Open their existing profile instead."
-              : "A client with this email already exists.",
+            email: "A client with this email already exists.",
           },
         };
       case "forbidden":
@@ -102,6 +127,9 @@ export function NewClientForm() {
   }
 
   const isPending = form.formState.isSubmitting;
+  const statusLabel =
+    STATUS_OPTIONS.find((o) => o.value === status)?.label ??
+    STATUS_OPTIONS[0].label;
 
   return (
     <Surface variant="plain" className="max-w-xl p-6">
@@ -125,6 +153,14 @@ export function NewClientForm() {
           maxLength={FIELD_LIMITS.email}
           hint="Used as the account identity. The client claims it later via a link you generate — no email is sent now."
         />
+        {duplicateClientId ? (
+          <TextLink
+            href={`/admin/clients/${duplicateClientId}`}
+            className="text-sm"
+          >
+            Open their existing profile instead.
+          </TextLink>
+        ) : null}
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <FormField
@@ -155,7 +191,7 @@ export function NewClientForm() {
             onValueChange={(v) => setStatus(v as OnboardingStatus)}
           >
             <SelectTrigger>
-              <SelectValue />
+              <SelectValue>{statusLabel}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               {STATUS_OPTIONS.map((o) => (

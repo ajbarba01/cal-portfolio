@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Surface } from "@/components/ui/surface";
 import { useToast } from "@/components/feedback/toast";
-import { generateClaimLink } from "@/features/admin";
+import { generateClaimLink } from "@/features/admin/index.client";
 
 export function AccountClaimPanel({
   clientId,
