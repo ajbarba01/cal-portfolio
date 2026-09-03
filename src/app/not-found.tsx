@@ -1,9 +1,13 @@
 /**
- * Global 404 — rendered for any unmatched route path.
+ * Root 404 — the fallback Next renders for a URL that matches no route at all
+ * (nothing in the tree to bubble a not-found boundary through), so it can't
+ * inherit the site shell. Segment-level 404s (a page calling `notFound()`, or a
+ * path that fails to match within (site)) use `(site)/not-found.tsx` instead,
+ * which does render inside the shell.
  * Server component.
  */
 
-import Link from "next/link";
+import { TextLink } from "@/components/ui/text-link";
 
 export default function NotFound() {
   return (
@@ -20,12 +24,9 @@ export default function NotFound() {
         The page you&rsquo;re looking for doesn&rsquo;t exist or has moved.
       </p>
 
-      <Link
-        href="/"
-        className="text-foreground mt-8 underline underline-offset-4 hover:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2"
-      >
+      <TextLink href="/" className="mt-8">
         Back to home
-      </Link>
+      </TextLink>
     </main>
   );
 }

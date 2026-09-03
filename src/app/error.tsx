@@ -2,11 +2,14 @@
 
 /**
  * Global error boundary — catches render/runtime errors in any route below the
- * root layout. Styled to match `not-found.tsx`. Shows a generic message only (no
- * error detail leaked to the user); the raw error is logged to the console.
+ * root layout, so (like the root `not-found.tsx`) it can't inherit the site
+ * shell; `BackToSite` gives it a way out instead. Shows a generic message only
+ * (no error detail leaked to the user); the raw error is logged to the console.
  */
 
 import { useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { BackToSite } from "@/components/layout/back-to-site";
 
 export default function Error({
   error,
@@ -33,13 +36,17 @@ export default function Error({
         An unexpected error occurred. Please try again.
       </p>
 
-      <button
+      <Button
         type="button"
+        variant="outline"
+        size="lg"
         onClick={reset}
-        className="text-foreground mt-8 underline underline-offset-4 hover:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2"
+        className="mt-8"
       >
         Try again
-      </button>
+      </Button>
+
+      <BackToSite className="mt-6" />
     </main>
   );
 }
