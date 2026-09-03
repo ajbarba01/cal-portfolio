@@ -11,6 +11,7 @@
 
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { assertCronAuth } from "@/lib/cron-auth";
 import { createServiceClient } from "@/lib/supabase/service";
 import { ResendMailer, runReminderCron } from "@/features/notifications";
 
@@ -18,11 +19,7 @@ import { ResendMailer, runReminderCron } from "@/features/notifications";
 export const maxDuration = 60;
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  const cronSecret = process.env.CRON_SECRET;
-  const authHeader = request.headers.get("authorization");
-  const expected = cronSecret ? `Bearer ${cronSecret}` : null;
-
-  if (!expected || authHeader !== expected) {
+  if (!assertCronAuth(request)) {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 

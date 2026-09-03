@@ -9,26 +9,34 @@
 
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { assertCronAuth } from "@/lib/cron-auth";
 import { createServiceClient } from "@/lib/supabase/service";
 import { runSeriesRollCron } from "@/features/booking";
 
-export async function GET(request: NextRequest): Promise<NextResponse> {
-  const cronSecret = process.env.CRON_SECRET;
-  const authHeader = request.headers.get("authorization");
-  const expected = cronSecret ? `Bearer ${cronSecret}` : null;
+// Allow up to 60s: promoting a day of bookings sends confirmation mail per
+// booking, which can exceed the default 15s.
+export const maxDuration = 60;
 
-  if (!expected || authHeader !== expected) {
+export async function GET(request: NextRequest): Promise<NextResponse> {
+  if (!assertCronAuth(request)) {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 
-  const serviceClient = createServiceClient();
-  const now = new Date();
+  // Construct the service client inside try/catch — it throws when the Supabase
+  // env vars are unset; surface that as a 500, never an unhandled exception.
+  try {
+    const serviceClient = createServiceClient();
+    const now = new Date();
 
-  const result = await runSeriesRollCron({ serviceClient, now });
+    const result = await runSeriesRollCron({ serviceClient, now });
 
-  if (!result.ok) {
-    return NextResponse.json(result, { status: 500 });
+    if (!result.ok) {
+      return NextResponse.json(result, { status: 500 });
+    }
+
+    return NextResponse.json(result);
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : "Unknown error";
+    return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
-
-  return NextResponse.json(result);
 }
