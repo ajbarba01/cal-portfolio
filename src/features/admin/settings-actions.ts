@@ -7,48 +7,28 @@
  * The settings table has a single row; we update it by selecting limit(1).
  */
 
-import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/service";
 import { assertActorIsAdmin } from "@/lib/admin-guard";
 import { getActorOrRedirect } from "@/lib/admin-session";
-import { settingsUpdateSchema } from "./settings-schema";
-import type { SettingsUpdate } from "./settings-schema";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { zodFieldErrors } from "@/lib/form-action-result";
+import {
+  SETTINGS_COLUMNS,
+  settingsRowSchema,
+  settingsUpdateSchema,
+} from "./settings-schema";
+import type { SettingsRow, SettingsUpdate } from "./settings-schema";
+import type { DbClient } from "@/lib/supabase/db-client";
 
-// ──────────────────────────────────────────────────────────────────────────────
-// Row shape (full settings row for the editor)
-// ──────────────────────────────────────────────────────────────────────────────
+// The settings row shape is declared once, in settings-schema, and re-exported
+// from the feature barrels — NOT from here. A `"use server"` module may only
+// export async functions: Turbopack's action transform enumerates this file's
+// exports before the type re-export is erased and registers `SettingsRow` as an
+// action, then fails the build on every route that reaches it.
 
-/** Full settings row for the editor, parsed at the DB edge (ENGINEERING #11). */
-const settingsRowSchema = z.object({
-  id: z.string(),
-  origin_label: z.string(),
-  origin_lat: z.number(),
-  origin_lng: z.number(),
-  road_factor: z.number(),
-  avg_speed_mph: z.number(),
-  auto_approve_threshold_miles: z.number(),
-  hard_cutoff_miles: z.number(),
-  gate_use_road_miles: z.boolean(),
-  booking_open_minute: z.number(),
-  booking_close_minute: z.number(),
-  min_lead_time_hours: z.number(),
-  auto_confirm_horizon_days: z.number(),
-  hard_max_advance_days: z.number(),
-  recurrence_generation_horizon_days: z.number(),
-  recurring_discount_pct: z.number(),
-  recurring_min_occurrences: z.number(),
-  cancellation_full_refund_hours: z.number(),
-  late_cancel_refund_pct: z.number(),
-  no_show_charge_pct: z.number(),
-  holiday_surcharge_cents: z.number(),
-  holiday_dates: z.array(z.string()),
-  reminder_lead_hours: z.number(),
-  drive_buffer_pct: z.number(),
-});
-
-export type SettingsRow = z.infer<typeof settingsRowSchema>;
+/** What the caller cannot act on is logged in full and reported as one sentence. */
+const GENERIC_ERROR = "Something went wrong. Please try again.";
+const VALIDATION_ERROR = "Please check your entries and try again.";
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Result types
@@ -58,7 +38,12 @@ export type SettingsResult =
   | { kind: "success" }
   | { kind: "forbidden" }
   | { kind: "not_found" }
-  | { kind: "validation_error"; message: string }
+  | {
+      kind: "validation_error";
+      message: string;
+      /** Keyed by settings column, so the editor can show each error at its field. */
+      fieldErrors?: Record<string, string>;
+    }
   | { kind: "error"; message: string };
 
 export type GetSettingsResult =
@@ -71,7 +56,7 @@ export type GetSettingsResult =
 // ──────────────────────────────────────────────────────────────────────────────
 
 export interface SettingsDeps {
-  serviceClient: SupabaseClient;
+  serviceClient: DbClient;
   actorUserId: string;
 }
 
@@ -90,27 +75,20 @@ export async function getSettingsCore(
 
   const { data, error } = await deps.serviceClient
     .from("settings")
-    .select(
-      "id, origin_label, origin_lat, origin_lng, road_factor, avg_speed_mph, " +
-        "auto_approve_threshold_miles, hard_cutoff_miles, gate_use_road_miles, " +
-        "booking_open_minute, booking_close_minute, min_lead_time_hours, " +
-        "auto_confirm_horizon_days, hard_max_advance_days, " +
-        "recurrence_generation_horizon_days, " +
-        "recurring_discount_pct, recurring_min_occurrences, " +
-        "cancellation_full_refund_hours, late_cancel_refund_pct, no_show_charge_pct, " +
-        "holiday_surcharge_cents, holiday_dates, reminder_lead_hours, drive_buffer_pct",
-    )
+    .select(SETTINGS_COLUMNS)
     .limit(1)
     .single();
 
-  if (error) return { kind: "error", message: error.message };
+  if (error) {
+    console.error("settings action: read failed", error);
+    return { kind: "error", message: GENERIC_ERROR };
+  }
 
   const parsed = settingsRowSchema.safeParse(data);
-  if (!parsed.success)
-    return {
-      kind: "error",
-      message: `Unexpected settings row shape: ${parsed.error.message}`,
-    };
+  if (!parsed.success) {
+    console.error("settings action: unexpected row shape", parsed.error.issues);
+    return { kind: "error", message: GENERIC_ERROR };
+  }
 
   return { kind: "success", settings: parsed.data };
 }
@@ -138,7 +116,8 @@ export async function updateSettingsCore(
     );
     return {
       kind: "validation_error",
-      message: "Please check your entries and try again.",
+      message: VALIDATION_ERROR,
+      fieldErrors: zodFieldErrors(parsed.error),
     };
   }
 
@@ -154,14 +133,20 @@ export async function updateSettingsCore(
     .limit(1)
     .single();
 
-  if (rowErr || !row) return { kind: "not_found" };
+  if (rowErr || !row) {
+    console.error("settings action: settings row unreadable", rowErr);
+    return { kind: "not_found" };
+  }
 
   const { error } = await deps.serviceClient
     .from("settings")
     .update(update)
     .eq("id", row.id);
 
-  if (error) return { kind: "error", message: error.message };
+  if (error) {
+    console.error("settings action: update failed", error);
+    return { kind: "error", message: GENERIC_ERROR };
+  }
   return { kind: "success" };
 }
 

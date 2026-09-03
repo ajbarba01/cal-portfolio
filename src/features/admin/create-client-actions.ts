@@ -15,12 +15,13 @@
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { z } from "zod";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { DbClient } from "@/lib/supabase/db-client";
 
 import { createServiceClient } from "@/lib/supabase/service";
 import { assertActorIsAdmin } from "@/lib/admin-guard";
 import { getActorOrRedirect } from "@/lib/admin-session";
 import { defaultGeocoder, type Geocoder } from "@/features/pricing";
+import { checkZipServiceArea } from "@/features/accounts";
 import { onboardingStatusSchema } from "@/features/booking";
 import { FIELD_LIMITS } from "@/lib/field-limits";
 
@@ -50,14 +51,23 @@ const createClientInputSchema = z.object({
 export type CreateClientInput = z.infer<typeof createClientInputSchema>;
 
 export type CreateClientResult =
-  | { kind: "success"; clientId: string }
+  | {
+      kind: "success";
+      clientId: string;
+      /**
+       * The client was created anyway. Cal pre-creates people he has already
+       * agreed to serve, so an out-of-area ZIP here is a note for him to check,
+       * never a refusal — the UI warns and moves on.
+       */
+      isOutsideServiceArea: boolean;
+    }
   | { kind: "forbidden" }
   | { kind: "validation_error"; message: string }
   | { kind: "email_exists"; clientId: string | null }
   | { kind: "error"; message: string };
 
 export interface CreateClientDeps {
-  serviceClient: SupabaseClient;
+  serviceClient: DbClient;
   actorUserId: string;
   geocoder?: Geocoder;
 }
@@ -109,7 +119,7 @@ export async function createUnclaimedClientCore(
         .maybeSingle();
       return {
         kind: "email_exists",
-        clientId: (existing?.id as string | undefined) ?? null,
+        clientId: existing?.id ?? null,
       };
     }
     console.error("createClientCore: admin.createUser failed", createErr);
@@ -118,8 +128,13 @@ export async function createUnclaimedClientCore(
 
   const clientId = created.user.id;
 
-  // 2. Geocode the ZIP once (best-effort — unknown ZIP must not block).
-  const latLng = input.zip ? await geocoder.geocode(input.zip) : null;
+  // 2. Geocode the ZIP once (best-effort — unknown ZIP must not block) and
+  //    check it against the service area in the same pass. Admin-side the gate
+  //    only reports: the answer rides back on the result for the UI to warn on.
+  const area = input.zip
+    ? await checkZipServiceArea({ client: serviceClient, geocoder }, input.zip)
+    : null;
+  const latLng = area?.latLng ?? null;
 
   // 3. Fill the profile + flag unclaimed (service role bypasses the column grant).
   const { error: profileErr } = await serviceClient
@@ -141,7 +156,11 @@ export async function createUnclaimedClientCore(
     return { kind: "error", message: "Could not create the account." };
   }
 
-  return { kind: "success", clientId };
+  return {
+    kind: "success",
+    clientId,
+    isOutsideServiceArea: area !== null && !area.isInArea,
+  };
 }
 
 export async function createUnclaimedClient(
@@ -163,7 +182,7 @@ export type GenerateClaimLinkResult =
   | { kind: "error"; message: string };
 
 export interface GenerateClaimLinkDeps {
-  serviceClient: SupabaseClient;
+  serviceClient: DbClient;
   actorUserId: string;
   /** Site origin (e.g. https://calbarba.com) used to build the redirect target. */
   origin: string;
@@ -196,7 +215,7 @@ export async function generateClaimLinkCore(
   const redirectTo = `${origin}/auth/callback?next=/claim`;
   const { data, error } = await serviceClient.auth.admin.generateLink({
     type: "recovery",
-    email: profile.email as string,
+    email: profile.email,
     options: { redirectTo },
   });
   if (error || !data.properties?.action_link) {

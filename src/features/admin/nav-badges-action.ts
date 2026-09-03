@@ -1,15 +1,16 @@
 "use server";
 
-import type { AttentionCounts } from "./attention-counts";
+import { navBadgesFor, type NavBadgeMap } from "./attention-counts";
 import { getAttentionCounts } from "./attention-counts-query";
 
 /**
- * Server action exposing admin attention counts to the client-resolved header
- * (the mobile drawer badges). Safe by construction: `getAttentionCounts` is built
- * from admin-gated list actions, so a non-admin caller resolves to zeros rather
- * than any leaked data. Desktop sidebar badges remain server-rendered in the
- * dynamic admin zone — this is only for the now-client-side header.
+ * The admin nav badges for the caller. Both shells read them here — the
+ * server-rendered sidebar through the admin layout, the client-resolved header
+ * as a server action — so the counts and their labels stay in one place.
+ *
+ * Safe by construction: the counts behind it are zero for anyone who is not an
+ * admin, so a non-admin caller of this action learns nothing.
  */
-export async function fetchAttentionCounts(): Promise<AttentionCounts> {
-  return getAttentionCounts();
+export async function fetchAttentionCounts(): Promise<NavBadgeMap> {
+  return navBadgesFor(await getAttentionCounts());
 }

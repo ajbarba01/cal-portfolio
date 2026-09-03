@@ -15,6 +15,7 @@ import type {
   ServicePricingConfig,
   Modifier,
   Constraints,
+  PricingType,
 } from "@/features/pricing";
 
 export type PricingFieldKind = "cents" | "pct" | "int" | "minutes";
@@ -253,6 +254,11 @@ export function deriveEditableFields(
  * Returns a new config with the single addressed numeric leaf replaced. cents /
  * int / minutes are rounded to integers; pct is kept as entered. Throws on an
  * un-addressable path (a derive/UI mismatch is a bug, not a silent no-op).
+ *
+ * The writes below index a discriminated union by a runtime string, which no
+ * type can express — hence the record assertions. They are safe only because
+ * every path is checked against the shape it addresses before the write, and an
+ * unrecognised one throws rather than writing somewhere else.
  */
 export function setLeaf(
   config: ServicePricingConfig,
@@ -262,8 +268,9 @@ export function setLeaf(
   const next = structuredClone(config);
   const parts = path.split(".");
 
-  if (parts[0] === "c" && parts.length === 2) {
-    (next.constraints as unknown as Record<string, number>)[parts[1]] =
+  const constraintKey = parts[1];
+  if (parts[0] === "c" && parts.length === 2 && constraintKey !== undefined) {
+    (next.constraints as unknown as Record<string, number>)[constraintKey] =
       Math.round(value);
     return next;
   }
@@ -305,10 +312,16 @@ export function setLeaf(
 /**
  * Per-field + cross-field guards run before save. Keyed by field path
  * (plus "col.defaultDurationMin" for the column-backed duration field).
+ *
+ * House-sitting is booked in whole nights: its `default_duration_min` column is
+ * seeded null and no booking path reads it, so demanding a duration there would
+ * block every edit to the service — rates included. Every other pricing type
+ * schedules by duration and needs one.
  */
 export function validateEditableFields(
   config: ServicePricingConfig,
   defaultDurationMin: number | null,
+  pricingType: PricingType,
 ): Record<string, string> {
   const errors: Record<string, string> = {};
 
@@ -338,9 +351,10 @@ export function validateEditableFields(
   }
 
   if (
-    defaultDurationMin === null ||
-    Number.isNaN(defaultDurationMin) ||
-    defaultDurationMin < 1
+    pricingType !== "house_sitting" &&
+    (defaultDurationMin === null ||
+      Number.isNaN(defaultDurationMin) ||
+      defaultDurationMin < 1)
   ) {
     errors["col.defaultDurationMin"] = "Enter a duration of at least 1 minute.";
   }

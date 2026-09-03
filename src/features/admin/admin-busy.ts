@@ -14,13 +14,14 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { createSupabaseBookingRepository } from "@/features/booking";
 import type { BookingStatusDb } from "@/features/booking";
 import { assertActorIsAdmin } from "@/lib/admin-guard";
+import type { PetSpecies } from "@/features/pets";
 
 const SIGNED_URL_TTL_SECONDS = 60 * 60;
 
 export interface AdminBusyPet {
   id: string;
   name: string;
-  species: "dog" | "cat";
+  species: PetSpecies;
   photoUrl: string | null;
 }
 

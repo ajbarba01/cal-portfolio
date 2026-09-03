@@ -16,14 +16,14 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { assertActorIsAdmin } from "@/lib/admin-guard";
 import { getActorOrRedirect } from "@/lib/admin-session";
 import { denverMidnight, denverDayKey } from "@/features/booking";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { DbClient } from "@/lib/supabase/db-client";
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Deps
 // ──────────────────────────────────────────────────────────────────────────────
 
 export interface OvernightDeps {
-  serviceClient: SupabaseClient;
+  serviceClient: DbClient;
   actorUserId: string;
 }
 
@@ -31,7 +31,14 @@ export interface OvernightDeps {
 // Result types
 // ──────────────────────────────────────────────────────────────────────────────
 
-export type ConflictBooking = { id: string; startsAt: string; endsAt: string };
+type ConflictBooking = { id: string; startsAt: string; endsAt: string };
+
+/**
+ * What a failed read or write tells the operator. Postgres names tables and
+ * constraints in its own messages, so the detail goes to the server log and she
+ * gets this instead.
+ */
+const ERROR_MESSAGE = "Something went wrong. Please try again.";
 
 export type ListOvernightNightsResult =
   | { kind: "success"; nights: string[] }
@@ -91,7 +98,7 @@ function nextDayKey(dayKey: string): string {
 }
 
 async function findConflictingResidentBookings(
-  serviceClient: SupabaseClient,
+  serviceClient: DbClient,
   nights: string[],
 ): Promise<
   | { kind: "success"; bookings: ConflictBooking[] }
@@ -116,23 +123,22 @@ async function findConflictingResidentBookings(
     .eq("concurrency", "resident")
     .in("status", ["pending_approval", "confirmed"]);
 
-  if (error)
-    return {
-      kind: "error",
-      message: `Conflict query failed: ${error.message}`,
-    };
+  if (error) {
+    console.error("overnight action: conflict query failed", error);
+    return { kind: "error", message: ERROR_MESSAGE };
+  }
 
   // Post-filter: keep only rows that overlap at least one actual night.
   const bookings: ConflictBooking[] = (data ?? [])
     .filter((row) => {
-      const bStart = new Date(row.starts_at as string).getTime();
-      const bEnd = new Date(row.ends_at as string).getTime();
+      const bStart = new Date(row.starts_at).getTime();
+      const bEnd = new Date(row.ends_at).getTime();
       return nightRanges.some((r) => bStart < r.end && bEnd > r.start);
     })
     .map((row) => ({
-      id: row.id as string,
-      startsAt: row.starts_at as string,
-      endsAt: row.ends_at as string,
+      id: row.id,
+      startsAt: row.starts_at,
+      endsAt: row.ends_at,
     }));
 
   return { kind: "success", bookings };
@@ -156,9 +162,12 @@ export async function listOvernightNightsCore(
     .select("night")
     .order("night", { ascending: true });
 
-  if (error) return { kind: "error", message: error.message };
+  if (error) {
+    console.error("overnight action: night read failed", error);
+    return { kind: "error", message: ERROR_MESSAGE };
+  }
 
-  const nights = (data ?? []).map((row) => row.night as string);
+  const nights = (data ?? []).map((row) => row.night);
   return { kind: "success", nights };
 }
 
@@ -173,8 +182,16 @@ export async function setOvernightNightsBatchCore(
   if (!isAdmin) return { kind: "forbidden" };
 
   const parsed = batchInputSchema.safeParse(input);
-  if (!parsed.success)
-    return { kind: "validation_error", message: parsed.error.message };
+  if (!parsed.success) {
+    console.error(
+      "overnight action: input validation failed",
+      parsed.error.issues,
+    );
+    return {
+      kind: "validation_error",
+      message: "Please check your entries and try again.",
+    };
+  }
 
   const { nights, on } = parsed.data;
 
@@ -185,7 +202,10 @@ export async function setOvernightNightsBatchCore(
       .from("overnight_nights")
       .upsert(rows, { onConflict: "night", ignoreDuplicates: true });
 
-    if (error) return { kind: "error", message: error.message };
+    if (error) {
+      console.error("overnight action: night upsert failed", error);
+      return { kind: "error", message: ERROR_MESSAGE };
+    }
     return { kind: "success" };
   }
 
@@ -206,19 +226,16 @@ export async function setOvernightNightsBatchCore(
     .delete()
     .in("night", nights);
 
-  if (error) return { kind: "error", message: error.message };
+  if (error) {
+    console.error("overnight action: night delete failed", error);
+    return { kind: "error", message: ERROR_MESSAGE };
+  }
   return { kind: "success" };
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
 // "use server" wrappers
 // ──────────────────────────────────────────────────────────────────────────────
-
-export async function listOvernightNights(): Promise<ListOvernightNightsResult> {
-  const actorUserId = await getActorOrRedirect();
-  const serviceClient = createServiceClient();
-  return listOvernightNightsCore({ serviceClient, actorUserId });
-}
 
 export async function setOvernightNightsBatch(input: {
   nights: string[];

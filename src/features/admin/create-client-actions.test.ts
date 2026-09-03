@@ -4,6 +4,16 @@ import {
   generateClaimLinkCore,
 } from "./create-client-actions";
 
+/** Boulder origin with the shipped defaults, as the service-area gate reads them. */
+const SETTINGS = {
+  origin_lat: 40.015,
+  origin_lng: -105.27,
+  auto_approve_threshold_miles: 8,
+  hard_cutoff_miles: 50,
+  gate_use_road_miles: false,
+  road_factor: 1.3,
+};
+
 // Minimal fake Supabase admin client. Only the methods the core touches.
 function makeDeps(opts: {
   isAdmin?: boolean;
@@ -41,6 +51,18 @@ function makeDeps(opts: {
             })),
           })),
           update: profileUpdate,
+        };
+      }
+      // The service-area gate reads its thresholds from `settings`.
+      if (table === "settings") {
+        return {
+          select: vi.fn(() => ({
+            limit: vi.fn(() => ({
+              single: vi
+                .fn()
+                .mockResolvedValue({ data: SETTINGS, error: null }),
+            })),
+          })),
         };
       }
       throw new Error(`unexpected table ${table}`);
@@ -116,6 +138,7 @@ describe("createUnclaimedClientCore", () => {
     expect(r).toEqual({
       kind: "success",
       clientId: "11111111-1111-1111-1111-111111111111",
+      isOutsideServiceArea: false,
     });
     // Profile update must set unclaimed: true.
     expect(profileUpdate).toHaveBeenCalledWith(
@@ -123,6 +146,30 @@ describe("createUnclaimedClientCore", () => {
         unclaimed: true,
         onboarding_status: "approved",
       }),
+    );
+  });
+
+  // Admin-side the service-area gate only reports: Cal pre-creates people he
+  // has already agreed to serve, so an out-of-area ZIP warns and nothing more.
+  it("still creates the client for an out-of-area ZIP, flagging it", async () => {
+    const { serviceClient, profileUpdate } = makeDeps({});
+    const r = await createUnclaimedClientCore(
+      {
+        serviceClient,
+        actorUserId: "actor",
+        // Durango — ~180 mi from the Boulder origin, past the 50 mi cutoff.
+        geocoder: { geocode: async () => ({ lat: 37.2753, lng: -107.8801 }) },
+      },
+      { ...validInput, zip: "81301" },
+    );
+    expect(r).toEqual({
+      kind: "success",
+      clientId: "11111111-1111-1111-1111-111111111111",
+      isOutsideServiceArea: true,
+    });
+    // The gated geocode is still what gets stored.
+    expect(profileUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ zip: "81301", lat: 37.2753, lng: -107.8801 }),
     );
   });
 });

@@ -13,49 +13,10 @@ import { after } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { assertActorIsAdmin } from "@/lib/admin-guard";
 import { getActorOrRedirect } from "@/lib/admin-session";
-import {
-  transition,
-  createSupabaseBookingRepository,
-} from "@/features/booking";
-import { ResendNotifier, shouldNotify } from "@/features/notifications";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { transition } from "@/features/booking";
+import { sendBookingConfirmationFor } from "@/features/notifications";
+import type { DbClient } from "@/lib/supabase/db-client";
 import type { BookingEvent, BookingStatus } from "@/features/booking";
-
-// ──────────────────────────────────────────────────────────────────────────────
-// Row shape
-// ──────────────────────────────────────────────────────────────────────────────
-
-export interface PendingBookingRow {
-  id: string;
-  client_id: string;
-  status: "pending_approval";
-  starts_at: string;
-  ends_at: string;
-  final_cents: number;
-  service_id: string;
-}
-
-/** Parse pending-booking rows at the DB edge (ENGINEERING #11). */
-const pendingBookingRowSchema = z.object({
-  id: z.string(),
-  client_id: z.string(),
-  status: z.literal("pending_approval"),
-  starts_at: z.string(),
-  ends_at: z.string(),
-  final_cents: z.number(),
-  service_id: z.string(),
-});
-
-/** Shape of the booking row read back for the approval confirmation email. */
-const approvalConfirmationRowSchema = z.object({
-  starts_at: z.string(),
-  ends_at: z.string(),
-  final_cents: z.number(),
-  profiles: z
-    .object({ email: z.string(), unclaimed: z.boolean().nullable() })
-    .nullable(),
-  services: z.object({ name: z.string() }).nullable(),
-});
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Result types
@@ -68,56 +29,18 @@ export type ApprovalResult =
   | { kind: "validation_error"; message: string }
   | { kind: "error"; message: string };
 
-export type ListPendingResult =
-  | { kind: "success"; bookings: PendingBookingRow[] }
-  | { kind: "forbidden" }
-  | { kind: "error"; message: string };
-
 // ──────────────────────────────────────────────────────────────────────────────
 // Deps
 // ──────────────────────────────────────────────────────────────────────────────
 
 export interface ApprovalDeps {
-  serviceClient: SupabaseClient;
+  serviceClient: DbClient;
   actorUserId: string;
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Core functions
 // ──────────────────────────────────────────────────────────────────────────────
-
-export async function listPendingBookingsCore(
-  deps: ApprovalDeps,
-): Promise<ListPendingResult> {
-  const isAdmin = await assertActorIsAdmin(
-    deps.serviceClient,
-    deps.actorUserId,
-  );
-  if (!isAdmin) return { kind: "forbidden" };
-
-  const { data, error } = await deps.serviceClient
-    .from("bookings")
-    .select(
-      "id, client_id, status, starts_at, ends_at, final_cents, service_id",
-    )
-    .eq("status", "pending_approval")
-    .order("starts_at", { ascending: true });
-
-  if (error) return { kind: "error", message: error.message };
-
-  const bookings: PendingBookingRow[] = [];
-  for (const row of data ?? []) {
-    const parsed = pendingBookingRowSchema.safeParse(row);
-    if (!parsed.success)
-      return {
-        kind: "error",
-        message: `Unexpected booking row shape: ${parsed.error.message}`,
-      };
-    bookings.push(parsed.data);
-  }
-
-  return { kind: "success", bookings };
-}
 
 const transitionInputSchema = z.object({
   actorUserId: z.string().uuid(),
@@ -169,7 +92,7 @@ export async function transitionBookingByAdminCore(
 
   if (bookingErr || !booking) return { kind: "not_found" };
 
-  const result = transition(booking.status as BookingStatus, event, {
+  const result = transition(booking.status, event, {
     requiresApproval: true,
   });
 
@@ -190,12 +113,6 @@ export async function transitionBookingByAdminCore(
 // "use server" wrappers
 // ──────────────────────────────────────────────────────────────────────────────
 
-export async function listPendingBookings(): Promise<ListPendingResult> {
-  const actorUserId = await getActorOrRedirect();
-  const serviceClient = createServiceClient();
-  return listPendingBookingsCore({ serviceClient, actorUserId });
-}
-
 export async function approveBooking(
   bookingId: string,
 ): Promise<ApprovalResult> {
@@ -209,51 +126,12 @@ export async function approveBooking(
   if (result.kind === "success") {
     revalidatePath("/admin/bookings");
 
-    // Best-effort confirmation email — a failed send NEVER alters the result.
-    // Deferred with after() so it runs AFTER the response flushes: the admin's
-    // approve click returns immediately and doesn't wait on Resend. Error
-    // handling (log + swallow) keeps it from affecting anything.
-    after(async () => {
-      try {
-        const { data: bookingRow } = await serviceClient
-          .from("bookings")
-          .select(
-            "starts_at, ends_at, final_cents, profiles(email, unclaimed), services(name)",
-          )
-          .eq("id", bookingId)
-          .single();
-
-        const parsed = approvalConfirmationRowSchema.safeParse(bookingRow);
-        if (parsed.success) {
-          const row = parsed.data;
-          const clientEmail = row.profiles?.email;
-          const serviceName = row.services?.name ?? "Booking";
-          // Suppress confirmation email for unclaimed clients (Cal-created,
-          // not yet claimed) — Cal handles their comms manually until claim.
-          const mayNotify = row.profiles ? shouldNotify(row.profiles) : true;
-          if (clientEmail && mayNotify) {
-            const repo = createSupabaseBookingRepository(serviceClient);
-            const settings = await repo.getSettings();
-            const notifier = new ResendNotifier();
-            await notifier.notify({
-              type: "booking_confirmed",
-              payload: {
-                to: clientEmail,
-                serviceName,
-                startsAt: new Date(row.starts_at),
-                endsAt: new Date(row.ends_at),
-                finalCents: row.final_cents,
-                cancellationFullRefundHours:
-                  settings.cancellation_full_refund_hours,
-                lateCancelRefundPct: settings.late_cancel_refund_pct,
-              },
-            });
-          }
-        }
-      } catch (e: unknown) {
-        console.error("approveBooking: error sending confirmation email:", e);
-      }
-    });
+    // Approval is the transition that actually confirms the booking, so this is
+    // where the client's confirmation email comes from. Deferred with after()
+    // so it runs AFTER the response flushes: the admin's approve click returns
+    // immediately and doesn't wait on Resend. The send is best-effort — it logs
+    // its own failures and never throws.
+    after(() => sendBookingConfirmationFor(serviceClient, bookingId));
   }
 
   return result;

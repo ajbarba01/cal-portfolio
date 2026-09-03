@@ -28,7 +28,13 @@ import type { PetInput, Pet } from "@/features/accounts";
 // here rather than exposing account-actions internals.
 import { z } from "zod";
 import { FIELD_LIMITS } from "@/lib/field-limits";
-import { speciesEnum } from "@/features/pets";
+import { PET_COLUMNS, speciesEnum } from "@/features/pets";
+
+/**
+ * Shown when input fails validation. The offending issues are logged: Cal never
+ * needs a zod issue list, and the raw text leaks schema internals to the page.
+ */
+const INVALID_INPUT_MESSAGE = "Please check your entries and try again.";
 
 // ─── Result types (extend account-actions results with forbidden) ─────────────
 
@@ -58,8 +64,6 @@ const petSchema = z.object({
     .or(z.literal("").transform(() => undefined)),
 });
 
-const PET_COLUMNS = "id, name, species, breed, notes, birthdate, photo_url";
-
 // ─── adminCreatePet ───────────────────────────────────────────────────────────
 
 /**
@@ -79,10 +83,11 @@ export async function adminCreatePetCore(
 
   const parsed = petSchema.safeParse(input);
   if (!parsed.success) {
-    return {
-      kind: "validation_error",
-      message: parsed.error.issues.map((i) => i.message).join("; "),
-    };
+    console.error(
+      "adminCreatePetCore: input validation failed",
+      parsed.error.issues,
+    );
+    return { kind: "validation_error", message: INVALID_INPUT_MESSAGE };
   }
 
   const { data, error } = await deps.serviceClient
@@ -107,7 +112,7 @@ export async function adminCreatePetCore(
     };
   }
 
-  return { kind: "success", pet: data as Pet };
+  return { kind: "success", pet: data };
 }
 
 export async function adminCreatePet(
@@ -147,10 +152,11 @@ export async function adminUpdatePetCore(
 
   const parsed = petSchema.safeParse(input);
   if (!parsed.success) {
-    return {
-      kind: "validation_error",
-      message: parsed.error.issues.map((i) => i.message).join("; "),
-    };
+    console.error(
+      "adminUpdatePetCore: input validation failed",
+      parsed.error.issues,
+    );
+    return { kind: "validation_error", message: INVALID_INPUT_MESSAGE };
   }
 
   const { error } = await deps.serviceClient
@@ -218,32 +224,33 @@ export async function adminSubmitFormCore(
 
   const entry = formRegistry[formKey];
   if (!entry) {
-    return {
-      kind: "validation_error",
-      message: `Unknown form key: ${String(formKey)}`,
-    };
+    console.error("adminSubmitFormCore: unknown form key", formKey);
+    return { kind: "validation_error", message: INVALID_INPUT_MESSAGE };
   }
 
   // Scope/petId coherence (mirrors runSubmitForm).
   if (entry.scope === "pet" && !petId) {
-    return {
-      kind: "validation_error",
-      message: `Form '${formKey}' is pet-scoped and requires a pet.`,
-    };
+    console.error(
+      "adminSubmitFormCore: pet-scoped form without a pet",
+      formKey,
+    );
+    return { kind: "validation_error", message: INVALID_INPUT_MESSAGE };
   }
   if (entry.scope === "account" && petId) {
-    return {
-      kind: "validation_error",
-      message: `Form '${formKey}' is account-scoped and cannot target a pet.`,
-    };
+    console.error(
+      "adminSubmitFormCore: account-scoped form targeting a pet",
+      formKey,
+    );
+    return { kind: "validation_error", message: INVALID_INPUT_MESSAGE };
   }
 
   const parsed = entry.schema.safeParse(data);
   if (!parsed.success) {
-    return {
-      kind: "validation_error",
-      message: parsed.error.issues.map((i) => i.message).join("; "),
-    };
+    console.error(
+      "adminSubmitFormCore: input validation failed",
+      parsed.error.issues,
+    );
+    return { kind: "validation_error", message: INVALID_INPUT_MESSAGE };
   }
 
   // For pet-scoped forms, confirm the pet belongs to the TARGET client.

@@ -12,7 +12,7 @@ import { revalidatePath } from "next/cache";
 import { createServiceClient } from "@/lib/supabase/service";
 import { assertActorIsAdmin } from "@/lib/admin-guard";
 import { getActorOrRedirect } from "@/lib/admin-session";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { DbClient } from "@/lib/supabase/db-client";
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Types
@@ -62,7 +62,7 @@ export type ListReviewsResult =
 // ──────────────────────────────────────────────────────────────────────────────
 
 export interface ReviewsDeps {
-  serviceClient: SupabaseClient;
+  serviceClient: DbClient;
   actorUserId: string;
 }
 

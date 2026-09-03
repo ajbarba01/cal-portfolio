@@ -1,69 +1,92 @@
+/**
+ * Live counts behind the admin nav badges and the dashboard's attention list.
+ *
+ * Counted in the database (`head: true`, no rows returned) rather than by
+ * listing and reducing: the badges need three integers, and the list reads they
+ * replaced pulled up to a thousand inquiry and review rows on every request to
+ * an admin page — twice, once for the layout and once for the dashboard.
+ */
+
 import { cache } from "react";
-import type { AttentionCounts } from "./attention-counts";
-import { listBookingsInRange } from "@/features/admin";
-import { listInquiries } from "@/features/inquiries";
-import { listReviews } from "./reviews-actions";
+import type { DbClient } from "@/lib/supabase/db-client";
+
+import { assertActorIsAdmin } from "@/lib/admin-guard";
+import { getActorOrRedirect } from "@/lib/admin-session";
+import { createServiceClient } from "@/lib/supabase/service";
+
+import { emptyAttentionCounts, type AttentionCounts } from "./attention-counts";
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
-/** The reducer only reads `.status`; keep its inputs decoupled from DB row types. */
-interface StatusRow {
-  status: string;
-}
-
-interface ReviewCreatedRow {
-  created_at: string;
-}
-
-export function computeAttentionCounts({
-  bookings,
-  inquiries,
-  reviews,
-  now,
-}: {
-  bookings: StatusRow[];
-  inquiries: StatusRow[];
-  reviews: ReviewCreatedRow[];
+export interface AttentionCountsDeps {
+  serviceClient: DbClient;
+  actorUserId: string;
   now: Date;
-}): AttentionCounts {
-  const pendingApprovals = bookings.filter(
-    (b) => b.status === "pending_approval",
-  ).length;
-  const newInquiries = inquiries.filter((i) => i.status === "new").length;
-
-  const windowStart = now.getTime() - SEVEN_DAYS_MS;
-  const recentReviews = reviews.filter(
-    (r) => new Date(r.created_at).getTime() > windowStart,
-  ).length;
-
-  return { pendingApprovals, newInquiries, flaggedConflicts: 0, recentReviews };
 }
 
-const _getAttentionCounts = async (): Promise<AttentionCounts> => {
-  // Scoped to the current UTC month, mirroring the dashboard's window so the nav
-  // badges and the dashboard agree. Pending-approval bookings are near-term, so
-  // this window captures what needs Cal now without an extra unbounded read.
-  const now = new Date();
-  const year = now.getUTCFullYear();
-  const month = now.getUTCMonth();
-  const range = {
-    startIso: new Date(Date.UTC(year, month, 1)).toISOString(),
-    endIso: new Date(Date.UTC(year, month + 1, 1)).toISOString(),
-  };
+/** The count, or 0 with the failure logged — one bad read must not blank the rest. */
+function countOrZero(
+  label: string,
+  result: { count: number | null; error: unknown },
+): number {
+  if (result.error) {
+    console.error(`attention counts: ${label} read failed`, result.error);
+    return 0;
+  }
+  return result.count ?? 0;
+}
 
-  const [bookingsResult, inquiriesResult, reviewsResult] = await Promise.all([
-    listBookingsInRange(range),
-    listInquiries(),
-    listReviews(),
+/**
+ * The counts for `actorUserId`, or zeros when they are not an admin: the
+ * client-resolved header reads these through a server action, so a non-admin
+ * caller must resolve to zeros rather than to any real number.
+ */
+export async function attentionCountsCore(
+  deps: AttentionCountsDeps,
+): Promise<AttentionCounts> {
+  if (!(await assertActorIsAdmin(deps.serviceClient, deps.actorUserId))) {
+    return emptyAttentionCounts;
+  }
+
+  const reviewedSince = new Date(
+    deps.now.getTime() - SEVEN_DAYS_MS,
+  ).toISOString();
+
+  const [pending, inquiries, reviews] = await Promise.all([
+    // Unwindowed on purpose: a booking pends because it starts beyond the
+    // auto-confirm horizon, so clamping this to the current month hid exactly
+    // the bookings that need Cal.
+    deps.serviceClient
+      .from("bookings")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "pending_approval"),
+    deps.serviceClient
+      .from("inquiries")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "new"),
+    deps.serviceClient
+      .from("reviews")
+      .select("id", { count: "exact", head: true })
+      .gt("created_at", reviewedSince),
   ]);
 
-  const bookings =
-    bookingsResult.kind === "success" ? bookingsResult.bookings : [];
-  const inquiries =
-    inquiriesResult.kind === "success" ? inquiriesResult.inquiries : [];
-  const reviews = reviewsResult.kind === "success" ? reviewsResult.reviews : [];
+  return {
+    pendingApprovals: countOrZero("pending approvals", pending),
+    newInquiries: countOrZero("new inquiries", inquiries),
+    recentReviews: countOrZero("recent reviews", reviews),
+  };
+}
 
-  return computeAttentionCounts({ bookings, inquiries, reviews, now });
-};
-
-export const getAttentionCounts = cache(_getAttentionCounts);
+/**
+ * The signed-in admin's attention counts, memoized for the request so the
+ * layout's badges, the dashboard and the header's badge action share one set of
+ * reads instead of repeating them per caller.
+ */
+export const getAttentionCounts = cache(
+  async (): Promise<AttentionCounts> =>
+    attentionCountsCore({
+      serviceClient: createServiceClient(),
+      actorUserId: await getActorOrRedirect(),
+      now: new Date(),
+    }),
+);

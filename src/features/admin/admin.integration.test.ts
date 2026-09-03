@@ -30,6 +30,7 @@ import {
   adjustDebitCore,
 } from "./clients-actions";
 import { submitInquiryCore } from "@/features/inquiries/inquiry-actions";
+import { deleteFixtureClients } from "@/test-stubs/integration-cleanup";
 
 const url = process.env.SUPABASE_TEST_URL!;
 const serviceKey = process.env.SUPABASE_TEST_SERVICE_ROLE_KEY!;
@@ -49,16 +50,22 @@ const serviceClient = createClient(url, serviceKey, {
 const TEST_PASS = "Test1234!";
 const ts = Date.now();
 
+/**
+ * The email prefix this suite's fixture clients are created under. Teardown
+ * deletes by prefix rather than by the ids `beforeAll` managed to assign, so a
+ * run that dies part-way still clears the bookings it made — and a later run
+ * heals whatever an earlier one leaked. It must not overlap another suite's
+ * prefix.
+ */
+const EMAIL_PREFIX = "test-admin-actions-";
+
 let adminUserId: string;
 let nonAdminUserId: string;
 let clientUserId: string; // owns test bookings
 
-// Track created resource IDs for cleanup.
-const createdBookingIds: string[] = [];
+// Rows that hang off no fixture client, so the prefix sweep cannot reach them.
 const createdWindowIds: string[] = [];
 const createdReviewIds: string[] = [];
-const createdDebitIds: string[] = [];
-const createdPetIds: string[] = [];
 const inquiryEmails: string[] = [];
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -142,14 +149,25 @@ async function createBookingFixture(opts: {
 
   if (error || !data)
     throw new Error(`booking insert failed: ${error?.message}`);
-  createdBookingIds.push(data.id);
   return data.id;
 }
 
-function futureDate(offsetDays: number, hour = 17): Date {
+/**
+ * The hour every fixture in this file books at. The no-double-booking exclusion
+ * constraint is global — it compares concurrency class and time range, not
+ * client — so two suites that both book "five days from now at 17:00" collide
+ * with each other whenever one of them leaves a row behind. Each suite therefore
+ * owns an hour of the day; this one owns 06:00 UTC. The booking suites own
+ * 15:00 (admin-create-booking), 17:00 (edit-booking) and 20:00 plus an ad-hoc
+ * 10:00/11:00 (booking-service); series-cron books at 14:23 and 16:41, and the
+ * two cron suites anchor at fixed absolute dates instead.
+ */
+const FIXTURE_HOUR_UTC = 6;
+
+function futureDate(offsetDays: number): Date {
   const d = new Date();
   d.setUTCDate(d.getUTCDate() + offsetDays);
-  d.setUTCHours(hour, 0, 0, 0);
+  d.setUTCHours(FIXTURE_HOUR_UTC, 0, 0, 0);
   return d;
 }
 
@@ -185,36 +203,24 @@ function nonAdminDeps() {
 // ──────────────────────────────────────────────────────────────────────────────
 
 beforeAll(async () => {
+  // Heal anything an aborted earlier run left behind before claiming the slots.
+  await deleteFixtureClients(serviceClient, EMAIL_PREFIX);
   [adminUserId, nonAdminUserId, clientUserId] = await Promise.all([
-    createTestUser(`admin-${ts}@example.invalid`, "admin"),
-    createTestUser(`nonadmin-${ts}@example.invalid`, "client"),
-    createTestUser(`client-${ts}@example.invalid`, "client"),
+    createTestUser(`${EMAIL_PREFIX}admin-${ts}@example.invalid`, "admin"),
+    createTestUser(`${EMAIL_PREFIX}nonadmin-${ts}@example.invalid`, "client"),
+    createTestUser(`${EMAIL_PREFIX}client-${ts}@example.invalid`, "client"),
   ]);
 });
 
 afterAll(async () => {
-  // Delete in dependency order, then users.
+  // Rows the prefix sweep does not own, first: a review or window still
+  // pointing at a fixture client would refuse the client's own delete.
   if (inquiryEmails.length > 0) {
     await serviceClient.from("inquiries").delete().in("email", inquiryEmails);
   }
 
   if (createdReviewIds.length > 0) {
     await serviceClient.from("reviews").delete().in("id", createdReviewIds);
-  }
-
-  if (createdDebitIds.length > 0) {
-    await serviceClient
-      .from("client_debits")
-      .delete()
-      .in("id", createdDebitIds);
-  }
-
-  if (createdBookingIds.length > 0) {
-    await serviceClient.from("bookings").delete().in("id", createdBookingIds);
-  }
-
-  if (createdPetIds.length > 0) {
-    await serviceClient.from("pets").delete().in("id", createdPetIds);
   }
 
   if (createdWindowIds.length > 0) {
@@ -224,16 +230,7 @@ afterAll(async () => {
       .in("id", createdWindowIds);
   }
 
-  // Delete all bookings for client fixtures too (overlap test).
-  if (clientUserId) {
-    await serviceClient.from("bookings").delete().eq("client_id", clientUserId);
-  }
-
-  await Promise.all(
-    [adminUserId, nonAdminUserId, clientUserId]
-      .filter(Boolean)
-      .map((id) => serviceClient.auth.admin.deleteUser(id)),
-  );
+  await deleteFixtureClients(serviceClient, EMAIL_PREFIX);
 });
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -665,7 +662,6 @@ describe("admin client capability cores", () => {
       .single();
     if (error || !debit)
       throw new Error(`debit insert failed: ${error?.message}`);
-    createdDebitIds.push(debit.id);
 
     const first = await settleDebitCore(adminDeps(), debit.id);
     const second = await settleDebitCore(adminDeps(), debit.id);
@@ -692,7 +688,6 @@ describe("admin client capability cores", () => {
       .single();
     if (error || !debit)
       throw new Error(`debit insert failed: ${error?.message}`);
-    createdDebitIds.push(debit.id);
 
     const result = await waiveDebitCore(adminDeps(), debit.id);
     expect(result.kind).toBe("success");
@@ -718,7 +713,6 @@ describe("admin client capability cores", () => {
       .single();
     if (error || !debit)
       throw new Error(`debit insert failed: ${error?.message}`);
-    createdDebitIds.push(debit.id);
 
     const result = await adjustDebitCore(adminDeps(), debit.id, 500);
     expect(result.kind).toBe("success");
@@ -750,7 +744,6 @@ describe("admin client capability cores", () => {
       .single();
     if (error || !debit)
       throw new Error(`debit insert failed: ${error?.message}`);
-    createdDebitIds.push(debit.id);
 
     const result = await adjustDebitCore(adminDeps(), debit.id, 500);
     expect(result.kind).toBe("success");
@@ -776,7 +769,6 @@ describe("admin client capability cores", () => {
       .single();
     if (error || !debit)
       throw new Error(`debit insert failed: ${error?.message}`);
-    createdDebitIds.push(debit.id);
 
     const waiveResult = await waiveDebitCore(nonAdminDeps(), debit.id);
     const adjustResult = await adjustDebitCore(nonAdminDeps(), debit.id, 500);
@@ -800,7 +792,6 @@ describe("admin client capability cores", () => {
       .single();
     if (petError || !pet)
       throw new Error(`pet insert failed: ${petError?.message}`);
-    createdPetIds.push(pet.id);
 
     const start = futureDate(110);
     await createBookingFixture({
@@ -821,7 +812,6 @@ describe("admin client capability cores", () => {
       .single();
     if (debitError || !debit)
       throw new Error(`debit insert failed: ${debitError?.message}`);
-    createdDebitIds.push(debit.id);
 
     const result = await listClientsCore(adminDeps());
     expect(result.kind).toBe("success");
@@ -842,7 +832,8 @@ describe("submitInquiryCore", () => {
     const input = {
       name: "Inquiry Test",
       email,
-      phone: "",
+      // submitInquirySchema requires a non-empty phone.
+      phone: "303-555-0100",
       subject: "Test subject",
       message: "Test message",
       company: "",

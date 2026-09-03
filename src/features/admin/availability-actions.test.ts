@@ -1,21 +1,24 @@
 /**
- * Unit tests for availability-actions refuse-not-cancel cores:
+ * Unit tests for the availability-actions refuse-not-cancel cores:
  *   - createWindowsBatchCore
  *   - setWindowUnavailableCore
  *
- * Uses a hand-rolled fake Supabase client — no live DB, no Supabase stack
- * required. Tests call the DI cores directly, injecting the fake client and
- * a controlled actorUserId.
+ * The cores are called directly with an injected client, so no Supabase stack
+ * is needed. `assertActorIsAdmin` is mocked, which is what lets a test choose
+ * an admin or non-admin actor without a profiles row.
  *
- * Mock strategy:
- *   - assertActorIsAdmin is vi.mock'd so tests control admin/non-admin without
- *     a real profiles table.
- *   - The fake client exposes only the builder methods the cores actually call.
- *   - Per-table responses are keyed by table name; call recording lets us
- *     assert on side-effects (insert, delete).
+ * The client is the shared recording double. The hand-rolled fake this file
+ * carried threw the arguments of `order`, `lt` and `gt` away, so the overlap
+ * predicate on the conflict read was unassertable — exactly the gap that let a
+ * dropped filter stay green elsewhere.
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
+
+import {
+  createFakeSupabase,
+  type FakeSupabaseOptions,
+} from "@/test-stubs/fake-supabase";
 import {
   createWindowsBatchCore,
   setWindowUnavailableCore,
@@ -32,89 +35,9 @@ vi.mock("@/lib/admin-guard", () => ({
   assertActorIsAdmin: () => mockAssertActorIsAdmin(),
 }));
 
-// ──────────────────────────────────────────────────────────────────────────────
-// Fake Supabase builder
-// ──────────────────────────────────────────────────────────────────────────────
-
-/**
- * Creates a minimal fake Supabase client.
- *
- * Each call to .from(table) returns a fluent builder backed by a pre-loaded
- * response. Multiple calls to the same table each consume the NEXT item from
- * that table's response queue (FIFO). If the queue is exhausted, falls back to
- * { data: [], error: null }.
- *
- * Recorded calls: insert, delete and their payloads.
- */
-function makeFakeClient(
-  tables: Record<
-    string,
-    { data: unknown; error: unknown } | { data: unknown; error: unknown }[]
-  >,
-) {
-  const calls: { table: string; method: string; args: unknown[] }[] = [];
-  // Track which index we're at per-table for queue-style responses.
-  const tableIndex: Record<string, number> = {};
-
-  const getResponse = (table: string): { data: unknown; error: unknown } => {
-    const entry = tables[table];
-    if (!entry) return { data: [], error: null };
-    if (Array.isArray(entry)) {
-      const idx = tableIndex[table] ?? 0;
-      tableIndex[table] = idx + 1;
-      return entry[idx] ?? { data: [], error: null };
-    }
-    return entry;
-  };
-
-  const makeBuilder = (table: string) => {
-    const response = getResponse(table);
-
-    const builder: Record<string, unknown> = {};
-    const chain = () => builder;
-
-    builder.select = (...args: unknown[]) => {
-      calls.push({ table, method: "select", args });
-      return builder;
-    };
-    builder.order = chain;
-    builder.lt = chain;
-    builder.gt = chain;
-    builder.eq = (...args: unknown[]) => {
-      calls.push({ table, method: "eq", args });
-      return builder;
-    };
-    builder.in = (...args: unknown[]) => {
-      calls.push({ table, method: "in", args });
-      return builder;
-    };
-    builder.insert = (...args: unknown[]) => {
-      calls.push({ table, method: "insert", args });
-      return Promise.resolve(response);
-    };
-    builder.delete = (...args: unknown[]) => {
-      calls.push({ table, method: "delete", args });
-      return builder;
-    };
-    // Terminal: awaiting the builder resolves to the pre-loaded response.
-    builder.then = (
-      resolve: (v: { data: unknown; error: unknown }) => void,
-    ) => {
-      resolve(response);
-      return Promise.resolve(response);
-    };
-
-    return builder;
-  };
-
-  const client = {
-    from: (table: string) => makeBuilder(table),
-    _calls: calls,
-  };
-
-  return client as unknown as import("@supabase/supabase-js").SupabaseClient & {
-    _calls: typeof calls;
-  };
+/** Pre-loads a response per table; an array is that table's FIFO queue. */
+function makeFakeClient(tables: FakeSupabaseOptions["tables"]) {
+  return createFakeSupabase({ tables });
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -196,11 +119,11 @@ describe("createWindowsBatchCore", () => {
 
     expect(rows).toHaveLength(3);
 
-    for (let i = 0; i < dayKeys.length; i++) {
-      expect(rows[i].starts_at).toBe(denverInstant(dayKeys[i], openMinute));
-      expect(rows[i].ends_at).toBe(denverInstant(dayKeys[i], closeMinute));
-      expect(rows[i].note).toBeNull();
-    }
+    dayKeys.forEach((dayKey, i) => {
+      expect(rows[i]?.starts_at).toBe(denverInstant(dayKey, openMinute));
+      expect(rows[i]?.ends_at).toBe(denverInstant(dayKey, closeMinute));
+      expect(rows[i]?.note).toBeNull();
+    });
   });
 
   it("validation_error when openMinute >= closeMinute", async () => {
@@ -236,7 +159,33 @@ describe("createWindowsBatchCore", () => {
       { dayKeys: ["not-a-date"], openMinute: 480, closeMinute: 1020 },
     );
 
-    expect(result.kind).toBe("validation_error");
+    // Zod's issue list names internal field paths — the operator gets the one
+    // static sentence and the detail goes to the log.
+    expect(result).toEqual({
+      kind: "validation_error",
+      message: "Please check your entries and try again.",
+    });
+  });
+
+  it("returns the static error text when the insert fails", async () => {
+    mockAssertActorIsAdmin.mockResolvedValue(true);
+    const client = makeFakeClient({
+      availability_windows: {
+        data: null,
+        error: { message: 'duplicate key value violates "availability_pkey"' },
+      },
+    });
+
+    const result = await createWindowsBatchCore(
+      { serviceClient: client, actorUserId: ADMIN_ID },
+      { dayKeys: ["2026-07-01"], openMinute: 480, closeMinute: 1020 },
+    );
+
+    // Postgres names tables and constraints; none of that reaches Cal's toast.
+    expect(result).toEqual({
+      kind: "error",
+      message: "Something went wrong. Please try again.",
+    });
   });
 
   it("validation_error on empty dayKeys array", async () => {
@@ -280,7 +229,7 @@ describe("setWindowUnavailableCore — active booking conflict", () => {
     expect(result.kind).toBe("conflict");
     if (result.kind !== "conflict") return;
     expect(result.bookings).toHaveLength(1);
-    expect(result.bookings[0].id).toBe("booking-conflict");
+    expect(result.bookings[0]?.id).toBe("booking-conflict");
 
     // No delete or insert on availability_windows.
     const windowMutations = client._calls.filter(
@@ -289,6 +238,41 @@ describe("setWindowUnavailableCore — active booking conflict", () => {
         (c.method === "delete" || c.method === "insert"),
     );
     expect(windowMutations).toHaveLength(0);
+  });
+
+  it("looks for bookings that overlap the slice, not ones that start inside it", async () => {
+    mockAssertActorIsAdmin.mockResolvedValue(true);
+    const client = makeFakeClient({
+      bookings: { data: [], error: null },
+      availability_windows: { data: [], error: null },
+    });
+
+    await setWindowUnavailableCore(
+      { serviceClient: client, actorUserId: ADMIN_ID },
+      { dayKey: "2026-07-01", fromMinute: 480, toMinute: 600 },
+    );
+
+    // A booking that began before 08:00 and is still running at 08:30 has to
+    // block the block-out; a start-only predicate would let Cal close the hour
+    // out from under it.
+    const predicates = client
+      .calls({ table: "bookings" })
+      .map((call) => [call.method, ...call.args]);
+    expect(predicates).toContainEqual([
+      "lt",
+      "starts_at",
+      denverInstant("2026-07-01", 600),
+    ]);
+    expect(predicates).toContainEqual([
+      "gt",
+      "ends_at",
+      denverInstant("2026-07-01", 480),
+    ]);
+    expect(predicates).toContainEqual([
+      "in",
+      "status",
+      ["pending_approval", "confirmed"],
+    ]);
   });
 });
 
@@ -411,8 +395,8 @@ describe("setWindowUnavailableCore — trim-end", () => {
       ends_at: string;
     }[];
     expect(rows).toHaveLength(1);
-    expect(rows[0].starts_at).toBe(denverInstant(dayKey, 480));
-    expect(rows[0].ends_at).toBe(denverInstant(dayKey, 720));
+    expect(rows[0]?.starts_at).toBe(denverInstant(dayKey, 480));
+    expect(rows[0]?.ends_at).toBe(denverInstant(dayKey, 720));
   });
 });
 
@@ -459,8 +443,8 @@ describe("setWindowUnavailableCore — trim-start", () => {
       ends_at: string;
     }[];
     expect(rows).toHaveLength(1);
-    expect(rows[0].starts_at).toBe(denverInstant(dayKey, 720));
-    expect(rows[0].ends_at).toBe(denverInstant(dayKey, 1200));
+    expect(rows[0]?.starts_at).toBe(denverInstant(dayKey, 720));
+    expect(rows[0]?.ends_at).toBe(denverInstant(dayKey, 1200));
   });
 });
 

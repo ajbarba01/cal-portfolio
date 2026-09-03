@@ -8,6 +8,10 @@
  *
  * Block-out: deletes (or trims) a window and cancels any active booking that
  * falls inside the removed range by reusing cancelBookingCore (admin path).
+ * No route calls these any more — the scheduler carves availability out through
+ * setWindowUnavailableCore instead, and cancelling is the operator's own
+ * decision at the confirm. They stay because the integration suite pins the
+ * block-out semantics.
  *
  * Refuse-not-cancel cores: createWindowsBatchCore and setWindowUnavailableCore
  * implement the NEW scheduler policy — refuse on conflict, never cancel.
@@ -23,7 +27,8 @@ import {
   createSupabaseBookingRepository,
   denverMidnight,
 } from "@/features/booking";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { DbClient } from "@/lib/supabase/db-client";
+import type { TablesUpdate } from "@/lib/supabase/database.types";
 import type { PaymentGateway } from "@/features/payments";
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -48,6 +53,20 @@ const availabilityWindowSchema = z.object({
 // Result types
 // ──────────────────────────────────────────────────────────────────────────────
 
+/**
+ * What a rejected input tells the operator. Zod's own message is a dump of the
+ * issue list — it names internal field paths and would land verbatim in Cal's
+ * toast, so the detail goes to the server log and she gets this instead.
+ */
+const VALIDATION_MESSAGE = "Please check your entries and try again.";
+
+/**
+ * What a failed read or write tells the operator. Postgres names tables and
+ * constraints in its own messages, so the detail goes to the server log and she
+ * gets this instead.
+ */
+const ERROR_MESSAGE = "Something went wrong. Please try again.";
+
 export type AvailabilityResult =
   | { kind: "success" }
   | { kind: "forbidden" }
@@ -65,7 +84,7 @@ export type ListWindowsResult =
 // ──────────────────────────────────────────────────────────────────────────────
 
 export interface AvailabilityDeps {
-  serviceClient: SupabaseClient;
+  serviceClient: DbClient;
   actorUserId: string;
 }
 
@@ -87,16 +106,21 @@ export async function listWindowsCore(
     .select("id, starts_at, ends_at, note")
     .order("starts_at", { ascending: true });
 
-  if (error) return { kind: "error", message: error.message };
+  if (error) {
+    console.error("availability action: window read failed", error);
+    return { kind: "error", message: ERROR_MESSAGE };
+  }
 
   const windows: AvailabilityWindow[] = [];
   for (const row of data ?? []) {
     const parsed = availabilityWindowSchema.safeParse(row);
-    if (!parsed.success)
-      return {
-        kind: "error",
-        message: `Unexpected availability_window shape: ${parsed.error.message}`,
-      };
+    if (!parsed.success) {
+      console.error(
+        "availability action: unexpected availability_window row",
+        parsed.error.issues,
+      );
+      return { kind: "error", message: ERROR_MESSAGE };
+    }
     windows.push(parsed.data);
   }
 
@@ -125,8 +149,13 @@ export async function createWindowCore(
   if (!isAdmin) return { kind: "forbidden" };
 
   const parsed = createWindowInputSchema.safeParse(rawInput);
-  if (!parsed.success)
-    return { kind: "validation_error", message: parsed.error.message };
+  if (!parsed.success) {
+    console.error(
+      "availability action: input validation failed",
+      parsed.error.issues,
+    );
+    return { kind: "validation_error", message: VALIDATION_MESSAGE };
+  }
 
   const { data: input } = parsed;
 
@@ -138,7 +167,10 @@ export async function createWindowCore(
       note: input.note ?? null,
     });
 
-  if (error) return { kind: "error", message: error.message };
+  if (error) {
+    console.error("availability action: window insert failed", error);
+    return { kind: "error", message: ERROR_MESSAGE };
+  }
   return { kind: "success" };
 }
 
@@ -177,8 +209,13 @@ export async function trimWindowCore(
   if (!isAdmin) return { kind: "forbidden" };
 
   const parsed = trimWindowInputSchema.safeParse(rawInput);
-  if (!parsed.success)
-    return { kind: "validation_error", message: parsed.error.message };
+  if (!parsed.success) {
+    console.error(
+      "availability action: input validation failed",
+      parsed.error.issues,
+    );
+    return { kind: "validation_error", message: VALIDATION_MESSAGE };
+  }
 
   const { data: input } = parsed;
 
@@ -191,17 +228,19 @@ export async function trimWindowCore(
 
   if (windowErr || !windowData) return { kind: "not_found" };
 
-  const oldStart = windowData.starts_at as string;
-  const oldEnd = windowData.ends_at as string;
+  const oldStart = windowData.starts_at;
+  const oldEnd = windowData.ends_at;
   const newStart = input.newStartsAt ?? oldStart;
   const newEnd = input.newEndsAt ?? oldEnd;
 
   // A trim must not invert the window.
-  if (new Date(newEnd).getTime() <= new Date(newStart).getTime())
-    return {
-      kind: "validation_error",
-      message: "Trimmed window would have endsAt <= startsAt",
-    };
+  if (new Date(newEnd).getTime() <= new Date(newStart).getTime()) {
+    console.error(
+      "availability action: trim would invert the window",
+      input.windowId,
+    );
+    return { kind: "validation_error", message: VALIDATION_MESSAGE };
+  }
 
   // Cancel active bookings in each removed slice (block-out semantics).
   if (new Date(newStart).getTime() > new Date(oldStart).getTime()) {
@@ -225,7 +264,7 @@ export async function trimWindowCore(
     if (err) return err;
   }
 
-  const update: Record<string, string> = {};
+  const update: TablesUpdate<"availability_windows"> = {};
   if (input.newStartsAt) update.starts_at = input.newStartsAt;
   if (input.newEndsAt) update.ends_at = input.newEndsAt;
 
@@ -234,7 +273,10 @@ export async function trimWindowCore(
     .update(update)
     .eq("id", input.windowId);
 
-  if (error) return { kind: "error", message: error.message };
+  if (error) {
+    console.error("availability action: window trim failed", error);
+    return { kind: "error", message: ERROR_MESSAGE };
+  }
   return { kind: "success" };
 }
 
@@ -250,7 +292,7 @@ export async function trimWindowCore(
  * 'cancelled', so a booking is never returned twice across successive calls.
  */
 async function cancelActiveBookingsInRange(
-  serviceClient: SupabaseClient,
+  serviceClient: DbClient,
   now: Date,
   gateway: PaymentGateway,
   rangeStart: string,
@@ -263,24 +305,27 @@ async function cancelActiveBookingsInRange(
     .gt("ends_at", rangeStart)
     .in("status", ["pending_approval", "confirmed"]);
 
-  if (error)
-    return { kind: "error", message: `Overlap query failed: ${error.message}` };
+  if (error) {
+    console.error("availability action: overlap query failed", error);
+    return { kind: "error", message: ERROR_MESSAGE };
+  }
 
   const repo = createSupabaseBookingRepository(serviceClient);
   for (const booking of overlapping ?? []) {
     const result = await cancelBookingCore(
       { repo, now, gateway },
-      { userId: booking.client_id as string, bookingId: booking.id as string },
+      { userId: booking.client_id, bookingId: booking.id },
     );
     // Abort the block-out if any cancellation fails — leaving the window
     // removed while a booking inside it stays active is a consistency bug.
-    if (result.kind === "error" || result.kind === "forbidden")
-      return {
-        kind: "error",
-        message: `Failed to cancel booking ${booking.id} inside removed window: ${
-          result.kind === "error" ? result.message : "forbidden"
-        }`,
-      };
+    if (result.kind === "error" || result.kind === "forbidden") {
+      console.error(
+        "availability action: cancelling a booking inside the removed window failed",
+        booking.id,
+        result.kind === "error" ? result.message : result.kind,
+      );
+      return { kind: "error", message: ERROR_MESSAGE };
+    }
   }
   return null;
 }
@@ -301,8 +346,13 @@ export async function deleteWindowCore(
   if (!isAdmin) return { kind: "forbidden" };
 
   const parsed = z.object({ windowId: z.string().uuid() }).safeParse(rawInput);
-  if (!parsed.success)
-    return { kind: "validation_error", message: parsed.error.message };
+  if (!parsed.success) {
+    console.error(
+      "availability action: input validation failed",
+      parsed.error.issues,
+    );
+    return { kind: "validation_error", message: VALIDATION_MESSAGE };
+  }
 
   const { windowId } = parsed.data;
 
@@ -320,8 +370,8 @@ export async function deleteWindowCore(
     deps.serviceClient,
     deps.now,
     deps.gateway,
-    windowData.starts_at as string,
-    windowData.ends_at as string,
+    windowData.starts_at,
+    windowData.ends_at,
   );
   if (cancelErr) return cancelErr;
 
@@ -331,70 +381,11 @@ export async function deleteWindowCore(
     .delete()
     .eq("id", windowId);
 
-  if (deleteErr) return { kind: "error", message: deleteErr.message };
+  if (deleteErr) {
+    console.error("availability action: window delete failed", deleteErr);
+    return { kind: "error", message: ERROR_MESSAGE };
+  }
   return { kind: "success" };
-}
-
-// ──────────────────────────────────────────────────────────────────────────────
-// "use server" wrappers
-// ──────────────────────────────────────────────────────────────────────────────
-
-export async function listWindows(): Promise<ListWindowsResult> {
-  const actorUserId = await getActorOrRedirect();
-  const serviceClient = createServiceClient();
-  return listWindowsCore({ serviceClient, actorUserId });
-}
-
-export async function createWindow(input: {
-  startsAt: string;
-  endsAt: string;
-  note?: string | null;
-}): Promise<AvailabilityResult> {
-  const actorUserId = await getActorOrRedirect();
-  const serviceClient = createServiceClient();
-  const result = await createWindowCore({ serviceClient, actorUserId }, input);
-  if (result.kind === "success") revalidatePath("/admin/availability");
-  return result;
-}
-
-export async function trimWindow(input: {
-  windowId: string;
-  newStartsAt?: string;
-  newEndsAt?: string;
-}): Promise<AvailabilityResult> {
-  const actorUserId = await getActorOrRedirect();
-  const serviceClient = createServiceClient();
-  const { StripeGateway } = await import("@/features/payments");
-  const result = await trimWindowCore(
-    {
-      serviceClient,
-      actorUserId,
-      now: new Date(),
-      gateway: new StripeGateway(),
-    },
-    input,
-  );
-  if (result.kind === "success") revalidatePath("/admin/availability");
-  return result;
-}
-
-export async function deleteWindow(input: {
-  windowId: string;
-}): Promise<AvailabilityResult> {
-  const actorUserId = await getActorOrRedirect();
-  const serviceClient = createServiceClient();
-  const { StripeGateway } = await import("@/features/payments");
-  const result = await deleteWindowCore(
-    {
-      serviceClient,
-      actorUserId,
-      now: new Date(),
-      gateway: new StripeGateway(),
-    },
-    input,
-  );
-  if (result.kind === "success") revalidatePath("/admin/availability");
-  return result;
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -462,8 +453,13 @@ export async function createWindowsBatchCore(
   if (!isAdmin) return { kind: "forbidden" };
 
   const parsed = createWindowsBatchInputSchema.safeParse(rawInput);
-  if (!parsed.success)
-    return { kind: "validation_error", message: parsed.error.message };
+  if (!parsed.success) {
+    console.error(
+      "availability action: input validation failed",
+      parsed.error.issues,
+    );
+    return { kind: "validation_error", message: VALIDATION_MESSAGE };
+  }
 
   const { dayKeys, openMinute, closeMinute } = parsed.data;
 
@@ -472,7 +468,7 @@ export async function createWindowsBatchCore(
     return {
       starts_at: new Date(midnight + openMinute * 60000).toISOString(),
       ends_at: new Date(midnight + closeMinute * 60000).toISOString(),
-      note: null as string | null,
+      note: null,
     };
   });
 
@@ -480,7 +476,10 @@ export async function createWindowsBatchCore(
     .from("availability_windows")
     .insert(rows);
 
-  if (error) return { kind: "error", message: error.message };
+  if (error) {
+    console.error("availability action: window batch insert failed", error);
+    return { kind: "error", message: ERROR_MESSAGE };
+  }
   return { kind: "success" };
 }
 
@@ -520,8 +519,13 @@ export async function setWindowUnavailableCore(
   if (!isAdmin) return { kind: "forbidden" };
 
   const parsed = setWindowUnavailableInputSchema.safeParse(rawInput);
-  if (!parsed.success)
-    return { kind: "validation_error", message: parsed.error.message };
+  if (!parsed.success) {
+    console.error(
+      "availability action: input validation failed",
+      parsed.error.issues,
+    );
+    return { kind: "validation_error", message: VALIDATION_MESSAGE };
+  }
 
   const { dayKey, fromMinute, toMinute } = parsed.data;
 
@@ -537,17 +541,16 @@ export async function setWindowUnavailableCore(
     .gt("ends_at", rStart.toISOString())
     .in("status", ["pending_approval", "confirmed"]);
 
-  if (conflictErr)
-    return {
-      kind: "error",
-      message: `Conflict query failed: ${conflictErr.message}`,
-    };
+  if (conflictErr) {
+    console.error("availability action: conflict query failed", conflictErr);
+    return { kind: "error", message: ERROR_MESSAGE };
+  }
 
   const conflictBookings: ConflictBooking[] = (conflicting ?? []).map(
     (row) => ({
-      id: row.id as string,
-      startsAt: row.starts_at as string,
-      endsAt: row.ends_at as string,
+      id: row.id,
+      startsAt: row.starts_at,
+      endsAt: row.ends_at,
     }),
   );
 
@@ -562,18 +565,17 @@ export async function setWindowUnavailableCore(
     .lt("starts_at", rEnd.toISOString())
     .gt("ends_at", rStart.toISOString());
 
-  if (windowsErr)
-    return {
-      kind: "error",
-      message: `Window query failed: ${windowsErr.message}`,
-    };
+  if (windowsErr) {
+    console.error("availability action: window query failed", windowsErr);
+    return { kind: "error", message: ERROR_MESSAGE };
+  }
 
   // ── 3. Trim/split each overlapping window ───────────────────────────────
   for (const w of windows ?? []) {
-    const ws = w.starts_at as string;
-    const we = w.ends_at as string;
-    const wId = w.id as string;
-    const note = w.note as string | null;
+    const ws = w.starts_at;
+    const we = w.ends_at;
+    const wId = w.id;
+    const note = w.note;
 
     const remainders: {
       starts_at: string;
@@ -598,11 +600,13 @@ export async function setWindowUnavailableCore(
         .from("availability_windows")
         .insert(remainders);
 
-      if (insertErr)
-        return {
-          kind: "error",
-          message: `Insert remainder failed: ${insertErr.message}`,
-        };
+      if (insertErr) {
+        console.error(
+          "availability action: remainder insert failed",
+          insertErr,
+        );
+        return { kind: "error", message: ERROR_MESSAGE };
+      }
     }
 
     const { error: delErr } = await deps.serviceClient
@@ -610,11 +614,10 @@ export async function setWindowUnavailableCore(
       .delete()
       .eq("id", wId);
 
-    if (delErr)
-      return {
-        kind: "error",
-        message: `Delete window failed: ${delErr.message}`,
-      };
+    if (delErr) {
+      console.error("availability action: window delete failed", delErr);
+      return { kind: "error", message: ERROR_MESSAGE };
+    }
   }
 
   return { kind: "success" };

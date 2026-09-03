@@ -1,95 +1,142 @@
-import { describe, expect, it } from "vitest";
-import { computeAttentionCounts } from "./attention-counts-query";
+import { describe, expect, it, vi } from "vitest";
 
-describe("computeAttentionCounts", () => {
-  it("counts pending approvals and new inquiries; conflicts always 0", () => {
-    const now = new Date("2026-06-12T12:00:00Z");
-    const counts = computeAttentionCounts({
-      bookings: [
-        { status: "pending_approval" },
-        { status: "confirmed" },
-        { status: "pending_approval" },
-      ],
-      inquiries: [{ status: "new" }, { status: "resolved" }],
-      reviews: [],
-      now,
+import {
+  createFakeSupabase,
+  type FakeResponse,
+} from "@/test-stubs/fake-supabase";
+
+import { attentionCountsCore } from "./attention-counts-query";
+
+const ADMIN: FakeResponse = { data: { role: "admin" }, error: null };
+const NOT_ADMIN: FakeResponse = { data: { role: "client" }, error: null };
+
+const NOW = new Date("2026-06-12T12:00:00.000Z");
+
+/**
+ * A `head: true` count read. The double's response type carries only data and
+ * error, so `count` rides along on the inferred type — the double spreads the
+ * object through untouched.
+ */
+function counted(count: number) {
+  return { data: null, error: null, count };
+}
+
+function clientWith(
+  tables: Record<string, FakeResponse>,
+  profile: FakeResponse = ADMIN,
+) {
+  return createFakeSupabase({ tables: { profiles: profile, ...tables } });
+}
+
+describe("attentionCountsCore", () => {
+  it("takes each count from the database rather than from a list of rows", async () => {
+    const supabase = clientWith({
+      bookings: counted(3),
+      inquiries: counted(2),
+      reviews: counted(1),
     });
+
+    const counts = await attentionCountsCore({
+      serviceClient: supabase,
+      actorUserId: "admin-1",
+      now: NOW,
+    });
+
     expect(counts).toEqual({
-      pendingApprovals: 2,
-      newInquiries: 1,
-      flaggedConflicts: 0,
-      recentReviews: 0,
+      pendingApprovals: 3,
+      newInquiries: 2,
+      recentReviews: 1,
     });
+    for (const table of ["bookings", "inquiries", "reviews"]) {
+      expect(supabase.calls({ table, method: "select" })).toEqual([
+        {
+          table,
+          method: "select",
+          args: ["id", { count: "exact", head: true }],
+        },
+      ]);
+    }
   });
 
-  it("returns all zeros for empty arrays", () => {
-    const now = new Date("2026-06-12T12:00:00Z");
-    const counts = computeAttentionCounts({
-      bookings: [],
-      inquiries: [],
-      reviews: [],
-      now,
+  it("counts every pending booking, whatever month it starts in", async () => {
+    // A booking pends because it starts beyond the auto-confirm horizon, so a
+    // window on the count hides exactly the bookings that need approving.
+    const supabase = clientWith({ bookings: counted(3) });
+
+    await attentionCountsCore({
+      serviceClient: supabase,
+      actorUserId: "admin-1",
+      now: NOW,
     });
+
+    const calls = supabase
+      .calls({ table: "bookings" })
+      .map((call) => [call.method, ...call.args]);
+    expect(calls).toContainEqual(["eq", "status", "pending_approval"]);
+    expect(calls.some(([method]) => method === "lt" || method === "gte")).toBe(
+      false,
+    );
+  });
+
+  it("counts new inquiries and reviews from the last seven days", async () => {
+    const supabase = clientWith({ inquiries: counted(0), reviews: counted(0) });
+
+    await attentionCountsCore({
+      serviceClient: supabase,
+      actorUserId: "admin-1",
+      now: NOW,
+    });
+
+    expect(supabase.calls({ table: "inquiries", method: "eq" })).toEqual([
+      { table: "inquiries", method: "eq", args: ["status", "new"] },
+    ]);
+    // Strictly greater than: a review posted exactly seven days ago is outside.
+    expect(supabase.calls({ table: "reviews", method: "gt" })).toEqual([
+      {
+        table: "reviews",
+        method: "gt",
+        args: ["created_at", "2026-06-05T12:00:00.000Z"],
+      },
+    ]);
+  });
+
+  it("resolves to zeros for a caller who is not an admin", async () => {
+    const supabase = clientWith({ bookings: counted(3) }, NOT_ADMIN);
+
+    const counts = await attentionCountsCore({
+      serviceClient: supabase,
+      actorUserId: "client-1",
+      now: NOW,
+    });
+
     expect(counts).toEqual({
       pendingApprovals: 0,
       newInquiries: 0,
-      flaggedConflicts: 0,
       recentReviews: 0,
     });
+    expect(supabase.calls({ table: "bookings" })).toEqual([]);
   });
 
-  it("treats unknown statuses as non-matching", () => {
-    const now = new Date("2026-06-12T12:00:00Z");
-    const counts = computeAttentionCounts({
-      bookings: [{ status: "confirmed" }, { status: "cancelled" }],
-      inquiries: [{ status: "resolved" }, { status: "replied" }],
-      reviews: [],
-      now,
+  it("logs a failed count and keeps the others", async () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    const supabase = clientWith({
+      bookings: { data: null, error: { message: "boom" } },
+      inquiries: counted(2),
+      reviews: counted(1),
     });
+
+    const counts = await attentionCountsCore({
+      serviceClient: supabase,
+      actorUserId: "admin-1",
+      now: NOW,
+    });
+
     expect(counts).toEqual({
       pendingApprovals: 0,
-      newInquiries: 0,
-      flaggedConflicts: 0,
-      recentReviews: 0,
+      newInquiries: 2,
+      recentReviews: 1,
     });
-  });
-
-  it("counts reviews created within the last 7 days", () => {
-    const now = new Date("2026-06-12T12:00:00Z");
-    // 3 days ago — within window
-    const recent = new Date("2026-06-09T08:00:00Z").toISOString();
-    // 8 days ago — outside window
-    const old = new Date("2026-06-04T08:00:00Z").toISOString();
-    const counts = computeAttentionCounts({
-      bookings: [],
-      inquiries: [],
-      reviews: [
-        { created_at: recent },
-        { created_at: recent },
-        { created_at: old },
-      ],
-      now,
-    });
-    expect(counts).toEqual({
-      pendingApprovals: 0,
-      newInquiries: 0,
-      flaggedConflicts: 0,
-      recentReviews: 2,
-    });
-  });
-
-  it("excludes reviews on the 7-day boundary (exactly 7 days ago is outside)", () => {
-    const now = new Date("2026-06-12T12:00:00Z");
-    // Exactly 7 days ago
-    const boundary = new Date("2026-06-05T12:00:00Z").toISOString();
-    // 6 days 23 h ago — still inside
-    const inside = new Date("2026-06-05T13:00:00Z").toISOString();
-    const counts = computeAttentionCounts({
-      bookings: [],
-      inquiries: [],
-      reviews: [{ created_at: boundary }, { created_at: inside }],
-      now,
-    });
-    expect(counts.recentReviews).toBe(1);
+    expect(logged).toHaveBeenCalledOnce();
+    logged.mockRestore();
   });
 });

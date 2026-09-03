@@ -7,12 +7,12 @@
  *   2. Admin actor → write uses the target clientId (never the actor's id).
  *   3. Validation errors are surfaced before any DB call.
  *
- * Mock pattern: build a minimal SupabaseClient mock that simulates the
+ * Mock pattern: build a minimal DbClient mock that simulates the
  * fluent query builder and records what was written.
  */
 
 import { describe, it, expect, vi } from "vitest";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { DbClient } from "@/lib/supabase/db-client";
 import {
   adminCreatePetCore,
   adminUpdatePetCore,
@@ -25,7 +25,7 @@ import type { PetInput } from "@/features/accounts";
 // ─── Mock helpers ────────────────────────────────────────────────────────────
 
 /**
- * Build a mock SupabaseClient whose `from` / storage methods are configurable.
+ * Build a mock DbClient whose `from` / storage methods are configurable.
  * We only mock the surfaces used by the cores under test.
  */
 function makeMockClient({
@@ -175,16 +175,16 @@ function makeMockClient({
     from: vi.fn((table: string) => makeBuilder(table)),
     storage,
     auth: { getUser: vi.fn() },
-  } as unknown as SupabaseClient;
+  } as unknown as DbClient;
 
   return { client, writes };
 }
 
-function adminDeps(client: SupabaseClient): AdminDeps {
+function adminDeps(client: DbClient): AdminDeps {
   return { serviceClient: client, actorUserId: "actor-admin" };
 }
 
-function nonAdminDeps(client: SupabaseClient): AdminDeps {
+function nonAdminDeps(client: DbClient): AdminDeps {
   return { serviceClient: client, actorUserId: "actor-nonadmin" };
 }
 
@@ -248,7 +248,7 @@ describe("adminCreatePetCore", () => {
     );
     expect(result.kind).toBe("error");
     if (result.kind !== "error") return;
-    expect(result.message).toContain("DB insert failed");
+    expect(result.message).toBe("Couldn't save the pet. Please try again.");
   });
 });
 
@@ -458,6 +458,6 @@ describe("adminUploadPetPhotoCore", () => {
     );
     expect(result.kind).toBe("error");
     if (result.kind !== "error") return;
-    expect(result.message).toContain("bucket full");
+    expect(result.message).toBe("Couldn't upload the photo. Please try again.");
   });
 });

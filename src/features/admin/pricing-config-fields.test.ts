@@ -147,7 +147,7 @@ describe("setLeaf — immutable single-leaf updates", () => {
     const tierMod = setLeaf(WALK, "m.1.tiers.0.pct", 40).modifiers[1] as {
       tiers: { pct: number }[];
     };
-    expect(tierMod.tiers[0].pct).toBe(40);
+    expect(tierMod.tiers[0]?.pct).toBe(40);
   });
 
   it("updates a constraint leaf", () => {
@@ -167,30 +167,45 @@ describe("setLeaf — immutable single-leaf updates", () => {
 
 describe("validateEditableFields", () => {
   it("returns no errors for a valid config", () => {
-    expect(validateEditableFields(WALK, 60)).toEqual({});
+    expect(validateEditableFields(WALK, 60, "walk")).toEqual({});
   });
 
   it("flags below-min values", () => {
     const bad = setLeaf(WALK, "c.maxDogs", 0);
-    expect(validateEditableFields(bad, 60)["c.maxDogs"]).toBeDefined();
+    expect(validateEditableFields(bad, 60, "walk")["c.maxDogs"]).toBeDefined();
   });
 
   it("flags min duration greater than max duration", () => {
     const bad = setLeaf(WALK, "c.minDurationMin", 200);
-    expect(validateEditableFields(bad, 60)["c.maxDurationMin"]).toBeDefined();
+    expect(
+      validateEditableFields(bad, 60, "walk")["c.maxDurationMin"],
+    ).toBeDefined();
   });
 
   it("flags a NaN value (empty input)", () => {
     const bad = setLeaf(WALK, "m.0.cents", NaN);
-    expect(validateEditableFields(bad, 60)["m.0.cents"]).toBeDefined();
+    expect(validateEditableFields(bad, 60, "walk")["m.0.cents"]).toBeDefined();
   });
 
-  it("flags a missing/too-small default duration", () => {
+  it("flags a missing/too-small default duration on a by-duration service", () => {
     expect(
-      validateEditableFields(WALK, null)["col.defaultDurationMin"],
+      validateEditableFields(WALK, null, "walk")["col.defaultDurationMin"],
     ).toBeDefined();
     expect(
-      validateEditableFields(WALK, 0)["col.defaultDurationMin"],
+      validateEditableFields(WALK, 0, "walk")["col.defaultDurationMin"],
     ).toBeDefined();
+  });
+
+  it("accepts a house-sitting service with no default duration", () => {
+    expect(validateEditableFields(HOUSE_SIT, null, "house_sitting")).toEqual(
+      {},
+    );
+  });
+
+  it("still flags a bad rate on a house-sitting service", () => {
+    const bad = setLeaf(HOUSE_SIT, "m.0.cents", NaN);
+    expect(validateEditableFields(bad, null, "house_sitting")).toEqual({
+      "m.0.cents": "Enter a value.",
+    });
   });
 });

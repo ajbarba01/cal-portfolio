@@ -14,7 +14,12 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { assertActorIsAdmin } from "@/lib/admin-guard";
 import { getActorOrRedirect } from "@/lib/admin-session";
 import { parsePricingConfig } from "@/features/pricing";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { DbClient } from "@/lib/supabase/db-client";
+import type { Json, TablesUpdate } from "@/lib/supabase/database.types";
+
+/** What the caller cannot act on is logged in full and reported as one sentence. */
+const GENERIC_ERROR = "Something went wrong. Please try again.";
+const VALIDATION_ERROR = "Please check your entries and try again.";
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Row shape
@@ -71,7 +76,7 @@ export type ListServicesResult =
 // ──────────────────────────────────────────────────────────────────────────────
 
 export interface ServicesDeps {
-  serviceClient: SupabaseClient;
+  serviceClient: DbClient;
   actorUserId: string;
 }
 
@@ -97,16 +102,21 @@ export async function listServicesCore(
     )
     .order("sort_order", { ascending: true });
 
-  if (error) return { kind: "error", message: error.message };
+  if (error) {
+    console.error("services action: read failed", error);
+    return { kind: "error", message: GENERIC_ERROR };
+  }
 
   const services: ServiceAdminRow[] = [];
   for (const row of data ?? []) {
     const parsed = serviceAdminRowSchema.safeParse(row);
-    if (!parsed.success)
-      return {
-        kind: "error",
-        message: `Unexpected service row shape: ${parsed.error.message}`,
-      };
+    if (!parsed.success) {
+      console.error(
+        "services action: unexpected service row shape",
+        parsed.error.issues,
+      );
+      return { kind: "error", message: GENERIC_ERROR };
+    }
     services.push(parsed.data);
   }
 
@@ -148,10 +158,7 @@ export async function updateServiceCore(
       "services action: input validation failed",
       parsed.error.issues,
     );
-    return {
-      kind: "validation_error",
-      message: "Please check your entries and try again.",
-    };
+    return { kind: "validation_error", message: VALIDATION_ERROR };
   }
 
   const { serviceId, pricing_config, ...rest } = parsed.data;
@@ -169,18 +176,20 @@ export async function updateServiceCore(
     try {
       parsePricingConfig(pricing_config);
     } catch (e) {
-      return {
-        kind: "validation_error",
-        message: `Invalid pricing_config: ${e instanceof Error ? e.message : String(e)}`,
-      };
+      console.error("services action: invalid pricing_config", e);
+      return { kind: "validation_error", message: VALIDATION_ERROR };
     }
   }
 
   // Build update payload (exclude undefined keys).
-  const update: Record<string, unknown> = {};
+  const update: TablesUpdate<"services"> = {};
   if (rest.name !== undefined) update.name = rest.name;
   if (rest.description !== undefined) update.description = rest.description;
-  if (pricing_config !== undefined) update.pricing_config = pricing_config;
+  // The editor's config is opaque to this action's own schema, so the column's
+  // Json type has to be asserted. The branch above already ran it through
+  // parsePricingConfig, which accepts only JSON-shaped values.
+  if (pricing_config !== undefined)
+    update.pricing_config = pricing_config as Json;
   if (rest.default_duration_min !== undefined)
     update.default_duration_min = rest.default_duration_min;
   if (rest.requires_approval !== undefined)
@@ -196,19 +205,16 @@ export async function updateServiceCore(
     .update(update)
     .eq("id", serviceId);
 
-  if (error) return { kind: "error", message: error.message };
+  if (error) {
+    console.error("services action: update failed", error);
+    return { kind: "error", message: GENERIC_ERROR };
+  }
   return { kind: "success" };
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
 // "use server" wrappers
 // ──────────────────────────────────────────────────────────────────────────────
-
-export async function listServices(): Promise<ListServicesResult> {
-  const actorUserId = await getActorOrRedirect();
-  const serviceClient = createServiceClient();
-  return listServicesCore({ serviceClient, actorUserId });
-}
 
 export async function updateService(
   input: UpdateServiceInput,

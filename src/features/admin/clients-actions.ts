@@ -6,13 +6,17 @@
  * an admin check.
  */
 
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { DbClient } from "@/lib/supabase/db-client";
+import type { Tables } from "@/lib/supabase/database.types";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { createServiceClient } from "@/lib/supabase/service";
+import { listClientPets, type ClientPetView } from "@/features/pets";
+import { formRegistry, type FormKey } from "@/features/accounts";
 import {
   onboardingStatusSchema,
+  type BookingStatusDb,
   type OnboardingStatus,
 } from "@/features/booking";
 
@@ -24,11 +28,23 @@ import {
 } from "@/features/payments";
 import { deriveMeetGreetUpcoming } from "@/features/booking";
 import { parseAdjustAmountCents } from "./adjust-amount";
+import {
+  hasUpcomingMeetGreet,
+  MEET_GREET_SLUG,
+  toBookingViews,
+  type DetailBookingRow,
+  type DetailPaymentRow,
+} from "./clients-view";
 
-const SIGNED_URL_TTL_SECONDS = 60 * 60;
+/** Shown when a read fails: the page cannot tell Cal anything truthful about this client. */
+const READ_FAILED_MESSAGE =
+  "We couldn't load this right now. Please try again.";
+
+/** Shown when a write fails. The cause is logged; Cal only needs to know to retry. */
+const WRITE_FAILED_MESSAGE = "Something went wrong. Please try again.";
 
 export interface AdminDeps {
-  serviceClient: SupabaseClient;
+  serviceClient: DbClient;
   actorUserId: string;
 }
 
@@ -69,67 +85,51 @@ export async function listClientsCore(
     )
     .eq("role", "client")
     .order("created_at", { ascending: false });
-  if (profileError) return { kind: "error", message: profileError.message };
+  if (profileError) {
+    console.error("listClientsCore: profiles read failed", profileError);
+    return { kind: "error", message: READ_FAILED_MESSAGE };
+  }
 
   const { data: mgBookings, error: mgError } = await serviceClient
     .from("bookings")
     .select("client_id, starts_at, status, services!inner(slug)")
-    .eq("services.slug", "meet-greet")
+    .eq("services.slug", MEET_GREET_SLUG)
     .in("status", ["pending_approval", "confirmed"]);
-  if (mgError) return { kind: "error", message: mgError.message };
+  if (mgError) {
+    console.error("listClientsCore: meet-greet read failed", mgError);
+    return { kind: "error", message: READ_FAILED_MESSAGE };
+  }
 
   const meetGreetUpcoming = deriveMeetGreetUpcoming(
-    (mgBookings ?? []).map((b) => ({
-      client_id: b.client_id as string,
-      starts_at: b.starts_at as string,
-      status: b.status as string,
-    })),
+    mgBookings ?? [],
     new Date(),
   );
 
-  interface ProfileWithAggregates {
-    id: string;
-    full_name: string | null;
-    email: string | null;
-    phone: string | null;
-    onboarding_status: OnboardingStatus | null;
-    unclaimed: boolean | null;
-    pets: { count: number }[] | null;
-    bookings: { count: number }[] | null;
-    client_debits: { amount_cents: number; settled_at: string | null }[] | null;
-  }
-
-  const clients: ClientListRow[] = (
-    (profiles ?? []) as unknown as ProfileWithAggregates[]
-  ).map((profile) => ({
+  const clients: ClientListRow[] = (profiles ?? []).map((profile) => ({
     id: profile.id,
-    full_name: profile.full_name ?? null,
-    email: profile.email ?? null,
-    phone: profile.phone ?? null,
-    petCount: profile.pets?.[0]?.count ?? 0,
-    bookingCount: profile.bookings?.[0]?.count ?? 0,
-    outstandingCents: outstandingBalanceCents(profile.client_debits ?? []),
-    onboardingStatus: profile.onboarding_status ?? "info_pending",
+    full_name: profile.full_name,
+    email: profile.email,
+    phone: profile.phone,
+    // The embedded aggregates come back as one-element arrays, empty when the
+    // client has no rows — the optional reads are the empty case, not a shape doubt.
+    petCount: profile.pets[0]?.count ?? 0,
+    bookingCount: profile.bookings[0]?.count ?? 0,
+    outstandingCents: outstandingBalanceCents(profile.client_debits),
+    onboardingStatus: profile.onboarding_status,
     meetGreetUpcoming: meetGreetUpcoming.has(profile.id),
-    unclaimed: profile.unclaimed ?? false,
+    unclaimed: profile.unclaimed,
   }));
 
   return { kind: "success", clients };
 }
 
-export interface ClientPet {
-  id: string;
-  name: string;
-  species: "dog" | "cat";
-  breed: string | null;
-  notes: string | null;
-  birthdate: string | null;
-  photoUrl: string | null;
-}
+/** A client's pet as the shared pets repository returns it, photo already signed. */
+export type ClientPet = ClientPetView;
 
 export interface ClientFormResponse {
   id: string;
-  form_key: string;
+  /** Always a live registry key: rows on retired keys are dropped by the read. */
+  form_key: FormKey;
   pet_id: string | null;
   booking_id: string | null;
   data: unknown;
@@ -139,11 +139,15 @@ export interface ClientFormResponse {
 export interface ClientBookingRow {
   id: string;
   service_name: string | null;
-  status: string;
+  /** Stable service identity — the name is Cal-editable, the slug is not. */
+  service_slug: string | null;
+  status: BookingStatusDb;
   starts_at: string;
   ends_at: string;
   final_cents: number;
   payment_status: BookingPaymentStatus;
+  /** Frozen quote lines (jsonb) — the itemized price, discounts included. */
+  quote_breakdown: unknown;
   refunded_cents: number;
   disputed_at: string | null;
   dispute_status: string | null;
@@ -188,6 +192,37 @@ export type GetClientDetailResult =
   | { kind: "not_found" }
   | { kind: "error"; message: string };
 
+function isKnownFormKey(key: string): key is FormKey {
+  return key in formRegistry;
+}
+
+/**
+ * `form_key` is free text in the database and still holds rows on keys the
+ * registry retired (`home`, `pet`). Every card looks its key up in the registry,
+ * so one such row would throw and blank the page; they are dropped here, before
+ * the count and the list can disagree about how many forms are on file.
+ */
+function toFormResponses(
+  rows: Pick<
+    Tables<"form_responses">,
+    "id" | "form_key" | "pet_id" | "booking_id" | "data" | "submitted_at"
+  >[],
+): ClientFormResponse[] {
+  const known: ClientFormResponse[] = [];
+  for (const row of rows) {
+    if (!isKnownFormKey(row.form_key)) continue;
+    known.push({
+      id: row.id,
+      form_key: row.form_key,
+      pet_id: row.pet_id,
+      booking_id: row.booking_id,
+      data: row.data,
+      submitted_at: row.submitted_at,
+    });
+  }
+  return known;
+}
+
 export async function getClientDetailCore(
   deps: AdminDeps,
   clientId: string,
@@ -197,187 +232,108 @@ export async function getClientDetailCore(
   }
   const serviceClient = deps.serviceClient;
 
-  const { data: profile, error: profileError } = await serviceClient
-    .from("profiles")
-    .select(
-      "id, full_name, email, phone, address, zip, avatar_url, onboarding_status, unclaimed, invited_at, claimed_at, created_at, role",
-    )
-    .eq("id", clientId)
-    .single();
-  if (profileError || !profile) return { kind: "not_found" };
+  // Independent reads: one round trip instead of five sequential ones.
+  const [profileResult, petsResult, formsResult, bookingsResult, debitsResult] =
+    await Promise.all([
+      serviceClient
+        .from("profiles")
+        .select(
+          "id, full_name, email, phone, address, zip, avatar_url, onboarding_status, unclaimed, invited_at, claimed_at, created_at, role",
+        )
+        .eq("id", clientId)
+        .single(),
+      listClientPets(serviceClient, clientId),
+      serviceClient
+        .from("form_responses")
+        .select("id, form_key, pet_id, booking_id, data, submitted_at")
+        .eq("client_id", clientId)
+        .order("submitted_at", { ascending: false }),
+      serviceClient
+        .from("bookings")
+        .select(
+          "id, status, starts_at, ends_at, final_cents, payment_status, quote_breakdown, services(name, slug)",
+        )
+        .eq("client_id", clientId)
+        .order("starts_at", { ascending: false }),
+      serviceClient
+        .from("client_debits")
+        .select(
+          "id, booking_id, amount_cents, reason, settled_at, created_at, resolution",
+        )
+        .eq("client_id", clientId)
+        .order("created_at", { ascending: false }),
+    ]);
 
-  const { data: pets } = await serviceClient
-    .from("pets")
-    .select("id, name, species, breed, notes, birthdate, photo_url")
-    .eq("client_id", clientId)
-    .order("created_at", { ascending: true });
+  const profile = profileResult.data;
+  if (profileResult.error || !profile) return { kind: "not_found" };
 
-  const signPhoto = async (path: string): Promise<string | null> => {
-    const { data } = await serviceClient.storage
-      .from("pet-photos")
-      .createSignedUrl(path, SIGNED_URL_TTL_SECONDS);
-    return data?.signedUrl ?? null;
-  };
-  const petViews: ClientPet[] = await Promise.all(
-    (pets ?? []).map(async (pet) => ({
-      id: pet.id as string,
-      name: pet.name as string,
-      species: pet.species as "dog" | "cat",
-      breed: (pet.breed as string | null) ?? null,
-      notes: (pet.notes as string | null) ?? null,
-      birthdate: (pet.birthdate as string | null) ?? null,
-      photoUrl: pet.photo_url ? await signPhoto(pet.photo_url as string) : null,
-    })),
-  );
-
-  const { data: forms } = await serviceClient
-    .from("form_responses")
-    .select("id, form_key, pet_id, booking_id, data, submitted_at")
-    .eq("client_id", clientId)
-    .order("submitted_at", { ascending: false });
-
-  const { data: bookings } = await serviceClient
-    .from("bookings")
-    .select(
-      "id, status, starts_at, ends_at, final_cents, payment_status, services(name)",
-    )
-    .eq("client_id", clientId)
-    .order("starts_at", { ascending: false });
-
-  // Fetch payment rows for these bookings in one query; pick the live row per
-  // booking (prefer non-failed, most-recent by created_at).
-  const bookingIds = (bookings ?? []).map((b) => b.id as string);
-  const paymentsMap = new Map<
-    string,
-    {
-      stripe_payment_intent_id: string | null;
-      status: string;
-      refunded_cents: number;
-      disputed_at: string | null;
-      dispute_status: string | null;
-    }
-  >();
-  if (bookingIds.length > 0) {
-    const { data: paymentRows } = await serviceClient
-      .from("payments")
-      .select(
-        "booking_id, stripe_payment_intent_id, amount_cents, status, refunded_cents, disputed_at, dispute_status, created_at",
-      )
-      .in("booking_id", bookingIds)
-      .order("created_at", { ascending: false });
-
-    // For each booking pick the live row: prefer non-failed, then fall back to
-    // most-recent. The query is already sorted newest-first so the first
-    // non-failed row wins; if all are failed the first (newest) row is used.
-    for (const row of (paymentRows ?? []) as Array<{
-      booking_id: string;
-      stripe_payment_intent_id: string | null;
-      refunded_cents: number;
-      disputed_at: string | null;
-      dispute_status: string | null;
-      status: string;
-    }>) {
-      const existing = paymentsMap.get(row.booking_id);
-      // Accept first seen (newest) non-failed row; keep existing if it's already
-      // non-failed and this one is failed.
-      if (!existing) {
-        paymentsMap.set(row.booking_id, row);
-      } else if (existing.status === "failed" && row.status !== "failed") {
-        paymentsMap.set(row.booking_id, row);
-      }
-    }
+  // A failed read renders as "none on file", which Cal reads as fact, so each one
+  // is logged. The debits read is the exception: an empty list reads as "settled
+  // up", so the page fails rather than tell Cal a client owes nothing.
+  if (petsResult.error) {
+    console.error("getClientDetailCore: pets read failed", petsResult.error);
+  }
+  if (formsResult.error) {
+    console.error("getClientDetailCore: forms read failed", formsResult.error);
+  }
+  if (bookingsResult.error) {
+    console.error(
+      "getClientDetailCore: bookings read failed",
+      bookingsResult.error,
+    );
+  }
+  if (debitsResult.error) {
+    console.error(
+      "getClientDetailCore: debits read failed",
+      debitsResult.error,
+    );
+    return { kind: "error", message: READ_FAILED_MESSAGE };
   }
 
-  const { data: debits } = await serviceClient
-    .from("client_debits")
-    .select(
-      "id, booking_id, amount_cents, reason, settled_at, created_at, resolution",
-    )
-    .eq("client_id", clientId)
-    .order("created_at", { ascending: false });
+  const bookingRows: DetailBookingRow[] = bookingsResult.data ?? [];
 
-  const debitRows: ClientDebitRow[] = (debits ?? []).map((debit) => ({
-    id: debit.id as string,
-    booking_id: (debit.booking_id as string | null) ?? null,
-    amount_cents: debit.amount_cents as number,
-    reason: debit.reason as string,
-    settled_at: (debit.settled_at as string | null) ?? null,
-    created_at: debit.created_at as string,
-    resolution: (debit.resolution as string | null) ?? null,
-  }));
+  // Depends on the booking ids, so it cannot join the batch above.
+  let paymentRows: DetailPaymentRow[] = [];
+  if (bookingRows.length > 0) {
+    const { data, error } = await serviceClient
+      .from("payments")
+      .select(
+        "booking_id, stripe_payment_intent_id, status, refunded_cents, disputed_at, dispute_status",
+      )
+      .in(
+        "booking_id",
+        bookingRows.map((booking) => booking.id),
+      )
+      .order("created_at", { ascending: false });
+    if (error) {
+      console.error("getClientDetailCore: payments read failed", error);
+    }
+    paymentRows = data ?? [];
+  }
 
-  const detailNow = new Date();
-  const meetGreetUpcoming = (bookings ?? []).some((booking) => {
-    const join = booking.services as
-      | { name: string }
-      | { name: string }[]
-      | null;
-    const name = Array.isArray(join) ? join[0]?.name : join?.name;
-    return (
-      name === "Meet & Greet" &&
-      (booking.status === "pending_approval" ||
-        booking.status === "confirmed") &&
-      new Date(booking.starts_at as string) > detailNow
-    );
-  });
+  const debitRows: ClientDebitRow[] = debitsResult.data ?? [];
+
+  const bookings = toBookingViews(bookingRows, paymentRows);
 
   const client: ClientDetailView = {
-    id: profile.id as string,
-    full_name: (profile.full_name as string | null) ?? null,
-    email: (profile.email as string | null) ?? null,
-    phone: (profile.phone as string | null) ?? null,
-    address: (profile.address as string | null) ?? null,
-    zip: (profile.zip as string | null) ?? null,
-    avatar_url: (profile.avatar_url as string | null) ?? null,
-    onboarding_status:
-      (profile.onboarding_status as OnboardingStatus) ?? "info_pending",
-    created_at: profile.created_at as string,
-    unclaimed: (profile.unclaimed as boolean | null) ?? false,
-    invited_at: (profile.invited_at as string | null) ?? null,
-    claimed_at: (profile.claimed_at as string | null) ?? null,
-    pets: petViews,
-    forms: (forms ?? []).map((form) => ({
-      id: form.id as string,
-      form_key: form.form_key as string,
-      pet_id: (form.pet_id as string | null) ?? null,
-      booking_id: (form.booking_id as string | null) ?? null,
-      data: form.data,
-      submitted_at: form.submitted_at as string,
-    })),
-    bookings: (bookings ?? []).map((booking) => {
-      const serviceJoin = booking.services as
-        | { name: string }
-        | { name: string }[]
-        | null;
-      const serviceName = Array.isArray(serviceJoin)
-        ? (serviceJoin[0]?.name ?? null)
-        : (serviceJoin?.name ?? null);
-      const paymentRow = paymentsMap.get(booking.id as string) ?? null;
-      return {
-        id: booking.id as string,
-        service_name: serviceName,
-        status: booking.status as string,
-        starts_at: booking.starts_at as string,
-        ends_at: booking.ends_at as string,
-        final_cents: booking.final_cents as number,
-        payment_status:
-          ((booking.payment_status as BookingPaymentStatus | null) ??
-            "unpaid") satisfies BookingPaymentStatus,
-        refunded_cents: paymentRow ? (paymentRow.refunded_cents as number) : 0,
-        disputed_at: paymentRow
-          ? ((paymentRow.disputed_at as string | null) ?? null)
-          : null,
-        dispute_status: paymentRow
-          ? ((paymentRow.dispute_status as string | null) ?? null)
-          : null,
-        payment_intent_id: paymentRow
-          ? ((paymentRow.stripe_payment_intent_id as string | null) ?? null)
-          : null,
-      };
-    }),
+    id: profile.id,
+    full_name: profile.full_name,
+    email: profile.email,
+    phone: profile.phone,
+    address: profile.address,
+    zip: profile.zip,
+    avatar_url: profile.avatar_url,
+    onboarding_status: profile.onboarding_status,
+    created_at: profile.created_at,
+    unclaimed: profile.unclaimed,
+    invited_at: profile.invited_at,
+    claimed_at: profile.claimed_at,
+    pets: petsResult.data,
+    forms: toFormResponses(formsResult.data ?? []),
+    bookings,
     debits: debitRows,
     outstandingCents: outstandingBalanceCents(debitRows),
-    meetGreetUpcoming,
+    meetGreetUpcoming: hasUpcomingMeetGreet(bookings, clientId, new Date()),
   };
 
   return { kind: "success", client };
@@ -406,7 +362,10 @@ export async function settleDebitCore(
     .update({ settled_at: new Date().toISOString(), resolution: "paid" })
     .eq("id", debitId)
     .is("settled_at", null);
-  if (error) return { kind: "error", message: error.message };
+  if (error) {
+    console.error("settleDebitCore: settle debit failed", error);
+    return { kind: "error", message: WRITE_FAILED_MESSAGE };
+  }
   return { kind: "success" };
 }
 
@@ -425,7 +384,10 @@ export async function waiveDebitCore(
     .update({ settled_at: new Date().toISOString(), resolution: "waived" })
     .eq("id", debitId)
     .is("settled_at", null);
-  if (error) return { kind: "error", message: error.message };
+  if (error) {
+    console.error("waiveDebitCore: waive debit failed", error);
+    return { kind: "error", message: WRITE_FAILED_MESSAGE };
+  }
   return { kind: "success" };
 }
 
@@ -453,7 +415,10 @@ export async function adjustDebitCore(
     .update({ amount_cents: amount, resolution: "adjusted" })
     .eq("id", debitId)
     .is("settled_at", null);
-  if (error) return { kind: "error", message: error.message };
+  if (error) {
+    console.error("adjustDebitCore: adjust debit failed", error);
+    return { kind: "error", message: WRITE_FAILED_MESSAGE };
+  }
   return { kind: "success" };
 }
 
@@ -533,7 +498,13 @@ export async function setOnboardingStatusCore(
     .update({ onboarding_status: parsed.data })
     .eq("id", clientId)
     .eq("role", "client");
-  if (error) return { kind: "error", message: error.message };
+  if (error) {
+    console.error(
+      "setOnboardingStatusCore: onboarding status update failed",
+      error,
+    );
+    return { kind: "error", message: WRITE_FAILED_MESSAGE };
+  }
   return { kind: "success" };
 }
 

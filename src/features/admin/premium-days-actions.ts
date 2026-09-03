@@ -15,7 +15,23 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { assertActorIsAdmin } from "@/lib/admin-guard";
 import { getActorOrRedirect } from "@/lib/admin-session";
 import { togglePremiumDate } from "./premium-days-pure";
+import { settingsColumns, settingsRowSchema } from "./settings-schema";
 import type { SettingsDeps, SettingsResult } from "./settings-actions";
+
+/** What a failed read tells the operator; the cause goes to the server log. */
+const GENERIC_ERROR = "Something went wrong. Please try again.";
+
+/**
+ * The two columns a toggle touches. `holiday_dates` is a jsonb column, so the
+ * day list is parsed rather than asserted: writing a toggle back over a value
+ * that is not a list of day keys would erase every premium day on the row.
+ */
+const premiumDaysRowSchema = settingsRowSchema.pick({
+  id: true,
+  holiday_dates: true,
+});
+
+const PREMIUM_DAYS_COLUMNS = settingsColumns(premiumDaysRowSchema);
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Core (injectable deps — testable without Next.js runtime)
@@ -35,22 +51,24 @@ export async function setPremiumDayCore(
 
   const { data: row, error: rowErr } = await deps.serviceClient
     .from("settings")
-    .select("id, holiday_dates")
+    .select(PREMIUM_DAYS_COLUMNS)
     .limit(1)
     .single();
 
   if (rowErr || !row) return { kind: "not_found" };
 
-  const next = togglePremiumDate(
-    (row.holiday_dates as string[]) ?? [],
-    dateKey,
-    on,
-  );
+  const parsed = premiumDaysRowSchema.safeParse(row);
+  if (!parsed.success) {
+    console.error("premium days: unexpected settings row", parsed.error.issues);
+    return { kind: "error", message: GENERIC_ERROR };
+  }
+
+  const next = togglePremiumDate(parsed.data.holiday_dates, dateKey, on);
 
   const { error } = await deps.serviceClient
     .from("settings")
     .update({ holiday_dates: next })
-    .eq("id", row.id as string);
+    .eq("id", parsed.data.id);
 
   if (error) return { kind: "error", message: error.message };
   return { kind: "success" };
@@ -79,21 +97,27 @@ export async function setPremiumDaysBatchCore(
 
   const { data: row, error: rowErr } = await deps.serviceClient
     .from("settings")
-    .select("id, holiday_dates")
+    .select(PREMIUM_DAYS_COLUMNS)
     .limit(1)
     .single();
 
   if (rowErr || !row) return { kind: "not_found" };
 
+  const parsed = premiumDaysRowSchema.safeParse(row);
+  if (!parsed.success) {
+    console.error("premium days: unexpected settings row", parsed.error.issues);
+    return { kind: "error", message: GENERIC_ERROR };
+  }
+
   const next = dayKeys.reduce(
     (acc, key) => togglePremiumDate(acc, key, on),
-    (row.holiday_dates as string[]) ?? [],
+    parsed.data.holiday_dates,
   );
 
   const { error } = await deps.serviceClient
     .from("settings")
     .update({ holiday_dates: next })
-    .eq("id", row.id as string);
+    .eq("id", parsed.data.id);
 
   if (error) return { kind: "error", message: error.message };
   return { kind: "success" };
@@ -102,22 +126,6 @@ export async function setPremiumDaysBatchCore(
 // ──────────────────────────────────────────────────────────────────────────────
 // "use server" wrappers
 // ──────────────────────────────────────────────────────────────────────────────
-
-/** Admin server action: toggle a premium (holiday) date in settings. */
-export async function setPremiumDay(
-  dateKey: string,
-  on: boolean,
-): Promise<SettingsResult> {
-  const actorUserId = await getActorOrRedirect();
-  const serviceClient = createServiceClient();
-  const result = await setPremiumDayCore(
-    { serviceClient, actorUserId },
-    dateKey,
-    on,
-  );
-  if (result.kind === "success") revalidatePath("/admin/availability");
-  return result;
-}
 
 /** Admin server action: toggle multiple premium (holiday) dates in one round-trip. */
 export async function setPremiumDaysBatch(
