@@ -3,8 +3,8 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCachedUser } from "@/lib/supabase/server-cache";
 import { AppShell } from "@/components/layout/app-shell";
-import { adminNav, type NavBadges } from "@/components/layout/nav-config";
-import { getAttentionCounts } from "@/features/admin";
+import { adminNav } from "@/components/layout/nav-config";
+import { fetchAttentionCounts } from "@/features/admin";
 
 export const metadata: Metadata = {
   robots: { index: false, follow: false },
@@ -37,22 +37,13 @@ export default async function AdminLayout({
 
   // Don't await — pass the promise so AppShell's badge loader resolves it inside
   // its own Suspense boundary and the admin loading.tsx can paint immediately.
-  const attentionPromise = getAttentionCounts().then((attention) => {
-    const badges: NavBadges = {
-      "/admin/bookings": {
-        count: attention.pendingApprovals,
-        label: "awaiting approval",
-      },
-      "/admin/inquiries": { count: attention.newInquiries, label: "new" },
-    };
-    return badges;
-  });
+  const badgesPromise = fetchAttentionCounts();
 
   return (
     <AppShell
       nav={adminNav}
       identity={identity}
-      navBadgesPromise={attentionPromise}
+      navBadgesPromise={badgesPromise}
     >
       {children}
     </AppShell>

@@ -6,52 +6,17 @@ import { Check, Circle, RotateCcw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Surface } from "@/components/ui/surface";
+import { bookingStatusPill } from "@/features/booking/index.client";
 import { paymentPill } from "@/features/payments/index.client";
-import type { BookingCalendarRow } from "@/features/admin";
+import { centsToDollars } from "@/features/pricing";
+import { denverDayLabel, denverTime } from "@/lib/time-of-day";
+import type { BookingCalendarRow } from "@/features/admin/index.client";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
-const TIME_ZONE = "America/Denver";
-
 function readableRange(startsAt: string, endsAt: string): string {
-  const fmt = (iso: string) =>
-    new Date(iso).toLocaleTimeString("en-US", {
-      timeZone: TIME_ZONE,
-      hour: "numeric",
-      minute: "2-digit",
-    });
-  const dateLabel = new Date(startsAt).toLocaleDateString("en-US", {
-    timeZone: TIME_ZONE,
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  });
-  return `${dateLabel}, ${fmt(startsAt)} – ${fmt(endsAt)}`;
-}
-
-function dollars(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
-}
-
-// ── status Badge ──────────────────────────────────────────────────────────────
-
-const STATUS_LABELS: Record<string, string> = {
-  pending_approval: "Pending approval",
-  confirmed: "Confirmed",
-  completed: "Completed",
-  cancelled: "Cancelled",
-  declined: "Declined",
-  no_show: "No-show",
-};
-
-function statusBadgeVariant(
-  status: string,
-): "pending" | "available" | "default" | "destructive" | "unavailable" {
-  if (status === "pending_approval") return "pending";
-  if (status === "confirmed") return "available";
-  if (status === "cancelled" || status === "declined" || status === "no_show")
-    return "destructive";
-  return "default";
+  const day = denverDayLabel(new Date(startsAt), { year: false });
+  return `${day}, ${denverTime(new Date(startsAt))} – ${denverTime(new Date(endsAt))}`;
 }
 
 // ── payment pill ──────────────────────────────────────────────────────────────
@@ -102,8 +67,11 @@ export function BookingRow({
     payment_status,
   } = booking;
 
-  const pill = paymentPill(payment_status);
-  const pillClasses = PAYMENT_PILL_CLASSES[pill.tone];
+  const statusPill = bookingStatusPill(status);
+  // A booking with nothing to charge has no payment state worth showing: a free
+  // meet & greet is not "Unpaid", it is simply free, and the pill next to its
+  // $0.00 only invites Cal to chase money that was never owed.
+  const pill = final_cents > 0 ? paymentPill(payment_status) : null;
 
   const isPendingApproval = status === "pending_approval";
   const isConfirmed = status === "confirmed";
@@ -121,18 +89,20 @@ export function BookingRow({
           {client_name ?? "Unknown client"}
         </Link>
 
-        <Badge variant={statusBadgeVariant(status)}>
-          {STATUS_LABELS[status] ?? status}
-        </Badge>
+        <Badge variant={statusPill.variant}>{statusPill.label}</Badge>
 
-        <span
-          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${pillClasses}`}
-        >
-          <PaymentPillIcon tone={pill.tone} />
-          {pill.label}
+        {pill ? (
+          <span
+            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${PAYMENT_PILL_CLASSES[pill.tone]}`}
+          >
+            <PaymentPillIcon tone={pill.tone} />
+            {pill.label}
+          </span>
+        ) : null}
+
+        <span className="ml-auto font-semibold">
+          {centsToDollars(final_cents)}
         </span>
-
-        <span className="ml-auto font-semibold">{dollars(final_cents)}</span>
       </div>
 
       {/* meta line */}

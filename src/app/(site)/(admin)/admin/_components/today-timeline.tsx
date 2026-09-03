@@ -2,28 +2,9 @@ import Link from "next/link";
 import { Clock, ChevronRight } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { denverDayLabel, denverTime } from "@/lib/time-of-day";
 import { Surface } from "@/components/ui/surface";
 import type { BookingCalendarRow } from "@/features/admin";
-
-const TIME_ZONE = "America/Denver";
-
-function formatDenverTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString("en-US", {
-    timeZone: TIME_ZONE,
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-
-function todayLabel(date: Date): string {
-  // "Tue Jun 11"
-  return date.toLocaleDateString("en-US", {
-    timeZone: TIME_ZONE,
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  });
-}
 
 /**
  * Detect whether a booking is a "sit" by checking the service name for
@@ -53,7 +34,7 @@ export function TodayTimeline({ bookings, now }: TodayTimelineProps) {
   const sorted = [...bookings].sort((a, b) =>
     a.starts_at.localeCompare(b.starts_at),
   );
-  const label = todayLabel(now);
+  const label = denverDayLabel(now, { year: false });
   const count = sorted.length;
 
   return (
@@ -75,7 +56,7 @@ export function TodayTimeline({ bookings, now }: TodayTimelineProps) {
           <ul role="list" className="flex flex-col gap-2 p-3">
             {sorted.map((booking) => {
               const kind = serviceKind(booking.service_name);
-              const time = formatDenverTime(booking.starts_at);
+              const time = denverTime(new Date(booking.starts_at));
               const isSit = kind === "sit";
 
               return (

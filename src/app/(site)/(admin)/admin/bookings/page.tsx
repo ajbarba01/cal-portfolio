@@ -5,18 +5,14 @@ import { listBookingsInRange } from "@/features/admin";
 
 import { BookingsCalendarClient } from "./_components/bookings-calendar-client";
 
-function monthRange(now: Date): { startIso: string; endIso: string } {
-  const year = now.getUTCFullYear();
-  const month = now.getUTCMonth();
-  return {
-    startIso: new Date(Date.UTC(year, month, 1)).toISOString(),
-    endIso: new Date(Date.UTC(year, month + 1, 1)).toISOString(),
-  };
-}
-
-export default async function AdminBookingsPage() {
-  const range = monthRange(new Date());
-  const result = await listBookingsInRange(range);
+export default async function AdminBookingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const sp = await searchParams;
+  const monthParam = typeof sp.month === "string" ? sp.month : undefined;
+  const result = await listBookingsInRange({ monthParam });
   if (result.kind !== "success") {
     return (
       <PageContainer width="app">
@@ -36,7 +32,7 @@ export default async function AdminBookingsPage() {
       />
       <BookingsCalendarClient
         bookings={result.bookings}
-        monthStartIso={range.startIso}
+        monthStartIso={result.startIso}
         nowIso={new Date().toISOString()}
       />
     </PageContainer>

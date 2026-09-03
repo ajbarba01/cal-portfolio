@@ -1,58 +1,31 @@
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
 import {
+  getAttentionCounts,
   listBookingsInRange,
   listClients,
-  listReviews,
 } from "@/features/admin";
-import { listInquiries } from "@/features/inquiries";
+import { denverDayKey } from "@/lib/time-of-day";
 
 import { AttentionList } from "./_components/attention-list";
 import { TodayTimeline } from "./_components/today-timeline";
 
-const TIME_ZONE = "America/Denver";
-
-function dayKey(date: Date): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: TIME_ZONE,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(date);
-}
-
 export default async function AdminDashboardPage() {
   const now = new Date();
-  const year = now.getUTCFullYear();
-  const month = now.getUTCMonth();
-  const range = {
-    startIso: new Date(Date.UTC(year, month, 1)).toISOString(),
-    endIso: new Date(Date.UTC(year, month + 1, 1)).toISOString(),
-  };
 
-  const [clientsResult, inquiriesResult, bookingsResult, reviewsResult] =
-    await Promise.all([
-      listClients(),
-      listInquiries(),
-      listBookingsInRange(range),
-      listReviews(),
-    ]);
+  // The counts are the same reads the nav badges make, memoized per request.
+  // The bookings are only for today's timeline; the month window is what the
+  // hub reads too, so the two pages share the shape of the query.
+  const [attention, clientsResult, bookingsResult] = await Promise.all([
+    getAttentionCounts(),
+    listClients(),
+    listBookingsInRange({}),
+  ]);
 
   const bookings =
     bookingsResult.kind === "success" ? bookingsResult.bookings : [];
   const clients = clientsResult.kind === "success" ? clientsResult.clients : [];
-  const today = dayKey(now);
-
-  // Pending approvals
-  const pendingApprovals = bookings.filter(
-    (b) => b.status === "pending_approval",
-  ).length;
-
-  // New inquiries
-  const newInquiries =
-    inquiriesResult.kind === "success"
-      ? inquiriesResult.inquiries.filter((i) => i.status === "new").length
-      : 0;
+  const today = denverDayKey(now);
 
   // Owing clients context
   const owingClients = clients.filter((c) => c.outstandingCents > 0);
@@ -69,18 +42,9 @@ export default async function AdminDashboardPage() {
     0,
   );
 
-  // Reviews created in the last 7 days
-  const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
-  const recentReviews =
-    reviewsResult.kind === "success"
-      ? reviewsResult.reviews.filter(
-          (r) => new Date(r.created_at).getTime() > now.getTime() - sevenDaysMs,
-        ).length
-      : 0;
-
   // Today's bookings (TodayTimeline orders them internally).
   const todaysBookings = bookings.filter(
-    (b) => dayKey(new Date(b.starts_at)) === today,
+    (b) => denverDayKey(new Date(b.starts_at)) === today,
   );
 
   return (
@@ -89,15 +53,15 @@ export default async function AdminDashboardPage() {
 
       <div className="flex flex-col gap-[18px]">
         <AttentionList
-          pendingApprovals={pendingApprovals}
-          newInquiries={newInquiries}
+          pendingApprovals={attention.pendingApprovals}
+          newInquiries={attention.newInquiries}
           owing={{
             count: owingCount,
             topName: topOwing?.full_name ?? topOwing?.email ?? null,
             topAmountCents: topOwing?.outstandingCents,
             totalCents: totalOwingCents,
           }}
-          recentReviews={recentReviews}
+          recentReviews={attention.recentReviews}
         />
 
         <TodayTimeline bookings={todaysBookings} now={now} />

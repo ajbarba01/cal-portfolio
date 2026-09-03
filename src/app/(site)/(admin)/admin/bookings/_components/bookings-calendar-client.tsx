@@ -22,14 +22,15 @@
  * SHARED-SCHEDULER SAFETY
  *   The Scheduler is shared with public booking. We only pass the additive,
  *   optional `dimmedDays` field and the INSPECT_CAPABILITIES preset; the day
- *   timeline here is a hub-local read-only component (the shared DayTimeline
- *   renders availability windows, not arbitrary booking blocks), so no shared
- *   timeline behaviour is touched. `?booking={id}` deep-links pre-isolate a row.
+ *   timeline is the admin feature's own `BookingDayTimeline` (the shared
+ *   DayTimeline renders availability windows, not arbitrary booking blocks), so
+ *   no shared timeline behaviour is touched. `?booking={id}` deep-links
+ *   pre-isolate a row.
  */
 
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { CalendarDays, List, Home } from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { CalendarDays, List } from "lucide-react";
 
 import { useConfirm } from "@/components/feedback/confirm-dialog";
 import { EmptyState } from "@/components/feedback/empty-state";
@@ -38,7 +39,6 @@ import { Multiswitch } from "@/components/ui/multiswitch";
 import { Pagination } from "@/components/ui/pagination";
 import { ResultCount } from "@/components/ui/result-count";
 import { SearchField } from "@/components/ui/search-field";
-import { Surface } from "@/components/ui/surface";
 import {
   Select,
   SelectContent,
@@ -47,73 +47,70 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { paginate } from "@/lib/pagination";
-import { cn } from "@/lib/utils";
+import { denverDayKey, denverDayLabel } from "@/lib/time-of-day";
 import {
   approveBooking,
   declineBooking,
   filterBookings,
   daysWithMatch,
   isolate,
+  BookingDayTimeline,
   type BookingCalendarRow,
   type BookingStatusFilter,
-} from "@/features/admin";
+} from "@/features/admin/index.client";
 import {
+  bookingStatusPill,
   cancelBooking,
   useScheduler,
   Scheduler,
   INSPECT_CAPABILITIES,
-  denverDayKey,
   denverMidnight,
   buildInspectSchedulerData,
 } from "@/features/booking/index.client";
-import type { BusyBlock, SchedulerData } from "@/features/booking/index.client";
+import type {
+  BookingStatus,
+  BusyBlock,
+  SchedulerData,
+} from "@/features/booking/index.client";
 
 import { BookingRow } from "./booking-row";
+import { denverMonthDate, monthParamOf } from "./month-param";
 
 // ── constants / helpers ─────────────────────────────────────────────────────
 
-const TIME_ZONE = "America/Denver";
+/** Filter order — deliberate, and unrelated to the lifecycle order. */
+const FILTERABLE_STATUSES = [
+  "pending_approval",
+  "confirmed",
+  "completed",
+  "cancelled",
+  "declined",
+  "no_show",
+] as const satisfies readonly BookingStatus[];
 
 const STATUS_OPTIONS: { value: BookingStatusFilter; label: string }[] = [
   { value: "all", label: "All statuses" },
-  { value: "pending_approval", label: "Pending approval" },
-  { value: "confirmed", label: "Confirmed" },
-  { value: "completed", label: "Completed" },
-  { value: "cancelled", label: "Cancelled" },
-  { value: "declined", label: "Declined" },
-  { value: "no_show", label: "No-show" },
+  ...FILTERABLE_STATUSES.map((value) => ({
+    value,
+    label: bookingStatusPill(value).label,
+  })),
 ];
 
 const PAGE_SIZE = 12;
 
-const denverDayFormatter = new Intl.DateTimeFormat("en-CA", {
-  timeZone: TIME_ZONE,
+/**
+ * The caption over the month grid, e.g. "September 2026". No `timeZone`: it
+ * formats the same local first-of-month Date the grid is showing, which names a
+ * month and nothing finer (see `month-param`).
+ */
+const monthCaptionFormat = new Intl.DateTimeFormat("en-US", {
+  month: "long",
   year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
 });
 
-function toDenverDayKey(iso: string): string {
-  return denverDayFormatter.format(new Date(iso));
-}
-
-function timeLabel(iso: string): string {
-  return new Date(iso).toLocaleTimeString("en-US", {
-    timeZone: TIME_ZONE,
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-
+/** "Sat, Jun 7" for a Denver "YYYY-MM-DD" day-key. */
 function dayHeading(dayKey: string): string {
-  // dayKey is "YYYY-MM-DD" (Denver). Render via a noon-UTC anchor to avoid the
-  // date sliding a day under the timezone formatter.
-  const [y, m, d] = dayKey.split("-").map((n) => parseInt(n, 10));
-  return new Date(Date.UTC(y, m - 1, d, 12)).toLocaleDateString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  });
+  return denverDayLabel(denverMidnight(dayKey), { year: false });
 }
 
 /** Map a booking row to a BusyBlock, preserving booking identity for inspect. */
@@ -132,6 +129,9 @@ const VIEW_OPTIONS = [
   { value: "calendar" as const, label: "Calendar", icon: CalendarDays },
   { value: "list" as const, label: "List", icon: List },
 ];
+
+/** One Denver calendar day in ms — the span the day filter treats as "this day". */
+const DAY_MS = 86_400_000;
 
 type ActionResult = { kind: string } | { kind: string; message: string };
 
@@ -182,226 +182,6 @@ function SelectedDayBridge({
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// BookingDayTimeline — read-only timeline of one day's booking blocks.
-//
-// A small, hub-local planner-style strip: hour gutter + vertically-positioned
-// blocks for each booking that day. Non-matching blocks are greyed; clicking a
-// block isolates it. This is intentionally NOT the shared Scheduler.DayTimeline
-// (which renders availability windows + a single selectable slot, not arbitrary
-// booking blocks) — keeping it local guarantees the public booking timeline is
-// untouched.
-// ──────────────────────────────────────────────────────────────────────────────
-
-// The timeline always shows the full day (00:00–24:00) so it stays stable
-// regardless of which bookings fall on the selected day. ~0.45px/min keeps a
-// full 24h ≈ 648px tall.
-const PX_PER_MIN = 0.45;
-const DAY_START_MIN = 0;
-const DAY_END_MIN = 1440;
-const DAY_MS = 86_400_000;
-
-function denverMinutes(iso: string): number {
-  // Minutes since Denver midnight for the given instant.
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: TIME_ZONE,
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).formatToParts(new Date(iso));
-  const hour = Number(parts.find((p) => p.type === "hour")?.value ?? "0");
-  const minute = Number(parts.find((p) => p.type === "minute")?.value ?? "0");
-  return (hour % 24) * 60 + minute;
-}
-
-function BookingDayTimeline({
-  dayKey,
-  dayBookings,
-  matchedIds,
-  searching,
-  onIsolate,
-}: {
-  dayKey: string;
-  dayBookings: BookingCalendarRow[];
-  matchedIds: Set<string>;
-  searching: boolean;
-  onIsolate: (id: string) => void;
-}) {
-  // A booking that bleeds beyond this calendar day (starts earlier or ends later)
-  // is a multi-day resident stay — it occupies the whole day, so it renders as an
-  // all-day banner above the hour track rather than an hour-positioned block.
-  // Bookings contained within the day (walks, check-ins) keep their hour slot.
-  const { stays, placed } = useMemo(() => {
-    const dayStartMs = denverMidnight(dayKey).getTime();
-    const dayEndMs = dayStartMs + DAY_MS;
-    const stays: {
-      booking: BookingCalendarRow;
-      role: string;
-      nights: number;
-    }[] = [];
-    const placed: {
-      booking: BookingCalendarRow;
-      startMin: number;
-      endMin: number;
-    }[] = [];
-    for (const b of dayBookings) {
-      const s = new Date(b.starts_at).getTime();
-      const e = new Date(b.ends_at).getTime();
-      if (s < dayStartMs || e > dayEndMs) {
-        const nights = Math.max(1, Math.round((e - s) / DAY_MS));
-        // Which part of the stay this day is — encodes real info for Cal.
-        const role =
-          s >= dayStartMs
-            ? "Check-in"
-            : e <= dayEndMs
-              ? "Check-out"
-              : "Staying over";
-        stays.push({ booking: b, role, nights });
-      } else {
-        const startMin = denverMinutes(b.starts_at);
-        let endMin = denverMinutes(b.ends_at);
-        if (endMin <= startMin) endMin = 1440; // defensive: same-day midnight cross
-        placed.push({ booking: b, startMin, endMin });
-      }
-    }
-    placed.sort((a, b) => a.startMin - b.startMin);
-    return { stays, placed };
-  }, [dayBookings, dayKey]);
-
-  // Always render the full-day track (even when the day has no bookings) so the
-  // timeline is a stable, complete clock under the month grid.
-  const trackTop = DAY_START_MIN;
-  const trackBottom = DAY_END_MIN;
-  const trackHeight = (trackBottom - trackTop) * PX_PER_MIN;
-
-  const hours: number[] = [];
-  for (let h = trackTop; h < trackBottom; h += 60) hours.push(h);
-
-  function hourLabel(min: number): string {
-    const h24 = Math.floor(min / 60) % 24;
-    const suffix = h24 < 12 ? "AM" : "PM";
-    const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
-    return `${h12} ${suffix}`;
-  }
-
-  return (
-    <div className="flex flex-col gap-2">
-      {/* All-day resident stays (house-sitting) — a labeled banner per stay,
-          shown on every day the stay covers, not positioned by hour. */}
-      {stays.length > 0 && (
-        <ul className="flex flex-col gap-1.5">
-          {stays.map(({ booking, role, nights }) => {
-            const isMatch = !searching || matchedIds.has(booking.id);
-            return (
-              <li key={booking.id}>
-                <button
-                  type="button"
-                  onClick={() => onIsolate(booking.id)}
-                  className={cn(
-                    "focus-visible:ring-ring flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-xs transition-colors focus-visible:ring-2 focus-visible:outline-none",
-                    isMatch
-                      ? "bg-status-booked text-status-booked-foreground hover:brightness-95"
-                      : "bg-muted text-muted-foreground hover:brightness-95",
-                  )}
-                  title="Click to isolate this booking"
-                >
-                  <Home aria-hidden="true" className="size-3.5 shrink-0" />
-                  <span className="truncate font-semibold">
-                    {booking.client_name ?? "Unknown client"}
-                  </span>
-                  <span className="truncate opacity-80">
-                    · {role} · {nights} night{nights === 1 ? "" : "s"}
-                  </span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-
-      <Surface
-        variant="plain"
-        className="grid grid-cols-[3.25rem_1fr] overflow-hidden"
-      >
-        {/* hour gutter */}
-        <div
-          className="border-border relative border-r py-2"
-          style={{ height: trackHeight }}
-          aria-hidden="true"
-        >
-          {hours.map((min) => {
-            const top = (min - trackTop) * PX_PER_MIN;
-            return (
-              <div
-                key={min}
-                className="text-muted-foreground absolute right-2 -translate-y-1/2 text-[10px] font-medium"
-                style={{ top: top + 8 }}
-              >
-                {hourLabel(min)}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* blocks */}
-        <div className="relative p-2" style={{ height: trackHeight }}>
-          {/* ruled hour lines */}
-          {hours.map((min) => {
-            const top = (min - trackTop) * PX_PER_MIN;
-            return (
-              <div
-                key={min}
-                className="border-border/50 pointer-events-none absolute inset-x-0 border-t"
-                style={{ top: top + 8 }}
-                aria-hidden="true"
-              />
-            );
-          })}
-
-          {placed.length === 0 && (
-            <div className="text-muted-foreground absolute inset-0 flex items-center justify-center text-sm">
-              {stays.length > 0
-                ? "No time-specific bookings this day."
-                : `No bookings on ${dayHeading(dayKey)}.`}
-            </div>
-          )}
-
-          {placed.map(({ booking, startMin, endMin }) => {
-            const top = (startMin - trackTop) * PX_PER_MIN;
-            const height = Math.max((endMin - startMin) * PX_PER_MIN, 24);
-            const isMatch = !searching || matchedIds.has(booking.id);
-            return (
-              <button
-                key={booking.id}
-                type="button"
-                onClick={() => onIsolate(booking.id)}
-                className={cn(
-                  "focus-visible:ring-ring absolute inset-x-2 flex flex-col justify-center rounded-md px-2.5 py-1 text-left text-xs transition-colors focus-visible:ring-2 focus-visible:outline-none",
-                  isMatch
-                    ? "bg-status-booked text-status-booked-foreground hover:brightness-95"
-                    : "bg-muted text-muted-foreground hover:brightness-95",
-                )}
-                style={{ top: top + 8, height }}
-                title="Click to isolate this booking"
-              >
-                <span className="truncate font-semibold">
-                  {timeLabel(booking.starts_at)} ·{" "}
-                  {booking.client_name ?? "Unknown client"}
-                </span>
-                {height >= 34 && (
-                  <span className="truncate opacity-80">
-                    {booking.service_name ?? "Service"}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </Surface>
-    </div>
-  );
-}
-
-// ──────────────────────────────────────────────────────────────────────────────
 // SectionLabel — the small uppercase clay caption used between calendar stacks.
 // ──────────────────────────────────────────────────────────────────────────────
 
@@ -427,6 +207,7 @@ export function BookingsCalendarClient({
   nowIso: string;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const { confirm, dialog } = useConfirm();
   const [isPending, startTransition] = useTransition();
@@ -464,6 +245,33 @@ export function BookingsCalendarClient({
   const [isolatedId, setIsolatedId] = useState<string | null>(deepLinkId);
   const [page, setPage] = useState(1);
 
+  // ── the month on screen ─────────────────────────────────────────────────────
+  // The grid moves the moment an arrow is pressed, so the hub mirrors the move
+  // here rather than waiting for the server: the caption and the grid would
+  // otherwise name different months for the length of the round trip. The
+  // `?month=` push is what fetches that month's rows, and `monthStartIso` comes
+  // back naming the month already on screen — except after a back/forward, which
+  // moves the window without going through the grid, so the state follows it.
+  const [month, setMonth] = useState(() => denverMonthDate(monthStartIso));
+  const [loadedMonthIso, setLoadedMonthIso] = useState(monthStartIso);
+  if (monthStartIso !== loadedMonthIso) {
+    setLoadedMonthIso(monthStartIso);
+    setMonth(denverMonthDate(monthStartIso));
+  }
+
+  function onMonthChange(next: Date) {
+    setMonth(next);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("month", monthParamOf(next));
+    // Keep the scroll position: the grid the arrow was pressed on sits well
+    // below the fold on a long hub. Wrapped in startTransition so isPending
+    // covers the round trip the same way it covers a row action, dimming the
+    // grid/day list below until the new month's rows land.
+    startTransition(() => {
+      router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    });
+  }
+
   const searching =
     query.trim() !== "" || status !== "all" || service !== "all";
 
@@ -490,12 +298,13 @@ export function BookingsCalendarClient({
 
   // dimmedDays: booked days that do NOT match the active filter. Undefined when
   // not searching so the shared MonthGrid renders identically to public booking.
+  // Both sides are keyed over every day a booking covers, so a multi-day stay
+  // that matches lights its whole span rather than leaving the rest hatched.
   const dimmedDays = useMemo<Set<string> | undefined>(() => {
     if (!searching) return undefined;
     const matchedDayKeys = daysWithMatch(filtered, "");
     const dimmed = new Set<string>();
-    for (const b of bookings) {
-      const key = toDenverDayKey(b.starts_at);
+    for (const key of daysWithMatch(bookings, "")) {
       if (!matchedDayKeys.has(key)) dimmed.add(key);
     }
     return dimmed;
@@ -674,11 +483,16 @@ export function BookingsCalendarClient({
   );
 
   // ── monthLabel for the calendar caption ─────────────────────────────────────
-  const monthLabel = new Date(monthStartIso).toLocaleDateString("en-US", {
-    timeZone: "UTC",
-    month: "long",
-    year: "numeric",
-  });
+  const monthLabel = monthCaptionFormat.format(month);
+
+  // The selected day only means something for the month it was picked in —
+  // once the grid moves on, a stale Sep-12 selection is not a match for the
+  // October grid now on screen, so the day sections hide until a day in the
+  // visible month is picked again.
+  const visibleSelectedDay =
+    selectedDay && selectedDay.slice(0, 7) === monthParamOf(month)
+      ? selectedDay
+      : null;
 
   return (
     <div className="flex flex-col gap-4">
@@ -741,25 +555,31 @@ export function BookingsCalendarClient({
           <InspectBridge onPickDay={resetIsolation} />
           <SelectedDayBridge onSelect={setSelectedDay} />
 
-          <div className="flex flex-col gap-4">
+          <div
+            className={`flex flex-col gap-4 ${isPending ? "pointer-events-none opacity-50" : ""}`}
+          >
             {/* month grid (shared) */}
             <div className="flex flex-col gap-2">
               <SectionLabel>
                 {monthLabel}
                 {searching ? " · matches highlighted" : null}
               </SectionLabel>
-              <Scheduler.MonthGrid />
+              <Scheduler.MonthGrid
+                month={month}
+                onMonthChange={onMonthChange}
+              />
             </div>
 
             {/* read-only day timeline for the selected day */}
-            {selectedDay ? (
+            {visibleSelectedDay ? (
               <div className="flex flex-col gap-2">
                 <SectionLabel>
-                  {dayHeading(selectedDay)} · time of day (click a block to
-                  isolate)
+                  {dayHeading(visibleSelectedDay)} · time of day (click a block
+                  to isolate)
                 </SectionLabel>
                 <BookingDayTimeline
-                  dayKey={selectedDay}
+                  dayKey={visibleSelectedDay}
+                  dayLabel={dayHeading(visibleSelectedDay)}
                   dayBookings={dayBookings}
                   matchedIds={matchedIds}
                   searching={searching}
@@ -772,7 +592,7 @@ export function BookingsCalendarClient({
             ) : null}
 
             {/* the selected day's booking rows */}
-            {selectedDay ? (
+            {visibleSelectedDay ? (
               <div className="flex flex-col gap-2">
                 <SectionLabel>
                   Bookings ·{" "}
