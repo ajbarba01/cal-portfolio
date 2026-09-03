@@ -1,13 +1,21 @@
 import { createBrowserClient } from "@supabase/ssr";
 
-/** Supabase client for use in Client Components (runs in the browser, uses the public publishable key). */
+import { requireEnv } from "@/lib/env";
+import type { Database } from "./database.types";
+
+/**
+ * Supabase client for use in Client Components (runs in the browser, uses the public
+ * publishable key). Typed with the generated `Database` schema — regenerate it with `npm run db:types`.
+ */
 export function createClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  if (!url || !publishableKey) {
-    throw new Error(
-      "Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
-    );
-  }
-  return createBrowserClient(url, publishableKey);
+  return createBrowserClient<Database>(
+    requireEnv(
+      "NEXT_PUBLIC_SUPABASE_URL",
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+    ),
+    requireEnv(
+      "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+    ),
+  );
 }
