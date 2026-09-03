@@ -3,6 +3,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ClaimForm } from "./claim-form";
+import { GENERIC_FAILURE } from "../../_components/auth-errors";
 
 const push = vi.fn();
 const refresh = vi.fn();
@@ -44,6 +45,23 @@ describe("ClaimForm", () => {
         "This claim link has expired. Ask Cal to send a new one.",
       ),
     ).toBeInTheDocument();
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("never renders the SDK's own message when the claim fails", async () => {
+    claimAccount.mockResolvedValueOnce({
+      kind: "error",
+      message: "New password should be different from the old password.",
+    });
+    const user = userEvent.setup();
+    render(<ClaimForm />);
+    await user.type(screen.getByLabelText(/choose a password/i), "password1");
+    await user.type(screen.getByLabelText(/confirm password/i), "password1");
+    await user.click(screen.getByRole("button", { name: /claim my account/i }));
+    expect(await screen.findByText(GENERIC_FAILURE)).toBeInTheDocument();
+    expect(
+      screen.queryByText(/New password should be different/),
+    ).not.toBeInTheDocument();
     expect(push).not.toHaveBeenCalled();
   });
 });

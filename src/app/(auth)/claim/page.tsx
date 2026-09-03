@@ -1,10 +1,9 @@
 import { redirect } from "next/navigation";
 
-import { PageContainer } from "@/components/layout/page-container";
-import { PageHeader } from "@/components/layout/page-header";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 
+import { AuthCard } from "../_components/auth-card";
 import { ClaimForm } from "./_components/claim-form";
 
 export default async function ClaimPage() {
@@ -26,12 +25,11 @@ export default async function ClaimPage() {
   if (profile?.unclaimed !== true) redirect("/account");
 
   return (
-    <PageContainer width="read">
-      <PageHeader
-        title="Claim your account"
-        subtitle="Cal set up your profile. Choose a password to take it over."
-      />
+    <AuthCard
+      title="Claim your account"
+      subtitle="Cal set up your profile. Choose a password to take it over."
+    >
       <ClaimForm />
-    </PageContainer>
+    </AuthCard>
   );
 }

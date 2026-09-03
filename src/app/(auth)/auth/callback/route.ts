@@ -9,6 +9,7 @@ import { createClient } from "@/lib/supabase/server";
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
+  let failure = "auth_callback_failed";
 
   if (code) {
     const supabase = await createClient();
@@ -22,10 +23,16 @@ export async function GET(request: NextRequest) {
       const dest = next === "/claim" ? "/claim" : "/onboarding?verified=1";
       return NextResponse.redirect(`${origin}${dest}`);
     }
+
+    // Carry the SDK's own code across so /login can tell a link that timed out
+    // (`otp_expired`, `flow_state_expired`, `flow_state_not_found`,
+    // `invite_not_found`) from any other failure, and say so. The code is a
+    // machine identifier used to pick a sentence, never shown.
+    failure = error.code ?? failure;
   }
 
   // Invalid or missing code — redirect to login with an error hint.
   const errorUrl = new URL("/login", origin);
-  errorUrl.searchParams.set("error", "auth_callback_failed");
+  errorUrl.searchParams.set("error", failure);
   return NextResponse.redirect(errorUrl);
 }

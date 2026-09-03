@@ -14,6 +14,7 @@ import {
   FormRootError,
   submitAction,
 } from "@/components/form";
+import { GENERIC_FAILURE } from "../../_components/auth-errors";
 
 const claimSchema = z
   .object({
@@ -45,9 +46,13 @@ export function ClaimForm() {
           message: "This claim link has expired. Ask Cal to send a new one.",
         };
       case "validation_error":
+        // The password rules, written by this app in its own voice.
         return { ok: false, message: result.message };
       case "error":
-        return { ok: false, message: result.message };
+        // Whereas this message is the SDK's: GoTrue's for the password update
+        // ("New password should be different from the old password."),
+        // Postgres's for the flag write. Neither goes on screen.
+        return { ok: false, message: GENERIC_FAILURE };
     }
   }
 
@@ -83,7 +88,12 @@ export function ClaimForm() {
         maxLength={FIELD_LIMITS.password}
       />
 
-      <Button type="submit" disabled={isPending}>
+      <Button
+        type="submit"
+        variant="brand"
+        disabled={isPending}
+        className="mt-1 w-full"
+      >
         {isPending ? "Setting up…" : "Claim my account"}
       </Button>
     </Form>

@@ -17,6 +17,7 @@ export const config = {
     "/onboarding",
     "/login",
     "/signup",
+    "/claim",
     "/auth/:path*",
     "/book/:path*",
     "/contact",
