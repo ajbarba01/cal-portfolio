@@ -30,4 +30,13 @@ describe("abbreviateAuthorName", () => {
   it("is stable when re-applied", () => {
     expect(abbreviateAuthorName("Priya S.")).toBe("Priya S.");
   });
+
+  it("never publishes a stored email address", () => {
+    // Reviews submitted before the action's fallback became "Anonymous" hold
+    // the reviewer's email in author_name. Those rows still render on the
+    // public wall, so the address has to die at this boundary.
+    expect(abbreviateAuthorName("priya@example.com")).toBe("Anonymous");
+    expect(abbreviateAuthorName("  PRIYA@example.com  ")).toBe("Anonymous");
+    expect(abbreviateAuthorName("Priya priya@example.com")).toBe("Anonymous");
+  });
 });
