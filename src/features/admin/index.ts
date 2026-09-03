@@ -2,11 +2,7 @@
 
 // availability-actions
 export {
-  listWindows,
   listWindowsCore,
-  createWindow,
-  trimWindow,
-  deleteWindow,
   createWindowsBatch,
   setWindowUnavailable,
 } from "./availability-actions";
@@ -20,11 +16,13 @@ export type {
 
 // overnight-actions
 export {
-  listOvernightNights,
   listOvernightNightsCore,
   setOvernightNightsBatch,
 } from "./overnight-actions";
 export type { SetOvernightNightsResult } from "./overnight-actions";
+
+// window-slice (pure predicate for the availability painter's cancel gate)
+export { bookingsInWindowSlice } from "./window-slice";
 
 // admin-busy
 export { getAdminBusyRanges } from "./admin-busy";
@@ -35,12 +33,8 @@ export { listBookingsInRange } from "./bookings-calendar-actions";
 export type { BookingCalendarRow } from "./bookings-calendar-actions";
 
 // approval-actions
-export {
-  listPendingBookings,
-  approveBooking,
-  declineBooking,
-} from "./approval-actions";
-export type { PendingBookingRow, ApprovalResult } from "./approval-actions";
+export { approveBooking, declineBooking } from "./approval-actions";
+export type { ApprovalResult } from "./approval-actions";
 
 // clients-actions
 export {
@@ -90,11 +84,7 @@ export {
 export type { ReviewRow, ReviewStatus } from "./reviews-actions";
 
 // services-actions
-export {
-  listServices,
-  listServicesCore,
-  updateService,
-} from "./services-actions";
+export { listServicesCore, updateService } from "./services-actions";
 export type { ServiceAdminRow, UpdateServiceInput } from "./services-actions";
 
 // settings-actions
@@ -103,10 +93,11 @@ export {
   getSettingsCore,
   updateSettings,
 } from "./settings-actions";
-export type { SettingsRow, SettingsResult } from "./settings-actions";
+export type { SettingsResult } from "./settings-actions";
 
 // settings-schema
-export type { SettingsUpdate } from "./settings-schema";
+export { settingsRowSchema, settingsColumns } from "./settings-schema";
+export type { SettingsRow, SettingsUpdate } from "./settings-schema";
 
 // components
 export { OnboardingStatusSelect } from "./_components/onboarding-status-select";
@@ -133,7 +124,6 @@ export { togglePremiumDate } from "./premium-days-pure";
 // premium-days-actions
 export {
   setPremiumDayCore,
-  setPremiumDay,
   setPremiumDaysBatchCore,
   setPremiumDaysBatch,
 } from "./premium-days-actions";
@@ -159,10 +149,18 @@ export { getAttentionCounts } from "./attention-counts-query";
 // nav-badges-action (server action: counts for the client-resolved header)
 export { fetchAttentionCounts } from "./nav-badges-action";
 
+// header-role (the header's browser-side role read)
+export { readHeaderRole } from "./header-role";
+export type { HeaderRole } from "./header-role";
+
 // bookings-view (pure predicates)
 export { filterBookings, daysWithMatch, isolate } from "./bookings-view";
 export type { BookingStatusFilter } from "./bookings-view";
 
 // clients-view (pure predicates)
-export { applyClientFilter, sortClients } from "./clients-view";
+export {
+  applyClientFilter,
+  sortClients,
+  MEET_GREET_SLUG,
+} from "./clients-view";
 export type { ClientFilter, ClientSortKey, SortDir } from "./clients-view";

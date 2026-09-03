@@ -21,7 +21,7 @@ import type {
   SetWindowUnavailableResult,
   SetOvernightNightsResult,
   SettingsResult,
-} from "@/features/admin";
+} from "@/features/admin/index.client";
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Types

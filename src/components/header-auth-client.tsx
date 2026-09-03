@@ -21,7 +21,15 @@
 import { useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
-import { fetchAttentionCounts } from "@/features/admin";
+// The design system may not reach a feature, and this header is the one surface
+// that has to: the whole point of it is rendering the admin-vs-client control.
+// Both reads it needs live in the admin feature, so what crosses is two calls
+// and no domain query.
+import {
+  fetchAttentionCounts,
+  readHeaderRole,
+  // eslint-disable-next-line boundaries/element-types -- see the note above
+} from "@/features/admin/index.client";
 import { AccountMenu } from "./account-menu";
 import { SiteNavMobile } from "./site-nav";
 import { SignInLink } from "@/components/layout/sign-in-link";
@@ -48,40 +56,20 @@ export function HeaderAuthClient({ navLinks }: { navLinks: NavItem[] }) {
     // auth client's lock (the `.from()` query needs the same lock to attach the
     // token), which left the control stuck on its placeholder.
     const loadRole = (userId: string, email: string | null) => {
-      void supabase
-        .from("profiles")
-        .select("role, full_name")
-        .eq("id", userId)
-        .single()
-        .then(({ data: profile }) => {
-          if (!active) return;
-          const isAdmin = profile?.role === "admin";
-          setAuth({
-            isSignedIn: true,
-            isAdmin,
-            email,
-            fullName: (profile?.full_name as string | null) ?? null,
-          });
-          if (isAdmin) {
-            fetchAttentionCounts()
-              .then((counts) => {
-                if (!active) return;
-                setNavBadges({
-                  "/admin/bookings": {
-                    count: counts.pendingApprovals,
-                    label: "awaiting approval",
-                  },
-                  "/admin/inquiries": {
-                    count: counts.newInquiries,
-                    label: "new",
-                  },
-                });
-              })
-              .catch(() => {
-                /* badges are best-effort; ignore failures */
-              });
-          }
-        });
+      void readHeaderRole(supabase, userId).then(({ isAdmin, fullName }) => {
+        if (!active) return;
+        setAuth({ isSignedIn: true, isAdmin, email, fullName });
+        if (isAdmin) {
+          fetchAttentionCounts()
+            .then((badges) => {
+              if (!active) return;
+              setNavBadges(badges);
+            })
+            .catch(() => {
+              /* badges are best-effort; ignore failures */
+            });
+        }
+      });
     };
 
     // Synchronous: set the signed-in/out state immediately so the control
