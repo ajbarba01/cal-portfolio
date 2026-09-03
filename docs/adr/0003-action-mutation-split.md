@@ -20,9 +20,9 @@ This coupling (finding A6 from the SP3 audit) made it impossible to unit-test th
 
 Split each **server action** that contains testable orchestration into two layers:
 
-- **Action (thin adapter):** authenticates the caller (`getUser()` + redirect on miss), constructs real deps (service-role repo, mailer, narrow `loadConfirmationRow` closure), and delegates to the mutation. Owns any Next.js runtime calls (`redirect`, future `revalidatePath`) and dep construction.
+- **Action (thin adapter):** authenticates the caller (`getUser()` + redirect on miss), constructs real deps (service-role repo, plus a closure that hands a booking id to the notifications feature), and delegates to the mutation. Owns any Next.js runtime calls (`redirect`, future `revalidatePath`) and dep construction.
 
-- **Mutation (injected-deps function):** auth-free, runtime-free, unit-testable orchestration. Takes explicit deps (repo, mailer, `loadConfirmationRow`, `now`) + parsed input; returns the domain result. No `auth()`, no `getUser()`, no `revalidatePath` inside.
+- **Mutation (injected-deps function):** auth-free, runtime-free, unit-testable orchestration. Takes explicit deps (the repo, a confirmation sender, `now`) + parsed input; returns the domain result. No `auth()`, no `getUser()`, no `revalidatePath` inside. It knows nothing about mail transport or templates — [ADR-0004](0004-notifier-seam.md) moved both behind the notifications seam.
 
 The mutation for `createBooking` lives in `src/features/booking/mutations/create-booking.mutation.ts` and is tested in `create-booking.mutation.test.ts`.
 
@@ -30,14 +30,14 @@ The mutation for `createBooking` lives in `src/features/booking/mutations/create
 
 Extraction was applied **only where it adds real unit-testability** over the existing core tests:
 
-| Action                                          | Decision                            | Reason                                                                                                                       |
-| ----------------------------------------------- | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `createBooking`                                 | Extracted → `createBookingMutation` | Email orchestration (core call + best-effort email + `loadConfirmationRow`) is non-trivial and was previously untestable     |
-| `rescheduleBooking`                             | Left as-is                          | Trivial pass-through to `rescheduleBookingCore` — mutation adds no testability                                               |
-| `cancelBooking`                                 | Left as-is                          | Admin-bypass auth logic stays in the action layer; the core call itself is trivially delegated — no orchestration to extract |
-| `editBooking`                                   | Left as-is                          | Role→policy derivation is auth-layer logic; core call is direct — no orchestration to extract                                |
-| `createBookingForClient`                        | Left as-is                          | Target-client verification is auth/policy logic; core call is direct                                                         |
-| `grantFullRefund` / `markNoShow` / `settleDebt` | Left as-is                          | `requireAdminDeps()` + core call — trivially thin already                                                                    |
+| Action                                          | Decision                            | Reason                                                                                                                                                  |
+| ----------------------------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `createBooking`                                 | Extracted → `createBookingMutation` | Confirmation orchestration (core call + best-effort send) is non-trivial and was previously untestable                                                  |
+| `rescheduleBooking`                             | Left as-is                          | Trivial pass-through to `rescheduleBookingCore` — mutation adds no testability                                                                          |
+| `cancelBooking`                                 | Left as-is                          | Admin-bypass auth logic stays in the action layer; the core call itself is trivially delegated — no orchestration to extract                            |
+| `editBooking`                                   | Left as-is                          | Role→policy derivation is auth-layer logic; core call is direct — no orchestration to extract                                                           |
+| `createBookingForClient`                        | Reuses `createBookingMutation`      | Target-client verification stays auth/policy logic, but the create itself goes through the same mutation as the self-serve path so the two cannot drift |
+| `grantFullRefund` / `markNoShow` / `settleDebt` | Left as-is                          | `requireAdminDeps()` + core call — trivially thin already                                                                                               |
 
 ### Revalidation
 
@@ -48,15 +48,14 @@ No booking-domain action calls `revalidatePath` or `revalidateTag`. The `revalid
 **Positive:**
 
 - `createBookingMutation` is fully unit-testable with stub deps (no Next.js, no DB, no Resend).
-- The best-effort email path is covered by 8 assertions: success delegation, email called on success, mailer failure doesn't alter result, mailer throw doesn't alter result, skip when no email, skip when `loadConfirmationRow` returns null, `slot_taken` propagated, `refuse` propagated.
-- The `Mailer` interface is now exported from `@/features/notifications` (public barrel), enabling future mutation tests to stub it without violating the boundaries rule.
+- Its suite covers the orchestration in nine cases: core delegation and the returned ids, the sender called exactly once with the new booking id, one confirmation for a whole series rather than one per occurrence, a sender that throws leaving the success result untouched, nothing sent when the core did not succeed, comments passed through both when given and when absent, the refuse path, and the admin policy overriding the client gates.
 - The action's external signature and return union are unchanged — zero callsite impact.
 
 **Trade-offs:**
 
-- The five trivially-thin actions were deliberately left unconverted (YAGNI). If they grow orchestration in a future pass, the pattern is established and easy to follow.
-- The `loadConfirmationRow` injection point is a narrow closure rather than a full Supabase client stub — the mutation tests stub only what they need (the narrowest possible dep surface).
+- The actions with no orchestration to extract were deliberately left unconverted (YAGNI). If they grow orchestration in a future pass, the pattern is established and easy to follow.
+- The confirmation dep is a single "send the confirmation for this booking id" function rather than a mailer or a Supabase client stub — the mutation tests stub only what they need (the narrowest possible dep surface).
 
 ---
 
-_Last reviewed: 2026-06-10_
+_Last reviewed: 2026-09-03_

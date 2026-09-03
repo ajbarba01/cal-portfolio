@@ -28,47 +28,49 @@ which meant:
 ## Decision
 
 Introduce a `Notifier` interface in `src/features/notifications/notifier.ts`
-as the single injection point for application-level notifications. The default
-implementation, `ResendNotifier` (`resend-notifier.ts`), is a thin pass-through
-to the existing `sendBookingConfirmation` sender — zero behavior change.
+as the single injection point for application-level notifications, with
+`ResendNotifier` (`resend-notifier.ts`) as the default implementation.
 
 ### Interface shape
 
-Only the event actually sent today is modelled (YAGNI):
-
-```ts
-export type NotificationEvent = {
-  type: "booking_confirmed";
-  payload: BookingConfirmedPayload; // mirrors BookingConfirmationDetails
-};
-export interface Notifier {
-  notify(event: NotificationEvent): Promise<void>;
-}
-```
-
-`booking_cancelled` and other events are intentionally absent. They belong here
-only when the corresponding email exists.
+`Notifier` takes one `NotificationEvent` and resolves. The event union is the
+vocabulary of everything the app actually sends, and it is modelled in two
+halves: what a client is told about their own booking, and what Cal is alerted
+to. A variant is added when its template exists, not before (YAGNI) — the union
+started at a single confirmation event and has grown with each template since.
 
 ### ResendNotifier
 
-`ResendNotifier implements Notifier` with constructor-injected
-`sendBookingConfirmation` and `Mailer` deps (defaulting to the real
-implementations) so tests can stub without touching env vars or the Resend SDK.
+`ResendNotifier implements Notifier`. It builds the message for the event and
+hands it to a `Mailer`: client mail goes to the address the event carries, and
+admin alerts route through the admin-alert dispatcher, which owns the address
+gate and sends nothing while Cal's alert address is unset. The `Mailer` is
+constructor-injectable and constructed lazily, so tests stub it without touching
+env vars or the Resend SDK.
 
-Best-effort semantics are preserved and centralised: `notify()` catches all
-errors from the sender and logs them via `console.error`, then resolves
-normally. Call sites no longer need their own try/catch for the send path
-(though the outer try/catch in `approveBooking` and the mutation's outer
-try/catch are retained to guard the row-load + parse steps above the
-`notify()` call).
+Best-effort semantics are centralised here: every failure is logged and
+swallowed, so no booking, approval or cron run fails because its mail did not go
+out. Call sites do not wrap the send in their own try/catch — the try/catch they
+keep guards the row read and parse above the `notify()` call.
 
-### Call sites updated
+Which message a booking gets is not the caller's decision. One entry point takes
+a booking id, re-reads the row, and picks the confirmation or the received
+acknowledgement from the stored status, so the four paths that create or confirm
+a booking (self-serve create, admin create on a client's behalf, approval, and
+the series-roll cron) cannot disagree about what was sent.
 
-| File                                           | Before                                                  | After                                           |
-| ---------------------------------------------- | ------------------------------------------------------- | ----------------------------------------------- |
-| `booking/mutations/create-booking.mutation.ts` | `deps.mailer` + `sendBookingConfirmation`               | `deps.notifier.notify(...)`                     |
-| `booking/actions.ts`                           | `new ResendMailer()` passed as `mailer`                 | `new ResendNotifier()` passed as `notifier`     |
-| `admin/approval-actions.ts`                    | `new ResendMailer()` + `sendBookingConfirmation` inline | `new ResendNotifier()` + `notifier.notify(...)` |
+### Call sites
+
+On the four create/confirm paths no action, mutation or cron constructs a mailer
+or picks a template. Each hands a booking id to the notifications feature's
+public surface and returns; the send happens behind the seam. Grep the feature's
+barrel for the current list of entry points rather than reading one from here.
+
+One sender is still outside the seam: the reminder cron route builds a
+`ResendMailer` itself and hands it to the cron runner, which chooses the
+reminder template and sends through that raw `Mailer`. It predates the seam and
+has not been moved behind it — treat the claim above as covering creation and
+confirmation, not reminders.
 
 ### Outbox pattern — deferred
 
@@ -94,9 +96,9 @@ Notifier` slots in transparently. Building it is a post-program project.
   implementations requires changing one class, not every call site.
 - Best-effort semantics (log + swallow) are centralised in `ResendNotifier`,
   removing duplicated try/catch blocks from orchestration code.
-- `create-booking.mutation.ts` no longer depends on transport-level
-  `Mailer`/`sendBookingConfirmation`; it depends on the higher-level `Notifier`
-  interface.
+- The booking mutation no longer depends on transport-level mailer detail. It
+  takes a "send the confirmation for this booking id" function and stays
+  testable with a stub.
 - `ResendNotifier` is fully unit-testable with stub deps (no env vars, no Resend
   SDK, no network).
 
@@ -108,4 +110,4 @@ Notifier` slots in transparently. Building it is a post-program project.
 
 ---
 
-_Last reviewed: 2026-06-10_
+_Last reviewed: 2026-09-03_

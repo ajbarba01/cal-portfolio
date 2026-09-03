@@ -135,3 +135,7 @@ round 1. The held-back 5 were drawn at the same time as Set A, from strings
 not in it, and were not read by the maintainer before gate 2. Nothing came
 from `src/content/marketing.ts`, which Cal owns under `docs/CONTENT.md`'s
 authority rule.
+
+---
+
+_Last reviewed: 2026-09-03_

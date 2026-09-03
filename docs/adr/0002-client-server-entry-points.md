@@ -17,10 +17,16 @@ Routing rule:
 - `"use client"` files import from `@/features/<domain>/index.client`.
 - Server code (files without `"use client"`) imports from `@/features/<domain>` (the full `index.ts`), unchanged.
 
-Both `index.ts` and `index.client.ts` are permitted feature entry points in the `eslint-plugin-boundaries` `entry-point` rule (`allow: ["index.ts", "index.client.ts"]`). Create a client entry only for features whose barrel is actually imported by a `"use client"` file AND re-exports a non-action server-only module (YAGNI — no empty client entries).
+Both `index.ts` and `index.client.ts` are permitted feature entry points in the `eslint-plugin-boundaries` `entry-point` rule. Create a client entry only for features whose barrel is actually imported by a `"use client"` file AND re-exports a non-action server-only module (YAGNI — no empty client entries).
+
+A feature may be granted an additional entry when routing through its barrel would defeat the point — the static marketing pages read the booking feature's service catalogue, and reaching it through `booking/index.ts` would pull the repository, Stripe and Resend into their build. Such a grant is **scoped to the feature by name**, not added to the general rule: the plugin applies the last matching rule, so a per-feature rule widens the allow-list for that feature alone and any other feature reaching for the same filename is still refused. Keep the grant narrow and say why in the rule.
 
 ## Consequences
 
 - Client bundles are build-safe: server-only side effects can no longer leak into the browser through a feature barrel.
-- The boundary seam from ADR-0001 is preserved — cross-feature imports still resolve through a sanctioned entry point, now one of two.
+- The boundary seam from ADR-0001 is preserved — cross-feature imports still resolve through a sanctioned entry point, now one of a short, named set rather than a single file.
 - Minor duplication: the client-safe export list is maintained in both entries. Drift is caught by `npm run build` (a leaked server-only import fails the client build) and `npm run typecheck`.
+
+---
+
+_Last reviewed: 2026-09-03_

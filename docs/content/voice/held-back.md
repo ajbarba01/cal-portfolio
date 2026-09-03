@@ -11,3 +11,7 @@
 | 3   | `Add or edit your pets. Name, species, breed, a photo, and any care notes.`              | `src/app/(site)/(account)/account/pets/page.tsx:47`                                       | client   |
 | 4   | `Update your contact info. Email is managed through your login.`                         | `src/app/(site)/(account)/account/page.tsx:26`                                            | client   |
 | 5   | `Approve, edit, or cancel right from the row.`                                           | `src/app/(site)/(admin)/admin/bookings/page.tsx:35`                                       | admin    |
+
+---
+
+_Last reviewed: 2026-09-03_

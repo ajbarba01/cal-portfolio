@@ -23,6 +23,18 @@
 > unchanged: they still need Cal's approval and are routed to him, not fixed here.
 > The coverage and flag counts below describe the cleanup pass as it ran and are
 > left as the historical record.
+>
+> **File moved under this record (2026-09-03).** The narrative below cites
+> `admin-kiche-control.tsx` four times, at its `errorMessage` mapper and at the
+> `aria-label` "Apply Kiche discount to this booking". That file is now
+> `.../bookings/[bookingId]/edit/_components/admin-manual-discounts.tsx`: the
+> Kiche-only control generalized into a list of manual discounts, the mapper's
+> messages are now built around the database's own label, and the `aria-label` is
+> gone — each switch is named by its visible label through `aria-labelledby`. The
+> passages are left as written, because they are the record of what the audit
+> read at the time. Nothing about their verdicts changes; the copy those rows
+> discuss either survived the move or is recorded as removed in
+> `docs/content/copy-ledger.md`.
 
 The standard is conservative by design: across the 22 strings of calibration it
 changed 2. This register is expected to be short. A long one means the audit
@@ -596,4 +608,4 @@ recorded for the maintainer, not a confirmed defect.
 
 ---
 
-_Last reviewed: 2026-07-23_
+_Last reviewed: 2026-09-03_

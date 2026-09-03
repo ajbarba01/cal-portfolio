@@ -72,3 +72,7 @@ derived-from: docs/content/cal-source.md (cleaned corpus, 80 of 92 entries) — 
 > Check-ins can include feeding, potty breaks, short walks, playtime, enrichment activities, medication administration, and plenty of attention—whatever your pet needs to stay happy and comfortable while you're away, whether that's for several days or just an evening. I'm also happy to help with home upkeep such as watering plants, bringing in mail, or taking out the trash.
 
 ## Overrides
+
+---
+
+_Last reviewed: 2026-09-03_

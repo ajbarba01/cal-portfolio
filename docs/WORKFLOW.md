@@ -14,7 +14,7 @@ Find current situation; do the action. (Step details next section.)
 
 | Situation                                                  | Next move                                                                                             | Preferred skill/capability                                                                                      |
 | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| New, non-trivial feature, nothing written                  | **Research**, then write a `specs/<feature>.md` (what & why).                                         | `superpowers:brainstorming` — for UI features, also `frontend-design` so aesthetic direction lands in the spec  |
+| New, non-trivial feature, nothing written                  | **Research**, then write a spec in `docs/superpowers/specs/` (what & why).                            | `superpowers:brainstorming` — for UI features, also `frontend-design` so aesthetic direction lands in the spec  |
 | Spec exists, no plan                                       | **Plan** — turn it into a dependency-ordered technical plan.                                          | `superpowers:writing-plans`                                                                                     |
 | Plan approved, not started                                 | **Build** — start with tests for the core logic (ENGINEERING #5).                                     | `superpowers:subagent-driven-development` if requested/available; otherwise `executing-plans` or native tasks   |
 | Mid-build, non-trivial logic                               | Test-first, then implement; keep logic pure.                                                          | `superpowers:test-driven-development`                                                                           |
@@ -31,7 +31,7 @@ Find current situation; do the action. (Step details next section.)
 ## The loop: Research → Spec → Plan → Build → Verify → Ship
 
 1. **Research** — explore code + requirements _before_ coding. Use plan mode to separate exploration from execution; don't solve wrong problem.
-2. **Spec** — `specs/<feature>.md`: the _what_ and _why_, no implementation detail.
+2. **Spec** — `docs/superpowers/specs/<date>-<feature>-design.md`: the _what_ and _why_, no implementation detail.
 3. **Plan** — turn spec into technical, dependency-ordered plan.
 4. **Build** — implement against plan. **Test-first for non-trivial logic** (ENGINEERING #5).
 5. **Verify** — _fresh_ pass grades work: `/code-review`, `verify` running app. Author never grades itself.
@@ -50,12 +50,12 @@ Loop maps onto preferred skill chain, but skills are **capabilities, not model i
 
 Loop is tool-independent: each stage is a **role + artifact**. Preferred skills accelerate + standardize behavior; fallback produces same artifact without them. Artifact is the handoff — whoever holds next role reads it cold.
 
-| Stage  | Artifact (the contract)         | Role              | Preferred skill(s)                                                            | Fallback                    |
-| ------ | ------------------------------- | ----------------- | ----------------------------------------------------------------------------- | --------------------------- |
-| Spec   | `specs/<f>.md`                  | `senior-designer` | `brainstorming`; UI also `frontend-design`                                    | native planning + AGENTS.md |
-| Plan   | `docs/superpowers/plans/<f>.md` | `senior-designer` | `writing-plans`                                                               | native dependency planning  |
-| Build  | code + passing gates            | `implementer`     | `subagent-driven-development` or `executing-plans`; TDD/UI skills as relevant | read plan and execute gates |
-| Verify | review report                   | `reviewer`        | `requesting-code-review` / native code review                                 | independent diff review     |
+| Stage  | Artifact (the contract)                | Role              | Preferred skill(s)                                                            | Fallback                    |
+| ------ | -------------------------------------- | ----------------- | ----------------------------------------------------------------------------- | --------------------------- |
+| Spec   | `docs/superpowers/specs/<f>-design.md` | `senior-designer` | `brainstorming`; UI also `frontend-design`                                    | native planning + AGENTS.md |
+| Plan   | `docs/superpowers/plans/<f>.md`        | `senior-designer` | `writing-plans`                                                               | native dependency planning  |
+| Build  | code + passing gates                   | `implementer`     | `subagent-driven-development` or `executing-plans`; TDD/UI skills as relevant | read plan and execute gates |
+| Verify | review report                          | `reviewer`        | `requesting-code-review` / native code review                                 | independent diff review     |
 
 Role contracts for each stage: [ROLES.md](ROLES.md). Who plays each by default: [ROUTING.md](ROUTING.md).
 
@@ -65,7 +65,7 @@ Plan is **ready to hand off** when fresh agent (any model) runs it cold. MUST co
 
 - spec path + dependency-ordered task groups;
 - **test-first markers** for non-trivial logic;
-- **gates named explicitly** — `npm run typecheck`, `npm run lint`, core-logic `npm test`, `/code-review`, manual `verify` — next implementer may not expose same skills; plan must _name_ the discipline;
+- **gates named explicitly** — `npm run typecheck`, `npm run lint`, `npm run test:unit`, `/code-review`, manual `verify` — next implementer may not expose same skills; plan must _name_ the discipline;
 - the Definition of Done.
 
 **Handoff is file + git, not clipboard.** Planner commits spec + plan; maintainer gives implementer a **one-line pointer** ("implement `docs/superpowers/plans/<f>.md`, task group 1"); implementer reads it off disk. Planner emits pointer automatically when plan complete.
@@ -89,7 +89,7 @@ Sequential, file-based handoff has no live agent-to-agent channel: **maintainer 
 
 ## Cross-model verification
 
-Author never grades itself — across models this is stronger: **planner-model reviews implementer-model's diff** (Claude `/code-review`s Codex's code, or reverse). Catches model-specific blind spots. Critical findings flow through `## Handoff log` above.
+Author never grades itself — across models this is stronger: **planner-model reviews implementer-model's diff**. Catches model-specific blind spots. When only one model is in play (see [ROUTING.md](ROUTING.md) for which are), this degrades to a **fresh session** running `/code-review`: it still buys the clean context, just not the second set of blind spots. Critical findings flow through `## Handoff log` above.
 
 ## Lightweight lane (sub-spec work)
 
@@ -103,9 +103,9 @@ Author never grades itself — across models this is stronger: **planner-model r
 ## Doc lifecycle
 
 - **Plans:** plan whose Definition of Done shipped moves to `docs/superpowers/plans/archive/` (git mv, same commit as verification or next docs commit). Active plans only in `plans/` root.
-- **Specs:** design specs are decision records — they stay. Superseded spec moves to `docs/superpowers/specs/archive/` with one-line pointer to successor.
+- **Specs:** specs live in `docs/superpowers/specs/`, one file per feature, named `<date>-<feature>-design.md`. They are decision records — they stay. Superseded spec moves to `docs/superpowers/specs/archive/` with one-line pointer to successor.
 - **Notes inbox:** `docs/DEV_NOTES.md` is a capture inbox, never an authority. Items must be triaged out (bugs → audit/findings register or a plan; scope → roadmap/spec; owner/project questions → DESIGN.md open questions) — triage whenever a planning session touches the area. Untriaged items older than 30 days flagged at session start like a stale last-reviewed footer.
-- **Link integrity:** `node scripts/check-doc-links.mjs` must pass before any docs commit.
+- **Link integrity:** run `node scripts/check-doc-links.mjs` before any docs commit. It is manual discipline, not a hook — nothing runs it for you — and it reads the **staged** copy of each tracked `.md`, so stage the docs first or it grades the previous version.
 
 ## Working within a task (context tips)
 
@@ -120,8 +120,11 @@ Author never grades itself — across models this is stronger: **planner-model r
 - **Stage files by name** (never `git add -A` / `.`) — avoids accidental secret/binary inclusion.
 - **Conventional Commits**; imperative subject. **New commit, not amend** (unless asked).
 - **Never `--no-verify`** — failing hook means fix root cause.
+- **Migrations are append-only once pushed.** A migration that has run against the remote project is history — correct it with a new migration, never by editing the shipped file. Run `supabase migration list --linked` before touching anything in `supabase/migrations/`; it shows what the remote has already applied. The initial seed is a migration like any other: retro-editing it makes a fresh `supabase db reset` and the remote reach the same rows by different paths, and nothing but luck keeps the two equal.
+- **Local data is disposable, the remote project is not.** `npm run db:seed -- <scenario>` wipes every non-admin row in the local database before rebuilding it; a host guard keeps it local-only and there is no override flag, so treat a seed run as throwing away whatever local state you were part-way through. Local Supabase is a different project from prod — never point a seed, a reset, or any other local tooling at the remote without asking the maintainer first.
 - **No AI attribution** in commit messages unless explicitly requested.
-- **Gates before commit:** `tsc --strict` + ESLint + Prettier + tests on core logic + `/code-review` + manual `verify`.
+- **Gates before commit:** `npm run typecheck`, `npm run lint`, `npm run format:check`, `npm run test:unit`, `/code-review`, manual `verify`.
+- **Two test projects, two costs.** `test:unit` is the pure suite and runs anywhere. `test:integration` reaches the **local Supabase stack**, so it needs the stack running with the migrations applied and credentials in a local `.env.test`; its files share one database and therefore run sequentially. It is also where row-level security is proved — there is no separate database test harness, so a policy or grant change is only tested if an integration test exercises it as the client role. Run it before shipping anything that touches SQL, RLS, or a repository. The pre-commit hook runs lint-staged plus `npm run typecheck` only — no test is automatic.
 - **Subject line only — no body.** Subject is the entire message. Never add bullet points, description paragraphs, or multi-line content after subject. Single imperative sentence.
 - **Don't reference specific implementation plans** (phase 1a, etc).
 
@@ -131,4 +134,4 @@ Tests green → types/lint/format clean → **cross-model `/code-review`** clean
 
 ---
 
-_Last reviewed: 2026-06-10_
+_Last reviewed: 2026-09-03_

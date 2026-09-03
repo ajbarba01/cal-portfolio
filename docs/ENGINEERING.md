@@ -14,6 +14,8 @@ Project is small today, must stay **professional, modular, scalable** so it grow
 
 `app/` is **routing only**. Domain logic lives in `features/<domain>/` (e.g. `orders/`, `accounts/`, `pricing/`, `gallery/`). New concept = new feature folder. **No catch-all `utils/`** — code lives with the thing it serves.
 
+A feature is reached from outside only through its barrel: `index.ts` for server code and `index.client.ts` for `"use client"` files, with the entry list enforced by `eslint-plugin-boundaries` (see [ADR-0002](adr/0002-client-server-entry-points.md)). A feature that needs a third entry widens the rule for that feature by name rather than for every feature, so the exception stays visible and the next module reaching for the same filename is still refused.
+
 - **Why:** domain boundaries make codebase navigable, parallel-workable, refactor-safe as it grows.
 - **Example:** order availability logic → `features/orders/`, not scattered across `app/` route files.
 
@@ -117,4 +119,4 @@ These govern how an AI agent works in this repo.
 
 ---
 
-_Last reviewed: 2026-06-13_ (performance discipline)
+_Last reviewed: 2026-09-03_

@@ -6,6 +6,8 @@
 
 ## Defaults (work-type → preferred model)
 
+> **In play today: Claude only.** Codex left the rotation on 2026-06-12 and nothing has replaced it. The table below is the standing preference for whenever a second model is available again — it is not a description of who is answering now. While one model does everything, cross-model review degrades as [WORKFLOW.md](WORKFLOW.md) describes.
+
 | Work-type                                       | Planner                   | Implementer               | Why                                   |
 | ----------------------------------------------- | ------------------------- | ------------------------- | ------------------------------------- |
 | Architecture / design / spec                    | **Claude** (Opus)         | —                         | strongest planning                    |
@@ -13,7 +15,7 @@
 | UI                                              | **Claude**                | either                    | aesthetic direction lands in the spec |
 | Debugging                                       | whoever holds the context | whoever holds the context | context locality beats role purity    |
 
-**Default implementer = Codex.** When maintainer says nothing, planner finishes plan and emits handoff block targeting Codex.
+**Default implementer = the preferred model that is actually in play** — Claude, while it is the only one. When maintainer says nothing, planner finishes plan and emits handoff block targeting that implementer.
 
 ## Override knob (per session)
 
@@ -36,4 +38,4 @@ Maintainer sets roles per session; this overrides table above. Same spirit as WO
 
 ---
 
-_Last reviewed: 2026-06-10_
+_Last reviewed: 2026-09-03_

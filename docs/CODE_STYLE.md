@@ -11,7 +11,7 @@ Sourced from the [Google TypeScript Style Guide](https://google.github.io/styleg
 ## Tooling (the source of truth for formatting)
 
 - **Prettier** formats; **ESLint** lints; **`tsc --strict`** type-checks. Pre-commit hook runs all three — code failing any does not get committed.
-- Line length ~100. Don't hand-format around the formatter; let Prettier own whitespace.
+- Don't hand-format around the formatter; let Prettier own whitespace and line length. Its config is deliberately near-empty, so the defaults are the rule.
 
 ## Naming
 
@@ -23,9 +23,9 @@ Sourced from the [Google TypeScript Style Guide](https://google.github.io/styleg
 
 ## Files & folders
 
-- Component file name matches its folder: `ProfileHero/ProfileHero.tsx`.
-- Non-component files: `kebab-case.ts` (`distance.ts`, `use-orders.ts`).
+- Every file is `kebab-case`, components included: `profile-hero.tsx`, `distance.ts`, `use-orders.ts`. The export inside stays `PascalCase`.
 - One primary export per file; file named for it.
+- A component private to one route or one feature lives in a `_components/` folder beside its owner; anything a second owner needs moves up to `src/components/`.
 
 ## Components
 
@@ -53,4 +53,4 @@ export function estimateRoadMiles(from: LatLng, to: LatLng): number { … }
 
 ---
 
-_Last reviewed: 2026-06-10_
+_Last reviewed: 2026-09-03_

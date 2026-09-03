@@ -17,7 +17,7 @@ Role determines required behavior. Available capabilities determine how agent su
 
 ### `senior-designer`
 
-- **Does:** research → write/refine `specs/<feature>.md` (what + why) → turn into dependency-ordered plan in `docs/superpowers/plans/`.
+- **Does:** research → write/refine the feature's spec in `docs/superpowers/specs/` (what + why) → turn into dependency-ordered plan in `docs/superpowers/plans/`.
 - **Reads:** relevant doc per [AGENTS.md](../AGENTS.md) doc-nav; existing code patterns.
 - **Produces:** committed spec + plan. Plan is the **handoff artifact** — must satisfy handoff contract in [WORKFLOW.md](WORKFLOW.md).
 - **Preferred skills:** `brainstorming` → `writing-plans`; for UI, invoke `frontend-design` during both spec and plan work.
@@ -69,4 +69,4 @@ Stop and escalate (do not improvise) when: spec is ambiguous; spec contradicts c
 
 ---
 
-_Last reviewed: 2026-06-10_
+_Last reviewed: 2026-09-03_

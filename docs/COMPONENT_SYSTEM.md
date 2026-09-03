@@ -11,8 +11,9 @@
 Building or changing UI: pick the primitive whose **intent** matches, at the size
 the track defines — don't hand-roll a surface, control, or pill. If nothing fits,
 add a primitive in `src/components/ui/` (cross-cutting) or co-located with its
-feature, and register it here in the **same commit**. View everything live at
-`/showcase` (dev-only route).
+feature, and register it here in the **same commit**. A shell that only one route
+zone uses stays under that zone's `_components/` folder and is **not** a registry
+entry — the registry covers what more than one zone may reach for.
 
 ## Token tiers
 
@@ -24,13 +25,15 @@ discovery):
 | Tier          | Tokens                                                         | Owns                                                           |
 | ------------- | -------------------------------------------------------------- | -------------------------------------------------------------- |
 | Control track | `--control-h-{sm,md,lg}`, `--control-px-*`, `--control-radius` | the height / padding / radius every control shares             |
-| Card          | `--card-radius`, `--card-pad`                                  | one surface radius (resolved the old `rounded-xl`/`2xl` split) |
+| Card          | `--card-radius` (`--card-pad` reserved)                        | one surface radius (resolved the old `rounded-xl`/`2xl` split) |
 | Elevation     | `--elev-1/2` → utilities `shadow-elev-1/2`                     | the two depth steps (rest, lift)                               |
 
 Rule: a control or surface never hardcodes a height / radius / shadow — it
 composes the track, `rounded-card`, or an elevation token. House style avoids
 drop-shadows on cards; conventional floating-element shadows (toast, popover,
-back-to-top, the page sheet) are fine.
+back-to-top, the page sheet) are fine. `--card-pad` is defined but nothing reads
+it yet — `Surface` leaves padding to the caller — so treat it as the reserved
+name for that step rather than as the padding in force.
 
 ## The control track
 
@@ -69,6 +72,7 @@ sanctioned card lift is `ShimmerCard`'s opt-in `hoverLift` (the service cards).
 | on/off boolean (settings, flags)              | `Switch`                                | not a form-value picker                                                                                                               |
 | boolean in a form / row-select                | `Checkbox`                              | native input, custom paint                                                                                                            |
 | single-select among a few options             | `RadioGroup`                            | a **form value**                                                                                                                      |
+| single-select among many options              | `Select`                                | give `SelectValue` the option's label as children — a bare `<SelectValue />` prints the raw stored value                              |
 | filter / view toggle (page state)             | `Multiswitch`                           | **not** a form value                                                                                                                  |
 | booking-page service nav                      | `ServiceSwitcher`                       | link-based segmented control; each segment is a `<Link>` to `/book/[slug]`; active carries `aria-current="page"`                      |
 | number with a unit ($, %)                     | `UnitInput`                             |                                                                                                                                       |
@@ -81,8 +85,10 @@ sanctioned card lift is `ShimmerCard`'s opt-in `hoverLift` (the service cards).
 | definition / helper text for a confusing term | `Tooltip` / `InfoTooltip`               | hover, focus, or tap reveal; border-only popup, no shadow; not for essential content — `InfoTooltip`'s `label` is the accessible name |
 | RHF form shell                                | `Form` + `useAppForm` + `submitAction`  | `src/components/form/` — zod resolver, `onTouched`, server-error mapping; see "Form recipe"                                           |
 | form-level (root) error                       | `FormRootError`                         | renders `errors.root` as an error Alert, above the submit row                                                                         |
-| live length count on a long field             | `CharCounter`                           | long textareas only; `maxLength` = server cap                                                                                         |
-| section intro (eyebrow + heading)             | `SectionHeader`                         | reuses `Eyebrow`                                                                                                                      |
+| live length count on a long field             | `CharCounter`                           | long textareas only; `maxLength` = server cap; renders the visible figure **plus** an `sr-only` live region, so it is two nodes       |
+| star rating, shown or collected               | `StarRating` / `StarRatingInput`        | sharp-star SVG on brand tokens; the input is a roving-tabindex radiogroup whose hover preview is an outside outline, not a fill       |
+| section intro (eyebrow + heading)             | `SectionHeader`                         | `as` picks the heading level, `size` picks the scale step; `headingClass` exports those steps for a heading that must itself animate  |
+| small uppercase label above a heading         | `Eyebrow`                               | renders `<p>` unless `as` says otherwise — use a heading tag only when the eyebrow **is** the section heading                         |
 | stat / receipt line                           | `StatDisplay`                           | `stacked` or `receipt`                                                                                                                |
 | page title / subtitle / actions               | `PageHeader`                            | a layout shell (FRONTEND.md)                                                                                                          |
 
@@ -112,10 +118,13 @@ with a `CharCounter`; short inputs rely on the silent `maxLength` wall alone.
 
 ## /showcase
 
-`/showcase` is a dev-only route (404 in production) that renders every primitive,
-every variant, and the family groupings with the real components and live tokens.
-It's both the catalog and where visual calls get made. Keep it current when adding
-a primitive.
+`/showcase` is a dev-only route (404 in production) that renders the control
+track, the button and Surface variants, the form recipe and the small-component
+families with the real components and live tokens — the places a visual call
+actually gets made. Overlays, feedback panels and page-level shells are reviewed
+in place rather than here, so the route is a working bench, not a complete
+inventory; this registry is the inventory. Add a specimen when a new primitive
+needs a visual call.
 
 ## Portability — port the system, not the brand
 
@@ -127,10 +136,10 @@ nothing above the semantic layer changes.
 
 ## Enforcement
 
-- `/showcase` is the visual canon; this registry is the usage canon.
+- `/showcase` is where a visual call is made; this registry is the usage canon.
 - **Same-commit rule**: a new or changed primitive updates this doc in the same
   commit (AGENTS.md doc discipline).
 - Mechanical drift (hand-rolled card surfaces, raw control heights, arbitrary
   colors, off-token fills) is caught by custom ESLint rules in `eslint.config.mjs`.
 
-_Last reviewed: 2026-07-12_
+_Last reviewed: 2026-09-03_

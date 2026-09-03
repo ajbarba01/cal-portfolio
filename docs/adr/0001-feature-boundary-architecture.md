@@ -13,3 +13,7 @@ Each feature exposes its public surface via `src/features/<domain>/index.ts`. Cr
 - Refactors inside a feature can't break external consumers as long as `index.ts` is stable.
 - A new cross-feature dependency is a deliberate act (add the export to `index.ts`).
 - Initial cost: authoring index files + rewriting cross-feature imports to them.
+
+---
+
+_Last reviewed: 2026-09-03_

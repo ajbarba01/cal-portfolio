@@ -124,7 +124,7 @@ Whether I'm taking your dog on a walk, stopping by for a visit, or caring for yo
 150+ pets served
 ```
 
-> Stat-ribbon directive (2026-07-12, tester-feedback batch): "replace 23 yrs old with 150+ pets served". Split into value "150+" + label "Pets served"; replaces the DOB-derived age stat. Other about.stat.\* entries predate the ledger and remain unrecorded.
+> Stat-ribbon directive (2026-07-12, tester-feedback batch): "replace 23 yrs old with 150+ pets served". Split into value "150+" + label "Pets served"; replaces the DOB-derived age stat. The other about.stat.\* entries predate the ledger; it records them under "Registry IDs with no entry of their own".
 
 ### about.quote.text
 
@@ -140,9 +140,9 @@ Dr. Jane Goodall
 
 > Favorite-quote epigraph (2026-06-19). Cal supplied the line as `"The least I can do is speak out for those who cannot speak for themselves." - Dr. Jane Goodall`. Real attributed quotation (public-fact). Split across the two slots; the page renders the opening `"` glyph and the `—` separator, so live strings drop the wrapping quotes (text) and leading dash (author). See ledger.
 
-> **References consent (2026-06-19).** Cal marked two existing references ready to publish: `Abby D.M. — 208 943 1003` and `Madeleine K.G. — 720 388 0092` (initials + phone supplied privately; map to `about.references.5` "Abby and Sloane" and `about.references.7` "Madeleine, Apollo, Anabella"). Consent recorded; phone numbers NOT published (privacy, per existing policy). No site change yet — the full references list stays withheld until the remaining clients consent.
+> **References consent (2026-06-19).** Cal marked two existing references ready to be named: `Abby D.M.` and `Madeleine K.G.` (initials supplied privately; they map to `about.references.5` "Abby and Sloane" and `about.references.7` "Madeleine, Apollo, Anabella"). Each also gave Cal a phone number privately. Consent to be named is recorded; the numbers are NOT published, and the digits were redacted from this file on 2026-09-03 — a tracked doc is the wrong place to hold a client's phone number, and the ledger's own policy line said they were withheld while this file printed them. Cal holds them off-repo.
 
-> **Per-client consent reveal (updated 2026-06-19).** The named-client references below (intro + `about.references.1–8`) publish **per client as consent is granted** — driven by the `references` consent map in `about/page.tsx`. Consented clients render as named chips; the rest surface only as a muted "more coming" cue, and the intro line covers contact-on-request. As of 2026-06-19, `about.references.5` (Abby) and `.7` (Madeleine) are consented; the other six await permission. (Supersedes the 2026-06-10 all-or-nothing withhold.)
+> **Reference records (updated 2026-09-03).** The named-client references are no longer driven from this file's IDs. They live in `src/content/references.ts` as records — name, a `contact` that is either published details or `null`, and an optional pet-photo basename — and `/about` renders whatever that array holds, falling back to `about.references.pending` when it is empty. Both records carry `contact: null`: being named is one consent, publishing contact details is a second one neither household has given. `about.references.1–8` were deleted from `src/content/marketing.ts` the same day: no code read them, and because the registry is imported by a client component the eight names were being bundled into browser JavaScript, so six households who never consented to being named were shipping to the public site. The captured source below is now their only record, and this file is not served. (Supersedes the 2026-06-19 per-client consent map and the 2026-06-10 all-or-nothing withhold.)
 
 ### about.references
 
@@ -211,6 +211,8 @@ Feedback from pet-parents
 ## Resources page
 
 > Structural section headings ("Health & Safety", "Tools & Training", "Enrichment & Well-Being") are hardcoded in the page, not copy IDs (user-confirmed 2026-06-09). Resource names link to the external URL Cal supplied (href is page data; name stays raw copy). Tools & Enrichment items are names only — Cal may add links/descriptions later.
+
+> The one-line note beside each of those three headings is not Cal's — it was written for him, in his first person, and it has no entry here because he never wrote it. The three strings moved out of the page and into the registry on 2026-09-03 (`resources.health.note`, `resources.tools.note`, `resources.enrichment.note`) with the wording untouched, so they are now reviewable by ID. The ledger carries them as `pending-owner-signoff`. If Cal rewrites one, his version comes in here and the entry becomes `cal-verbatim` like the rest.
 
 ### resources.intro
 
@@ -384,9 +386,11 @@ Please let me know if there are other resources you think I should share. I'm al
 
 > Service summaries, long-form detail, "what's included" bullets, and the sliding-scale statement captured 2026-06-16. Cal's training long-form carries his own subsection labels ("Puppy Training", "Basic Obedience"); these render as `## ` subheads in `service.training.detail.body` (structural markup recorded in the ledger, not Cal's punctuation). Action notes (e.g. `(hyperlinked)`) and the truncated housesitting bullet are kept verbatim here; their resolutions live in the ledger.
 
+> **Source dump retired (2026-09-03).** The raw dump this section came from lived on as a stray `SYNC.md` at the repo root long after its text was captured. Every line of it was re-checked against this file before the file was deleted, and every sentence Cal wrote is above. What the dump carried that this file does not is Cal's own scaffolding — the service names he grouped his text under ("Sliding Scale", "Training", "Walks", "Check-ins", "Housesitting") and the two list labels "What's included:" / "What's Included:". Those are labels for the reader, not copy: the service names come from the database, "Sliding scale" and "What's included" are hardcoded page chrome, and none of them has a copy ID. They are recorded in the ledger as **not placed** and are not going on the site.
+
 ### services.notice.lede
 
-> Time-bound availability notice captured 2026-06-20; Cal expects to remove it after 2026-09-01. Raw inputs below; live string is a user-confirmed third-person composition (reason + date), tracked in the ledger.
+> Time-bound availability notice captured 2026-06-20, taken off the page 2026-08-13 and out of the registry 2026-09-02, as Cal planned. Raw inputs below; the live string was a user-confirmed composition (reason + date) and is recorded in the ledger. Kept here as the precedent for the next time Cal needs a notice — reviving this one would republish an expired date.
 
 ```
 Until August 25, please assume I can't…
@@ -604,3 +608,7 @@ Can you watch my animal at your house?/Can you board my animal?
 ```
 Unfortunately, I'm unable to care for clients' pets in my own home at this time due to housing restrictions and the needs of my own dog. I am, however, happy to take your pup on walks, hikes, and other adventures outside of your home!
 ```
+
+---
+
+_Last reviewed: 2026-09-03_

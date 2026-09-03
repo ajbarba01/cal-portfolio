@@ -45,3 +45,7 @@ Cross-ref: `docs/superpowers/specs/2026-07-12-tester-feedback-action-plan.md` §
 ---
 
 _Awaiting Cal approval for copy-sync gate._
+
+---
+
+_Last reviewed: 2026-09-03_
