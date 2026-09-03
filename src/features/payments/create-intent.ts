@@ -8,12 +8,14 @@
  *  - Identity comes from getUser() (session cookie), never from the payload.
  *  - payments row is inserted via service client (clients have no INSERT grant).
  *  - Booking ownership is verified before calling the gateway.
+ *  - Refuses outright while the payments kill-switch is off.
  */
 
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
-import type { SupabaseClient } from "@supabase/supabase-js";
-import type { PaymentGateway, RetrievedIntent } from "./types";
+import { PAYMENTS_ENABLED } from "@/lib/payments-enabled";
+import type { DbClient } from "@/lib/supabase/db-client";
+import type { CreatedIntent, PaymentGateway, RetrievedIntent } from "./types";
 import { amountOwedCents } from "./projection";
 import { StripeGateway } from "./stripe-gateway";
 
@@ -23,29 +25,33 @@ type CreateIntentResult =
   | { ok: true; clientSecret: string }
   | { ok: false; error: string };
 
-interface PaymentRow {
-  status: "requires_payment" | "succeeded" | "refunded" | "failed";
-  amount_cents: number;
-  refunded_cents: number;
-}
-
-interface BookingRow {
-  id: string;
-  client_id: string;
-  final_cents: number;
-  payments: PaymentRow[];
-}
+/**
+ * Same wording the prepay dialog shows when Stripe.js cannot load, so a client
+ * who reaches the closed action reads one message for one situation. It is a
+ * literal rather than a shared constant because a `"use server"` module may
+ * only export async functions, and a `"use client"` module's exports are
+ * opaque references on the server.
+ */
+const PAYMENTS_DISABLED_ERROR =
+  "Online payment is temporarily unavailable. Please try again later.";
 
 // ─── DI core (testable) ───────────────────────────────────────────────────────
 
 export async function runCreatePrepayIntent(
   deps: {
-    sessionClient: SupabaseClient;
-    serviceClient: SupabaseClient;
+    sessionClient: DbClient;
+    serviceClient: DbClient;
     gateway: PaymentGateway;
   },
   bookingId: string,
 ): Promise<CreateIntentResult> {
+  // 0. Sitewide kill-switch. Hiding the button is not a gate: a server action
+  // stays callable by anyone with a session, so the refusal has to live here,
+  // ahead of any gateway or database work.
+  if (!PAYMENTS_ENABLED) {
+    return { ok: false, error: PAYMENTS_DISABLED_ERROR };
+  }
+
   // 1. Verify session.
   const {
     data: { user },
@@ -53,7 +59,7 @@ export async function runCreatePrepayIntent(
   if (!user) return { ok: false, error: "You must be signed in." };
 
   // 2. Read booking + payments via session client (RLS enforces ownership).
-  const { data, error: fetchError } = await deps.sessionClient
+  const { data: booking, error: fetchError } = await deps.sessionClient
     .from("bookings")
     .select(
       "id, client_id, final_cents, payments(status, amount_cents, refunded_cents)",
@@ -61,11 +67,9 @@ export async function runCreatePrepayIntent(
     .eq("id", bookingId)
     .maybeSingle();
 
-  if (fetchError || !data) {
+  if (fetchError || !booking) {
     return { ok: false, error: "Booking not found." };
   }
-
-  const booking = data as BookingRow;
 
   // Belt-and-suspenders ownership check (RLS should already enforce this).
   if (booking.client_id !== user.id) {
@@ -73,8 +77,8 @@ export async function runCreatePrepayIntent(
   }
 
   // Guard against a non-numeric final_cents before any money math (defends
-  // against a NaN amount reaching the gateway). DB column is NOT NULL, but
-  // never trust the shape of an untyped client response.
+  // against a NaN amount reaching the gateway). The column is NOT NULL and the
+  // generated types call it a number, but the value still crossed the wire.
   if (!Number.isFinite(booking.final_cents)) {
     return { ok: false, error: "Booking total is unavailable." };
   }
@@ -156,14 +160,21 @@ export async function runCreatePrepayIntent(
     }
   }
 
-  // 5. Mint a new intent with the booking-scoped idempotency key.
-  const intent = await deps.gateway.createIntent({
-    amountCents: owed,
-    currency: "usd",
-    bookingId,
-    clientId: user.id,
-    idempotencyKey,
-  });
+  // 5. Mint a new intent with the booking-scoped idempotency key. An unguarded
+  // throw here surfaces as a dead Prepay button with nothing in the log.
+  let intent: CreatedIntent;
+  try {
+    intent = await deps.gateway.createIntent({
+      amountCents: owed,
+      currency: "usd",
+      bookingId,
+      clientId: user.id,
+      idempotencyKey,
+    });
+  } catch (error) {
+    console.error("createIntentCore: gateway rejected the intent", error);
+    return { ok: false, error: "Something went wrong. Please try again." };
+  }
 
   // 6. Persist the payments row via service client (clients have no INSERT grant).
   const { error: insertError } = await deps.serviceClient

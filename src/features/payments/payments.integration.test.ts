@@ -5,15 +5,24 @@
  * Credentials from .env.test (gitignored).
  *
  * Test groups:
- *   1. create-intent (DI with fake gateway)
+ *   1. create-intent (DI with fake gateway), on and off the payments kill-switch
  *   2. webhook projection (applyStripeEvent)
  *   3. signature verification
  *   4. security / RLS guards (clients cannot write payments or payment_status)
  */
 
-import { describe, it, expect, beforeAll, afterAll, afterEach } from "vitest";
+import {
+  describe,
+  it,
+  expect,
+  vi,
+  beforeAll,
+  afterAll,
+  afterEach,
+} from "vitest";
 import { createClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
+import { deleteFixtureClients } from "@/test-stubs/integration-cleanup";
 import { runCreatePrepayIntent } from "./create-intent";
 import { applyStripeEvent } from "./webhook-core";
 import { amountOwedCents } from "./projection";
@@ -23,6 +32,11 @@ import type {
   CreateIntentArgs,
   RetrievedIntent,
 } from "./types";
+
+// Every suite below except the kill-switch group describes the payments-on
+// world, and the flag defaults off — pin it rather than let a local .env decide
+// whether these tests mean anything. The off path re-imports with its own mock.
+vi.mock("@/lib/payments-enabled", () => ({ PAYMENTS_ENABLED: true }));
 
 const url = process.env.SUPABASE_TEST_URL!;
 const serviceKey = process.env.SUPABASE_TEST_SERVICE_ROLE_KEY!;
@@ -41,11 +55,11 @@ const serviceClient = createClient(url, serviceKey, {
 
 const TEST_PASSWORD = "Test1234!";
 const ts = Date.now();
-const user1Email = `test-payments-u1-${ts}@example.invalid`;
-const user2Email = `test-payments-u2-${ts}@example.invalid`;
+const EMAIL_PREFIX = "test-payments-";
+const user1Email = `${EMAIL_PREFIX}u1-${ts}@example.invalid`;
+const user2Email = `${EMAIL_PREFIX}u2-${ts}@example.invalid`;
 
 let userId1: string;
-let userId2: string;
 
 /** Session clients authenticated with the anon key. */
 const sessionClient1 = createClient(url, anonKey, {
@@ -99,6 +113,10 @@ class FakeGateway implements PaymentGateway {
 // ─── Global setup ─────────────────────────────────────────────────────────────
 
 beforeAll(async () => {
+  // Heal anything an aborted earlier run left behind before claiming the
+  // 02:00 UTC slot (see seedBooking below).
+  await deleteFixtureClients(serviceClient, EMAIL_PREFIX);
+
   // Create two fixture users.
   const { data: u1, error: e1 } = await serviceClient.auth.admin.createUser({
     email: user1Email,
@@ -114,7 +132,6 @@ beforeAll(async () => {
     email_confirm: true,
   });
   if (e2 || !u2.user) throw new Error(`Create user2 failed: ${e2?.message}`);
-  userId2 = u2.user.id;
 
   // Sign in both sessions.
   await sessionClient1.auth.signInWithPassword({
@@ -137,28 +154,34 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await serviceClient.auth.admin.deleteUser(userId1);
-  await serviceClient.auth.admin.deleteUser(userId2);
+  await deleteFixtureClients(serviceClient, EMAIL_PREFIX);
 });
 
 // ─── Helper: seed a booking ────────────────────────────────────────────────────
 
+// This suite owns 02:00 UTC. The no_same_class_overlap exclusion constraint is
+// global (concurrency class + time-range overlap, not client) and a full-day
+// span used to collide with the demo seed's exclusive bookings (Denver business
+// hours) or a sibling integration suite on the same day — booking-service owns
+// 23:00 (plus ad-hoc 10:00/11:00), edit-booking 17:00, admin-create-booking
+// 15:00, admin.integration 06:00, series-cron 14:23/16:41. A narrow half-hour
+// slot at a claimed hour nobody else uses avoids all of them.
 async function seedBooking(
   clientId: string,
   finalCents: number,
   startOffsetDays = 1,
 ): Promise<string> {
+  const startsAt = new Date(Date.now() + 86400_000 * startOffsetDays);
+  startsAt.setUTCHours(2, 0, 0, 0);
+  const endsAt = new Date(startsAt.getTime() + 30 * 60_000);
+
   const { data, error } = await serviceClient
     .from("bookings")
     .insert({
       client_id: clientId,
       service_id: serviceId,
-      starts_at: new Date(
-        Date.now() + 86400_000 * startOffsetDays,
-      ).toISOString(),
-      ends_at: new Date(
-        Date.now() + 86400_000 * (startOffsetDays + 1),
-      ).toISOString(),
+      starts_at: startsAt.toISOString(),
+      ends_at: endsAt.toISOString(),
       concurrency: "exclusive",
       final_cents: finalCents,
       status: "confirmed",
@@ -272,6 +295,65 @@ describe("runCreatePrepayIntent", () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error).toMatch(/already paid/i);
+  });
+});
+
+// ─── 1b. create-intent under the payments kill-switch ────────────────────────
+
+describe("runCreatePrepayIntent — payments kill-switch", () => {
+  let bookingId: string;
+
+  beforeAll(async () => {
+    bookingId = await seedBooking(userId1, 5000);
+  });
+
+  afterAll(async () => {
+    await serviceClient.from("payments").delete().eq("booking_id", bookingId);
+    await serviceClient.from("bookings").delete().eq("id", bookingId);
+    vi.doUnmock("@/lib/payments-enabled");
+    vi.resetModules();
+  });
+
+  async function countPayments(): Promise<number> {
+    const { data } = await serviceClient
+      .from("payments")
+      .select("id")
+      .eq("booking_id", bookingId);
+    return (data ?? []).length;
+  }
+
+  it("refuses without minting an intent or recording a payment when payments are off", async () => {
+    // The flag is a build-time constant, so the off mode needs its own copy of
+    // the module rather than a value flipped between calls.
+    vi.resetModules();
+    vi.doMock("@/lib/payments-enabled", () => ({ PAYMENTS_ENABLED: false }));
+    const { runCreatePrepayIntent: runWithPaymentsOff } =
+      await import("./create-intent");
+
+    const before = await countPayments();
+    const gateway = new FakeGateway();
+    const result = await runWithPaymentsOff(
+      { sessionClient: sessionClient1, serviceClient, gateway },
+      bookingId,
+    );
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error).toMatch(/unavailable/i);
+    expect(gateway.created).toHaveLength(0);
+    expect(await countPayments()).toBe(before);
+  });
+
+  it("mints an intent for the same booking when payments are on", async () => {
+    const gateway = new FakeGateway();
+    const result = await runCreatePrepayIntent(
+      { sessionClient: sessionClient1, serviceClient, gateway },
+      bookingId,
+    );
+
+    expect(result.ok).toBe(true);
+    expect(gateway.created).toHaveLength(1);
+    expect(await countPayments()).toBe(1);
   });
 });
 
@@ -408,7 +490,6 @@ describe("applyStripeEvent — webhook projection", () => {
 
   it("charge.refunded accepts an expanded payment_intent object", async () => {
     const expandedIntentId = `pi_expanded_${ts}`;
-    // Far-future window to avoid the no_same_class_overlap exclusion constraint.
     const expandedBooking = await seedBooking(userId1, 4000, 400);
     await seedPayment(
       expandedBooking,

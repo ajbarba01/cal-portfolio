@@ -9,22 +9,16 @@
  *  - Idempotent: re-delivering the same event converges to the same state.
  */
 
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { DbClient } from "@/lib/supabase/db-client";
 import { z } from "zod";
 import { computePaymentStatus } from "./projection";
-import type { PaymentTxn, PaymentGateway } from "./types";
+import type { PaymentTxn, PaymentGateway, StripeEventInput } from "./types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type ApplyResult =
   | { ok: true; handled: boolean }
   | { ok: false; error: string };
-
-/** Minimal shape of a parsed Stripe event passed to this core. */
-export interface StripeEventInput {
-  type: string;
-  data: { object: Record<string, unknown> };
-}
 
 // ─── Zod schemas for defensive extraction ────────────────────────────────────
 
@@ -70,7 +64,7 @@ type PaymentTxnStatus = PaymentTxn["status"];
  * NEVER touches bookings.status.
  */
 async function projectBookingPaymentStatus(
-  serviceClient: SupabaseClient,
+  serviceClient: DbClient,
   bookingId: string,
 ): Promise<ApplyResult> {
   // Re-read booking + all its payments via service role.
@@ -87,24 +81,15 @@ async function projectBookingPaymentStatus(
     };
   }
 
-  const txns = (
-    booking.payments as Array<{
-      status: string;
-      amount_cents: number;
-      refunded_cents: number;
-    }>
-  ).map(
+  const txns = booking.payments.map(
     (p): PaymentTxn => ({
-      status: p.status as PaymentTxnStatus,
+      status: p.status,
       amountCents: p.amount_cents,
       refundedCents: p.refunded_cents,
     }),
   );
 
-  const projectedStatus = computePaymentStatus(
-    booking.final_cents as number,
-    txns,
-  );
+  const projectedStatus = computePaymentStatus(booking.final_cents, txns);
 
   // Update ONLY payment_status on the booking — never bookings.status.
   const { error: updateError } = await serviceClient
@@ -127,7 +112,7 @@ async function projectBookingPaymentStatus(
  * re-projects the booking's payment_status.
  */
 async function applyPaymentIntentStatus(
-  serviceClient: SupabaseClient,
+  serviceClient: DbClient,
   intentId: string,
   newStatus: PaymentTxnStatus,
 ): Promise<ApplyResult> {
@@ -151,10 +136,7 @@ async function applyPaymentIntentStatus(
   // would wrongly flip the booking back to 'paid'). Re-project anyway to
   // converge, but leave the payment status untouched.
   if (payment.status === "refunded" && newStatus !== "refunded") {
-    return projectBookingPaymentStatus(
-      serviceClient,
-      payment.booking_id as string,
-    );
+    return projectBookingPaymentStatus(serviceClient, payment.booking_id);
   }
 
   const { error: updateError } = await serviceClient
@@ -169,10 +151,7 @@ async function applyPaymentIntentStatus(
     };
   }
 
-  return projectBookingPaymentStatus(
-    serviceClient,
-    payment.booking_id as string,
-  );
+  return projectBookingPaymentStatus(serviceClient, payment.booking_id);
 }
 
 /**
@@ -182,7 +161,7 @@ async function applyPaymentIntentStatus(
  * refund leaves it 'succeeded' with refunded_cents > 0. NEVER touches bookings.status.
  */
 async function applyChargeRefund(
-  serviceClient: SupabaseClient,
+  serviceClient: DbClient,
   intentId: string,
   amountRefunded: number,
 ): Promise<ApplyResult> {
@@ -196,11 +175,8 @@ async function applyChargeRefund(
     return { ok: false, error: `DB error: ${fetchError.message}` };
   if (!payment) return { ok: true, handled: false };
 
-  const newRefunded = Math.max(
-    payment.refunded_cents as number,
-    amountRefunded,
-  );
-  const fullyRefunded = newRefunded >= (payment.amount_cents as number);
+  const newRefunded = Math.max(payment.refunded_cents, amountRefunded);
+  const fullyRefunded = newRefunded >= payment.amount_cents;
 
   const { error: updateError } = await serviceClient
     .from("payments")
@@ -217,10 +193,7 @@ async function applyChargeRefund(
     };
   }
 
-  return projectBookingPaymentStatus(
-    serviceClient,
-    payment.booking_id as string,
-  );
+  return projectBookingPaymentStatus(serviceClient, payment.booking_id);
 }
 
 /**
@@ -229,7 +202,7 @@ async function applyChargeRefund(
  * NEVER writes payment_status or bookings.status. SP5 surfaces the markers.
  */
 async function applyDispute(
-  serviceClient: SupabaseClient,
+  serviceClient: DbClient,
   intentId: string | null,
   status: string,
   phase: "created" | "closed",
@@ -279,39 +252,41 @@ async function applyDispute(
  * guarded by refunded_cents so a re-delivered succeeded event never double-refunds.
  */
 async function reconcileOverpay(
-  serviceClient: SupabaseClient,
+  serviceClient: DbClient,
   gateway: PaymentGateway,
   intentId: string,
 ): Promise<void> {
-  const { data: row } = await serviceClient
+  const { data: row, error: rowError } = await serviceClient
     .from("payments")
     .select("booking_id")
     .eq("stripe_payment_intent_id", intentId)
     .maybeSingle();
+  if (rowError) {
+    console.error("reconcileOverpay: payment lookup failed", rowError);
+    return;
+  }
   if (!row) return;
 
-  const { data: booking } = await serviceClient
+  const { data: booking, error: bookingError } = await serviceClient
     .from("bookings")
     .select(
       "final_cents, payments(stripe_payment_intent_id, status, amount_cents, refunded_cents, created_at)",
     )
-    .eq("id", row.booking_id as string)
+    .eq("id", row.booking_id)
     .maybeSingle();
+  if (bookingError) {
+    console.error("reconcileOverpay: booking lookup failed", bookingError);
+    return;
+  }
   if (!booking) return;
 
-  const rows = booking.payments as Array<{
-    stripe_payment_intent_id: string;
-    status: string;
-    amount_cents: number;
-    refunded_cents: number;
-    created_at: string;
-  }>;
+  const rows = booking.payments;
 
   const capturedSum = rows
     .filter((r) => r.status === "succeeded" || r.status === "refunded")
     .reduce((a, r) => a + r.amount_cents, 0);
   const refundedSum = rows.reduce((a, r) => a + r.refunded_cents, 0);
-  const finalCents = booking.final_cents as number;
+  const finalCents = booking.final_cents;
   const excess = capturedSum - refundedSum - finalCents;
   if (excess <= 0) return;
 
@@ -320,10 +295,24 @@ async function reconcileOverpay(
     .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))[0];
   if (!target) return;
 
+  // Stripe rejects a refund larger than what the intent has left, and that
+  // rejection would fail the whole webhook into a three-day retry loop.
+  const refundCents = Math.min(
+    excess,
+    target.amount_cents - target.refunded_cents,
+  );
+  if (refundCents <= 0) return;
+
   // Deterministic key: stable for this overpay state, so a re-delivered
   // succeeded event (before the refund's charge.refunded lands) reuses it.
   const key = `overpay:${finalCents}:${capturedSum}:${target.stripe_payment_intent_id}`;
-  await gateway.refund(target.stripe_payment_intent_id, excess, key);
+  try {
+    await gateway.refund(target.stripe_payment_intent_id, refundCents, key);
+  } catch (error) {
+    // The payment itself was recorded; only the courtesy refund failed. Log and
+    // let the webhook succeed so Stripe stops re-delivering the same event.
+    console.error("reconcileOverpay: refund failed", error);
+  }
 }
 
 /**
@@ -333,7 +322,7 @@ async function reconcileOverpay(
  * this function (see the route handler).
  */
 export async function applyStripeEvent(
-  serviceClient: SupabaseClient,
+  serviceClient: DbClient,
   event: StripeEventInput,
   gateway?: PaymentGateway,
 ): Promise<ApplyResult> {

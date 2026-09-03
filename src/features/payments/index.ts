@@ -5,6 +5,9 @@ export * from "./client-balance";
 export { applyStripeEvent } from "./webhook-core";
 export { createPrepayIntent } from "./create-intent";
 export type { BookingPaymentStatus } from "./payment-display";
+export { sums, netPaid, amountOwedCents, planRefunds } from "./projection";
+export type { PaymentTxn } from "./types";
+export type { RefundAllocation } from "./projection";
 export {
   paymentPill,
   retainedHalfLabel,

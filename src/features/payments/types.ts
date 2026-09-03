@@ -51,6 +51,27 @@ export interface PaymentGateway {
   cancelIntent(paymentIntentId: string): Promise<void>;
 }
 
+// ─── Webhook seam ─────────────────────────────────────────────────────────────
+
+/**
+ * A signature-verified webhook event, in the app's own shape. `data.object` is
+ * `unknown` on purpose: it is a vendor payload that the core parses field by
+ * field with zod, and typing it as anything richer would only invite a cast.
+ */
+export interface StripeEventInput {
+  type: string;
+  data: { object: unknown };
+}
+
+/**
+ * Outcome of verifying a webhook delivery. Both failures are things a stranger
+ * POSTing at the endpoint can cause, so they are values rather than throws; the
+ * route maps each to its own 400.
+ */
+export type WebhookVerification =
+  | { ok: true; event: StripeEventInput }
+  | { ok: false; reason: "missing_signature" | "invalid_signature" };
+
 // ─── Domain types ─────────────────────────────────────────────────────────────
 
 /** A single payment transaction — used as input to the projection. */

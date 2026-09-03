@@ -21,8 +21,12 @@ export type BookingPaymentStatus =
   | "partially_refunded"
   | "refunded";
 
-/** Captured money = succeeded + (now-refunded) rows; refunds tracked separately. */
-function sums(txns: PaymentTxn[]): {
+/**
+ * Captured money = succeeded + (now-refunded) rows; refunds tracked separately.
+ * Exported for callers that need the two halves apart (e.g. clamping a refund
+ * request); callers that only want the difference should use `netPaid`.
+ */
+export function sums(txns: PaymentTxn[]): {
   capturedSum: number;
   refundedSum: number;
 } {
@@ -54,11 +58,58 @@ export function computePaymentStatus(
   return "unpaid";
 }
 
+/**
+ * Cents the client is actually out of pocket: captured money minus everything
+ * refunded. Every "how much has been paid" question routes through this rather
+ * than summing gross amounts, which over-counts after a partial refund.
+ */
+export function netPaid(txns: PaymentTxn[]): number {
+  const { capturedSum, refundedSum } = sums(txns);
+  return capturedSum - refundedSum;
+}
+
 /** Cents still owed after netting succeeded payments against refunds. Clamps to 0. */
 export function amountOwedCents(
   finalCents: number,
   txns: PaymentTxn[],
 ): number {
-  const { capturedSum, refundedSum } = sums(txns);
-  return Math.max(0, finalCents - (capturedSum - refundedSum));
+  return Math.max(0, finalCents - netPaid(txns));
+}
+
+/** How much of a refund request one transaction should carry. */
+export interface RefundAllocation<T> {
+  txn: T;
+  amountCents: number;
+}
+
+/**
+ * Splits a refund request across the transactions that actually captured money,
+ * never asking any one of them for more than it has left
+ * (`amountCents - refundedCents`).
+ *
+ * Aiming a whole request at the first succeeded transaction over-refunds it on
+ * a two-intent booking and re-refunds money on an already partially refunded
+ * one. Stripe rejects both outright, and the rejection propagates before the
+ * booking status is written — so the clamp is what keeps a cancel from leaving
+ * the booking active. Allocation stops early when nothing is left to refund;
+ * the caller decides what a short plan means.
+ */
+export function planRefunds<T extends PaymentTxn>(
+  txns: T[],
+  requestedCents: number,
+): RefundAllocation<T>[] {
+  const plan: RefundAllocation<T>[] = [];
+  let unallocated = Math.max(0, requestedCents);
+
+  for (const txn of txns) {
+    if (unallocated === 0) break;
+    if (txn.status !== "succeeded" && txn.status !== "refunded") continue;
+    const remaining = Math.max(0, txn.amountCents - txn.refundedCents);
+    if (remaining === 0) continue;
+    const amountCents = Math.min(remaining, unallocated);
+    plan.push({ txn, amountCents });
+    unallocated -= amountCents;
+  }
+
+  return plan;
 }
