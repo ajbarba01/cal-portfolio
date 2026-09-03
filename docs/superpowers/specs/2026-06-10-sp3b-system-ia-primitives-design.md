@@ -1,6 +1,6 @@
 # SP3b — System IA + UI primitives (design)
 
-> Second half of SP3 (Foundations). Companion: [roadmap](2026-06-10-professionalization-roadmap-design.md) §SP3, [findings register](2026-06-10-audit-findings.md) §SP3. SP3a ([spec](2026-06-10-sp3a-codebase-refactor-design.md), [plan](../plans/2026-06-10-sp3a-codebase-refactor.md)) delivered the enforceable feature boundaries + per-feature public APIs this spec consumes. SP3b owns the **system IA + UI-primitive** slice, plus the codebase-deepening follow-ups SP3a's review deferred.
+> Second half of SP3 (Foundations). Companion: [roadmap](2026-06-10-professionalization-roadmap-design.md) §SP3, [findings register](2026-06-10-audit-findings.md) §SP3. SP3a ([spec](2026-06-10-sp3a-codebase-refactor-design.md), [plan](../plans/archive/2026-06-10-sp3a-codebase-refactor.md)) delivered the enforceable feature boundaries + per-feature public APIs this spec consumes. SP3b owns the **system IA + UI-primitive** slice, plus the codebase-deepening follow-ups SP3a's review deferred.
 
 ## Goal
 

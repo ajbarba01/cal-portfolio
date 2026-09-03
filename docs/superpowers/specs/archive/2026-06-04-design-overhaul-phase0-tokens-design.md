@@ -1,5 +1,7 @@
 # Design Overhaul — Phase 0: Tokens & Type (Spec)
 
+> Archived: the Trail token decisions here shipped; the current source of truth is `docs/FRONTEND.md` and `docs/COMPONENT_SYSTEM.md`, carried forward design-wise by `docs/superpowers/specs/2026-06-11-sp6-cohesion-design.md`.
+
 > Status: **approved-direction, pending spec review** · 2026-06-04
 > Umbrella roadmap: `~/.claude/plans/ok-sure-lets-try-splendid-plum.md` (5-phase, foundation-first).
 > This spec covers **Phase 0 only**: the swappable design foundation every later phase inherits.

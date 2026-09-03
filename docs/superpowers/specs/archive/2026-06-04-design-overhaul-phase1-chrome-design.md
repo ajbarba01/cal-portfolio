@@ -1,5 +1,7 @@
 # Design Overhaul — Phase 1: Shared Chrome + Core Components (Spec)
 
+> Archived: this chrome/component decision shipped; the current source of truth is `docs/FRONTEND.md` and `docs/COMPONENT_SYSTEM.md`, carried forward design-wise by `docs/superpowers/specs/2026-06-11-sp6-cohesion-design.md`.
+
 > Status: **approved-direction, pending spec review** · 2026-06-04
 > Umbrella roadmap: `~/.claude/plans/ok-sure-lets-try-splendid-plum.md` (5-phase, foundation-first).
 > Builds on **Phase 0** (`2026-06-04-design-overhaul-phase0-tokens-design.md`): the Trail palette,

@@ -1,5 +1,7 @@
 # Phase 4a — Admin Capabilities
 
+> Archived: this admin-capabilities cycle was superseded by the later, complete admin overhaul in `docs/superpowers/specs/2026-06-11-sp5-admin-design.md`.
+
 > Spec for the admin-capabilities cycle (umbrella roadmap:
 > `~/.claude/plans/ok-sure-lets-try-splendid-plum.md`, Phase 4). Phases 0, 1,
 > Shell-Unification, 2, and 3 are DONE on local `main` (unpushed). This spec owns

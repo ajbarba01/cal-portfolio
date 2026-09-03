@@ -60,7 +60,7 @@ Admin-powers inventory: all 17 expected powers exist in code with UI (approve/de
 
 ### SP5 planning decisions (2026-06-11)
 
-Spec + plans committed ([spec](2026-06-11-sp5-admin-design.md), [SP5a plan](../plans/2026-06-11-sp5a-admin-operational-surfaces.md), [SP5b plan](../plans/2026-06-11-sp5b-admin-awareness-layer.md)); 20 maintainer-approved mockups in [`mockups/sp5/`](../mockups/sp5/NOTES.md). Split SP5a (operational surfaces) / SP5b (awareness layer); both schema-free. Maintainer override: **every** admin surface gets a Cal-friendly functional-UX pass, not just the finding-tagged ones.
+Spec + plans committed ([spec](2026-06-11-sp5-admin-design.md), [SP5a plan](../plans/archive/2026-06-11-sp5a-admin-operational-surfaces.md), [SP5b plan](../plans/archive/2026-06-11-sp5b-admin-awareness-layer.md)); 20 maintainer-approved mockups in [`mockups/sp5/`](../mockups/sp5/NOTES.md). Split SP5a (operational surfaces) / SP5b (awareness layer); both schema-free. Maintainer override: **every** admin surface gets a Cal-friendly functional-UX pass, not just the finding-tagged ones.
 
 - **AD1 → RE-ROUTED out of SP5** to the grill-required **Recurring workflow rework** (interleaved item). Maintainer reframed conflicts as a **booking-time, client-side** concern — first-come-first-served; a new recurring series reschedules its own conflicting occurrences at booking time; **Cal needs no conflict inbox**. Root cause is the roll cron's lazy materialization → a recurring-engine fix, not an admin surface. No `series_conflicts` table; `AttentionCounts.flaggedConflicts` stays 0.
 - **AD2, AD3 → SP5a** (pruned at SP5a DoD). **AD5 → SP5b** (pruned at SP5b DoD).

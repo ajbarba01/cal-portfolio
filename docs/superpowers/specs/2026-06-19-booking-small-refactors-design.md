@@ -88,7 +88,7 @@
 
 **Decision:** Test fix + local reset; flag prod (confirmed).
 
-**Root cause:** The integration test [admin.test.ts](../../../src/features/admin/admin.test.ts) "valid update persists" calls `updateServiceCore` against a real Supabase and sets the **walk** service's `description` to `Admin test description <ts>`, never restoring it. That value persists and renders wherever `service.description` shows (e.g. `/book/walk` header). Not intentional copy.
+**Root cause:** The integration test [admin.integration.test.ts](../../../src/features/admin/admin.integration.test.ts) "valid update persists" calls `updateServiceCore` against a real Supabase and sets the **walk** service's `description` to `Admin test description <ts>`, never restoring it. That value persists and renders wherever `service.description` shows (e.g. `/book/walk` header). Not intentional copy.
 
 **Changes:**
 

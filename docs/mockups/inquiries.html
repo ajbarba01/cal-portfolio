@@ -49,12 +49,17 @@
         color: var(--fg);
         background-color: var(--bg);
         /* faint warm topo texture so flat surfaces read as paper */
-        background-image: radial-gradient(
+        background-image:
+          radial-gradient(
             circle at 18% 12%,
             rgba(174, 90, 53, 0.04),
             transparent 40%
           ),
-          radial-gradient(circle at 85% 90%, rgba(110, 99, 84, 0.05), transparent 45%);
+          radial-gradient(
+            circle at 85% 90%,
+            rgba(110, 99, 84, 0.05),
+            transparent 45%
+          );
         -webkit-font-smoothing: antialiased;
         line-height: 1.5;
       }
@@ -242,7 +247,10 @@
         cursor: pointer;
         font: inherit;
         color: inherit;
-        transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+        transition:
+          border-color 0.15s,
+          box-shadow 0.15s,
+          transform 0.15s;
       }
       .card:hover {
         border-color: var(--clay-soft);
@@ -639,11 +647,11 @@
       <header class="doc-head">
         <h1>Inquiries — design mockup</h1>
         <p>
-          One shared component set, two consumers. The <b>account</b> view (client
-          owns their messages → can edit) and the restructured <b>admin</b> view
-          (Cal reads + replies, can't edit a client's words). Warm Trail palette,
-          Fraunces headings, Public Sans body — tokens straight from
-          <code>globals.css</code>.
+          One shared component set, two consumers. The <b>account</b> view
+          (client owns their messages → can edit) and the restructured
+          <b>admin</b> view (Cal reads + replies, can't edit a client's words).
+          Warm Trail palette, Fraunces headings, Public Sans body — tokens
+          straight from <code>globals.css</code>.
         </p>
       </header>
 
@@ -652,9 +660,9 @@
         <span class="tag"><span class="num">1</span> Account · list view</span>
         <p class="note">
           Search filters live. Segmented control toggles status. Cards are a
-          <b>uniform grid of fixed-height tiles</b> — subject clamps to one line,
-          body to three with a soft cut-off. Sorted newest-first. The whole tile is
-          a button; the inline actions stop propagation.
+          <b>uniform grid of fixed-height tiles</b> — subject clamps to one
+          line, body to three with a soft cut-off. Sorted newest-first. The
+          whole tile is a button; the inline actions stop propagation.
         </p>
         <div class="viewport">
           <div class="sheet">
@@ -663,14 +671,25 @@
                 Your inquiries
               </div>
               <p class="page-sub">
-                Messages you've sent to Cal. Mark one resolved once you no longer
-                need a reply.
+                Messages you've sent to Cal. Mark one resolved once you no
+                longer need a reply.
               </p>
             </div>
 
             <div class="toolbar">
               <div class="search">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                >
+                  <circle cx="11" cy="11" r="7" />
+                  <path d="m21 21-4.3-4.3" />
+                </svg>
                 <input type="text" placeholder="Search your inquiries…" />
               </div>
               <div class="segmented" role="group" aria-label="Filter by status">
@@ -685,18 +704,33 @@
               <!-- open, long -->
               <button class="card">
                 <div class="card-top">
-                  <span class="card-subject">Weekend house-sitting, June 20–23</span>
+                  <span class="card-subject"
+                    >Weekend house-sitting, June 20–23</span
+                  >
                   <span class="badge open">Open</span>
                 </div>
                 <div class="card-body">
                   Hi Cal! We're heading out of town for a long weekend and were
-                  hoping you'd be able to stay over with Maple and Juniper. They're
-                  both crate-trained and great with…
+                  hoping you'd be able to stay over with Maple and Juniper.
+                  They're both crate-trained and great with…
                 </div>
                 <div class="card-foot">
-                  <span class="card-date">Jun 3 <span class="dot">·</span> 2:14 PM</span>
+                  <span class="card-date"
+                    >Jun 3 <span class="dot">·</span> 2:14 PM</span
+                  >
                   <span class="card-replied">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+                    <svg
+                      width="13"
+                      height="13"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.4"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path d="M20 6 9 17l-5-5" />
+                    </svg>
                     Cal replied
                   </span>
                 </div>
@@ -712,7 +746,9 @@
                   Do you charge extra for a second dog on the 30-min walks?
                 </div>
                 <div class="card-foot">
-                  <span class="card-date">May 28 <span class="dot">·</span> 9:02 AM</span>
+                  <span class="card-date"
+                    >May 28 <span class="dot">·</span> 9:02 AM</span
+                  >
                 </div>
               </button>
 
@@ -723,12 +759,14 @@
                   <span class="badge open">Open</span>
                 </div>
                 <div class="card-body">
-                  Following up on the meet &amp; greet from last week — Maple really
-                  took to you. Wanted to lock in a recurring Tue/Thu walk if your
-                  afternoons are still open going into summer.
+                  Following up on the meet &amp; greet from last week — Maple
+                  really took to you. Wanted to lock in a recurring Tue/Thu walk
+                  if your afternoons are still open going into summer.
                 </div>
                 <div class="card-foot">
-                  <span class="card-date">May 24 <span class="dot">·</span> 6:40 PM</span>
+                  <span class="card-date"
+                    >May 24 <span class="dot">·</span> 6:40 PM</span
+                  >
                 </div>
               </button>
 
@@ -739,14 +777,27 @@
                   <span class="badge resolved">Resolved</span>
                 </div>
                 <div class="card-body">
-                  Wondering if you book over the 4th of July weekend, or if you're
-                  taking time off. No rush — just planning ahead for the summer
-                  travel season.
+                  Wondering if you book over the 4th of July weekend, or if
+                  you're taking time off. No rush — just planning ahead for the
+                  summer travel season.
                 </div>
                 <div class="card-foot">
-                  <span class="card-date">May 12 <span class="dot">·</span> 11:20 AM</span>
+                  <span class="card-date"
+                    >May 12 <span class="dot">·</span> 11:20 AM</span
+                  >
                   <span class="card-replied">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+                    <svg
+                      width="13"
+                      height="13"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.4"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path d="M20 6 9 17l-5-5" />
+                    </svg>
                     Cal replied
                   </span>
                 </div>
@@ -771,12 +822,14 @@
 
       <!-- ───────────────────── 2. DETAIL POPUP (READ) ───────────────────── -->
       <section class="frame">
-        <span class="tag"><span class="num">2</span> Detail popup · read mode</span>
+        <span class="tag"
+          ><span class="num">2</span> Detail popup · read mode</span
+        >
         <p class="note">
-          Clicking a tile opens the full message (base-ui Dialog, click-out / Esc to
-          close). If the message was short, it's already fully shown in the tile —
-          the popup just gives room + actions. <b>Edit</b> and <b>Resolve</b> live in
-          the footer.
+          Clicking a tile opens the full message (base-ui Dialog, click-out /
+          Esc to close). If the message was short, it's already fully shown in
+          the tile — the popup just gives room + actions. <b>Edit</b> and
+          <b>Resolve</b> live in the footer.
         </p>
         <div class="modal-stage">
           <div class="dialog">
@@ -786,26 +839,76 @@
                 <div class="dialog-meta">
                   <span>Sent Jun 3, 2026 · 2:14 PM</span>
                   <span class="card-replied">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+                    <svg
+                      width="13"
+                      height="13"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.4"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path d="M20 6 9 17l-5-5" />
+                    </svg>
                     Cal replied
                   </span>
                 </div>
               </div>
               <button class="x" aria-label="Close">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                >
+                  <path d="M18 6 6 18M6 6l12 12" />
+                </svg>
               </button>
             </div>
-            <div class="dialog-body">Hi Cal! We're heading out of town for a long weekend and were hoping you'd be able to stay over with Maple and Juniper. They're both crate-trained and great with other dogs, but Juniper does need her evening meds (just a pill in a pill-pocket, super easy).
-
-We'd be leaving Friday morning the 20th and back Monday evening the 23rd. Happy to do a quick call beforehand to go over the house and their routine. Let me know if those dates work!</div>
+            <div class="dialog-body">
+              Hi Cal! We're heading out of town for a long weekend and were
+              hoping you'd be able to stay over with Maple and Juniper. They're
+              both crate-trained and great with other dogs, but Juniper does
+              need her evening meds (just a pill in a pill-pocket, super easy).
+              We'd be leaving Friday morning the 20th and back Monday evening
+              the 23rd. Happy to do a quick call beforehand to go over the house
+              and their routine. Let me know if those dates work!
+            </div>
             <div class="dialog-foot">
               <button class="btn btn-ghost">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M12 20h9" />
+                  <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                </svg>
                 Edit
               </button>
               <div class="spacer"></div>
               <button class="btn btn-brand">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M20 6 9 17l-5-5" />
+                </svg>
                 Mark resolved
               </button>
             </div>
@@ -815,43 +918,86 @@ We'd be leaving Friday morning the 20th and back Monday evening the 23rd. Happy 
 
       <!-- ───────────────────── 3. DETAIL POPUP (EDIT) ───────────────────── -->
       <section class="frame">
-        <span class="tag"><span class="num">3</span> Detail popup · edit mode (account only)</span>
+        <span class="tag"
+          ><span class="num">3</span> Detail popup · edit mode (account
+          only)</span
+        >
         <p class="note">
-          <b>Edit</b> turns subject + body into fields in place, and the Edit button
-          becomes <b>Save</b> (primary) with a Cancel. Opening edit directly from a
-          tile's Edit action lands here. <b>Edit is locked once Cal replies or the
-          inquiry is resolved</b> — those are read-only (no Edit affordance shown).
+          <b>Edit</b> turns subject + body into fields in place, and the Edit
+          button becomes <b>Save</b> (primary) with a Cancel. Opening edit
+          directly from a tile's Edit action lands here.
+          <b>Edit is locked once Cal replies or the inquiry is resolved</b> —
+          those are read-only (no Edit affordance shown).
         </p>
         <div class="modal-stage">
           <div class="dialog">
             <div class="dialog-head">
               <div class="hgroup">
-                <h3 class="dialog-title" style="font-size: 15px; color: var(--muted-fg); font-family: var(--sans); font-weight: 600">
+                <h3
+                  class="dialog-title"
+                  style="
+                    font-size: 15px;
+                    color: var(--muted-fg);
+                    font-family: var(--sans);
+                    font-weight: 600;
+                  "
+                >
                   Editing inquiry
                 </h3>
-                <div class="dialog-meta"><span>Sent Jun 3, 2026 · 2:14 PM</span></div>
+                <div class="dialog-meta">
+                  <span>Sent Jun 3, 2026 · 2:14 PM</span>
+                </div>
               </div>
               <button class="x" aria-label="Close">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                >
+                  <path d="M18 6 6 18M6 6l12 12" />
+                </svg>
               </button>
             </div>
             <div class="edit-wrap">
               <div>
                 <label class="field-label">Subject</label>
-                <input class="input" value="Weekend house-sitting, June 20–23" />
+                <input
+                  class="input"
+                  value="Weekend house-sitting, June 20–23"
+                />
               </div>
               <div>
                 <label class="field-label">Message</label>
-                <textarea class="textarea">Hi Cal! We're heading out of town for a long weekend and were hoping you'd be able to stay over with Maple and Juniper. They're both crate-trained and great with other dogs, but Juniper does need her evening meds.
+                <textarea class="textarea">
+Hi Cal! We're heading out of town for a long weekend and were hoping you'd be able to stay over with Maple and Juniper. They're both crate-trained and great with other dogs, but Juniper does need her evening meds.
 
-We'd be leaving Friday the 20th and back Monday the 23rd.</textarea>
+We'd be leaving Friday the 20th and back Monday the 23rd.</textarea
+                >
               </div>
             </div>
             <div class="dialog-foot">
               <button class="btn btn-ghost">Cancel</button>
               <div class="spacer"></div>
               <button class="btn btn-primary">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z" /><path d="M17 21v-8H7v8M7 3v5h8" /></svg>
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path
+                    d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"
+                  />
+                  <path d="M17 21v-8H7v8M7 3v5h8" />
+                </svg>
                 Save changes
               </button>
             </div>
@@ -861,24 +1007,41 @@ We'd be leaving Friday the 20th and back Monday the 23rd.</textarea>
 
       <!-- ───────────────────── 4. CONFIRM RESOLVE ───────────────────── -->
       <section class="frame">
-        <span class="tag"><span class="num">4</span> Resolve · confirm dialog</span>
+        <span class="tag"
+          ><span class="num">4</span> Resolve · confirm dialog</span
+        >
         <p class="note">
-          Resolve is irreversible, so it always routes through a confirm. From a tile
-          → confirm opens directly. From the detail popup → the popup closes first,
-          then this appears. Same dialog in both views.
+          Resolve is irreversible, so it always routes through a confirm. From a
+          tile → confirm opens directly. From the detail popup → the popup
+          closes first, then this appears. Same dialog in both views.
         </p>
         <div class="modal-stage">
           <div class="dialog confirm">
             <div style="padding: 24px 24px 4px">
               <div class="warn-icon">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" /><path d="M12 9v4M12 17h.01" /></svg>
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path
+                    d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"
+                  />
+                  <path d="M12 9v4M12 17h.01" />
+                </svg>
               </div>
               <h3 class="dialog-title" style="font-size: 19px">
                 Mark this inquiry resolved?
               </h3>
             </div>
             <div class="dialog-body">
-              This tells Cal you no longer need a reply. <b style="color: var(--fg)">This can't be undone.</b>
+              This tells Cal you no longer need a reply.
+              <b style="color: var(--fg)">This can't be undone.</b>
             </div>
             <div class="dialog-foot">
               <button class="btn btn-outline">Cancel</button>
@@ -891,23 +1054,44 @@ We'd be leaving Friday the 20th and back Monday the 23rd.</textarea>
 
       <!-- ───────────────────── 5. ADMIN VARIANT ───────────────────── -->
       <section class="frame">
-        <span class="tag"><span class="num">5</span> Admin · same components, restructured</span>
+        <span class="tag"
+          ><span class="num">5</span> Admin · same components,
+          restructured</span
+        >
         <p class="callout">
-          <b>Modularity:</b> identical tile grid, search, pager, and detail popup. The
-          differences are passed as props — admin tiles surface the <b>client's name +
-          email</b>, the detail popup swaps Edit for <b>reply actions</b> (Email / Text),
-          and edit mode is never mounted. Cal can resolve but never rewrites a
-          client's words.
+          <b>Modularity:</b> identical tile grid, search, pager, and detail
+          popup. The differences are passed as props — admin tiles surface the
+          <b>client's name + email</b>, the detail popup swaps Edit for
+          <b>reply actions</b> (Email / Text), and edit mode is never mounted.
+          Cal can resolve but never rewrites a client's words.
         </p>
         <div class="viewport">
           <div class="sheet">
-            <div class="page-title" style="font-family: var(--heading)">Inquiries</div>
-            <p class="page-sub">Contact-form messages from clients and visitors.</p>
+            <div class="page-title" style="font-family: var(--heading)">
+              Inquiries
+            </div>
+            <p class="page-sub">
+              Contact-form messages from clients and visitors.
+            </p>
 
             <div class="toolbar">
               <div class="search">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
-                <input type="text" placeholder="Search by name, email, or text…" />
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                >
+                  <circle cx="11" cy="11" r="7" />
+                  <path d="m21 21-4.3-4.3" />
+                </svg>
+                <input
+                  type="text"
+                  placeholder="Search by name, email, or text…"
+                />
               </div>
               <div class="segmented" role="group" aria-label="Filter by status">
                 <button aria-pressed="false">All</button>
@@ -923,15 +1107,24 @@ We'd be leaving Friday the 20th and back Monday the 23rd.</textarea>
                   <span class="card-subject">Recurring afternoon walks</span>
                   <span class="badge open">New</span>
                 </div>
-                <div style="font-size: 12.5px; color: var(--muted-fg); margin: -2px 0 8px; font-weight: 500">
+                <div
+                  style="
+                    font-size: 12.5px;
+                    color: var(--muted-fg);
+                    margin: -2px 0 8px;
+                    font-weight: 500;
+                  "
+                >
                   Priya Anand · priya@example.com
                 </div>
                 <div class="card-body" style="-webkit-line-clamp: 2">
-                  Hi! I saw your profile and I'm interested in Tue/Thu walks for my
-                  golden, Sunny. Are afternoons around 2pm open this summer?
+                  Hi! I saw your profile and I'm interested in Tue/Thu walks for
+                  my golden, Sunny. Are afternoons around 2pm open this summer?
                 </div>
                 <div class="card-foot">
-                  <span class="card-date">Jun 8 <span class="dot">·</span> 4:31 PM</span>
+                  <span class="card-date"
+                    >Jun 8 <span class="dot">·</span> 4:31 PM</span
+                  >
                 </div>
               </button>
 
@@ -940,17 +1133,37 @@ We'd be leaving Friday the 20th and back Monday the 23rd.</textarea>
                   <span class="card-subject untitled">No subject</span>
                   <span class="badge resolved">Resolved</span>
                 </div>
-                <div style="font-size: 12.5px; color: var(--muted-fg); margin: -2px 0 8px; font-weight: 500">
+                <div
+                  style="
+                    font-size: 12.5px;
+                    color: var(--muted-fg);
+                    margin: -2px 0 8px;
+                    font-weight: 500;
+                  "
+                >
                   Marcus Lee · marcus.lee@example.com
                 </div>
                 <div class="card-body" style="-webkit-line-clamp: 2">
-                  Do you do overnight sitting? Have a 3-night trip coming up in July
-                  and would love to chat about it.
+                  Do you do overnight sitting? Have a 3-night trip coming up in
+                  July and would love to chat about it.
                 </div>
                 <div class="card-foot">
-                  <span class="card-date">Jun 5 <span class="dot">·</span> 8:12 AM</span>
+                  <span class="card-date"
+                    >Jun 5 <span class="dot">·</span> 8:12 AM</span
+                  >
                   <span class="card-replied">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+                    <svg
+                      width="13"
+                      height="13"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.4"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path d="M20 6 9 17l-5-5" />
+                    </svg>
                     replied
                   </span>
                 </div>
@@ -958,20 +1171,72 @@ We'd be leaving Friday the 20th and back Monday the 23rd.</textarea>
             </div>
 
             <!-- admin detail popup footer differs: reply actions instead of edit -->
-            <div style="margin-top: 20px; font-size: 12px; color: var(--muted-fg); text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700">
+            <div
+              style="
+                margin-top: 20px;
+                font-size: 12px;
+                color: var(--muted-fg);
+                text-transform: uppercase;
+                letter-spacing: 0.1em;
+                font-weight: 700;
+              "
+            >
               Admin popup footer
             </div>
-            <div class="dialog-foot" style="border: 1px solid var(--border); border-radius: 12px; margin-top: 8px; background: var(--sand-50); flex-wrap: wrap">
+            <div
+              class="dialog-foot"
+              style="
+                border: 1px solid var(--border);
+                border-radius: 12px;
+                margin-top: 8px;
+                background: var(--sand-50);
+                flex-wrap: wrap;
+              "
+            >
               <button class="btn btn-brand">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2" /><path d="m22 7-10 5L2 7" /></svg>
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <rect x="2" y="4" width="20" height="16" rx="2" />
+                  <path d="m22 7-10 5L2 7" />
+                </svg>
                 Email
               </button>
               <button class="btn btn-outline">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" /></svg>
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
+                </svg>
                 Text
               </button>
               <button class="btn btn-ghost">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M5 12h14M13 6l6 6-6 6" />
+                </svg>
                 View client
               </button>
               <div class="spacer"></div>
@@ -979,9 +1244,10 @@ We'd be leaving Friday the 20th and back Monday the 23rd.</textarea>
             </div>
             <p class="note" style="margin: 10px 0 0; font-size: 12px">
               Linked-client inquiries get <b>View client</b> (→ existing
-              <code>/admin/clients/[id]</code>); walk-in inquiries with no account
-              simply omit it. Email/Text reuse the current <code>reply-draft</code>
-              mailto/sms builders and stamp <code>replied_at</code>.
+              <code>/admin/clients/[id]</code>); walk-in inquiries with no
+              account simply omit it. Email/Text reuse the current
+              <code>reply-draft</code> mailto/sms builders and stamp
+              <code>replied_at</code>.
             </p>
           </div>
         </div>
@@ -989,26 +1255,33 @@ We'd be leaving Friday the 20th and back Monday the 23rd.</textarea>
 
       <!-- ───────────────────── 6. MOBILE ───────────────────── -->
       <section class="frame">
-        <span class="tag"><span class="num">6</span> Mobile · parity, not a fallback</span>
+        <span class="tag"
+          ><span class="num">6</span> Mobile · parity, not a fallback</span
+        >
         <p class="callout">
-          <b>The overflow bug, fixed:</b> today a long inquiry's text flows straight
-          out of its box. Here every tile is the same height with subject clamped to
-          one line and body to three (a soft fade marks the cut-off), and the popup
-          body <b>scrolls inside the dialog</b> instead of pushing the layout. Nothing
-          can ever escape its container.
+          <b>The overflow bug, fixed:</b> today a long inquiry's text flows
+          straight out of its box. Here every tile is the same height with
+          subject clamped to one line and body to three (a soft fade marks the
+          cut-off), and the popup body <b>scrolls inside the dialog</b> instead
+          of pushing the layout. Nothing can ever escape its container.
         </p>
         <p class="note">
           On mobile the grid collapses to a single column, the toolbar stacks
-          (full-width search, scrollable segmented control), and the detail popup
-          becomes a <b>bottom sheet</b> that fills the width. <b>Key rule: on mobile
-          the tiles carry no action buttons at all</b> — tapping a tile opens the
-          sheet, and every action (Resolve, Edit for account; Email / Text / Resolve
-          for admin) lives there as full-width, thumb-reachable buttons. Desktop
-          keeps the inline tile actions; mobile defers them to the sheet. Same
-          components, responsive props.
+          (full-width search, scrollable segmented control), and the detail
+          popup becomes a <b>bottom sheet</b> that fills the width.
+          <b>Key rule: on mobile the tiles carry no action buttons at all</b> —
+          tapping a tile opens the sheet, and every action (Resolve, Edit for
+          account; Email / Text / Resolve for admin) lives there as full-width,
+          thumb-reachable buttons. Desktop keeps the inline tile actions; mobile
+          defers them to the sheet. Same components, responsive props.
         </p>
         <div
-          style="display: flex; gap: 28px; flex-wrap: wrap; align-items: flex-start"
+          style="
+            display: flex;
+            gap: 28px;
+            flex-wrap: wrap;
+            align-items: flex-start;
+          "
         >
           <!-- phone: list -->
           <div class="phone">
@@ -1016,7 +1289,11 @@ We'd be leaving Friday the 20th and back Monday the 23rd.</textarea>
             <div class="phone-screen">
               <div style="padding: 18px 16px 0">
                 <div
-                  style="font-family: var(--heading); font-size: 20px; font-weight: 600"
+                  style="
+                    font-family: var(--heading);
+                    font-size: 20px;
+                    font-weight: 600;
+                  "
                 >
                   Your inquiries
                 </div>
@@ -1024,7 +1301,18 @@ We'd be leaving Friday the 20th and back Monday the 23rd.</textarea>
                   Mark one resolved once you no longer need a reply.
                 </p>
                 <div class="search" style="margin: 14px 0 10px">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
+                  <svg
+                    width="15"
+                    height="15"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                  >
+                    <circle cx="11" cy="11" r="7" />
+                    <path d="m21 21-4.3-4.3" />
+                  </svg>
                   <input type="text" placeholder="Search…" />
                 </div>
                 <div class="segmented" style="width: 100%; margin-bottom: 12px">
@@ -1034,7 +1322,12 @@ We'd be leaving Friday the 20th and back Monday the 23rd.</textarea>
                 </div>
               </div>
               <div
-                style="display: flex; flex-direction: column; gap: 11px; padding: 0 16px 18px"
+                style="
+                  display: flex;
+                  flex-direction: column;
+                  gap: 11px;
+                  padding: 0 16px 18px;
+                "
               >
                 <button class="card" style="height: auto; min-height: 150px">
                   <div class="card-top">
@@ -1047,9 +1340,22 @@ We'd be leaving Friday the 20th and back Monday the 23rd.</textarea>
                     with other dogs, but Juniper needs her evening meds…
                   </div>
                   <div class="card-foot">
-                    <span class="card-date">Jun 3 <span class="dot">·</span> 2:14 PM</span>
+                    <span class="card-date"
+                      >Jun 3 <span class="dot">·</span> 2:14 PM</span
+                    >
                     <span class="card-replied">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+                      <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.4"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      >
+                        <path d="M20 6 9 17l-5-5" />
+                      </svg>
                       replied
                     </span>
                   </div>
@@ -1063,7 +1369,9 @@ We'd be leaving Friday the 20th and back Monday the 23rd.</textarea>
                     Do you charge extra for a second dog on the 30-min walks?
                   </div>
                   <div class="card-foot">
-                    <span class="card-date">May 28 <span class="dot">·</span> 9:02 AM</span>
+                    <span class="card-date"
+                      >May 28 <span class="dot">·</span> 9:02 AM</span
+                    >
                   </div>
                 </button>
               </div>
@@ -1073,11 +1381,27 @@ We'd be leaving Friday the 20th and back Monday the 23rd.</textarea>
           <!-- phone: bottom-sheet popup -->
           <div class="phone">
             <div class="phone-notch"></div>
-            <div class="phone-screen" style="position: relative; background: var(--sand-200)">
-              <div style="position: absolute; inset: 0; background: rgba(28,24,19,0.5)"></div>
+            <div
+              class="phone-screen"
+              style="position: relative; background: var(--sand-200)"
+            >
+              <div
+                style="
+                  position: absolute;
+                  inset: 0;
+                  background: rgba(28, 24, 19, 0.5);
+                "
+              ></div>
               <div class="bottom-sheet">
                 <div class="sheet-grab"></div>
-                <div style="display: flex; align-items: flex-start; gap: 10px; padding: 0 18px 10px">
+                <div
+                  style="
+                    display: flex;
+                    align-items: flex-start;
+                    gap: 10px;
+                    padding: 0 18px 10px;
+                  "
+                >
                   <div style="flex: 1; min-width: 0">
                     <h3 class="dialog-title" style="font-size: 18px">
                       Weekend house-sitting
@@ -1087,21 +1411,62 @@ We'd be leaving Friday the 20th and back Monday the 23rd.</textarea>
                     </div>
                   </div>
                   <button class="x" aria-label="Close">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+                    <svg
+                      width="15"
+                      height="15"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                    >
+                      <path d="M18 6 6 18M6 6l12 12" />
+                    </svg>
                   </button>
                 </div>
-                <div class="dialog-body" style="max-height: 170px; padding: 0 18px 16px">Hi Cal! We're heading out of town for a long weekend and were hoping you'd be able to stay over with Maple and Juniper. They're both crate-trained and great with other dogs, but Juniper does need her evening meds — just a pill in a pill-pocket, super easy.
-
-We'd be leaving Friday the 20th and back Monday the 23rd. Happy to do a quick call beforehand!</div>
-                <div style="display: flex; flex-direction: column; gap: 9px; padding: 14px 18px; border-top: 1px solid var(--border); background: var(--sand-50)">
-                  <button class="btn btn-brand" style="width: 100%; justify-content: center; padding: 11px">
+                <div
+                  class="dialog-body"
+                  style="max-height: 170px; padding: 0 18px 16px"
+                >
+                  Hi Cal! We're heading out of town for a long weekend and were
+                  hoping you'd be able to stay over with Maple and Juniper.
+                  They're both crate-trained and great with other dogs, but
+                  Juniper does need her evening meds — just a pill in a
+                  pill-pocket, super easy. We'd be leaving Friday the 20th and
+                  back Monday the 23rd. Happy to do a quick call beforehand!
+                </div>
+                <div
+                  style="
+                    display: flex;
+                    flex-direction: column;
+                    gap: 9px;
+                    padding: 14px 18px;
+                    border-top: 1px solid var(--border);
+                    background: var(--sand-50);
+                  "
+                >
+                  <button
+                    class="btn btn-brand"
+                    style="width: 100%; justify-content: center; padding: 11px"
+                  >
                     Mark resolved
                   </button>
-                  <button class="btn btn-outline" style="width: 100%; justify-content: center; padding: 11px">
+                  <button
+                    class="btn btn-outline"
+                    style="width: 100%; justify-content: center; padding: 11px"
+                  >
                     Edit
                   </button>
                 </div>
-                <p style="text-align: center; font-size: 11px; color: var(--muted-fg); padding: 0 0 14px; margin: 4px 0 0">
+                <p
+                  style="
+                    text-align: center;
+                    font-size: 11px;
+                    color: var(--muted-fg);
+                    padding: 0 0 14px;
+                    margin: 4px 0 0;
+                  "
+                >
                   Account sheet
                 </p>
               </div>
@@ -1111,40 +1476,128 @@ We'd be leaving Friday the 20th and back Monday the 23rd. Happy to do a quick ca
           <!-- phone: admin bottom-sheet popup (all actions live here) -->
           <div class="phone">
             <div class="phone-notch"></div>
-            <div class="phone-screen" style="position: relative; background: var(--sand-200)">
-              <div style="position: absolute; inset: 0; background: rgba(28,24,19,0.5)"></div>
+            <div
+              class="phone-screen"
+              style="position: relative; background: var(--sand-200)"
+            >
+              <div
+                style="
+                  position: absolute;
+                  inset: 0;
+                  background: rgba(28, 24, 19, 0.5);
+                "
+              ></div>
               <div class="bottom-sheet">
                 <div class="sheet-grab"></div>
-                <div style="display: flex; align-items: flex-start; gap: 10px; padding: 0 18px 6px">
+                <div
+                  style="
+                    display: flex;
+                    align-items: flex-start;
+                    gap: 10px;
+                    padding: 0 18px 6px;
+                  "
+                >
                   <div style="flex: 1; min-width: 0">
                     <h3 class="dialog-title" style="font-size: 18px">
                       Recurring afternoon walks
                     </h3>
-                    <div class="dialog-meta" style="font-size: 12px; flex-direction: column; align-items: flex-start; gap: 2px">
-                      <span style="font-weight: 600; color: var(--fg)">Priya Anand</span>
+                    <div
+                      class="dialog-meta"
+                      style="
+                        font-size: 12px;
+                        flex-direction: column;
+                        align-items: flex-start;
+                        gap: 2px;
+                      "
+                    >
+                      <span style="font-weight: 600; color: var(--fg)"
+                        >Priya Anand</span
+                      >
                       <span>priya@example.com · (303) 555-0148</span>
                       <span>Sent Jun 8 · 4:31 PM</span>
                     </div>
                   </div>
                   <button class="x" aria-label="Close">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+                    <svg
+                      width="15"
+                      height="15"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                    >
+                      <path d="M18 6 6 18M6 6l12 12" />
+                    </svg>
                   </button>
                 </div>
-                <div class="dialog-body" style="max-height: 130px; padding: 8px 18px 14px">Hi! I saw your profile and I'm interested in Tue/Thu walks for my golden, Sunny. Are afternoons around 2pm open this summer? He's friendly, leash-trained, and full of energy.</div>
-                <div style="display: flex; flex-direction: column; gap: 9px; padding: 14px 18px; border-top: 1px solid var(--border); background: var(--sand-50)">
-                  <button class="btn btn-brand" style="width: 100%; justify-content: center; padding: 11px">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2" /><path d="m22 7-10 5L2 7" /></svg>
+                <div
+                  class="dialog-body"
+                  style="max-height: 130px; padding: 8px 18px 14px"
+                >
+                  Hi! I saw your profile and I'm interested in Tue/Thu walks for
+                  my golden, Sunny. Are afternoons around 2pm open this summer?
+                  He's friendly, leash-trained, and full of energy.
+                </div>
+                <div
+                  style="
+                    display: flex;
+                    flex-direction: column;
+                    gap: 9px;
+                    padding: 14px 18px;
+                    border-top: 1px solid var(--border);
+                    background: var(--sand-50);
+                  "
+                >
+                  <button
+                    class="btn btn-brand"
+                    style="width: 100%; justify-content: center; padding: 11px"
+                  >
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <rect x="2" y="4" width="20" height="16" rx="2" />
+                      <path d="m22 7-10 5L2 7" />
+                    </svg>
                     Email Priya
                   </button>
                   <div style="display: flex; gap: 9px">
-                    <button class="btn btn-outline" style="flex: 1; justify-content: center; padding: 11px">Text</button>
-                    <button class="btn btn-outline" style="flex: 1; justify-content: center; padding: 11px">View client</button>
+                    <button
+                      class="btn btn-outline"
+                      style="flex: 1; justify-content: center; padding: 11px"
+                    >
+                      Text
+                    </button>
+                    <button
+                      class="btn btn-outline"
+                      style="flex: 1; justify-content: center; padding: 11px"
+                    >
+                      View client
+                    </button>
                   </div>
-                  <button class="btn btn-ghost" style="width: 100%; justify-content: center; padding: 11px">
+                  <button
+                    class="btn btn-ghost"
+                    style="width: 100%; justify-content: center; padding: 11px"
+                  >
                     Mark resolved
                   </button>
                 </div>
-                <p style="text-align: center; font-size: 11px; color: var(--muted-fg); padding: 0 0 14px; margin: 4px 0 0">
+                <p
+                  style="
+                    text-align: center;
+                    font-size: 11px;
+                    color: var(--muted-fg);
+                    padding: 0 0 14px;
+                    margin: 4px 0 0;
+                  "
+                >
                   Admin sheet — no Edit; reply + view client instead
                 </p>
               </div>

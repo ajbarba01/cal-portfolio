@@ -1,5 +1,7 @@
 # Design Overhaul — Phase 2: Marketing / Portfolio (Spec)
 
+> Archived: this marketing-surface decision shipped; the current source of truth is `docs/FRONTEND.md` and `docs/COMPONENT_SYSTEM.md`, carried forward design-wise by `docs/superpowers/specs/2026-06-11-sp6-cohesion-design.md`.
+
 > Status: **approved-direction, pending spec review** · 2026-06-05
 > Umbrella roadmap: `~/.claude/plans/ok-sure-lets-try-splendid-plum.md` (5-phase, foundation-first).
 > Builds on Phase 0 (Trail tokens, Fraunces/Public Sans, `space.*`/`measure`/`typeScale`/`--brand*`),

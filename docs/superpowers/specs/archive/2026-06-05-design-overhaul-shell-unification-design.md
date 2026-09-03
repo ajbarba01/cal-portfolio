@@ -1,5 +1,7 @@
 # Design Overhaul — Intermediate: Shell Unification + Interaction Language (Spec)
 
+> Archived: this shell/interaction decision shipped; the current source of truth is `docs/FRONTEND.md` and `docs/COMPONENT_SYSTEM.md`, carried forward design-wise by `docs/superpowers/specs/2026-06-11-sp6-cohesion-design.md`.
+
 > Status: **approved-direction, pending spec review** · 2026-06-05
 > Umbrella roadmap: `~/.claude/plans/ok-sure-lets-try-splendid-plum.md` (5-phase, foundation-first).
 > Inserted **between Phase 1 and Phase 2**. Builds on Phase 0 (Trail tokens, Fraunces/Public Sans,

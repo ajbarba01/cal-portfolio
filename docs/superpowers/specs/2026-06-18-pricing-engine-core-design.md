@@ -17,7 +17,7 @@ as data in `services.pricing_config` and Cal can edit every value. Keep the publ
   ([quote-action.ts], [quote-core.ts], [kiche.ts]) keep compiling.
 - `QuoteBreakdown = { lines: {label, amountCents}[]; finalCents }` — **unchanged** (persisted in
   `bookings.quote_breakdown`; existing rows must still render).
-- `requoteWithKiche(storedQuoteInput, applyKiche)` ([kiche.ts:51](../../../src/features/booking/kiche.ts#L51))
+- `requoteWithKiche(storedQuoteInput, applyKiche)`
   re-runs a frozen `QuoteInput` toggling one manual discount. Generalize to `requoteWithManual(input, id, on)`
   but keep a `requoteWithKiche` shim so the admin apply action is untouched in Phase 1.
 - `kichePreview` tolerates malformed stored inputs by returning null — preserve that guard.

@@ -5,14 +5,16 @@
 > **process/infrastructure** spec — it changes docs and root config files, not app
 > code. Nothing in the project constitution is repealed; this layers on top of the
 > existing Research → Spec → Plan → Build → Verify → Ship loop in
-> [WORKFLOW.md](../../WORKFLOW.md).
+> [WORKFLOW.md](../../../WORKFLOW.md).
 
 > **Capability amendment (2026-06-07):** skill support is capability-specific, not
 > model-specific. Any agent that exposes a relevant skill should invoke it; agents
 > without that capability follow the same role contract and artifact checklist as
 > fallback. This supersedes this document's older claims that Superpowers and
 > `frontend-design` are Claude-only or that Codex/Gemini cannot invoke skills.
-> Current authority: [ROLES.md](../../ROLES.md) and [WORKFLOW.md](../../WORKFLOW.md).
+> Current authority: [ROLES.md](../../../ROLES.md) and [WORKFLOW.md](../../../WORKFLOW.md).
+
+> Archived: this doc's own text (above) already names its current authority.
 
 ## Why this exists
 

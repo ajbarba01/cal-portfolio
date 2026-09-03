@@ -59,7 +59,7 @@ action driven by `useActionState`**, the idiomatic Next pattern.
 
 - **`runOnboarding` (pure core) is unchanged** — it keeps throwing on invalid
   input; the action wrapper is what switches to `safeParse` + structured return.
-  Existing [`onboarding-action.test.ts`](../../../src/features/accounts/onboarding-action.test.ts)
+  Existing [`onboarding-action.integration.test.ts`](../../../src/features/accounts/onboarding-action.integration.test.ts)
   stays green.
 - New test: the action wrapper returns `fieldErrors` for each invalid field and
   does not throw a user-visible error.
