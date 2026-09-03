@@ -1,52 +1,39 @@
 import { NextResponse, type NextRequest } from "next/server";
-import Stripe from "stripe";
 import { createServiceClient } from "@/lib/supabase/service";
 import { applyStripeEvent, StripeGateway } from "@/features/payments";
-
-function requireEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(
-      `Missing ${name} — set it in .env.local before starting the server.`,
-    );
-  }
-  return value;
-}
+import { PAYMENTS_ENABLED } from "@/lib/payments-enabled";
 
 export async function POST(request: NextRequest) {
-  // Instantiate Stripe lazily inside the handler — reading env at module load
-  // breaks `next build` page-data collection when the key isn't present.
-  const stripe = new Stripe(requireEnv("STRIPE_SECRET_KEY"), {
-    apiVersion: "2026-05-27.dahlia",
-  });
+  // Payments off sitewide: no intent is ever minted, so nothing legitimate can
+  // arrive here and the Stripe env vars are not guaranteed to be set. Answer as
+  // if the endpoint does not exist, before an unset key can turn into a 500 that
+  // reads like an outage.
+  if (!PAYMENTS_ENABLED) {
+    return new NextResponse(null, { status: 404 });
+  }
+
+  // Built per request: reading Stripe env at module load breaks `next build`
+  // page-data collection when the key isn't present.
+  const gateway = new StripeGateway();
 
   // Raw body MUST be read as text for signature verification — never request.json().
-  const body = await request.text();
-  const sig = request.headers.get("stripe-signature");
+  const verified = gateway.verifyWebhook(
+    await request.text(),
+    request.headers.get("stripe-signature"),
+  );
 
-  if (!sig) {
-    return new NextResponse("Missing stripe-signature header", { status: 400 });
-  }
-
-  let event: Stripe.Event;
-  try {
-    event = stripe.webhooks.constructEvent(
-      body,
-      sig,
-      requireEnv("STRIPE_WEBHOOK_SECRET"),
+  if (!verified.ok) {
+    return new NextResponse(
+      verified.reason === "missing_signature"
+        ? "Missing stripe-signature header"
+        : "Invalid signature",
+      { status: 400 },
     );
-  } catch {
-    return new NextResponse("Invalid signature", { status: 400 });
   }
 
-  const serviceClient = createServiceClient();
-  const gateway = new StripeGateway();
   const result = await applyStripeEvent(
-    serviceClient,
-    {
-      type: event.type,
-      data: { object: event.data.object as unknown as Record<string, unknown> },
-    },
+    createServiceClient(),
+    verified.event,
     gateway,
   );
 
