@@ -2,27 +2,46 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { CalendarDays, ChevronDown } from "lucide-react";
+import { AlertCircle, CalendarDays, ChevronDown } from "lucide-react";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Surface } from "@/components/ui/surface";
+import { Surface, surfaceVariants } from "@/components/ui/surface";
 import { TimePicker } from "@/components/ui/time-picker";
 import { UnitInput } from "@/components/ui/unit-input";
-import { updateSettings, type SettingsRow } from "@/features/admin";
+import {
+  updateSettings,
+  type SettingsRow,
+} from "@/features/admin/index.client";
 import { FIELD_LIMITS } from "@/lib/field-limits";
+import { cn } from "@/lib/utils";
+
+/** The form-level error Alert, which every rejected field points at. */
+const FORM_ERROR_ID = "settings-form-error";
+
+/** Columns that live inside the collapsed Advanced section. */
+const ADVANCED_COLUMNS = [
+  "origin_label",
+  "origin_lat",
+  "origin_lng",
+  "road_factor",
+  "avg_speed_mph",
+];
 
 // ── Local helpers ──────────────────────────────────────────────────────────────
 
 interface UnitFieldProps {
   id: string;
-  label: string;
+  label: React.ReactNode;
   value: string;
   onChange: (v: string) => void;
-  unit: string;
+  /** Unit adornment; omitted for a plain field such as the origin label. */
+  unit?: string;
   /** Position the unit label. "trailing" (default) sits after the input; "leading" before. */
   unitPosition?: "trailing" | "leading";
+  /** True when the server rejected this column's value on the last save. */
+  invalid?: boolean;
   inputProps?: React.InputHTMLAttributes<HTMLInputElement>;
 }
 
@@ -37,22 +56,52 @@ function UnitField({
   onChange,
   unit,
   unitPosition = "trailing",
+  invalid = false,
   inputProps,
 }: UnitFieldProps) {
+  const controlProps = {
+    id,
+    type: "number",
+    value,
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) =>
+      onChange(e.target.value),
+    // A rejected field is marked three ways so none of them carries the news
+    // alone: the icon beside the label, the destructive track, and the
+    // description pointing at the form-level Alert that says what to do.
+    "aria-invalid": invalid || undefined,
+    "aria-describedby": invalid ? FORM_ERROR_ID : undefined,
+    ...inputProps,
+  };
+  // Input paints its own aria-invalid track; UnitInput puts the border on the
+  // wrapper, which the control's aria-invalid variant cannot reach.
+  const invalidTrack =
+    invalid && unit !== undefined
+      ? "border-destructive ring-destructive/20 ring-3"
+      : undefined;
   return (
     <div className="space-y-1">
-      <Label htmlFor={id} className="text-muted-foreground text-xs font-medium">
+      <Label
+        htmlFor={id}
+        className="text-muted-foreground flex items-center gap-1 text-xs font-medium"
+      >
         {label}
+        {invalid ? (
+          <AlertCircle
+            className="text-destructive size-3.5 shrink-0"
+            aria-hidden
+          />
+        ) : null}
       </Label>
-      <UnitInput
-        id={id}
-        type="number"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        unit={unit}
-        unitPosition={unitPosition}
-        {...inputProps}
-      />
+      {unit === undefined ? (
+        <Input {...controlProps} />
+      ) : (
+        <UnitInput
+          {...controlProps}
+          unit={unit}
+          unitPosition={unitPosition}
+          className={invalidTrack}
+        />
+      )}
     </div>
   );
 }
@@ -105,17 +154,10 @@ export function SettingsClient({
     String(s.recurrence_generation_horizon_days),
   );
 
-  // Recurring discount
-  const [discountPct, setDiscountPct] = useState(
-    String(s.recurring_discount_pct),
-  );
+  // Recurring discount — only the qualifying threshold is editable here; the
+  // rate itself is a modifier in each service's pricing_config.
   const [discountMin, setDiscountMin] = useState(
     String(s.recurring_min_occurrences),
-  );
-
-  // Premium days surcharge — displayed as dollars, stored as cents
-  const [holidaySurchargeDollars, setHolidaySurchargeDollars] = useState(
-    String((s.holiday_surcharge_cents / 100).toFixed(2)),
   );
 
   // Reminders & cancellations
@@ -135,11 +177,22 @@ export function SettingsClient({
   );
 
   const [error, setError] = useState<string | null>(null);
+  /**
+   * Settings columns the last save rejected. updateSettings returns a message
+   * per column too, but those come straight from zod and read like
+   * "Invalid input: expected number, received NaN" — developer prose with
+   * column names in it. Until the schema carries sentences written for Cal, the
+   * keys mark the fields and the form-level Alert says what to do.
+   */
+  const [invalidColumns, setInvalidColumns] = useState<ReadonlySet<string>>(
+    new Set(),
+  );
   const [success, setSuccess] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   async function handleSave() {
     setError(null);
+    setInvalidColumns(new Set());
     setSuccess(false);
 
     startTransition(async () => {
@@ -159,13 +212,8 @@ export function SettingsClient({
         auto_confirm_horizon_days: parseInt(autoConfirmHorizon, 10),
         hard_max_advance_days: parseInt(hardMaxAdvance, 10),
         recurrence_generation_horizon_days: parseInt(recurrenceGenHorizon, 10),
-        recurring_discount_pct: parseFloat(discountPct),
         recurring_min_occurrences: parseInt(discountMin, 10),
-        // Convert dollars back to cents; round to avoid floating-point drift
-        holiday_surcharge_cents: Math.round(
-          parseFloat(holidaySurchargeDollars) * 100,
-        ),
-        // holiday_dates deferred to Availability (Task 5) — omit from payload
+        // holiday_dates is owned by the Availability calendar — omit from payload
         reminder_lead_hours: parseInt(reminderLeadHours, 10),
         cancellation_full_refund_hours: parseInt(fullRefundHours, 10),
         late_cancel_refund_pct: parseInt(lateRefundPct, 10),
@@ -175,6 +223,8 @@ export function SettingsClient({
       if (result.kind === "success") {
         setSuccess(true);
       } else {
+        if (result.kind === "validation_error" && result.fieldErrors)
+          setInvalidColumns(new Set(Object.keys(result.fieldErrors)));
         setError(
           "message" in result
             ? result.message
@@ -190,6 +240,11 @@ export function SettingsClient({
       <Surface variant="plain" className="flex flex-col gap-4 p-5">
         <GroupLegend>When can clients book?</GroupLegend>
         <div className="flex flex-col gap-4">
+          {/*
+            No per-field marker on the two pickers: they can only emit a real
+            minute of the day, so the one settings rule they can break is the
+            cross-field "open before close", which the form-level Alert owns.
+          */}
           <TimePicker
             id="booking-open"
             label="Bookings open at"
@@ -212,6 +267,7 @@ export function SettingsClient({
             value={minLead}
             onChange={setMinLead}
             unit="hours"
+            invalid={invalidColumns.has("min_lead_time_hours")}
           />
           <UnitField
             id="auto-confirm-horizon"
@@ -219,6 +275,7 @@ export function SettingsClient({
             value={autoConfirmHorizon}
             onChange={setAutoConfirmHorizon}
             unit="days out"
+            invalid={invalidColumns.has("auto_confirm_horizon_days")}
           />
           <UnitField
             id="hard-max-advance"
@@ -226,6 +283,7 @@ export function SettingsClient({
             value={hardMaxAdvance}
             onChange={setHardMaxAdvance}
             unit="days"
+            invalid={invalidColumns.has("hard_max_advance_days")}
           />
           <UnitField
             id="recurrence-gen-horizon"
@@ -233,6 +291,7 @@ export function SettingsClient({
             value={recurrenceGenHorizon}
             onChange={setRecurrenceGenHorizon}
             unit="days ahead"
+            invalid={invalidColumns.has("recurrence_generation_horizon_days")}
           />
         </div>
       </Surface>
@@ -247,6 +306,7 @@ export function SettingsClient({
             value={fullRefundHours}
             onChange={setFullRefundHours}
             unit="hours before start"
+            invalid={invalidColumns.has("cancellation_full_refund_hours")}
           />
           <UnitField
             id="late-refund-pct"
@@ -254,6 +314,7 @@ export function SettingsClient({
             value={lateRefundPct}
             onChange={setLateRefundPct}
             unit="% of the booking"
+            invalid={invalidColumns.has("late_cancel_refund_pct")}
           />
         </div>
       </Surface>
@@ -263,35 +324,20 @@ export function SettingsClient({
         <GroupLegend>Recurring discount</GroupLegend>
         <div className="flex flex-col gap-4">
           <UnitField
-            id="discount-pct"
-            label="Discount for recurring bookings"
-            value={discountPct}
-            onChange={setDiscountPct}
-            unit="%"
-          />
-          <UnitField
             id="discount-min"
             label="Minimum recurring occurrences to qualify"
             value={discountMin}
             onChange={setDiscountMin}
             unit="bookings"
+            invalid={invalidColumns.has("recurring_min_occurrences")}
           />
         </div>
       </Surface>
 
       {/* ── Premium days ───────────────────────────────────────────────── */}
       <Surface variant="plain" className="flex flex-col gap-4 p-5">
-        <GroupLegend>Premium days surcharge</GroupLegend>
+        <GroupLegend>Premium days</GroupLegend>
         <div className="flex flex-col gap-4">
-          <UnitField
-            id="holiday-surcharge"
-            label="Extra charge per booking"
-            value={holidaySurchargeDollars}
-            onChange={setHolidaySurchargeDollars}
-            unit="$"
-            unitPosition="leading"
-            inputProps={{ step: "0.01", min: "0" }}
-          />
           <p className="text-muted-foreground flex items-center gap-1.5 text-sm">
             <CalendarDays className="h-4 w-4 shrink-0" aria-hidden />
             Premium days are set on the{" "}
@@ -315,6 +361,7 @@ export function SettingsClient({
           value={reminderLeadHours}
           onChange={setReminderLeadHours}
           unit="hours before start"
+          invalid={invalidColumns.has("reminder_lead_hours")}
         />
       </Surface>
 
@@ -329,6 +376,7 @@ export function SettingsClient({
             onChange={setDriveBufferPct}
             unit="%"
             inputProps={{ min: "0", max: "1000", step: "1" }}
+            invalid={invalidColumns.has("drive_buffer_pct")}
           />
           <p className="text-muted-foreground text-xs">
             Calendar space reserved for driving around each booking. 120 = 1.2×
@@ -347,6 +395,7 @@ export function SettingsClient({
             value={autoApprove}
             onChange={setAutoApprove}
             unit="miles"
+            invalid={invalidColumns.has("auto_approve_threshold_miles")}
           />
           <UnitField
             id="hard-cutoff"
@@ -354,6 +403,7 @@ export function SettingsClient({
             value={hardCutoff}
             onChange={setHardCutoff}
             unit="miles"
+            invalid={invalidColumns.has("hard_cutoff_miles")}
           />
           <div className="flex items-center gap-2">
             <input
@@ -369,8 +419,19 @@ export function SettingsClient({
         </div>
       </Surface>
 
-      {/* ── Advanced (collapsed by default) ───────────────────────────── */}
-      <Surface as="details" variant="plain" className="group border-dashed">
+      {/* ── Advanced (collapsed until it holds a rejected field) ──── */}
+      {/*
+        A plain <details> wearing the surface, not <Surface as="details">:
+        Surface takes div props, which have no `open`, and a rejected field
+        inside a collapsed section is a field Cal cannot find.
+      */}
+      <details
+        open={ADVANCED_COLUMNS.some((c) => invalidColumns.has(c))}
+        className={cn(
+          surfaceVariants({ variant: "plain" }),
+          "group border-dashed",
+        )}
+      >
         <summary className="flex cursor-pointer list-none items-center justify-between p-5">
           <span className="flex items-center gap-2">
             <GroupLegend>Advanced</GroupLegend>
@@ -385,85 +446,54 @@ export function SettingsClient({
         </summary>
 
         <div className="flex flex-col gap-4 px-5 pt-1 pb-5">
-          <div className="space-y-1">
-            <Label
-              htmlFor="origin-label"
-              className="text-muted-foreground text-xs font-medium"
-            >
-              Origin label
-            </Label>
-            <Input
-              id="origin-label"
-              type="text"
-              maxLength={FIELD_LIMITS.shortText}
-              value={originLabel}
-              onChange={(e) => setOriginLabel(e.target.value)}
-            />
-          </div>
+          <UnitField
+            id="origin-label"
+            label="Origin label"
+            value={originLabel}
+            onChange={setOriginLabel}
+            inputProps={{ type: "text", maxLength: FIELD_LIMITS.shortText }}
+            invalid={invalidColumns.has("origin_label")}
+          />
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <div className="space-y-1">
-              <Label
-                htmlFor="origin-lat"
-                className="text-muted-foreground text-xs font-medium"
-              >
-                Latitude
-              </Label>
-              <Input
-                id="origin-lat"
-                type="number"
-                value={originLat}
-                onChange={(e) => setOriginLat(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label
-                htmlFor="origin-lng"
-                className="text-muted-foreground text-xs font-medium"
-              >
-                Longitude
-              </Label>
-              <Input
-                id="origin-lng"
-                type="number"
-                value={originLng}
-                onChange={(e) => setOriginLng(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label
-                htmlFor="road-factor"
-                className="text-muted-foreground text-xs font-medium"
-              >
-                Road factor
-              </Label>
-              <Input
-                id="road-factor"
-                type="number"
-                value={roadFactor}
-                onChange={(e) => setRoadFactor(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label
-                htmlFor="avg-speed"
-                className="text-muted-foreground text-xs font-medium"
-              >
-                Avg speed <span className="font-normal">mph</span>
-              </Label>
-              <Input
-                id="avg-speed"
-                type="number"
-                value={avgSpeed}
-                onChange={(e) => setAvgSpeed(e.target.value)}
-              />
-            </div>
+            <UnitField
+              id="origin-lat"
+              label="Latitude"
+              value={originLat}
+              onChange={setOriginLat}
+              invalid={invalidColumns.has("origin_lat")}
+            />
+            <UnitField
+              id="origin-lng"
+              label="Longitude"
+              value={originLng}
+              onChange={setOriginLng}
+              invalid={invalidColumns.has("origin_lng")}
+            />
+            <UnitField
+              id="road-factor"
+              label="Road factor"
+              value={roadFactor}
+              onChange={setRoadFactor}
+              invalid={invalidColumns.has("road_factor")}
+            />
+            <UnitField
+              id="avg-speed"
+              label={
+                <>
+                  Avg speed <span className="font-normal">mph</span>
+                </>
+              }
+              value={avgSpeed}
+              onChange={setAvgSpeed}
+              invalid={invalidColumns.has("avg_speed_mph")}
+            />
           </div>
         </div>
-      </Surface>
+      </details>
 
       {error && (
-        <Alert variant="error" role="alert">
+        <Alert id={FORM_ERROR_ID} variant="error" role="alert">
           {error}
         </Alert>
       )}

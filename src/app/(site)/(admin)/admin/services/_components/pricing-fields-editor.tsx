@@ -4,8 +4,8 @@ import {
   deriveEditableFields,
   setLeaf,
   type PricingEditField,
-} from "@/features/admin";
-import type { ServicePricingConfig } from "@/features/pricing";
+} from "@/features/admin/index.client";
+import type { PricingType, ServicePricingConfig } from "@/features/pricing";
 import { PricingFieldInput } from "./pricing-field-input";
 
 const SECTION_HEAD =
@@ -19,12 +19,14 @@ const SECTION_HEAD =
  */
 export function PricingFieldsEditor({
   config,
+  pricingType,
   defaultDurationMin,
   onConfigChange,
   onDefaultDurationChange,
   errors,
 }: {
   config: ServicePricingConfig;
+  pricingType: PricingType;
   defaultDurationMin: number | null;
   onConfigChange: (next: ServicePricingConfig) => void;
   onDefaultDurationChange: (value: number) => void;
@@ -33,6 +35,10 @@ export function PricingFieldsEditor({
   const fields = deriveEditableFields(config);
   const rates = fields.filter((f) => f.group === "rates");
   const limits = fields.filter((f) => f.group === "limits");
+
+  // House-sitting books whole nights and never reads default_duration_min, so
+  // the field is not offered there — matching validateEditableFields.
+  const hasDefaultDuration = pricingType !== "house_sitting";
 
   const durationField: PricingEditField = {
     path: "col.defaultDurationMin",
@@ -73,11 +79,13 @@ export function PricingFieldsEditor({
             onChange={(v) => onConfigChange(setLeaf(config, f.path, v))}
           />
         ))}
-        <PricingFieldInput
-          field={durationField}
-          error={errors["col.defaultDurationMin"]}
-          onChange={onDefaultDurationChange}
-        />
+        {hasDefaultDuration && (
+          <PricingFieldInput
+            field={durationField}
+            error={errors["col.defaultDurationMin"]}
+            onChange={onDefaultDurationChange}
+          />
+        )}
         <div className="space-y-1">
           <p className="text-foreground text-sm font-medium">Allowed species</p>
           <p className="text-muted-foreground text-sm">

@@ -12,7 +12,7 @@ import {
   updateService,
   validateEditableFields,
   type ServiceAdminRow,
-} from "@/features/admin";
+} from "@/features/admin/index.client";
 import { parsePricingConfig } from "@/features/pricing";
 import type { ServicePricingConfig } from "@/features/pricing";
 import { PricingFieldsEditor } from "./pricing-fields-editor";
@@ -44,7 +44,7 @@ export function ServiceEditForm({
 }: {
   service: ServiceAdminRow;
   onCancel: () => void;
-  onSaved: (serviceId: string) => void;
+  onSaved: () => void;
 }) {
   // Parse the seeded config once. An unparseable (legacy) row → pricing is
   // read-only; name/description/toggles stay editable.
@@ -77,7 +77,11 @@ export function ServiceEditForm({
     // Pricing is only sent when the config parsed (editable). Validate + send.
     let pricingConfig: ServicePricingConfig | undefined;
     if (config) {
-      const fieldErrors = validateEditableFields(config, defaultDurationMin);
+      const fieldErrors = validateEditableFields(
+        config,
+        defaultDurationMin,
+        service.pricing_type,
+      );
       if (Object.keys(fieldErrors).length > 0) {
         setErrors(fieldErrors);
         return;
@@ -104,6 +108,11 @@ export function ServiceEditForm({
         active,
         ...(pricingConfig
           ? {
+              // The action takes the column as an open jsonb record, and an
+              // interface has no implicit index signature to widen to one, so
+              // the hop through `unknown` is the only route. The shape is
+              // already proven — parsePricingConfig ran above — and the action
+              // re-validates it server-side before the write.
               pricing_config: pricingConfig as unknown as Record<
                 string,
                 unknown
@@ -113,7 +122,7 @@ export function ServiceEditForm({
           : {}),
       });
       if (result.kind === "success") {
-        onSaved(service.id);
+        onSaved();
       } else {
         setErrors({
           _form:
@@ -161,6 +170,7 @@ export function ServiceEditForm({
         {config ? (
           <PricingFieldsEditor
             config={config}
+            pricingType={service.pricing_type}
             defaultDurationMin={defaultDurationMin}
             onConfigChange={setConfig}
             onDefaultDurationChange={setDefaultDurationMin}

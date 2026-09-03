@@ -40,7 +40,7 @@ export default async function AdminReviewsPage() {
   return (
     <PageContainer width="app">
       <PageHeader title={`Reviews Moderation (${result.reviews.length})`} />
-      <ReviewsClient initialReviews={result.reviews} />
+      <ReviewsClient reviews={result.reviews} />
     </PageContainer>
   );
 }

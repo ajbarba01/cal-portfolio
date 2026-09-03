@@ -3,7 +3,7 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { centsToDollarsNumber, dollarsToCents } from "@/features/pricing";
-import type { PricingEditField } from "@/features/admin";
+import type { PricingEditField } from "@/features/admin/index.client";
 
 /**
  * One editable numeric pricing field. cents render as a $-adorned dollar input

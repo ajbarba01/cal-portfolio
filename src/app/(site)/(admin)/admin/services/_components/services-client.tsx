@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { type ServiceAdminRow } from "@/features/admin";
+import { useToast } from "@/components/feedback/toast";
+import { type ServiceAdminRow } from "@/features/admin/index.client";
 import { ServiceEditForm } from "./service-edit-form";
 
 export function ServicesClient({ services }: { services: ServiceAdminRow[] }) {
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [savedId, setSavedId] = useState<string | null>(null);
+  const toast = useToast();
 
   return (
     <ul className="space-y-6">
@@ -17,9 +18,11 @@ export function ServicesClient({ services }: { services: ServiceAdminRow[] }) {
             <ServiceEditForm
               service={svc}
               onCancel={() => setEditingId(null)}
-              onSaved={(id) => {
+              onSaved={() => {
+                // The edit form closes on save, so the confirmation has to
+                // outlive it — an announced toast rather than inline text.
                 setEditingId(null);
-                setSavedId(id);
+                toast.add({ type: "success", title: "Saved!" });
               }}
             />
           ) : (
@@ -33,17 +36,11 @@ export function ServicesClient({ services }: { services: ServiceAdminRow[] }) {
                 {svc.description && (
                   <p className="text-muted-foreground">{svc.description}</p>
                 )}
-                {savedId === svc.id && (
-                  <p className="text-muted-foreground text-sm">Saved!</p>
-                )}
               </div>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => {
-                  setEditingId(svc.id);
-                  setSavedId(null);
-                }}
+                onClick={() => setEditingId(svc.id)}
               >
                 Edit
               </Button>

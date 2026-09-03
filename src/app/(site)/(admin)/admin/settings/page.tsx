@@ -39,7 +39,7 @@ export default async function AdminSettingsPage() {
 
   return (
     <PageContainer width="app">
-      <PageHeader title="Settings Editor" />
+      <PageHeader title="Settings" />
       <SettingsClient initialSettings={result.settings} />
     </PageContainer>
   );

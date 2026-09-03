@@ -39,7 +39,7 @@ export default async function AdminServicesPage() {
 
   return (
     <PageContainer width="app">
-      <PageHeader title="Services Editor" />
+      <PageHeader title="Services" />
       <ServicesClient services={result.services} />
     </PageContainer>
   );

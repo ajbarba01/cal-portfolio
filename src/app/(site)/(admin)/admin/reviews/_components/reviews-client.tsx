@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Star } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +15,7 @@ import {
   moderateReview,
   type ReviewRow,
   type ReviewStatus,
-} from "@/features/admin";
+} from "@/features/admin/index.client";
 import { paginate } from "@/lib/pagination";
 import { cn } from "@/lib/utils";
 
@@ -78,28 +79,24 @@ const FILTER_OPTIONS: { label: string; value: ReviewFilter }[] = [
 // Main component
 // ──────────────────────────────────────────────────────────────────────────────
 
-export function ReviewsClient({
-  initialReviews,
-}: {
-  initialReviews: ReviewRow[];
-}) {
-  const [reviews, setReviews] = useState(initialReviews);
+export function ReviewsClient({ reviews }: { reviews: ReviewRow[] }) {
+  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [activeFilter, setActiveFilter] = useState<ReviewFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
 
-  function updateStatus(id: string, status: ReviewRow["status"]) {
-    setReviews((prev) => prev.map((r) => (r.id === id ? { ...r, status } : r)));
-  }
-
+  // Moderation state is server truth, not a local optimistic copy: a failed
+  // action must never leave the list showing a status the DB doesn't have.
+  // router.refresh() re-fetches this page's server component, which flows a
+  // fresh `reviews` prop back down (mirrors bookings-calendar-client.tsx).
   async function handle(reviewId: string, status: "published" | "rejected") {
     setError(null);
     startTransition(async () => {
       const result = await moderateReview({ reviewId, status });
       if (result.kind === "success") {
-        updateStatus(reviewId, status);
+        router.refresh();
       } else {
         setError(
           "message" in result
