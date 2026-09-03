@@ -9,9 +9,8 @@
  * a Supabase Realtime ping for `bookings` / `availability_windows`, with an
  * interval fallback, plus a manual `refresh()` for post-submit refresh.
  *
- * The pure busy→slot marking lives in `calendar-model.markSlotsBusy`; this hook
- * is thin glue (fetch → subscribe → setState) — no business logic, so it is not
- * unit-tested (see use-availability.ts for the same rationale).
+ * This hook is thin glue (fetch → subscribe → setState) — no business logic, so
+ * it is not unit-tested (see use-availability.ts for the same rationale).
  */
 
 import { useEffect, useState, useCallback, startTransition } from "react";
@@ -19,7 +18,13 @@ import { createClient } from "@/lib/supabase/client";
 import { getPublicBusyRanges } from "./busy-ranges";
 import type { PublicBusyRange } from "./busy-ranges";
 
-const FALLBACK_REFRESH_MS = 60 * 1000;
+/**
+ * How often a visible calendar re-reads busy ranges when realtime cannot tell
+ * it to. Each poll is a service-role read plus a pass over the pet photos, so
+ * the interval is a cost, not just a delay; five minutes keeps a stale slot on
+ * screen briefly while the exclusion constraint still refuses it at submit.
+ */
+const FALLBACK_REFRESH_MS = 5 * 60 * 1000;
 
 export interface UseBusyRangesResult {
   busy: PublicBusyRange[];
@@ -58,12 +63,12 @@ export function useBusyRanges(
   useEffect(() => {
     void refresh();
 
-    // NOTE: realtime delivery needs BOTH publication membership (the `bookings`
-    // table is not in `supabase_realtime`) AND RLS-visible rows (a public viewer
-    // can't see others' bookings). Neither holds for cross-client booking events,
-    // so the 60s interval below is the working refresh mechanism; the channel is
-    // kept for same-session / future-RLS cases. Do NOT add a status filter to the
-    // UPDATE subscription — it would match the NEW row and miss cancellations.
+    // `availability_windows` is published and anon-readable, so that half of the
+    // channel delivers. `bookings` is deliberately NOT in `supabase_realtime`
+    // (its rows carry client identity) and a public viewer could not see other
+    // clients' rows anyway, so another client's booking reaches this calendar
+    // only through the interval below. Do NOT add a status filter to the UPDATE
+    // subscription — it would match the NEW row and miss cancellations.
     const supabase = createClient();
     const channel = supabase
       .channel("busy-ranges-realtime")
@@ -79,10 +84,20 @@ export function useBusyRanges(
       )
       .subscribe();
 
-    const interval = setInterval(() => void refresh(), FALLBACK_REFRESH_MS);
+    // A hidden tab has no calendar to keep fresh, so it neither polls nor mints
+    // photo URLs; coming back to the tab refreshes at once instead of waiting
+    // out the rest of the interval.
+    const interval = setInterval(() => {
+      if (!document.hidden) void refresh();
+    }, FALLBACK_REFRESH_MS);
+    const onVisibilityChange = () => {
+      if (!document.hidden) void refresh();
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
 
     return () => {
       clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
       void supabase.removeChannel(channel);
     };
   }, [refresh]);

@@ -52,6 +52,7 @@ import type { validateStayRange } from "../calendar-model";
 import type { ScheduleSelectionState } from "../schedule-selection";
 import type { DateRange } from "@/components/ui/calendar";
 import type { BookingRuleSettings } from "../availability";
+import { denverDayLabel } from "@/lib/time-of-day";
 import { cn } from "@/lib/utils";
 
 /**
@@ -205,13 +206,8 @@ function LeadTimeNote({
   const firstBookable = new Date(
     now.getTime() + leadTimeMs - bookingOpenMinute * 60 * 1000,
   );
-  // Format as "Mon, Jan 1" — short human-readable date.
-  const formatted = firstBookable.toLocaleDateString("en-US", {
-    timeZone: "America/Denver",
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  });
+  // "Mon, Jan 1" — short human-readable date.
+  const formatted = denverDayLabel(firstBookable, { year: false });
 
   return (
     <p className="text-muted-foreground mt-2.5 flex gap-1.5 text-[12.5px] leading-snug">

@@ -12,21 +12,17 @@ import { Check, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   PetAvatar,
+  SPECIES,
+  type AssignablePet,
   type PetSpecies,
-} from "@/features/booking/_components/pet-avatar";
+} from "@/features/pets";
 import { PetForm } from "@/features/accounts";
 import type { Pet } from "@/features/accounts";
 import { Surface } from "@/components/ui/surface";
 
-export interface AssignablePet {
-  id: string;
-  name: string;
-  species: PetSpecies;
-  breed: string | null;
-  notes: string | null;
-  /** Resolved (signed) photo URL, or null. */
-  photoUrl: string | null;
-}
+// The pets feature owns the shape of a pet offered for assignment; re-exported
+// here so the existing `./pet-assignment` importers keep resolving.
+export type { AssignablePet };
 
 interface PetAssignmentProps {
   pets: AssignablePet[];
@@ -82,7 +78,9 @@ export function PetAssignment({
           {eligible.map((pet) => {
             const isSelected = selected.includes(pet.id);
             const subtitle =
-              pet.breed ?? (pet.species === "dog" ? "Dog" : "Cat");
+              pet.breed ??
+              SPECIES.find((s) => s.value === pet.species)?.label ??
+              pet.species;
             return (
               <li key={pet.id}>
                 <button
@@ -90,7 +88,7 @@ export function PetAssignment({
                   onClick={() => toggle(pet.id)}
                   aria-pressed={isSelected}
                   className={cn(
-                    "focus-visible:border-ring focus-visible:ring-ring/50 flex min-h-11 w-full items-center gap-2.5 rounded-xl border-[1.5px] p-3 text-left transition-colors outline-none focus-visible:ring-3",
+                    "focus-visible:border-ring focus-visible:ring-ring/50 rounded-card flex min-h-11 w-full items-center gap-2.5 border-[1.5px] p-3 text-left transition-colors outline-none focus-visible:ring-3",
                     isSelected
                       ? "border-brand bg-brand/10"
                       : "border-border bg-card hover:border-brand/30 hover:bg-muted",
@@ -156,7 +154,7 @@ export function PetAssignment({
         <button
           type="button"
           onClick={() => setShowAdd(true)}
-          className="text-muted-foreground hover:border-brand/40 hover:text-brand-strong hover:bg-muted focus-visible:border-ring focus-visible:ring-ring/50 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border-[1.5px] border-dashed px-4 text-sm font-medium transition-colors outline-none focus-visible:ring-3 sm:w-auto sm:self-start sm:px-6"
+          className="text-muted-foreground hover:border-brand/40 hover:text-brand-strong hover:bg-muted focus-visible:border-ring focus-visible:ring-ring/50 rounded-card flex min-h-11 w-full items-center justify-center gap-2 border-[1.5px] border-dashed px-4 text-sm font-medium transition-colors outline-none focus-visible:ring-3 sm:w-auto sm:self-start sm:px-6"
         >
           <Plus className="size-4" strokeWidth={2.5} />
           Add a pet

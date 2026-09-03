@@ -38,6 +38,7 @@ import {
   subtractBlocked,
 } from "@/features/booking/day-timeline-model";
 import type { MinuteWindow } from "@/features/booking/day-timeline-model";
+import { denverDayLabel } from "@/lib/time-of-day";
 import { useCellSelection } from "./use-cell-selection";
 
 // ---------------------------------------------------------------------------
@@ -111,13 +112,7 @@ function formatDuration(minutes: number): string {
  * Denver-formatted date header, e.g. "Wed, Jun 3".
  */
 function formatDayHeader(dayKey: string): string {
-  const d = denverMidnight(dayKey);
-  return d.toLocaleDateString("en-US", {
-    timeZone: "America/Denver",
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  });
+  return denverDayLabel(denverMidnight(dayKey), { year: false });
 }
 
 // ---------------------------------------------------------------------------
@@ -153,8 +148,8 @@ export function DayTimeline({ className }: { className?: string }) {
   // ── Derived values ─────────────────────────────────────────────────────────
 
   const dayKey: string | null = useMemo(() => {
-    if (state.selectedDays.size === 0) return null;
-    return [...state.selectedDays][0];
+    const [first] = state.selectedDays;
+    return first ?? null;
   }, [state.selectedDays]);
 
   const isPremiumDay = data.premiumDays?.has(dayKey ?? "") ?? false;
@@ -367,6 +362,7 @@ export function DayTimeline({ className }: { className?: string }) {
       nearestCandidateFromY,
       beginGridDrag,
       installEndHandler,
+      dragEndHandlerRef,
     ],
   );
 
@@ -631,13 +627,13 @@ export function DayTimeline({ className }: { className?: string }) {
                   className={cn(
                     "bg-brand text-brand-foreground absolute inset-x-1 top-0 rounded-md",
                     "flex flex-col justify-between overflow-hidden px-2.5 py-1",
-                    "shadow-sm",
+                    "shadow-elev-1",
                     "cursor-grab active:cursor-grabbing",
                     // Position via GPU transform (composite-only, no per-frame
                     // layout) with a short glide so 15-min snaps feel smooth
                     // instead of teleporting.
                     "transition-[transform,box-shadow] duration-100 ease-out will-change-transform",
-                    dragPreviewStart !== null && "shadow-md",
+                    dragPreviewStart !== null && "shadow-elev-2",
                   )}
                   style={{
                     transform: `translateY(${topPx}px)`,

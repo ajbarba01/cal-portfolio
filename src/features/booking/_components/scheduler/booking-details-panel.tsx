@@ -8,8 +8,8 @@
  * label (if present) and a Denver-formatted date/time range. Provides a
  * dismiss button to call selection.clearInspection().
  *
- * Token-only colors. No date-fns dependency; uses Intl/toLocaleString with
- * timeZone "America/Denver". Whole-day detection reuses denverMinutesSinceMidnight
+ * Token-only colors. No date-fns dependency; dates and times come from the
+ * shared Denver formatters. Whole-day detection reuses denverMinutesSinceMidnight
  * from @/features/booking/availability (DST-correct).
  */
 
@@ -18,6 +18,7 @@ import { useScheduler } from "@/features/booking/scheduler-context";
 import { denverMinutesSinceMidnight } from "@/features/booking/availability";
 import type { BusyBlock } from "@/features/booking/scheduler-context";
 import { Surface } from "@/components/ui/surface";
+import { denverDate, denverTime } from "@/lib/time-of-day";
 import { cn } from "@/lib/utils";
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -32,8 +33,6 @@ interface BookingDetailsPanelProps {
 // Helpers
 // ──────────────────────────────────────────────────────────────────────────────
 
-const DENVER_TZ = "America/Denver";
-
 /** True when both ends of the block land on Denver midnight (whole-day block). */
 function isWholeDayBlock(block: BusyBlock): boolean {
   return (
@@ -44,20 +43,7 @@ function isWholeDayBlock(block: BusyBlock): boolean {
 
 /** "Jun 7" */
 function fmtDate(date: Date): string {
-  return date.toLocaleDateString("en-US", {
-    timeZone: DENVER_TZ,
-    month: "short",
-    day: "numeric",
-  });
-}
-
-/** "9:00 AM" */
-function fmtTime(date: Date): string {
-  return date.toLocaleTimeString("en-US", {
-    timeZone: DENVER_TZ,
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  return denverDate(date, { year: false });
 }
 
 /**
@@ -70,8 +56,8 @@ function formatRange(block: BusyBlock): string {
   if (isWholeDayBlock(block)) {
     return `${fmtDate(block.startsAt)} – ${fmtDate(block.endsAt)}`;
   }
-  const startTime = fmtTime(block.startsAt);
-  const endTime = fmtTime(block.endsAt);
+  const startTime = denverTime(block.startsAt);
+  const endTime = denverTime(block.endsAt);
   return `${fmtDate(block.startsAt)}, ${startTime} – ${endTime}`;
 }
 

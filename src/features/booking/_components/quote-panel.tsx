@@ -7,7 +7,8 @@ import type { BookingQuotePreview } from "@/features/booking/booking-service";
 import { centsToDollars } from "@/features/booking/format-money";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
-import { InfoTooltip } from "@/components/ui/tooltip";
+
+import { QuoteLines } from "./quote-lines";
 
 interface QuotePanelProps {
   preview: BookingQuotePreview;
@@ -45,24 +46,7 @@ export function QuotePanel({
         Live
       </span>
 
-      <ul className="space-y-1.5">
-        {preview.breakdown.lines.map((line, i) => (
-          <li key={i} className="flex justify-between gap-4 text-sm">
-            <span className="text-foreground/70 inline-flex items-center gap-1">
-              {line.label}
-              {line.description && (
-                <InfoTooltip
-                  label={`What is "${line.label}"?`}
-                  content={line.description}
-                />
-              )}
-            </span>
-            <span className="text-foreground tabular-nums">
-              {centsToDollars(line.amountCents)}
-            </span>
-          </li>
-        ))}
-      </ul>
+      <QuoteLines breakdown={preview.breakdown} />
 
       <div className="border-border my-3 border-t border-dashed" />
 

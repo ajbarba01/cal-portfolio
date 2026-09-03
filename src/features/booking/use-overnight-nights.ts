@@ -15,9 +15,10 @@
  * Vitest runs in a Node environment without a browser and without a running
  * Supabase instance wired for realtime. Mocking the entire channel lifecycle
  * would test the mock, not the hook. The pure derivation that consumes this
- * set (`deriveBookableDays`, `validateStayRange`) is unit-tested separately.
- * The hook itself is thin glue: fetch → subscribe → setState; integration is
- * best verified manually or via a Playwright E2E test in a future phase.
+ * set (`deriveBookableDays`, `validateStayRange`) is unit-tested separately,
+ * and the read the hook wraps is a separate function tested in
+ * use-availability.test.ts alongside the sibling windows read. The hook itself
+ * is thin glue: fetch → subscribe → setState.
  *
  * USAGE
  * -----
@@ -27,7 +28,9 @@
  */
 
 import { useEffect, useState, useCallback, startTransition } from "react";
+import type { DbClient } from "@/lib/supabase/db-client";
 import { createClient } from "@/lib/supabase/client";
+import { denverDayKey } from "@/lib/time-of-day";
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Types
@@ -38,6 +41,33 @@ export interface UseOvernightNightsResult {
   overnightNights: Set<string>;
   loading: boolean;
   error: string | null;
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Read (extracted for unit-testability — see use-availability.test.ts)
+// ──────────────────────────────────────────────────────────────────────────────
+
+/**
+ * The overnight-bookable nights from `fromDayKey` onward, as Denver day-keys.
+ *
+ * The bound matters: the table accumulates a row per night Cal has ever opened,
+ * and every past one is unbookable, so without it the browser downloads the
+ * whole history on mount and again on every realtime ping.
+ *
+ * Throws on a failed read so the caller decides what the viewer sees.
+ */
+export async function fetchOvernightNights(
+  client: DbClient,
+  fromDayKey: string,
+): Promise<Set<string>> {
+  const { data, error } = await client
+    .from("overnight_nights")
+    .select("night")
+    .gte("night", fromDayKey);
+
+  if (error) throw new Error(error.message);
+
+  return new Set((data ?? []).map((row: { night: string }) => row.night));
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -56,23 +86,21 @@ export function useOvernightNights(): UseOvernightNightsResult {
    * startTransition to avoid cascading renders.
    */
   const fetchAndApply = useCallback(async () => {
-    const supabase = createClient();
-
-    const res = await supabase.from("overnight_nights").select("night");
-
-    if (res.error) {
+    try {
+      const nights = await fetchOvernightNights(
+        createClient(),
+        denverDayKey(new Date()),
+      );
       startTransition(() => {
-        setError(`Failed to load overnight nights: ${res.error.message}`);
+        setOvernightNights(nights);
+        setLoading(false);
       });
-      return;
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : String(cause);
+      startTransition(() => {
+        setError(`Failed to load overnight nights: ${message}`);
+      });
     }
-
-    const nights = new Set((res.data ?? []).map((r) => r.night as string));
-
-    startTransition(() => {
-      setOvernightNights(nights);
-      setLoading(false);
-    });
   }, []);
 
   useEffect(() => {

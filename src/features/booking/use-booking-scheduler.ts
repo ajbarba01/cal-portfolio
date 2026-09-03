@@ -58,13 +58,13 @@ import {
   BOOK_HOUSE_SITTING_CAPABILITIES,
   BOOK_WALK_CAPABILITIES,
 } from "./schedule-capabilities";
-import { quantitiesToRecord } from "./_components/quantity-forms";
-import type { QuantityState } from "./_components/quantity-forms";
+import { quantitiesToRecord } from "./quantities";
+import type { QuantityState } from "./quantities";
 import type { SchedulerData, BusyBlock } from "./_components/scheduler";
 import type { ScheduleSelectionState } from "./schedule-selection";
 import type { BookingRuleSettings } from "./availability";
 import type { PublicBusyRange } from "./busy-ranges";
-import type { PetSpecies } from "./_components/pet-avatar";
+import type { PetSpecies } from "@/features/pets";
 import type { ServiceDetail } from "./service-detail";
 // Type-only imports are erased at runtime — no circular dependency forms.
 import type { useAvailability } from "./use-availability";
@@ -72,7 +72,7 @@ import type { useBusyRanges } from "./use-busy-ranges";
 import type { useOvernightNights } from "./use-overnight-nights";
 import type { usePremiumDays } from "./use-premium-days";
 import type { DateRange } from "@/components/ui/calendar";
-import type { Constraints } from "@/features/pricing";
+import { isPetAware, type Constraints } from "@/features/pricing";
 
 /**
  * Master switch for the weekly-recurrence UI on the create surfaces (public +
@@ -80,6 +80,11 @@ import type { Constraints } from "@/features/pricing";
  * settings) stays intact and dormant — `recurringOn` simply never flips true
  * without the controls — so re-enabling the feature is flipping this one flag.
  * Surfaces gate BOTH the step render and its step-number increment on this.
+ *
+ * Kept rather than retired by an owner decision. Dormant behind it: the weekly
+ * recurrence controls on both create surfaces, the rule the submit path builds
+ * from them, the series rows and the cron that materialises their occurrences,
+ * and the seeded recurring discount, which can never fire while this is off.
  */
 export const RECURRING_UI_ENABLED = false;
 
@@ -93,16 +98,22 @@ function localDayKey(d: Date): string {
 }
 /** Exported so the wrappers' initial-range seeds reuse it (single definition). */
 export function localDateFromKey(key: string): Date {
-  const [y, m, d] = key.split("-").map((n) => parseInt(n, 10));
+  // A key with missing parts parses to NaN, which carries through to an Invalid
+  // Date exactly as an unparseable part always has.
+  const [y = NaN, m = NaN, d = NaN] = key
+    .split("-")
+    .map((n) => parseInt(n, 10));
   return new Date(y, m - 1, d);
 }
 
-/** Pets are dog/cat by DB enum; narrow the config's species to that avatar set. */
+/**
+ * Which of the client's pets this service will take, straight from its pricing
+ * constraints. Every canonical species is a real pet row and every one of them
+ * has an avatar, so the list passes through unfiltered — a house-sit that
+ * accepts a rabbit offers the rabbit.
+ */
 export function allowedSpeciesOf(constraints: Constraints): PetSpecies[] {
-  const set: PetSpecies[] = [];
-  if (constraints.allowedSpecies.includes("dog")) set.push("dog");
-  if (constraints.allowedSpecies.includes("cat")) set.push("cat");
-  return set;
+  return constraints.allowedSpecies;
 }
 
 /** Cap on selected pets — the service's maxDogs, or null for unlimited. */
@@ -308,11 +319,7 @@ export function useBookingScheduler({
     io;
   const mode: BookingMode =
     service.pricingType === "house_sitting" ? "month-range" : "week-slots";
-  const petAware =
-    service.pricingType === "house_sitting" ||
-    service.pricingType === "walk" ||
-    service.pricingType === "check_in" ||
-    service.pricingType === "training";
+  const petAware = isPetAware(service.pricingType);
   const allowedSpecies: PetSpecies[] = allowedSpeciesOf(service.constraints);
   const maxPets: number | null = maxPetsOf(service.constraints);
   const durationBounds = durationBoundsOf(service.constraints);
@@ -515,18 +522,18 @@ export function useBookingScheduler({
       if (mode === "month-range") {
         // selectedDays = the nights selected (dayKeys).
         // range.from = check-in night, range.to = check-out day (last night + 1).
-        if (state.selectedDays.size === 0) {
-          setRange(undefined);
-          clearOnSelectRef.current();
-          return;
-        }
         // NOTE: min/max derivation assumes selectedDays are CONTIGUOUS, which is
         // guaranteed today because this booking uses the "range" capability. If a
         // future capability change allowed non-contiguous selection, min..max+1
         // would include gap nights and this derivation must be revisited.
         const sorted = [...state.selectedDays].sort();
         const minKey = sorted[0];
-        const maxKey = sorted[sorted.length - 1];
+        const maxKey = sorted.at(-1);
+        if (minKey === undefined || maxKey === undefined) {
+          setRange(undefined);
+          clearOnSelectRef.current();
+          return;
+        }
         // Add one day to maxKey (DST-safe via denverMidnight + 24h → denverDayKey).
         const checkOutDate = new Date(
           denverMidnight(maxKey).getTime() + 86_400_000,
@@ -542,12 +549,12 @@ export function useBookingScheduler({
         requestQuote();
       } else {
         // gridDraft: exactly one cell "dayKey@minute" → selectedStart.
-        if (state.gridDraft.size === 0) {
+        const [cell] = state.gridDraft;
+        if (cell === undefined) {
           setSelectedStart(null);
           clearOnSelectRef.current();
           return;
         }
-        const [cell] = state.gridDraft;
         const atIdx = cell.indexOf("@");
         if (atIdx === -1) return;
         const dayKey = cell.slice(0, atIdx);

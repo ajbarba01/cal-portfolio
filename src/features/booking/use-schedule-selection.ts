@@ -12,10 +12,12 @@
  * `todayKey` is passed in by the caller so this hook stays deterministic and
  * mirrors the pure model's convention of taking `todayKey` explicitly.
  *
- * WHY NO UNIT TEST
- * ----------------
- * All logic under test lives in the pure model (schedule-selection.test.ts).
- * This hook is thin React glue; the pattern follows useAvailability precedent.
+ * WHY NO UNIT TEST FOR THE HOOK
+ * -----------------------------
+ * All reducer logic lives in the pure model (schedule-selection.test.ts) and
+ * the gesture model in the two pure functions below (use-schedule-selection
+ * .test.ts). What is left is thin React glue; the pattern follows the
+ * useAvailability precedent.
  */
 
 import { useReducer, useCallback, useMemo } from "react";
@@ -27,7 +29,72 @@ import {
   sundayWeekStart,
   isPast as isPastPure,
 } from "./schedule-selection";
-import type { ScheduleSelectionState } from "./schedule-selection";
+import type {
+  ScheduleSelectionState,
+  ScheduleSelectionAction,
+} from "./schedule-selection";
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Day-selection gestures (pure)
+// ──────────────────────────────────────────────────────────────────────────────
+
+/**
+ * What one gesture on a day does to the selection:
+ *   replace — plain click or drag: the run becomes the whole selection
+ *   extend  — shift-click or shift-arrow: the run from the anchor becomes it
+ *   toggle  — ctrl/cmd-click or Space: the run flips in or out of it
+ */
+export type DaySelectMode = "replace" | "extend" | "toggle";
+
+/**
+ * The day a range gesture measures from. The remembered anchor only survives
+ * while it is still selected: after a clear (Escape, "Clear dates") an extend
+ * has nothing to extend, so it measures from the day under the cursor instead.
+ */
+export function resolveAnchor(
+  anchorKey: string | null,
+  selectedDays: ReadonlySet<string>,
+  dayKey: string,
+): string {
+  return anchorKey !== null && selectedDays.has(anchorKey) ? anchorKey : dayKey;
+}
+
+/**
+ * Reducer actions for one gesture over `days` — an already-filtered contiguous
+ * run of selectable day-keys, in calendar order, holding one entry for a plain
+ * click.
+ *
+ * `replace` and `extend` commit the run as the entire selection, so a gesture
+ * that lands on nothing selectable clears rather than leaving a stale range
+ * standing. `toggle` paints ONE mode across the whole run, decided by the day
+ * the gesture started on, so a ctrl-drag that begins on a selected day erases
+ * the run instead of flipping each day against its own state.
+ */
+export function daySelectionActions(args: {
+  mode: DaySelectMode;
+  days: string[];
+  /** The day the gesture started on — decides a toggle run's direction. */
+  originKey: string;
+  selectedDays: ReadonlySet<string>;
+}): ScheduleSelectionAction[] {
+  const { mode, days, originKey, selectedDays } = args;
+
+  if (mode === "toggle") {
+    if (days.length === 0) return [];
+    return [
+      {
+        type: "paintDays",
+        days,
+        mode: selectedDays.has(originKey) ? "remove" : "add",
+      },
+    ];
+  }
+
+  const clear: ScheduleSelectionAction = { type: "clearDays" };
+  return days.length === 0
+    ? [clear]
+    : [clear, { type: "paintDays", days, mode: "add" }];
+}
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Types
@@ -36,6 +103,12 @@ import type { ScheduleSelectionState } from "./schedule-selection";
 export interface UseScheduleSelectionResult {
   state: ScheduleSelectionState;
   // dispatchers (memoized with useCallback)
+  /** Apply one day-selection gesture (see daySelectionActions). */
+  selectDays: (args: {
+    mode: DaySelectMode;
+    days: string[];
+    originKey: string;
+  }) => void;
   toggleDay: (dayKey: string) => void;
   setRange: (anchor: string, target: string) => void;
   clearDays: () => void;
@@ -80,6 +153,20 @@ export function useScheduleSelection(args: {
 
   // ── dispatchers ────────────────────────────────────────────────────────────
   // dispatch is stable across renders; no other deps needed.
+
+  // Reads the live selection to decide a toggle's direction, so unlike the raw
+  // dispatchers this one changes identity whenever the selection does.
+  const selectDays = useCallback(
+    (args: { mode: DaySelectMode; days: string[]; originKey: string }) => {
+      for (const action of daySelectionActions({
+        ...args,
+        selectedDays: state.selectedDays,
+      })) {
+        dispatch(action);
+      }
+    },
+    [state.selectedDays],
+  );
 
   const toggleDay = useCallback(
     (dayKey: string) => dispatch({ type: "toggleDay", dayKey }),
@@ -151,6 +238,7 @@ export function useScheduleSelection(args: {
   return useMemo(
     () => ({
       state,
+      selectDays,
       toggleDay,
       setRange,
       clearDays,
@@ -169,6 +257,7 @@ export function useScheduleSelection(args: {
     }),
     [
       state,
+      selectDays,
       toggleDay,
       setRange,
       clearDays,

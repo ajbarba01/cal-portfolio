@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 /**
- * Regression guard for the range second-click bug (Task 13).
+ * Regression guard for the range second-click bug.
  *
  * BUG: react-day-picker remounts every day cell whenever the component handed to
  * its `components.DayButton` slot changes REFERENCE. MonthGrid's DayButton used
@@ -12,17 +12,18 @@
  * ("takes a few clicks").
  *
  * FIX: the DayButton handed to rdp is now a STABLE module-level component reading
- * volatile state from a MonthGrid-local context. This test arms a boundary
- * (first click → setPreviewDays) and fires a pointerenter on another cell
- * (preview update → setPreviewDays again), then asserts the originally captured
- * day-button DOM node is STILL the same instance in the document — i.e. the grid
- * re-rendered WITHOUT remounting. If the DayButton identity ever destabilizes
- * again, the captured node would be replaced and this assertion fails.
+ * volatile state from a MonthGrid-local context. This test arms a boundary (first
+ * click) and hovers another cell (preview update), asserting at each step that
+ * the volatile state DID change — the dotted preview appears, then grows — and
+ * that the day-button DOM node captured before either update is STILL the same
+ * instance. Preserved identity is only evidence of the fix while the state
+ * around it is moving; asserting the node alone would keep passing if the two
+ * gestures stopped doing anything at all.
  *
  * NOTE: jsdom has no real pointer-event synthesis, so this test verifies the
  * STRUCTURAL invariant (node identity preserved across preview updates), not the
- * end-to-end "second click commits" behavior. The latter still needs the manual
- * sweep described in the task brief.
+ * end-to-end "second click commits" behavior. The latter still needs a manual
+ * sweep.
  */
 
 import { render, fireEvent, cleanup } from "@testing-library/react";
@@ -87,32 +88,59 @@ function Harness() {
   );
 }
 
+function setup() {
+  const { container } = render(<Harness />);
+  const cell = (dayKey: string): HTMLButtonElement => {
+    const el = container.querySelector<HTMLButtonElement>(
+      `[data-day-key="${dayKey}"]`,
+    );
+    if (!el) throw new Error(`no month cell for ${dayKey}`);
+    return el;
+  };
+  /**
+   * The days currently carrying the dotted "would-be range" outline. The
+   * preview is an overlay span rather than a modifier, so it is read off the
+   * dashed border class the outline tier uses (solid = committed).
+   */
+  const previewed = (): string[] =>
+    Array.from(
+      container.querySelectorAll<HTMLElement>(
+        '[data-day-key] span[class*="border-dashed"]',
+      ),
+    ).map(
+      (span) => span.closest<HTMLElement>("[data-day-key]")!.dataset.dayKey!,
+    );
+  return { container, cell, previewed };
+}
+
 describe("MonthGrid range second-click identity", () => {
-  it("preserves day-button DOM node identity across a preview-state update", () => {
-    const { container } = render(<Harness />);
+  it("grows the preview across a hover without remounting the grid", () => {
+    const { container, cell, previewed } = setup();
 
-    // rdp renders real <button> day cells; pick two distinct enabled ones.
-    const buttons = Array.from(
-      container.querySelectorAll("button:not([disabled])"),
-    ).filter((b) => /^\d+$/.test(b.textContent?.trim() ?? ""));
-
-    expect(buttons.length).toBeGreaterThan(1);
-
-    const first = buttons[0];
-    const second = buttons[1];
+    const first = cell("2025-06-16");
+    expect(previewed()).toEqual([]);
 
     // Arm a boundary on the first cell: this calls setPreviewDays (and clearDays
     // + setPendingBoundary), the exact volatile-state update path that used to
     // churn the DayButton identity and remount the grid.
     fireEvent.click(first);
+    expect(previewed()).toEqual(["2025-06-16"]);
 
-    // Hover the second cell: in range mode with a boundary armed, pointerenter
-    // calls setPreviewDays again to grow the dotted preview.
-    fireEvent.pointerEnter(second);
+    // Hover a later cell: in range mode with a boundary armed, pointerenter
+    // calls setPreviewDays again to grow the dotted preview to the cursor.
+    fireEvent.pointerEnter(cell("2025-06-19"));
+    expect(previewed()).toEqual([
+      "2025-06-16",
+      "2025-06-17",
+      "2025-06-18",
+      "2025-06-19",
+    ]);
 
-    // The originally captured node must still be the SAME instance attached to
-    // the document — proof the grid re-rendered without remounting.
+    // Both updates landed, and the node captured before either one is still the
+    // SAME instance attached to the document — proof the grid re-rendered
+    // without remounting.
     expect(document.body.contains(first)).toBe(true);
     expect(container.contains(first)).toBe(true);
+    expect(cell("2025-06-16")).toBe(first);
   });
 });
