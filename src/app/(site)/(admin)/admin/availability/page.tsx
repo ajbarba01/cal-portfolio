@@ -9,12 +9,27 @@ import {
   listWindowsCore,
   getAdminBusyRanges,
   listOvernightNightsCore,
+  settingsRowSchema,
+  settingsColumns,
 } from "@/features/admin";
 import { AvailabilityClient } from "./_components/availability-client";
 import { ErrorState } from "@/components/feedback/error-state";
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
 import type { BookingRuleSettings } from "@/features/booking";
+
+/**
+ * The settings columns this page reads. Picked from the one row schema so the
+ * select list and the parse cannot drift, and so the numbers reach the
+ * scheduler as numbers rather than as unchecked casts.
+ */
+const availabilitySettingsSchema = settingsRowSchema.pick({
+  booking_open_minute: true,
+  booking_close_minute: true,
+  min_lead_time_hours: true,
+  hard_max_advance_days: true,
+  holiday_dates: true,
+});
 
 export default async function AdminAvailabilityPage() {
   const { user } = await getCachedUser();
@@ -61,13 +76,19 @@ export default async function AdminAvailabilityPage() {
   // Settings → booking rules + premium days (holiday_dates).
   const { data: settingsData, error: settingsError } = await serviceClient
     .from("settings")
-    .select(
-      "booking_open_minute, booking_close_minute, min_lead_time_hours, hard_max_advance_days, holiday_dates",
-    )
+    .select(settingsColumns(availabilitySettingsSchema))
     .limit(1)
     .single();
 
-  if (settingsError || !settingsData) {
+  // `.single()` returns either a row or an error, so a failed parse covers both
+  // a read error and a row that is not the shape the scheduler needs.
+  const settings = availabilitySettingsSchema.safeParse(settingsData);
+
+  if (!settings.success) {
+    console.error(
+      "admin availability: settings read failed",
+      settingsError ?? settings.error.issues,
+    );
     return (
       <ErrorState
         title="Couldn't load this"
@@ -77,13 +98,13 @@ export default async function AdminAvailabilityPage() {
   }
 
   const rules: BookingRuleSettings = {
-    bookingOpenMinute: settingsData.booking_open_minute as number,
-    bookingCloseMinute: settingsData.booking_close_minute as number,
-    minLeadTimeHours: settingsData.min_lead_time_hours as number,
-    hardMaxAdvanceDays: settingsData.hard_max_advance_days as number,
+    bookingOpenMinute: settings.data.booking_open_minute,
+    bookingCloseMinute: settings.data.booking_close_minute,
+    minLeadTimeHours: settings.data.min_lead_time_hours,
+    hardMaxAdvanceDays: settings.data.hard_max_advance_days,
   };
 
-  const premiumDays = (settingsData.holiday_dates as string[]) ?? [];
+  const premiumDays = settings.data.holiday_dates;
 
   return (
     <PageContainer width="app">

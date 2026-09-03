@@ -2,9 +2,16 @@
 
 /**
  * AvailabilityClient — Cal's availability editing surface, built on the shared
- * compound <Scheduler>. ONE DAY AT A TIME: pick a day on the month calendar,
- * then paint its intraday walk windows on the <Scheduler.DayPainter> timeline
- * and flip its overnight + premium status with per-day toggles.
+ * compound <Scheduler>. Pick one day on the month calendar or a whole run of
+ * them (drag, shift-click, ctrl/cmd-click, or the keyboard — see MonthGrid),
+ * then paint walk hours on the <Scheduler.DayPainter> timeline and flip
+ * overnight + premium across the selection.
+ *
+ * SCOPE IS THE SELECTION. Every write here is already a batch, so the two
+ * toggles and both create paths apply to every selected day; a switch reads ON
+ * only when every one of them is on. Carving time back out stays a one-day job
+ * (each removal can strand a booking and pop its own confirm), so the painter
+ * withholds the eraser and the block gestures while several days are selected.
  *
  * PAINT-ONLY: this page creates/removes availability windows and toggles
  * overnight nights + premium days. It does NOT moderate bookings. Booked days
@@ -22,15 +29,15 @@
  *
  * Scheduler callbacks deliberately do NOT route through router.refresh(): each
  * server action revalidatePath()s "/admin/availability", refreshing this route's
- * RSC data within the same transition. They return the action result directly so
- * the DayPainter can surface conflicts/feedback.
+ * RSC data within the same transition. They await the action, return its real
+ * result (the painter reverts a move whose removal was refused) and toast every
+ * refusal — an optimistic paint that silently snaps back explains nothing.
  */
 
-import { useMemo, useOptimistic, useTransition } from "react";
+import { useCallback, useMemo, useOptimistic, useTransition } from "react";
 import {
   denverMidnight,
   denverDayKey,
-  denverMinutesSinceMidnight,
   cancelBooking,
   useScheduler,
   Scheduler,
@@ -44,17 +51,23 @@ import type {
   BookingRuleSettings,
 } from "@/features/booking/index.client";
 import {
+  bookingsInWindowSlice,
   createWindowsBatch,
   setWindowUnavailable,
   setOvernightNightsBatch,
   setPremiumDaysBatch,
-} from "@/features/admin";
-import type { AvailabilityWindow, AdminBusyRangeView } from "@/features/admin";
+} from "@/features/admin/index.client";
+import type {
+  AvailabilityWindow,
+  AdminBusyRangeView,
+} from "@/features/admin/index.client";
+import { centsToDollars } from "@/features/pricing";
 import { useConfirm } from "@/components/feedback/confirm-dialog";
+import { useToast } from "@/components/feedback/toast";
+import { DENVER_TZ } from "@/lib/time-of-day";
+import { PAYMENTS_ENABLED } from "@/lib/payments-enabled";
 import { Switch } from "@/components/ui/switch";
 import { Star } from "lucide-react";
-
-const DENVER_TZ = "America/Denver";
 
 /** Map an enriched admin busy range to a BusyBlock, preserving booking identity. */
 function toBusyBlock(b: AdminBusyRangeView): BusyBlock {
@@ -66,19 +79,25 @@ function toBusyBlock(b: AdminBusyRangeView): BusyBlock {
   };
 }
 
-function dollars(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
-}
-
-/** "Jane Doe · 2:00 PM" — one line per affected booking in the confirm. */
-function affectedLabel(b: AdminBusyRangeView): string {
-  const time = new Date(b.startsAt).toLocaleTimeString("en-US", {
+/**
+ * One line per affected booking in the confirm: "Jane Doe · 2:00 PM", or
+ * "Jane Doe · Jul 6, 2:00 PM" when the booking started on a Denver day other
+ * than `dayKey` (the day being edited). The gate matches on instant overlap, so
+ * a house-sit that began days ago lands in this list — and a bare clock time
+ * from a day the operator cannot see would not say which stay is being
+ * cancelled at a full refund.
+ */
+function affectedLabel(b: AdminBusyRangeView, dayKey: string): string {
+  const start = new Date(b.startsAt);
+  const startedOnDay = denverDayKey(start) === dayKey;
+  const when = start.toLocaleString("en-US", {
     timeZone: DENVER_TZ,
+    ...(startedOnDay ? {} : { month: "short", day: "numeric" }),
     hour: "numeric",
     minute: "2-digit",
   });
   const who = b.clientName ?? "Unknown client";
-  return `${who} · ${time}`;
+  return `${who} · ${when}`;
 }
 
 /** "Wednesday, Jun 3" (Denver) for the day-panel header. */
@@ -161,29 +180,10 @@ function applyOptimisticWindows(
 // ──────────────────────────────────────────────────────────────────────────────
 // Cancel-by-blocking — overlap detection
 // ──────────────────────────────────────────────────────────────────────────────
-
-/**
- * Bookings affected by removing the intraday slice [fromMinute, toMinute) on
- * `dayKey`: rows whose Denver day-key matches AND whose intraday minute range
- * overlaps the slice. Whole-day bookings (00:00→00:00 next day) read as
- * [0, 1440) on their start day so they count for any same-day slice.
- */
-function bookingsInWindowSlice(
-  busy: AdminBusyRangeView[],
-  dayKey: string,
-  fromMinute: number,
-  toMinute: number,
-): AdminBusyRangeView[] {
-  return busy.filter((b) => {
-    const start = new Date(b.startsAt);
-    if (denverDayKey(start) !== dayKey) return false;
-    const startMin = denverMinutesSinceMidnight(start);
-    const endRaw = denverMinutesSinceMidnight(new Date(b.endsAt));
-    // 00:00 end means it runs to (or past) midnight → treat as 1440 on this day.
-    const endMin = endRaw <= startMin ? 1440 : endRaw;
-    return startMin < toMinute && endMin > fromMinute;
-  });
-}
+//
+// Which bookings an intraday carve-out would destroy is `bookingsInWindowSlice`
+// in the admin feature — pure, tested, and matching the instant-overlap rule the
+// server refuses on.
 
 const MS_PER_DAY = 86_400_000;
 
@@ -213,50 +213,78 @@ function bookingsOnNights(
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
+// Mutation feedback
+// ──────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Stand-in result when a mutation never came back at all (a dropped request or
+ * a server crash). Its message doubles as the fallback description for the
+ * refusals that carry none of their own.
+ */
+const ACTION_FAILED = {
+  kind: "error",
+  message: "Something went wrong. Please try again.",
+} as const;
+
+// ──────────────────────────────────────────────────────────────────────────────
 // DayControls — selected-day header + per-day overnight / premium toggles
 // ──────────────────────────────────────────────────────────────────────────────
 
 /**
- * Reads the single selected day from context and exposes its overnight + premium
- * status as toggles. Each calls the context callback for just that day (the
- * callbacks own the optimistic flip + cancel-gate). Disabled until a day is
- * picked.
+ * States the scope of the next action — the day, or how many days — and exposes
+ * overnight + premium as toggles over the whole selection. Each calls the
+ * context callback with every selected day (the callbacks own the optimistic
+ * flip + cancel-gate). Disabled until something is picked.
  */
 function DayControls() {
   const { selection, data, callbacks } = useScheduler();
 
-  const dayKey =
-    selection.state.selectedDays.size > 0
-      ? [...selection.state.selectedDays][0]
-      : null;
+  const dayKeys = useMemo(
+    () => [...selection.state.selectedDays].sort(),
+    [selection.state.selectedDays],
+  );
+  const count = dayKeys.length;
+  const [firstDay] = dayKeys;
+  const disabled = count === 0;
+  const isBulk = count > 1;
 
-  const overnightOn = dayKey ? data.overnightNights.has(dayKey) : false;
-  const premiumOn = dayKey ? (data.premiumDays?.has(dayKey) ?? false) : false;
-  const disabled = dayKey === null;
+  // A switch reads ON only when EVERY selected day is on, so flipping it always
+  // means the same thing: on turns the whole selection on, off turns it off.
+  const overnightOn =
+    count > 0 && dayKeys.every((k) => data.overnightNights.has(k));
+  const premiumOn =
+    count > 0 && dayKeys.every((k) => data.premiumDays?.has(k) ?? false);
 
   // The callbacks own their own optimistic flip + transition (and the cancel
   // confirm for overnight-off), so just fire them.
   function toggleOvernight(on: boolean) {
-    if (!dayKey) return;
-    void callbacks.setOvernightNightsBatch?.({ nights: [dayKey], on });
+    if (count === 0) return;
+    void callbacks.setOvernightNightsBatch?.({ nights: dayKeys, on });
   }
 
   function togglePremium(on: boolean) {
-    if (!dayKey) return;
-    void callbacks.setPremiumDaysBatch?.({ dayKeys: [dayKey], on });
+    if (count === 0) return;
+    void callbacks.setPremiumDaysBatch?.({ dayKeys, on });
   }
 
   return (
     <div className="flex flex-col gap-4">
       <div>
         <h2 className="font-heading text-foreground text-base font-medium">
-          {dayKey ? denverDayLabel(dayKey) : "Select a day"}
+          {firstDay === undefined
+            ? "Pick one or more days"
+            : count === 1
+              ? denverDayLabel(firstDay)
+              : `${count} days selected`}
         </h2>
-        <p className="text-muted-foreground text-xs">
-          {dayKey
-            ? "Paint walk hours below; set overnight & premium for this day."
-            : "Pick a day on the calendar to edit its availability."}
-        </p>
+        {/* The heading already carries the scope for a multi-day selection, and
+            the painter repeats it where the create gestures are — one sentence,
+            not two. */}
+        {count === 1 && (
+          <p className="text-muted-foreground text-xs">
+            {"Paint walk hours below; set overnight & premium for this day."}
+          </p>
+        )}
       </div>
 
       <div className="flex flex-col gap-3">
@@ -267,7 +295,7 @@ function DayControls() {
           >
             Overnight available
             <span className="text-muted-foreground block text-xs font-normal">
-              House-sitting stays this night
+              {isBulk ? "for these days" : "House-sitting stays this night"}
             </span>
           </label>
           <Switch
@@ -335,6 +363,7 @@ export function AvailabilityClient({
   nowIso: string;
 }) {
   const { confirm, dialog } = useConfirm();
+  const toast = useToast();
   // Single owner of the optimistic-mutation transition. EVERY useOptimistic
   // dispatch below runs inside startMutation so it's valid whether it fires
   // directly or from the cancel-confirm dialog's click handler (which is outside
@@ -429,15 +458,59 @@ export function AvailabilityClient({
   );
 
   /**
+   * Runs one mutation: dispatch its optimistic update, await the server action
+   * inside the same transition (so the optimistic paint holds until the
+   * revalidation lands, and reverts when the action refuses), then toast
+   * anything that is not a success.
+   *
+   * The promise bridge is here because startTransition returns nothing: the
+   * optimistic dispatch is only legal inside the transition, while the caller —
+   * the painter committing a move — needs the result the transition awaited.
+   */
+  const runMutation = useCallback(
+    <R extends { kind: string; message?: string }>(
+      optimistic: () => void,
+      action: () => Promise<R>,
+    ): Promise<R | typeof ACTION_FAILED> =>
+      new Promise((resolve) => {
+        startMutation(async () => {
+          // Resolved from `finally` so a throw in either thunk still settles the
+          // bridge: an unsettled promise would hang the painter mid-commit with
+          // the optimistic paint stuck on screen.
+          let result: R | typeof ACTION_FAILED = ACTION_FAILED;
+          try {
+            optimistic();
+            result = await action();
+          } catch (cause) {
+            console.error("availability mutation failed", cause);
+          } finally {
+            if (result.kind !== "success")
+              toast.add({
+                type: "error",
+                title: "Couldn't save",
+                description: result.message ?? ACTION_FAILED.message,
+              });
+            resolve(result);
+          }
+        });
+      }),
+    [startMutation, toast],
+  );
+
+  /**
    * Cancel-by-blocking gate. Given the bookings a block would destroy and the
    * `applyBlock` thunk that performs the server-side removal, this:
    *   - runs `applyBlock` directly when nothing is affected (silent block), or
    *   - confirms (listing each booking + its 100% refund), cancels each via
    *     cancelBooking (admin path forces fullRefund: true), then applies the
    *     block. Declining leaves everything untouched.
+   *
+   * `dayKey` is the day being edited; it dates the listed bookings that started
+   * on some other day.
    */
   async function blockWithCancelGate<T>(
     affected: AdminBusyRangeView[],
+    dayKey: string,
     applyBlock: () => Promise<T>,
   ): Promise<T | undefined> {
     if (affected.length === 0) {
@@ -450,18 +523,28 @@ export function AvailabilityClient({
       destructive: true,
       confirmLabel: `Cancel ${affected.length} & block`,
       cancelLabel: "Keep bookings",
+      // With payments off nothing was ever charged, so both refund lines would
+      // promise a transaction that cannot happen. Drop them rather than reword
+      // — the title, the destructive confirm and the named bookings carry the
+      // rest (same call as the admin booking cancel).
       description: (
         <span className="flex flex-col gap-3">
-          <span>
-            Marking this time unavailable will cancel the following and fully
-            refund the clients:
-          </span>
+          {PAYMENTS_ENABLED && (
+            <span>
+              Marking this time unavailable will cancel the following and fully
+              refund the clients:
+            </span>
+          )}
           {affected.map((b) => (
             <span key={b.bookingId} className="flex flex-col">
               <span className="text-foreground font-medium">
-                {affectedLabel(b)}
+                {affectedLabel(b, dayKey)}
               </span>
-              <span>Refund {dollars(b.finalCents)} — 100% (you cancelled)</span>
+              {PAYMENTS_ENABLED && (
+                <span>
+                  Refund {centsToDollars(b.finalCents)} — 100% (you cancelled)
+                </span>
+              )}
             </span>
           ))}
         </span>
@@ -470,7 +553,17 @@ export function AvailabilityClient({
         for (const b of affected) {
           // fullRefund is forced server-side for admin cancels (decided by role).
           const res = await cancelBooking({ bookingId: b.bookingId });
-          if (res.kind !== "success") return false;
+          if (res.kind !== "success") {
+            // Returning false only re-enables the confirm button, so the most
+            // destructive step in the flow has to say why nothing happened.
+            toast.add({
+              type: "error",
+              title: "Couldn't save",
+              description:
+                "message" in res ? res.message : ACTION_FAILED.message,
+            });
+            return false;
+          }
         }
         result = await applyBlock();
         return true;
@@ -485,82 +578,86 @@ export function AvailabilityClient({
   // optimistic state dissolve seamlessly into the fresh server props.
   const callbacks: SchedulerCallbacks = useMemo(
     () => ({
-      createWindowsBatch: async (input) => {
+      createWindowsBatch: async (input) =>
         // Optimistic add — synthesize the day windows so the bands appear before
-        // the server round-trip lands. Optimistic + server both inside the
-        // transition so the optimistic state holds until revalidation arrives.
-        startMutation(async () => {
-          applyOptimisticWindow({
-            type: "add",
-            ranges: input.dayKeys.map((k) =>
-              dayWindow(k, input.openMinute, input.closeMinute),
-            ),
-          });
-          await createWindowsBatch(input);
-        });
-        return { kind: "success" };
-      },
+        // the server round-trip lands.
+        runMutation(
+          () =>
+            applyOptimisticWindow({
+              type: "add",
+              ranges: input.dayKeys.map((k) =>
+                dayWindow(k, input.openMinute, input.closeMinute),
+              ),
+            }),
+          () => createWindowsBatch(input),
+        ),
       setWindowUnavailable: async (input) => {
         // Cancel-by-blocking: if any booking overlaps the slice, confirm +
         // cancel-with-refund before blocking; otherwise block silently.
         const affected = bookingsInWindowSlice(
           initialBusy,
-          input.dayKey,
-          input.fromMinute,
-          input.toMinute,
+          dayWindow(input.dayKey, input.fromMinute, input.toMinute),
         );
-        const apply = async () => {
+        const result = await blockWithCancelGate(affected, input.dayKey, () =>
           // Optimistic removal — interval-subtract the slice. Reverts if the
-          // server refuses since revalidation won't fire. Wrapped in the
-          // transition so it's valid even when fired from the confirm dialog.
-          startMutation(async () => {
-            applyOptimisticWindow({
-              type: "subtract",
-              dayKey: input.dayKey,
-              fromMinute: input.fromMinute,
-              toMinute: input.toMinute,
-            });
-            await setWindowUnavailable(input);
-          });
-          return { kind: "success" } as const;
-        };
-        const result = await blockWithCancelGate(affected, apply);
+          // server refuses since revalidation won't fire.
+          runMutation(
+            () =>
+              applyOptimisticWindow({
+                type: "subtract",
+                dayKey: input.dayKey,
+                fromMinute: input.fromMinute,
+                toMinute: input.toMinute,
+              }),
+            () => setWindowUnavailable(input),
+          ),
+        );
         // Declining the confirm leaves the window untouched. Report a NON-success
         // so the painter knows the removal didn't apply and snaps the window back
         // (and skips the paired create when this removal is half of a move).
+        // No toast on that path: declining is Cal's own answer, not a refusal.
         return result ?? { kind: "conflict", bookings: [] };
       },
       setOvernightNightsBatch: async (input) => {
         // Turning nights OFF can strand bookings on those nights → gate it.
         // Turning ON never destroys anything → apply directly.
-        const apply = async () => {
-          startMutation(async () => {
-            applyOptimisticNights({ nights: input.nights, on: input.on });
-            await setOvernightNightsBatch(input);
-          });
-          return { kind: "success" } as const;
-        };
+        const apply = () =>
+          runMutation(
+            () => applyOptimisticNights({ nights: input.nights, on: input.on }),
+            () => setOvernightNightsBatch(input),
+          );
         if (input.on) {
           return apply();
         }
+        // The earliest targeted night dates the listed bookings that began on
+        // some other day. With no night targeted there is nothing to strand,
+        // so skip the gate.
+        const [earliestNight] = [...input.nights].sort();
+        if (earliestNight === undefined) return apply();
         const affected = bookingsOnNights(initialBusy, input.nights);
-        const result = await blockWithCancelGate(affected, apply);
+        const result = await blockWithCancelGate(
+          affected,
+          earliestNight,
+          apply,
+        );
         return result ?? { kind: "success" };
       },
-      setPremiumDaysBatch: async (input) => {
-        // Optimistic ★ flip; reverts if server write fails.
-        startMutation(async () => {
-          applyOptimisticPremiumDays({ dayKeys: input.dayKeys, on: input.on });
-          await setPremiumDaysBatch(input.dayKeys, input.on);
-        });
-        return { kind: "success" };
-      },
+      setPremiumDaysBatch: async (input) =>
+        // Optimistic ★ flip; reverts if the server write fails.
+        runMutation(
+          () =>
+            applyOptimisticPremiumDays({
+              dayKeys: input.dayKeys,
+              on: input.on,
+            }),
+          () => setPremiumDaysBatch(input.dayKeys, input.on),
+        ),
     }),
     // blockWithCancelGate/confirm are stable enough across renders; initialBusy
     // is the affected-booking source and must stay fresh.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [
-      startMutation,
+      runMutation,
       applyOptimisticWindow,
       applyOptimisticNights,
       applyOptimisticPremiumDays,
@@ -578,10 +675,19 @@ export function AvailabilityClient({
         <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-3">
             <Scheduler.MonthGrid />
+            {/* Persistent read-out of the selection, right under the grid it
+                describes: which days are in it, and the one control that empties
+                it (Escape does the same from the grid). */}
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <Scheduler.SelectionSummary />
+              <Scheduler.ClearDates />
+            </div>
             <Scheduler.Legend />
           </div>
           <section
-            aria-label="Selected day availability"
+            // Names the region without claiming a count: the same section edits
+            // one day or a whole selection.
+            aria-label="Availability editor"
             className="border-border flex flex-col gap-5 border-t pt-6"
           >
             <DayControls />
