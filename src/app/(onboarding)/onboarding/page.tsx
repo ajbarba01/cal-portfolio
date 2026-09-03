@@ -4,7 +4,7 @@
  * Reads onboarding_status from the signed-in user's profile (service-role, consistent
  * with the book page pattern) and renders the step that matches:
  *
- *   info_pending         → Step 1: profile + emergency info form (InfoStep client component)
+ *   info_pending         → Step 1: profile form (InfoStep client component)
  *   meet_greet_pending   → Step 2: MeetGreetStep — embedded meet-greet scheduler
  *                          (collapses to a booked status card once a visit exists;
  *                          "View / reschedule" re-opens it inline)
@@ -19,6 +19,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Surface } from "@/components/ui/surface";
+import { ErrorState } from "@/components/feedback/error-state";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { PageContainer } from "@/components/layout/page-container";
@@ -28,7 +29,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { InfoStep } from "./_components/info-step";
 import { MeetGreetStep } from "./_components/meet-greet-step";
-import { loadBookingFormData } from "@/features/booking";
+import { loadBookingFormData, type BookingStatus } from "@/features/booking";
 
 // ── Progress indicator ────────────────────────────────────────────────────────
 
@@ -80,8 +81,7 @@ export default async function OnboardingPage({
     .eq("id", user.id)
     .single();
 
-  const status =
-    (profile?.onboarding_status as string | null) ?? "info_pending";
+  const status = profile?.onboarding_status ?? "info_pending";
 
   // Approved users should not land here (middleware redirects them), but defend.
   if (status === "approved") {
@@ -91,11 +91,12 @@ export default async function OnboardingPage({
   // For meet_greet_pending: check for an active (pending or confirmed) meet-and-greet booking.
   let activeBookingId: string | null = null;
   let activeBookingStartsAt: string | null = null;
+  let activeBookingStatus: BookingStatus | null = null;
 
   if (status === "meet_greet_pending") {
     const { data: bookingRow } = await svc
       .from("bookings")
-      .select("id, starts_at, services!inner(slug)")
+      .select("id, starts_at, status, services!inner(slug)")
       .eq("client_id", user.id)
       .eq("services.slug", "meet-greet")
       .in("status", ["pending_approval", "confirmed"])
@@ -104,9 +105,9 @@ export default async function OnboardingPage({
       .limit(1)
       .single();
 
-    activeBookingId = typeof bookingRow?.id === "string" ? bookingRow.id : null;
-    activeBookingStartsAt =
-      typeof bookingRow?.starts_at === "string" ? bookingRow.starts_at : null;
+    activeBookingId = bookingRow?.id ?? null;
+    activeBookingStartsAt = bookingRow?.starts_at ?? null;
+    activeBookingStatus = bookingRow?.status ?? null;
   }
 
   // Load booking rules + busy ranges for the embedded meet-greet scheduler.
@@ -126,7 +127,7 @@ export default async function OnboardingPage({
         <StepBar step={1} />
         <PageHeader
           title="Welcome — let's get you set up"
-          subtitle="Fill in your profile and emergency info before booking."
+          subtitle="Fill in your profile before booking."
         />
         <InfoStep returnTo={returnTo} />
       </PageContainer>
@@ -139,9 +140,10 @@ export default async function OnboardingPage({
         <PageContainer className="max-w-2xl py-10">
           <BackToSite className="mb-6" />
           <StepBar step={2} />
-          <p className="text-destructive">
-            Could not load scheduling. Please try again later.
-          </p>
+          <ErrorState
+            title="Could not load scheduling"
+            message="Please try again later."
+          />
         </PageContainer>
       );
     }
@@ -159,20 +161,22 @@ export default async function OnboardingPage({
           initialBusy={meetGreetFormData.data.initialBusy}
           bookingId={activeBookingId}
           bookingStartsAt={activeBookingStartsAt}
+          bookingStatus={activeBookingStatus}
         />
       </PageContainer>
     );
   }
 
-  // declined (or any unrecognised future status). Copy is Cal's voice → placeholders.
+  // declined. The same wording the /book gate uses, so a client who followed
+  // "View details" from there does not read two different explanations.
   return (
     <PageContainer width="read" className="py-10">
       <BackToSite className="mb-6" />
       <PageHeader
-        title="[[HEADER: declined onboarding — invite the client to contact Cal]]"
-        subtitle="[[BODY: declined onboarding — ask the client to reach out to Cal to sort it out]]"
+        title="Your account needs attention"
+        subtitle="We need to sort out your account before you can book. Please get in touch and we'll help."
       />
-      <Surface variant="plain" className="flex flex-col gap-5 p-6">
+      <Surface variant="emphasis" className="flex flex-col gap-5 p-6">
         {/* Illustration accent */}
         <div
           aria-hidden="true"

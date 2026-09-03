@@ -7,6 +7,10 @@ import { VerifiedToast } from "./_components/verified-toast";
  * sidebar shell. Renders only the global header (the way back to the site) plus
  * the page's own back affordance. No zoneNav: an onboarding user has no account
  * sections to navigate yet.
+ *
+ * The zone owns its own `<main>` (every other zone has one) so the wizard is a
+ * landmark and, being `flex-1`, fills the sheet instead of leaving the footer
+ * floating mid-page. The toast stays outside it — it is not page content.
  */
 export default function OnboardingLayout({
   children,
@@ -18,7 +22,9 @@ export default function OnboardingLayout({
       <Suspense fallback={null}>
         <VerifiedToast />
       </Suspense>
-      {children}
+      <main id="main-content" className="flex-1">
+        {children}
+      </main>
     </PageShell>
   );
 }

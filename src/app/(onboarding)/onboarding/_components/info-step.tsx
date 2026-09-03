@@ -13,10 +13,14 @@ import { FormSection } from "@/components/ui/form-section";
 import { FIELD_LIMITS } from "@/lib/field-limits";
 
 /**
- * Step 1 — profile + emergency info form. RHF + zod validate client-side, so
- * an invalid submit never round-trips (and never resets the form — the old
- * useActionState wiring lost all input on a server validation error). The
- * server re-parses the same schema; submitOnboarding redirects on success.
+ * Step 1 — the client's profile. RHF + zod validate client-side, so an invalid
+ * submit never round-trips (and never resets the form — the old useActionState
+ * wiring lost all input on a server validation error). The server re-parses the
+ * same schema; submitOnboarding redirects on success.
+ *
+ * Nothing else is asked for here. Emergency and vet contact belong to the owner
+ * form, which the booking gate requires before the first paid booking — the
+ * meet & greet that follows this step is free and needs no intake.
  */
 export function InfoStep({ returnTo }: { returnTo?: string }) {
   const form = useAppForm(onboardingClientSchema, {
@@ -25,11 +29,6 @@ export function InfoStep({ returnTo }: { returnTo?: string }) {
       phone: "",
       address: "",
       zip: "",
-      contact_name: "",
-      contact_phone: "",
-      contact_relationship: "",
-      vet_name: "",
-      vet_phone: "",
     },
   });
   const isPending = form.formState.isSubmitting;
@@ -65,6 +64,7 @@ export function InfoStep({ returnTo }: { returnTo?: string }) {
             name="address"
             type="text"
             autoComplete="street-address"
+            hint="Street address, apt or unit"
             maxLength={FIELD_LIMITS.addressLine}
           />
           <FormField
@@ -74,47 +74,6 @@ export function InfoStep({ returnTo }: { returnTo?: string }) {
             autoComplete="postal-code"
             inputMode="numeric"
             maxLength={10}
-          />
-        </div>
-      </FormSection>
-
-      <FormSection title="Emergency contact">
-        <FormField
-          label="Contact name"
-          name="contact_name"
-          type="text"
-          maxLength={FIELD_LIMITS.name}
-        />
-        <div className="grid gap-4 sm:grid-cols-2">
-          <FormField
-            label="Contact phone"
-            name="contact_phone"
-            type="tel"
-            maxLength={FIELD_LIMITS.phone}
-          />
-          <FormField
-            label="Relationship"
-            name="contact_relationship"
-            type="text"
-            placeholder="e.g. Parent, Spouse, Friend"
-            maxLength={FIELD_LIMITS.relationship}
-          />
-        </div>
-      </FormSection>
-
-      <FormSection title="Veterinarian">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <FormField
-            label="Vet name or clinic"
-            name="vet_name"
-            type="text"
-            maxLength={FIELD_LIMITS.name}
-          />
-          <FormField
-            label="Vet phone"
-            name="vet_phone"
-            type="tel"
-            maxLength={FIELD_LIMITS.phone}
           />
         </div>
       </FormSection>

@@ -1,26 +1,24 @@
 "use client";
 
 import { useState } from "react";
+import { Check, Clock } from "lucide-react";
 import { MeetGreetScheduler } from "@/features/accounts";
 import { ApprovalWatcher } from "./approval-watcher";
 import { Button } from "@/components/ui/button";
 import { Surface } from "@/components/ui/surface";
-import type {
-  BookingRuleSettings,
-  PublicBusyRange,
+import {
+  bookingStatusPill,
+  type BookingRuleSettings,
+  type BookingStatus,
+  type PublicBusyRange,
 } from "@/features/booking/index.client";
+import { denverDayLabel, denverTime } from "@/lib/time-of-day";
+import { cn } from "@/lib/utils";
 
-/** Format a UTC ISO string to a human-friendly date+time in America/Denver. */
+/** An ISO instant as the Denver day and wall clock, e.g. "Sat, Jun 7, 9:00 AM". */
 function formatDenver(iso: string): string {
-  return new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Denver",
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  }).format(new Date(iso));
+  const at = new Date(iso);
+  return `${denverDayLabel(at, { year: false })}, ${denverTime(at)}`;
 }
 
 /**
@@ -37,6 +35,7 @@ export function MeetGreetStep({
   initialBusy,
   bookingId,
   bookingStartsAt,
+  bookingStatus,
 }: {
   /** Signed-in user id — drives the profile-approval realtime subscription. */
   userId: string;
@@ -46,12 +45,25 @@ export function MeetGreetStep({
   bookingId: string | null;
   /** ISO start of the active meet-greet booking, or null if none yet. */
   bookingStartsAt: string | null;
+  /**
+   * Status of the active meet-greet booking, or null if none yet. A meet & greet
+   * lands in `pending_approval` until Cal confirms the slot (it requires no
+   * forms, so every self-serve request pends), so the status card below must not
+   * claim "confirmed" until it actually is.
+   */
+  bookingStatus: BookingStatus | null;
 }) {
   const [rescheduling, setRescheduling] = useState(false);
   const showScheduler = bookingStartsAt === null || rescheduling;
+  // No status means no booking, so the card is not rendered at all; falling back
+  // to the state every request starts in keeps a missing status from claiming a
+  // confirmation Cal never gave.
+  const status = bookingStatus ?? "pending_approval";
+  const pill = bookingStatusPill(status);
+  const isConfirmed = status === "confirmed";
 
   return (
-    <Surface variant="plain" className="flex flex-col gap-5 p-6">
+    <Surface variant="emphasis" className="flex flex-col gap-5 p-6">
       {/* Intro */}
       <div className="border-border/60 flex items-center gap-3 border-b pb-4">
         <div
@@ -72,13 +84,22 @@ export function MeetGreetStep({
           <div className="flex items-center gap-3">
             <div
               aria-hidden="true"
-              className="bg-status-available text-status-available-foreground flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-base"
+              className={cn(
+                "flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
+                isConfirmed
+                  ? "bg-status-available text-status-available-foreground"
+                  : "bg-brand/15 text-brand-strong",
+              )}
             >
-              ✓
+              {isConfirmed ? (
+                <Check className="size-4" />
+              ) : (
+                <Clock className="size-4" />
+              )}
             </div>
             <div>
               <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
-                Meet &amp; greet confirmed
+                {isConfirmed ? "Meet & greet confirmed" : pill.label}
               </p>
               <p className="font-heading text-foreground text-lg font-semibold">
                 {formatDenver(bookingStartsAt)}
