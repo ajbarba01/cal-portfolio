@@ -40,6 +40,9 @@ export class ResendMailer implements Mailer {
       const { data, error } = await this.client.emails.send({
         from: this.from,
         to: msg.to,
+        // Every template tells the reader to reply, so replies have to land
+        // somewhere a person reads rather than at the sending domain's default.
+        replyTo: this.from,
         subject: msg.subject,
         html: msg.html,
         text: msg.text,

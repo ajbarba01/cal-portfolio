@@ -10,7 +10,7 @@
 import { buildBookingReminderEmail } from "./emails";
 import { shouldNotify } from "./should-notify";
 import type { Mailer, SendResult } from "./types";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { DbClient } from "@/lib/supabase/db-client";
 import { z } from "zod";
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -55,7 +55,9 @@ const reminderBookingRowSchema = z.object({
   status: z.string(),
   profiles: z
     .object({
-      email: z.string(),
+      // Nullable in the database; the send guard below is what an address-less
+      // profile falls through to, rather than a "malformed row" rejection.
+      email: z.string().nullable(),
       unclaimed: z.boolean().nullable(),
     })
     .nullable(),
@@ -68,12 +70,32 @@ const reminderBookingRowSchema = z.object({
 
 type ReminderBookingRow = z.infer<typeof reminderBookingRowSchema>;
 
+/**
+ * The settings column this cron reads. One declaration: the `select()` list and
+ * the parse both come from it, so they cannot drift. The admin editor owns the
+ * whole-row schema (`features/admin/settings-schema`); this is the
+ * notifications feature's own narrower copy, mirroring the booking feature's
+ * (`features/booking/booking-repository`), because a feature may not import
+ * another feature's internals — and reaching it through admin's public barrel
+ * put the two features in a runtime import cycle
+ * (`admin/approval-actions` → `@/features/notifications` → here), which left
+ * the binding undefined by the time the cron ran.
+ */
+const reminderSettingsSchema = z.object({
+  reminder_lead_hours: z.number(),
+});
+
+/** Derived from the schema that parses the result, so the two cannot drift. */
+const REMINDER_SETTINGS_COLUMNS = Object.keys(
+  reminderSettingsSchema.shape,
+).join(", ");
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Cron deps + core
 // ──────────────────────────────────────────────────────────────────────────────
 
 export interface ReminderCronDeps {
-  serviceClient: SupabaseClient;
+  serviceClient: DbClient;
   mailer: Mailer;
   now: Date;
 }
@@ -83,25 +105,26 @@ export async function runReminderCron(
 ): Promise<{ ok: true; sent: number } | { ok: false; error: string }> {
   const { serviceClient, mailer, now } = deps;
 
-  // Read reminder_lead_hours from settings.
   const { data: settingsData, error: settingsErr } = await serviceClient
     .from("settings")
-    .select("reminder_lead_hours")
+    .select(REMINDER_SETTINGS_COLUMNS)
     .limit(1)
     .single();
 
-  if (settingsErr || !settingsData) {
+  // `.single()` returns either a row or an error, so one failed parse covers
+  // both. No default lead time: the column is NOT NULL, so a non-number means
+  // the schema has drifted, and reminders are idempotent — failing the run
+  // sends nothing twice and the next run picks the backlog up.
+  const settings = reminderSettingsSchema.safeParse(settingsData);
+
+  if (!settings.success) {
     return {
       ok: false,
-      error: `Failed to load settings: ${settingsErr?.message ?? "no row"}`,
+      error: `Failed to load settings: ${settingsErr?.message ?? "unexpected settings row"}`,
     };
   }
 
-  const leadHours: number =
-    typeof settingsData.reminder_lead_hours === "number"
-      ? settingsData.reminder_lead_hours
-      : 24;
-
+  const leadHours = settings.data.reminder_lead_hours;
   const windowEnd = new Date(now.getTime() + leadHours * 3_600_000);
 
   // Query confirmed bookings with no reminder sent, starting within window.
@@ -114,6 +137,9 @@ export async function runReminderCron(
     .is("reminder_sent_at", null)
     .gt("starts_at", now.toISOString())
     .lte("starts_at", windowEnd.toISOString())
+    // Soonest first, so a capped batch spends itself on the most urgent
+    // reminders rather than an arbitrary hundred.
+    .order("starts_at")
     // Bound the per-run batch. Idempotent via reminder_sent_at, so a backlog
     // drains across the daily runs without re-sending.
     .limit(100);
