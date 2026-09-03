@@ -50,17 +50,13 @@ import {
   EXPENSE_AUTH_TEXT,
 } from "@/features/accounts/index.client";
 import type { AuthConfig } from "@/features/accounts/index.client";
+// The page's loader decides the auth state, so it owns the union. Type-only, so
+// it is erased at compile time and the server barrel never reaches this bundle.
+import type { AuthState } from "@/features/booking";
 
-export type { ServiceDetail };
+export type { ServiceDetail, AuthState };
 
 // ── Props ─────────────────────────────────────────────────────────────────────
-
-export type AuthState =
-  | "guest"
-  | "needs-info"
-  | "needs-meet-greet"
-  | "declined"
-  | "ready";
 
 export interface InitialSelection {
   start: string | null;
@@ -541,7 +537,7 @@ function RequirementsGate({
           reconfirm these to finish booking.
         </p>
       )}
-      <div className="border-border divide-border divide-y rounded-xl border">
+      <div className="border-border divide-border rounded-card divide-y border">
         {requirements.map((item) => {
           const scopeKey = item.petId
             ? `${item.formKey}:${item.petId}`

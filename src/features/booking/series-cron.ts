@@ -5,12 +5,18 @@
  *   1. PROMOTE — `pending_approval` bookings that pend ONLY because of the time
  *      horizon (distance auto + service not flagged) auto-confirm once their
  *      start crosses into the confirm horizon. This also covers far one-offs.
- *      A booking pending for distance/service reasons is left for Cal.
+ *      A booking pending for distance/service reasons is left for Cal. A
+ *      promoted booking gets its confirmation email here, like any other
+ *      confirmed transition.
  *   2. EXTEND  — active series materialize their newly-in-horizon occurrences
  *      (open-ended series roll forward indefinitely; bounded ones stop at their
  *      count/until). A materialize insert that hits the exclusion constraint
  *      (23P01) is left unmaterialized and surfaced as a conflict, never dropped
  *      silently.
+ *
+ * One failed booking never ends the run: every per-booking failure is logged
+ * and the loop moves on, so a single bad row cannot strand every series behind
+ * it until the next day.
  *
  * Pure predicates (`shouldPromote`, `nextOccurrencesToMaterialize`) are
  * unit-testable without IO. `runSeriesRollCron` takes injected deps
@@ -24,14 +30,15 @@
  */
 
 import { z } from "zod";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { DbClient } from "@/lib/supabase/db-client";
 import { haversineMiles } from "@/lib/haversine";
 import { deriveApproval, quote } from "@/features/pricing";
 import type { QuoteInput } from "@/features/pricing";
+import { sendBookingConfirmationFor } from "@/features/notifications";
 import { transition } from "./state-machine";
 import { expandOccurrences } from "./recurrence";
 import { deriveTimeApproval } from "./time-gate";
-import { createSupabaseBookingRepository } from "./booking-repository";
+import { asJson, createSupabaseBookingRepository } from "./booking-repository";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -118,8 +125,13 @@ const pendingRowSchema = z.object({
 // ──────────────────────────────────────────────────────────────────────────────
 
 export interface SeriesRollCronDeps {
-  serviceClient: SupabaseClient;
+  serviceClient: DbClient;
   now: Date;
+  /**
+   * Send the confirmation for a booking this run promoted. Defaults to the real
+   * sender; injectable so tests can promote without reaching Resend.
+   */
+  sendConfirmation?: (bookingId: string) => Promise<void>;
 }
 
 export type SeriesRollCronResult =
@@ -130,6 +142,10 @@ export async function runSeriesRollCron(
   deps: SeriesRollCronDeps,
 ): Promise<SeriesRollCronResult> {
   const { serviceClient, now } = deps;
+  const sendConfirmation =
+    deps.sendConfirmation ??
+    ((bookingId: string) =>
+      sendBookingConfirmationFor(serviceClient, bookingId));
   const repo = createSupabaseBookingRepository(serviceClient);
 
   const settings = await repo.getSettings();
@@ -222,9 +238,13 @@ export async function runSeriesRollCron(
       console.error(
         `series-roll: failed to promote ${row.id}: ${updateErr.message}`,
       );
-    } else {
-      promoted++;
+      continue;
     }
+
+    promoted++;
+    // A promote is a confirmed transition like any other, so the client hears
+    // about it. Best-effort: the sender logs its own failures and never throws.
+    await sendConfirmation(row.id);
   }
 
   // ── 2. EXTEND ─────────────────────────────────────────────────────────────
@@ -281,9 +301,12 @@ export async function runSeriesRollCron(
     }
 
     // Re-quote from the FROZEN series inputs → identical breakdown every time.
+    // The column is jsonb, so the frozen input is narrowed once here and both
+    // the re-quote and the occurrence rows below read that one value.
+    const seriesQuoteInput = s.quote_inputs as QuoteInput;
     let breakdown;
     try {
-      breakdown = quote(s.quote_inputs as QuoteInput);
+      breakdown = quote(seriesQuoteInput);
     } catch (e) {
       console.error(
         `series-roll: re-quote failed for series ${s.id}: ${e instanceof Error ? e.message : String(e)}`,
@@ -316,8 +339,8 @@ export async function runSeriesRollCron(
             status: stat.state,
             concurrency: service.concurrency,
             distance_miles: distanceMiles,
-            quote_inputs: s.quote_inputs,
-            quote_breakdown: breakdown as unknown,
+            quote_inputs: asJson(seriesQuoteInput),
+            quote_breakdown: asJson(breakdown),
             final_cents: breakdown.finalCents,
             requires_approval: requiresApproval,
             discount_cents: 0,
@@ -336,7 +359,12 @@ export async function runSeriesRollCron(
             `series-roll: occurrence ${occStart.toISOString()} for series ${s.id} conflicts; left unmaterialized for Cal`,
           );
         } else {
-          throw e;
+          // One bad occurrence must not abort the run: rethrowing here dropped
+          // every later series on the floor, and the daily cron would have to
+          // clear the failure before any of them rolled again.
+          console.error(
+            `series-roll: failed to materialize ${occStart.toISOString()} for series ${s.id}: ${e instanceof Error ? e.message : String(e)}`,
+          );
         }
       }
     }

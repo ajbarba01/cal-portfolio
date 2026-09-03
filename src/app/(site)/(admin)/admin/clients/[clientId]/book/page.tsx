@@ -1,20 +1,25 @@
 /**
- * Admin create-on-behalf route. Verifies admin, loads the fixed client + their
- * pets + services + booking rules, renders a service-pick step then the create
- * surface. Service selection is held in client state in AdminCreateBookingFlow.
+ * Admin create-on-behalf route. Role is gated by the (admin) layout; this page
+ * loads the fixed client + their pets + services + booking rules and renders a
+ * service-pick step then the create surface. Service selection is held in
+ * client state in AdminCreateBookingFlow.
  */
-import { redirect, notFound } from "next/navigation";
-import Link from "next/link";
-import { getCachedUser } from "@/lib/supabase/server-cache";
+import { notFound } from "next/navigation";
 import { createServiceClient } from "@/lib/supabase/service";
-import { loadBookingFormData, DEFAULT_CONSTRAINTS } from "@/features/booking";
+import { ErrorState } from "@/components/feedback/error-state";
+import { BackToSite } from "@/components/layout/back-to-site";
+import { PageContainer } from "@/components/layout/page-container";
+import { PageHeader } from "@/components/layout/page-header";
+import {
+  loadBookingFormData,
+  SERVICE_DETAIL_COLUMNS,
+  toServiceDetail,
+} from "@/features/booking";
+import { listClientPets, type AssignablePet } from "@/features/pets";
 import { AdminCreateBookingFlow } from "./_components/admin-create-booking-flow";
-import type { PetSpecies, AssignablePet } from "@/features/booking";
-import type { PricingType } from "@/features/pricing";
-import { parsePricingConfig } from "@/features/pricing";
-import type { Constraints } from "@/features/pricing";
 
-const SIGNED_URL_TTL_SECONDS = 60 * 60;
+/** The booking flow's own column width (see booking-flow.tsx layout contract). */
+const BOOKING_WIDTH = "max-w-2xl";
 
 export default async function AdminCreateBookingPage({
   params,
@@ -23,16 +28,7 @@ export default async function AdminCreateBookingPage({
 }) {
   const { clientId } = await params;
 
-  const { user } = await getCachedUser();
-  if (!user) redirect("/login");
-
   const svc = createServiceClient();
-  const { data: actor } = await svc
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
-  if (actor?.role !== "admin") redirect("/admin");
 
   const { data: clientRow } = await svc
     .from("profiles")
@@ -40,60 +36,24 @@ export default async function AdminCreateBookingPage({
     .eq("id", clientId)
     .single();
   if (!clientRow || clientRow.role !== "client") notFound();
-  const clientName =
-    (clientRow.full_name as string | null) ??
-    (clientRow.email as string | null) ??
-    "client";
+  const clientName = clientRow.full_name ?? clientRow.email ?? "client";
 
   const { data: serviceRows } = await svc
     .from("services")
-    .select(
-      "slug, name, description, pricing_type, pricing_config, default_duration_min",
-    )
+    .select(SERVICE_DETAIL_COLUMNS)
     .eq("active", true)
     .order("sort_order", { ascending: true });
-  const services = (serviceRows ?? []).map((s) => {
-    let constraints: Constraints = DEFAULT_CONSTRAINTS;
-    try {
-      constraints = parsePricingConfig(s.pricing_config).constraints;
-    } catch {
-      // keep DEFAULT_CONSTRAINTS — never crash on bad config
-    }
-    return {
-      slug: s.slug as string,
-      name: s.name as string,
-      description: typeof s.description === "string" ? s.description : null,
-      pricingType: s.pricing_type as PricingType,
-      defaultDurationMin:
-        typeof s.default_duration_min === "number"
-          ? s.default_duration_min
-          : null,
-      constraints,
-    };
-  });
+  const services = (serviceRows ?? []).map(toServiceDetail);
 
-  const { data: petRows } = await svc
-    .from("pets")
-    .select("id, name, species, breed, notes, photo_url")
-    .eq("client_id", clientId)
-    .order("created_at", { ascending: true });
-  const pets: AssignablePet[] = await Promise.all(
-    (petRows ?? []).map(async (p) => {
-      let photoUrl: string | null = null;
-      if (p.photo_url) {
-        const { data } = await svc.storage
-          .from("pet-photos")
-          .createSignedUrl(p.photo_url as string, SIGNED_URL_TTL_SECONDS);
-        photoUrl = data?.signedUrl ?? null;
-      }
-      return {
-        id: p.id as string,
-        name: p.name as string,
-        species: p.species as PetSpecies,
-        breed: typeof p.breed === "string" ? p.breed : null,
-        notes: typeof p.notes === "string" ? p.notes : null,
-        photoUrl,
-      };
+  const petsRead = await listClientPets(svc, clientId);
+  const pets: AssignablePet[] = petsRead.data.map(
+    ({ id, name, species, breed, notes, photoUrl }) => ({
+      id,
+      name,
+      species,
+      breed,
+      notes,
+      photoUrl,
     }),
   );
 
@@ -102,26 +62,30 @@ export default async function AdminCreateBookingPage({
   const loaded = await loadBookingFormData(services[0]?.slug ?? "meet-greet");
   if (!loaded.ok) {
     return (
-      <main className="mx-auto max-w-2xl px-4 py-12">
-        <p className="text-destructive">
-          Could not load booking settings. Please try again later.
-        </p>
-      </main>
+      <PageContainer className={BOOKING_WIDTH}>
+        <BackToSite
+          href={`/admin/clients/${clientId}`}
+          label={clientName}
+          className="mb-6"
+        />
+        <ErrorState
+          title="Couldn't load this"
+          message="Please try again shortly."
+        />
+      </PageContainer>
     );
   }
   const rules = loaded.data.rules;
   const initialPremiumDays = loaded.data.initialPremiumDays;
 
   return (
-    <main className="mx-auto max-w-2xl px-4 py-12">
-      <Link
+    <PageContainer className={BOOKING_WIDTH}>
+      <BackToSite
         href={`/admin/clients/${clientId}`}
-        className="text-muted-foreground hover:text-foreground mb-6 inline-block text-sm"
-      >
-        ← {clientName}
-      </Link>
-      <h1 className="mb-1 text-2xl font-semibold">New booking</h1>
-      <p className="text-muted-foreground mb-8 text-sm">for {clientName}</p>
+        label={clientName}
+        className="mb-6"
+      />
+      <PageHeader title="New booking" subtitle={`for ${clientName}`} />
       <AdminCreateBookingFlow
         clientId={clientId}
         clientName={clientName}
@@ -130,6 +94,6 @@ export default async function AdminCreateBookingPage({
         rules={rules}
         initialPremiumDays={initialPremiumDays}
       />
-    </main>
+    </PageContainer>
   );
 }

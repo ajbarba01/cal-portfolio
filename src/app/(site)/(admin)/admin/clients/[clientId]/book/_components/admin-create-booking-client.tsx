@@ -23,6 +23,7 @@ import {
   PetAssignment,
   QuantityForm,
   QuotePanel,
+  RecurringControls,
   petStepHeading,
   RECURRING_UI_ENABLED,
 } from "@/features/booking/index.client";
@@ -32,7 +33,6 @@ import type {
   AssignablePet,
   ServiceDetail,
 } from "@/features/booking/index.client";
-import { RecurringControls } from "@/app/(site)/(marketing)/book/[serviceSlug]/_components/recurring-controls";
 import { useAdminCreateBooking } from "./use-admin-create-booking";
 
 // ── Props ─────────────────────────────────────────────────────────────────────

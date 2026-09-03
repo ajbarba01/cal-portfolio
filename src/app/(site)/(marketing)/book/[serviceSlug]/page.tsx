@@ -1,46 +1,35 @@
 /**
  * /book/[serviceSlug] — per-service booking page (server component).
  *
- * Loads the one service + booking-rule settings + initial public busy ranges via
- * the service role, plus the viewer's auth state (guest | needs-info |
- * needs-meet-greet | ready) and — when ready — their pets (with signed photo URLs). The deferred-auth
- * gate itself lives in the client; this page only supplies the inputs and
- * rehydrates a returnTo selection from the query string.
+ * Routing only: every read, guard and mapping lives in `loadServiceBookingPage`.
+ * This resolves the route's params, rehydrates a returnTo selection from the
+ * query string, and renders the page shell around the client flow.
  */
 
 import { notFound, redirect } from "next/navigation";
-import Link from "next/link";
 import { getCachedUser } from "@/lib/supabase/server-cache";
 import { createServiceClient } from "@/lib/supabase/service";
-import { Reveal, RevealGroup } from "@/components/effects/reveal";
-import {
-  loadBookingFormData,
-  denverDayKey,
-  listActiveServices,
-  driveBufferMinutes,
-  DEFAULT_CONSTRAINTS,
-  type ServiceDetail,
-  type AssignablePet,
-  type OnboardingStatus,
-  type PetSpecies,
-} from "@/features/booking";
-import {
-  ServiceBookingClient,
-  type AuthState,
-} from "./_components/service-booking-client";
-import { ServiceSwitcher } from "@/components/ui/service-switcher";
-import { EXPENSE_AUTH_KIND } from "@/features/accounts";
-import type { PricingType } from "@/features/pricing";
-import { parsePricingConfig } from "@/features/pricing";
 import { createStaticClient } from "@/lib/supabase/static";
+import { Reveal, RevealGroup } from "@/components/effects/reveal";
+import { ErrorState } from "@/components/feedback/error-state";
+import { BackToSite } from "@/components/layout/back-to-site";
+import { PageContainer } from "@/components/layout/page-container";
+import { PageHeader } from "@/components/layout/page-header";
+import { ServiceSwitcher } from "@/components/ui/service-switcher";
+import { listActiveServices, loadServiceBookingPage } from "@/features/booking";
 import {
   buildPageMetadata,
   buildBreadcrumbJsonLd,
   buildServiceJsonLd,
   JsonLd,
 } from "@/features/seo";
+import { ServiceBookingClient } from "./_components/service-booking-client";
 
-const SIGNED_URL_TTL_SECONDS = 60 * 60;
+/**
+ * The booking flow's own column width (see booking-flow.tsx layout contract),
+ * plus the band padding the marketing layout leaves to the page.
+ */
+const BOOKING_SHELL = "max-w-2xl py-12";
 
 function firstParam(v: string | string[] | undefined): string | null {
   if (Array.isArray(v)) return v[0] ?? null;
@@ -79,210 +68,31 @@ export default async function ServiceBookingPage({
     redirect("/onboarding");
   }
 
-  const sp = await searchParams;
+  // The viewer's id is handed over unresolved so the auth round trip overlaps
+  // the service, settings and sibling reads.
+  const [sp, page] = await Promise.all([
+    searchParams,
+    loadServiceBookingPage(
+      createServiceClient(),
+      serviceSlug,
+      getCachedUser().then(({ user }) => user?.id ?? null),
+    ),
+  ]);
 
-  const svc = createServiceClient();
-
-  // Service, booking-form data, viewer auth, and the sibling-service list (for
-  // the cross-nav switcher) are independent — fetch in parallel.
-  const [{ data: serviceRow }, loaded, { user }, siblingServices] =
-    await Promise.all([
-      svc
-        .from("services")
-        .select(
-          "id, slug, name, description, pricing_type, pricing_config, default_duration_min",
-        )
-        .eq("slug", serviceSlug)
-        .eq("active", true)
-        .single(),
-      loadBookingFormData(serviceSlug),
-      getCachedUser(),
-      listActiveServices(svc),
-    ]);
-
-  if (!serviceRow) notFound();
-
-  let constraints = DEFAULT_CONSTRAINTS;
-  try {
-    constraints = parsePricingConfig(serviceRow.pricing_config).constraints;
-  } catch {
-    // keep DEFAULT_CONSTRAINTS — never crash the booking page on bad config
-  }
-
-  const service: ServiceDetail = {
-    slug: serviceRow.slug as string,
-    name: serviceRow.name as string,
-    description:
-      typeof serviceRow.description === "string"
-        ? serviceRow.description
-        : null,
-    pricingType: serviceRow.pricing_type as PricingType,
-    defaultDurationMin:
-      typeof serviceRow.default_duration_min === "number"
-        ? serviceRow.default_duration_min
-        : null,
-    constraints,
-  };
-
-  // Booking-rule settings + initial public busy ranges (shared loader).
-  if (!loaded.ok) {
+  if (!page.ok) {
+    if (page.reason === "not-found") notFound();
     return (
-      <main className="mx-auto max-w-2xl px-4 py-12">
-        <p className="text-destructive">
-          Could not load booking settings. Please try again later.
-        </p>
-      </main>
+      <PageContainer className={BOOKING_SHELL}>
+        <BackToSite href="/services" label="All services" className="mb-6" />
+        <ErrorState
+          title="Couldn't load this"
+          message="Please try again shortly."
+        />
+      </PageContainer>
     );
   }
-  const { rules, initialBusy, initialPremiumDays } = loaded.data;
 
-  let authState: AuthState = "guest";
-  let pets: AssignablePet[] = [];
-  // Denver day-keys where this client already has an active booking for THIS
-  // service — drives the "your booking" dot on the month grid (e.g. recurring walks).
-  let myBookingDayKeys: string[] = [];
-  const formResponses: Record<
-    string,
-    { data: Record<string, unknown>; submittedAt: string | null }
-  > = {};
-  let acceptedAuthVersion: string | null = null;
-  let acceptedAuthAt: string | null = null;
-  let viewerDriveBufferMin = 0;
-
-  if (user) {
-    const { data: profile } = await svc
-      .from("profiles")
-      .select("onboarding_status, lat, lng")
-      .eq("id", user.id)
-      .single();
-
-    const status = profile?.onboarding_status as OnboardingStatus | undefined;
-
-    if (status === "approved") {
-      authState = "ready";
-    } else if (status === "meet_greet_pending") {
-      authState = serviceSlug === "meet-greet" ? "ready" : "needs-meet-greet";
-    } else if (status === "declined") {
-      // Profile is complete but Cal declined — distinct panel, not "finish profile".
-      authState = "declined";
-    } else {
-      // info_pending or undefined → send to the onboarding info step.
-      authState = "needs-info";
-    }
-
-    // Drive buffer: fetch origin + road params from settings, then compute the
-    // viewer's one-way blocking buffer. Only matters for time-based services
-    // (house-sitting is unbuffered), but we compute it unconditionally — the
-    // scheduler ignores it for month-range mode.
-    const { data: driveSettings } = await svc
-      .from("settings")
-      .select(
-        "origin_lat, origin_lng, road_factor, avg_speed_mph, drive_buffer_pct",
-      )
-      .limit(1)
-      .single();
-
-    if (driveSettings) {
-      viewerDriveBufferMin = driveBufferMinutes(
-        {
-          lat: driveSettings.origin_lat as number,
-          lng: driveSettings.origin_lng as number,
-        },
-        {
-          lat: (profile?.lat ?? null) as number | null,
-          lng: (profile?.lng ?? null) as number | null,
-        },
-        {
-          roadFactor: driveSettings.road_factor as number,
-          avgSpeedMph: driveSettings.avg_speed_mph as number,
-          pct: driveSettings.drive_buffer_pct as number,
-        },
-      );
-    }
-
-    // Pets (only when ready) and this client's active bookings for this service
-    // are independent — fetch in parallel.
-    const loadReadyPets = async (): Promise<AssignablePet[]> => {
-      if (authState !== "ready") return [];
-      const { data: petRows } = await svc
-        .from("pets")
-        .select("id, name, species, breed, notes, photo_url")
-        .eq("client_id", user.id)
-        .order("created_at", { ascending: true });
-
-      return Promise.all(
-        (petRows ?? []).map(async (p) => {
-          let photoUrl: string | null = null;
-          if (p.photo_url) {
-            const { data } = await svc.storage
-              .from("pet-photos")
-              .createSignedUrl(p.photo_url as string, SIGNED_URL_TTL_SECONDS);
-            photoUrl = data?.signedUrl ?? null;
-          }
-          return {
-            id: p.id as string,
-            name: p.name as string,
-            species: p.species as PetSpecies,
-            breed: typeof p.breed === "string" ? p.breed : null,
-            notes: typeof p.notes === "string" ? p.notes : null,
-            photoUrl,
-          };
-        }),
-      );
-    };
-
-    const [
-      resolvedPets,
-      { data: myBookingRows },
-      { data: formRows },
-      { data: authRows },
-    ] = await Promise.all([
-      loadReadyPets(),
-      svc
-        .from("bookings")
-        .select("starts_at")
-        .eq("client_id", user.id)
-        .eq("service_id", serviceRow.id as string)
-        .in("status", ["pending_approval", "confirmed"])
-        .gte("ends_at", new Date().toISOString()),
-      authState === "ready"
-        ? svc
-            .from("form_responses")
-            .select("form_key, pet_id, data, submitted_at")
-            .eq("client_id", user.id)
-        : Promise.resolve({ data: null, error: null }),
-      authState === "ready"
-        ? svc
-            .from("authorizations")
-            .select("version, accepted_at")
-            .eq("client_id", user.id)
-            .eq("kind", EXPENSE_AUTH_KIND)
-            .order("accepted_at", { ascending: false })
-            .limit(1)
-        : Promise.resolve({ data: null, error: null }),
-    ]);
-
-    pets = resolvedPets;
-    myBookingDayKeys = (myBookingRows ?? []).map((r) =>
-      denverDayKey(new Date(r.starts_at as string)),
-    );
-
-    for (const r of formRows ?? []) {
-      const key = r.pet_id
-        ? `${r.form_key as string}:${r.pet_id as string}`
-        : (r.form_key as string);
-      formResponses[key] = {
-        data: (r.data ?? {}) as Record<string, unknown>,
-        submittedAt: (r.submitted_at as string | null) ?? null,
-      };
-    }
-
-    const latestAuth = (
-      authRows as { version: string; accepted_at: string }[] | null
-    )?.[0];
-    acceptedAuthVersion = latestAuth?.version ?? null;
-    acceptedAuthAt = latestAuth?.accepted_at ?? null;
-  }
+  const { service, siblingServices, formData, viewer } = page.data;
 
   const petsParam = firstParam(sp.pets);
   const initialSelection = {
@@ -296,7 +106,7 @@ export default async function ServiceBookingPage({
       <JsonLd
         data={buildBreadcrumbJsonLd([
           { name: "Home", path: "/" },
-          { name: "Book", path: "/book" },
+          { name: "Services", path: "/services" },
           { name: service.name, path: `/book/${service.slug}` },
         ])}
       />
@@ -307,49 +117,39 @@ export default async function ServiceBookingPage({
           description: service.description,
         })}
       />
-      <main className="px-4 py-12">
-        <RevealGroup className="mx-auto mb-8 w-full max-w-2xl">
-          <Reveal>
-            <Link
-              href="/services"
-              className="text-muted-foreground hover:text-foreground inline-block text-sm"
-            >
-              ← All services
-            </Link>
+      <PageContainer className={BOOKING_SHELL}>
+        <RevealGroup>
+          <Reveal className="mb-6">
+            <BackToSite href="/services" label="All services" />
           </Reveal>
           {/* Cross-nav: hop between services without going back to the index. */}
           {siblingServices.length > 1 && (
-            <Reveal className="mt-3 mb-6">
+            <Reveal className="mb-6">
               <ServiceSwitcher
                 services={siblingServices}
                 activeSlug={service.slug}
               />
             </Reveal>
           )}
-          <Reveal as="h1" className="font-heading mb-1 text-2xl font-semibold">
-            {service.name}
+          <Reveal>
+            <PageHeader title={service.name} subtitle={service.description} />
           </Reveal>
-          {service.description && (
-            <Reveal as="p" className="text-muted-foreground text-sm">
-              {service.description}
-            </Reveal>
-          )}
         </RevealGroup>
         <ServiceBookingClient
           service={service}
-          rules={rules}
-          initialBusy={initialBusy}
-          initialPremiumDays={initialPremiumDays}
-          authState={authState}
-          pets={pets}
+          rules={formData.rules}
+          initialBusy={formData.initialBusy}
+          initialPremiumDays={formData.initialPremiumDays}
+          authState={viewer.authState}
+          pets={viewer.pets}
           initialSelection={initialSelection}
-          myBookingDayKeys={myBookingDayKeys}
-          formResponses={formResponses}
-          acceptedAuthVersion={acceptedAuthVersion}
-          acceptedAuthAt={acceptedAuthAt}
-          viewerDriveBufferMin={viewerDriveBufferMin}
+          myBookingDayKeys={viewer.myBookingDayKeys}
+          formResponses={viewer.formResponses}
+          acceptedAuthVersion={viewer.acceptedAuthVersion}
+          acceptedAuthAt={viewer.acceptedAuthAt}
+          viewerDriveBufferMin={viewer.driveBufferMin}
         />
-      </main>
+      </PageContainer>
     </>
   );
 }

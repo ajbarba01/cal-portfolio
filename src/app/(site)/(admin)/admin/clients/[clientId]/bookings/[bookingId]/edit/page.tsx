@@ -1,29 +1,35 @@
 /**
- * Admin edit route — edit ANY client's booking as the admin actor.
- * Guards: admin role → status editable. No ownership/clientCanEdit gate.
+ * Admin edit route — edit ANY client's booking as the admin actor. Role is
+ * gated by the (admin) layout; this page only checks the booking belongs to
+ * the route's client and is in an editable status. No ownership/clientCanEdit
+ * gate — unlike the client-facing edit page, an admin isn't bound by the
+ * reschedule cutoff.
  */
 import { redirect, notFound } from "next/navigation";
-import Link from "next/link";
-import { getCachedUser } from "@/lib/supabase/server-cache";
 import { createServiceClient } from "@/lib/supabase/service";
+import { ErrorState } from "@/components/feedback/error-state";
+import { BackToSite } from "@/components/layout/back-to-site";
+import { PageContainer } from "@/components/layout/page-container";
+import { PageHeader } from "@/components/layout/page-header";
 import {
   createSupabaseBookingRepository,
+  driveBufferMinutes,
   loadBookingFormData,
   quantityStateFromQuoteInputs,
-  serviceSupportsKiche,
-  kichePreview,
+  manualDiscountRows,
   EDITABLE_STATUSES,
-  DEFAULT_CONSTRAINTS,
-  type ServiceDetail,
-  type AssignablePet,
-  type PetSpecies,
+  SERVICE_DETAIL_COLUMNS,
+  toServiceDetail,
 } from "@/features/booking";
-import { EditBookingClient } from "@/app/(site)/(account)/account/bookings/[id]/edit/_components/edit-booking-client";
-import { AdminKicheControl } from "./_components/admin-kiche-control";
-import type { PricingType } from "@/features/pricing";
-import { parsePricingConfig } from "@/features/pricing";
+import { listClientPets, type AssignablePet } from "@/features/pets";
+import { EditBookingClient } from "@/features/booking/index.client";
+import { AdminManualDiscounts } from "./_components/admin-manual-discounts";
+import { parsePricingConfig, type Modifier } from "@/features/pricing";
+// Pure projection — the client entry avoids dragging the Stripe gateway in.
+import { netPaid } from "@/features/payments/index.client";
 
-const SIGNED_URL_TTL_SECONDS = 60 * 60;
+/** The booking flow's own column width (see booking-flow.tsx layout contract). */
+const BOOKING_WIDTH = "max-w-2xl";
 
 export default async function AdminEditBookingPage({
   params,
@@ -32,17 +38,7 @@ export default async function AdminEditBookingPage({
 }) {
   const { clientId, bookingId } = await params;
 
-  const { user } = await getCachedUser();
-  if (!user) redirect("/login");
-
   const svc = createServiceClient();
-  const { data: actor } = await svc
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
-  if (actor?.role !== "admin") redirect("/admin");
-
   const repo = createSupabaseBookingRepository(svc);
   const booking = await repo.getBookingForEdit(bookingId);
   if (!booking || booking.client_id !== clientId) notFound();
@@ -54,105 +50,87 @@ export default async function AdminEditBookingPage({
     .select("full_name, email")
     .eq("id", clientId)
     .single();
-  const clientName =
-    (clientRow?.full_name as string | null) ??
-    (clientRow?.email as string | null) ??
-    "client";
+  const clientName = clientRow?.full_name ?? clientRow?.email ?? "client";
 
   const { data: serviceRow } = await svc
     .from("services")
-    .select(
-      "id, slug, name, description, pricing_type, pricing_config, default_duration_min",
-    )
+    .select(SERVICE_DETAIL_COLUMNS)
     .eq("slug", booking.service_slug)
     .single();
   if (!serviceRow) redirect(`/admin/clients/${clientId}`);
 
-  let constraints = DEFAULT_CONSTRAINTS;
+  const service = toServiceDetail(serviceRow);
+
+  // manualDiscountRows needs the full modifier list, not just constraints —
+  // toServiceDetail only carries constraints, so parse pricing_config again.
+  let modifiers: Modifier[] = [];
   try {
-    constraints = parsePricingConfig(serviceRow.pricing_config).constraints;
+    modifiers = parsePricingConfig(serviceRow.pricing_config).modifiers;
   } catch {
-    // keep DEFAULT_CONSTRAINTS — never crash on bad config
+    // keep modifiers empty — never crash on bad config
   }
 
-  const service: ServiceDetail = {
-    slug: serviceRow.slug as string,
-    name: serviceRow.name as string,
-    description:
-      typeof serviceRow.description === "string"
-        ? serviceRow.description
-        : null,
-    pricingType: serviceRow.pricing_type as PricingType,
-    defaultDurationMin:
-      typeof serviceRow.default_duration_min === "number"
-        ? serviceRow.default_duration_min
-        : null,
-    constraints,
-  };
-
-  const { data: feeRow } = await svc
-    .from("bookings")
-    .select("final_cents")
-    .eq("id", bookingId)
-    .single();
-  const priorFinalCents: number = (feeRow?.final_cents as number | null) ?? 0;
+  // Also the row manualDiscountRows needs below — one read serves both, so it
+  // is fetched here rather than a second time further down.
+  const discountBooking = await repo.getBookingForKiche(bookingId);
+  const priorFinalCents = discountBooking?.finalCents ?? 0;
 
   const loaded = await loadBookingFormData(booking.service_slug);
   if (!loaded.ok) {
     return (
-      <main className="mx-auto max-w-2xl px-4 py-12">
-        <p className="text-destructive">
-          Could not load booking settings. Please try again later.
-        </p>
-      </main>
+      <PageContainer className={BOOKING_WIDTH}>
+        <BackToSite
+          href={`/admin/clients/${clientId}`}
+          label={clientName}
+          className="mb-6"
+        />
+        <ErrorState
+          title="Couldn't load this"
+          message="Please try again shortly."
+        />
+      </PageContainer>
     );
   }
-  const { rules, initialBusy, initialPremiumDays } = loaded.data;
+  const { rules, initialBusy, initialPremiumDays, driveBuffer } = loaded.data;
 
-  const { data: petRows } = await svc
-    .from("pets")
-    .select("id, name, species, breed, notes, photo_url")
-    .eq("client_id", clientId)
-    .order("created_at", { ascending: true });
+  // The travel time this client's visits reserve, so the picker offers Cal the
+  // same drive-time-clear slots the save-side guard would accept.
+  const viewerDriveBufferMin = driveBufferMinutes(
+    driveBuffer.origin,
+    await repo.getProfileLatLng(clientId),
+    driveBuffer.config,
+  );
 
-  const pets: AssignablePet[] = await Promise.all(
-    (petRows ?? []).map(async (p) => {
-      let photoUrl: string | null = null;
-      if (p.photo_url) {
-        const { data } = await svc.storage
-          .from("pet-photos")
-          .createSignedUrl(p.photo_url as string, SIGNED_URL_TTL_SECONDS);
-        photoUrl = data?.signedUrl ?? null;
-      }
-      return {
-        id: p.id as string,
-        name: p.name as string,
-        species: p.species as PetSpecies,
-        breed: typeof p.breed === "string" ? p.breed : null,
-        notes: typeof p.notes === "string" ? p.notes : null,
-        photoUrl,
-      };
+  const petsRead = await listClientPets(svc, clientId);
+  const pets: AssignablePet[] = petsRead.data.map(
+    ({ id, name, species, breed, notes, photoUrl }) => ({
+      id,
+      name,
+      species,
+      breed,
+      notes,
+      photoUrl,
     }),
   );
 
-  // Kiche apply control — only for kiche-rated services where the client
-  // consented. Preview numbers computed server-side from the frozen quote;
-  // kichePreview returns null (control omitted) when that stored quote can't be
-  // re-priced, so a malformed/legacy quote_inputs never crashes the page.
-  const kicheRow = await repo.getBookingForKiche(bookingId);
-  const kiche =
-    kicheRow &&
-    serviceSupportsKiche(service.pricingType) &&
-    kicheRow.kiche_welcome
-      ? kichePreview({
-          quoteInputs: kicheRow.quote_inputs,
-          kicheApplied: kicheRow.kiche_applied,
-          currentFinalCents: kicheRow.finalCents,
-          paidCents: kicheRow.payments
-            .filter((p) => p.status === "succeeded")
-            .reduce((sum, p) => sum + p.amountCents, 0),
-        })
-      : null;
+  // Manual discounts — the service names them, but the booking's FROZEN quote
+  // decides which it can carry: manualDiscountRows drops any the stored quote
+  // cannot re-price, so a malformed or legacy quote_inputs leaves an empty list
+  // rather than crashing the page.
+  //
+  // Paid amounts are NET of refunds — a booking already partly refunded has
+  // paid less than it was charged, and quoting the gross would over-state the
+  // refund Cal is about to authorise.
+  const discountRows = discountBooking
+    ? manualDiscountRows({
+        modifiers,
+        quoteInputs: discountBooking.quote_inputs,
+        kicheApplied: discountBooking.kiche_applied,
+        kicheWelcome: discountBooking.kiche_welcome,
+        currentFinalCents: discountBooking.finalCents,
+        paidCents: netPaid(discountBooking.payments),
+      })
+    : [];
 
   const initial = {
     startsAtIso: booking.startsAt.toISOString(),
@@ -168,24 +146,15 @@ export default async function AdminEditBookingPage({
   };
 
   return (
-    <main className="mx-auto max-w-2xl px-4 py-12">
-      <Link
+    <PageContainer className={BOOKING_WIDTH}>
+      <BackToSite
         href={`/admin/clients/${clientId}`}
-        className="text-muted-foreground hover:text-foreground mb-6 inline-block text-sm"
-      >
-        ← {clientName}
-      </Link>
-      <h1 className="mb-1 text-2xl font-semibold">Edit booking</h1>
-      <p className="text-muted-foreground mb-8 text-sm">{service.name}</p>
-      {kiche && (
-        <AdminKicheControl
-          bookingId={bookingId}
-          applied={kiche.applied}
-          currentFinalCents={kiche.currentFinalCents}
-          toggledFinalCents={kiche.toggledFinalCents}
-          refundIfApplyCents={kiche.refundIfApplyCents}
-          paidCents={kiche.paidCents}
-        />
+        label={clientName}
+        className="mb-6"
+      />
+      <PageHeader title="Edit booking" subtitle={service.name} />
+      {discountRows.length > 0 && (
+        <AdminManualDiscounts bookingId={bookingId} rows={discountRows} />
       )}
       <EditBookingClient
         bookingId={bookingId}
@@ -195,9 +164,10 @@ export default async function AdminEditBookingPage({
         initialPremiumDays={initialPremiumDays}
         pets={pets}
         priorFinalCents={priorFinalCents}
+        viewerDriveBufferMin={viewerDriveBufferMin}
         initial={initial}
         admin={{ clientName, clientId, paidLock: booking.paidCents > 0 }}
       />
-    </main>
+    </PageContainer>
   );
 }

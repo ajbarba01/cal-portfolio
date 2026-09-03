@@ -23,18 +23,19 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { createSupabaseBookingRepository } from "./booking-repository";
 import {
-  createBookingCore,
   rescheduleBookingCore,
   cancelBookingCore,
   grantFullRefundCore,
   markNoShowCore,
-  settleDebtCore,
-  setKicheAppliedCore,
+  setManualAppliedCore,
   editBookingCore,
 } from "./booking-service";
 import { CLIENT_POLICY, ADMIN_POLICY } from "./mutation-policy";
 import { StripeGateway } from "@/features/payments";
-import { ResendNotifier } from "@/features/notifications";
+import {
+  notifyAdminOfCancellation,
+  sendBookingConfirmationFor,
+} from "@/features/notifications";
 import { createBookingMutation } from "./mutations/create-booking.mutation";
 import type {
   CreateBookingResult,
@@ -43,7 +44,7 @@ import type {
   CreateBookingInput,
   CancelBookingInput,
   AdminBookingResult,
-  SetKicheAppliedResult,
+  SetManualAppliedResult,
   EditBookingPatch,
   EditBookingResult,
 } from "./booking-service";
@@ -52,6 +53,14 @@ import type {
 // module may export ONLY async functions; a `export type { … }` re-export is
 // emitted as a runtime action binding and crashes module eval
 // ("X is not defined"). Import these types from ./booking-service (their source).
+
+/**
+ * What a caller sees when the role read that decides their policy fails. The
+ * detail goes to the log; the role is never guessed.
+ *
+ * A "use server" module may export only async functions, so this stays private.
+ */
+const ROLE_READ_ERROR_MESSAGE = "Something went wrong. Please try again.";
 
 /**
  * Server action: create a booking.
@@ -74,23 +83,15 @@ export async function createBooking(
 
   const serviceClient = createServiceClient();
   const repo = createSupabaseBookingRepository(serviceClient);
-  const notifier = new ResendNotifier();
 
   return createBookingMutation(
     {
       repo,
-      notifier,
-      loadConfirmationRow: async (bookingId) => {
-        const { data } = await serviceClient
-          .from("bookings")
-          .select("starts_at, ends_at, final_cents, services(name)")
-          .eq("id", bookingId)
-          .single();
-        return data;
-      },
+      sendConfirmation: (bookingId) =>
+        sendBookingConfirmationFor(serviceClient, bookingId),
       now: new Date(),
     },
-    { ...input, userId: user.id, userEmail: user.email ?? undefined },
+    { ...input, userId: user.id },
   );
 }
 
@@ -132,6 +133,8 @@ export async function rescheduleBooking(input: {
  * caller — the param type omits it. Only the admin branch sets it true (a
  * Cal-initiated cancel refunds 100% regardless of timing); a client self-cancel
  * always goes through the timing-based `computeRefund` penalty.
+ *
+ * A successful client self-cancel also alerts Cal's notification address.
  */
 export async function cancelBooking(
   input: Omit<CancelBookingInput, "userId" | "fullRefund">,
@@ -151,11 +154,21 @@ export async function cancelBooking(
 
   // Admin bypass: load the caller's role from the profile.
   // Service role bypasses RLS so this read is always authoritative.
-  const { data: profile } = await serviceClient
+  const { data: profile, error: profileErr } = await serviceClient
     .from("profiles")
     .select("role")
     .eq("id", user.id)
     .single();
+
+  // A failed read must not decide the refund: falling through would apply the
+  // client penalty tier to a cancel Cal initiated, and refund less than the
+  // admin UI promises. Fail closed and let the caller retry.
+  if (profileErr) {
+    console.error(
+      `cancelBooking: failed to read the caller's role: ${profileErr.message}`,
+    );
+    return { kind: "error", message: ROLE_READ_ERROR_MESSAGE };
+  }
 
   const isAdmin = profile?.role === "admin";
 
@@ -174,10 +187,19 @@ export async function cancelBooking(
     );
   }
 
-  return cancelBookingCore(
+  const result = await cancelBookingCore(
     { repo, now: new Date(), gateway },
     { ...input, userId: user.id, fullRefund: false },
   );
+
+  // Only the client path alerts Cal: the admin branch above is Cal cancelling,
+  // and he does not need mail about his own action. A no-op while
+  // ADMIN_NOTIFICATION_EMAIL is unset, and it never throws, so a failed alert
+  // cannot turn a completed cancellation into an error for the client.
+  if (result.kind === "success") {
+    await notifyAdminOfCancellation(serviceClient, input.bookingId);
+  }
+  return result;
 }
 
 /**
@@ -236,26 +258,23 @@ export async function markNoShow(
   return markNoShowCore({ repo: admin.repo, now: new Date() }, bookingId);
 }
 
-/** Admin: mark a client debit settled. */
-export async function settleDebt(debitId: string): Promise<AdminBookingResult> {
-  const admin = await requireAdminDeps();
-  if (!admin.ok) return { kind: "error", message: "Forbidden" };
-  return settleDebtCore({ repo: admin.repo, now: new Date() }, debitId);
-}
-
 /**
- * Admin: apply or remove the Kiche discount on a booking. Re-quotes the booking
+ * Admin: apply or remove one manual discount on a booking. Re-quotes the booking
  * and refunds any overpayment when applying to an already-paid booking.
+ *
+ * @param modifierId - id of the manual modifier the booking's frozen pricing
+ * config declares; the core refuses any other.
  */
-export async function setKicheApplied(
+export async function setManualApplied(
   bookingId: string,
+  modifierId: string,
   applied: boolean,
-): Promise<SetKicheAppliedResult> {
+): Promise<SetManualAppliedResult> {
   const admin = await requireAdminDeps();
   if (!admin.ok) return { kind: "error", message: "Forbidden" };
-  return setKicheAppliedCore(
+  return setManualAppliedCore(
     { repo: admin.repo, now: new Date(), gateway: admin.gateway },
-    { bookingId, applied },
+    { bookingId, modifierId, applied },
   );
 }
 
@@ -285,11 +304,22 @@ export async function editBooking(input: {
   const serviceClient = createServiceClient();
   const repo = createSupabaseBookingRepository(serviceClient);
 
-  const { data: profile } = await serviceClient
+  const { data: profile, error: profileErr } = await serviceClient
     .from("profiles")
     .select("role")
     .eq("id", user.id)
     .single();
+
+  // A failed read must not silently demote an admin to CLIENT_POLICY: Cal would
+  // then hit the client gates, and the ownership check, on a client's booking.
+  // Fail closed instead.
+  if (profileErr) {
+    console.error(
+      `editBooking: failed to read the caller's role: ${profileErr.message}`,
+    );
+    return { kind: "error", message: ROLE_READ_ERROR_MESSAGE };
+  }
+
   const isAdmin = profile?.role === "admin";
   const policy = isAdmin
     ? {
@@ -351,8 +381,17 @@ export async function createBookingForClient(input: {
     forceStatus: input.forceConfirm ? ("confirmed" as const) : undefined,
   };
 
-  return createBookingCore(
-    { repo: admin.repo, now: new Date() },
+  // Through the same mutation as the self-serve create, so a booking Cal makes
+  // for a client confirms and notifies exactly as the client's own would. The
+  // recipient comes from the booking row — this path has no session belonging
+  // to the client being emailed.
+  return createBookingMutation(
+    {
+      repo: admin.repo,
+      sendConfirmation: (bookingId) =>
+        sendBookingConfirmationFor(admin.serviceClient, bookingId),
+      now: new Date(),
+    },
     {
       userId: input.clientId,
       serviceSlug: input.serviceSlug,

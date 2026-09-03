@@ -23,7 +23,7 @@ export {
   markNoShow,
   editBooking,
   createBookingForClient,
-  setKicheApplied,
+  setManualApplied,
 } from "./actions";
 
 // booking-service
@@ -33,6 +33,9 @@ export type {
   EditBookingPatch,
   CreateBookingResult,
 } from "./booking-service";
+
+// manual discounts (type only — the rows are computed on the server)
+export type { ManualDiscountRow } from "./manual-discounts";
 
 // Requirement gate (pure types + reverse-map helper — all client-safe)
 export type {
@@ -45,8 +48,11 @@ export type {
 export { bookingRequirements, servicesRequiring } from "./required-profiles";
 
 // booking-repository (types only — repo factory is server-only surface)
-export { onboardingStatusSchema } from "./booking-repository";
-export type { OnboardingStatus, BookingStatusDb } from "./booking-repository";
+export { onboardingStatusSchema } from "./booking-repository-types";
+export type {
+  OnboardingStatus,
+  BookingStatusDb,
+} from "./booking-repository-types";
 
 // availability
 export {
@@ -58,8 +64,13 @@ export {
 export type { BookingRuleSettings, TimeRange } from "./availability";
 
 // state-machine
-export { transition } from "./state-machine";
-export type { BookingEvent, BookingStatus } from "./state-machine";
+export { bookingStatusPill, transition } from "./state-machine";
+export type {
+  BookingEvent,
+  BookingStatus,
+  BookingStatusPill,
+  BookingStatusPillVariant,
+} from "./state-machine";
 
 // hooks
 export { useAvailability } from "./use-availability";
@@ -88,9 +99,6 @@ export type { ScheduleSelectionState } from "./schedule-selection";
 // busy-ranges (type only — loader uses supabase service)
 export type { PublicBusyRange } from "./busy-ranges";
 
-// return-to
-export { safeReturnTo, buildReturnTo } from "./return-to";
-
 // Scheduler component
 export { Scheduler } from "./_components/scheduler";
 export type {
@@ -118,18 +126,24 @@ export { NotesForCalSection } from "./_components/notes-for-cal-field";
 // Other components
 export { PetAssignment } from "./_components/pet-assignment";
 export type { AssignablePet } from "./_components/pet-assignment";
-export type { PetSpecies } from "./_components/pet-avatar";
-export { PetAvatar } from "./_components/pet-avatar";
-export {
-  QuantityForm,
-  defaultQuantities,
-  quantitiesToRecord,
-} from "./_components/quantity-forms";
-export type { QuantityState } from "./_components/quantity-forms";
+// The taxonomy itself belongs to the pets feature; re-exported here so the
+// booking surfaces keep one import for the whole scheduler input.
+export type { PetSpecies } from "@/features/pets";
+export { QuantityForm } from "./_components/quantity-forms";
 export { QuotePanel } from "./_components/quote-panel";
+export { QuoteLines } from "./_components/quote-lines";
+export type { StoredQuoteBreakdown } from "./_components/quote-lines";
+export { RecurringControls } from "./_components/recurring-controls";
+export { EditBookingClient } from "./_components/edit-booking-client";
+export type { EditBookingInitial } from "./_components/edit-booking-client";
+
+// quantities (pure state shapes + wire conversion)
+export { defaultQuantities, quantitiesToRecord } from "./quantities";
+export type { QuantityState } from "./quantities";
 
 // meet-greet-upcoming
-export * from "./meet-greet-upcoming";
+export { deriveMeetGreetUpcoming } from "./meet-greet-upcoming";
+export type { MeetGreetBookingRow } from "./meet-greet-upcoming";
 
 // booking-form-data (type only — loader is server-only, EXCLUDED)
 export type { BookingFormData } from "./booking-form-data";
@@ -150,6 +164,10 @@ export type {
 
 // calendar-model
 export { validateStayRange } from "./calendar-model";
+
+// return-to (booking-selection → relative path; the guard is @/lib/return-to)
+export { buildReturnTo } from "./return-to";
+export type { BookingSelection } from "./return-to";
 
 // quantity-state-from-quote-inputs
 export { quantityStateFromQuoteInputs } from "./quantity-state-from-quote-inputs";

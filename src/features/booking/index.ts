@@ -1,15 +1,14 @@
-// Public API of the booking feature.
-
-// actions
-export {
-  createBooking,
-  rescheduleBooking,
-  cancelBooking,
-  markNoShow,
-  editBooking,
-  createBookingForClient,
-  setKicheApplied,
-} from "./actions";
+// Server-side public API of the booking feature.
+//
+// Server code imports this barrel; `"use client"` files import index.client.ts
+// (see docs/adr/0002-client-server-entry-points.md). The two entries share the
+// pure surface and are sourced from the same modules, so a name means the same
+// thing on both sides.
+//
+// This entry deliberately carries NO client components, hooks or server
+// actions: they have no server caller, and re-exporting them here put
+// react-day-picker, Stripe and Resend in the import graph of every server
+// module that reached the barrel.
 
 // booking-service
 export { cancelBookingCore, EDITABLE_STATUSES } from "./booking-service";
@@ -19,21 +18,18 @@ export type {
   CreateBookingResult,
 } from "./booking-service";
 
-// kiche discount (pure helpers — server-safe)
-export {
-  serviceSupportsKiche,
-  requoteWithKiche,
-  kicheOverpayRefundCents,
-  kichePreview,
-} from "./kiche";
-export type { KichePreview } from "./kiche";
+// manual discounts (pure helper — server-safe; the rest of the module is
+// feature-internal, imported directly by the cores that re-price a booking)
+export { manualDiscountRows } from "./manual-discounts";
+export type { ManualDiscountRow } from "./manual-discounts";
 
 // booking-repository
-export {
-  createSupabaseBookingRepository,
-  onboardingStatusSchema,
-} from "./booking-repository";
-export type { OnboardingStatus, BookingStatusDb } from "./booking-repository";
+export { createSupabaseBookingRepository } from "./booking-repository";
+export { onboardingStatusSchema } from "./booking-repository-types";
+export type {
+  OnboardingStatus,
+  BookingStatusDb,
+} from "./booking-repository-types";
 
 // availability
 export {
@@ -45,13 +41,13 @@ export {
 export type { BookingRuleSettings, TimeRange } from "./availability";
 
 // state-machine
-export { transition } from "./state-machine";
-export type { BookingEvent, BookingStatus } from "./state-machine";
-
-// hooks
-export { useAvailability } from "./use-availability";
-export { useBusyRanges } from "./use-busy-ranges";
-export { useOvernightNights } from "./use-overnight-nights";
+export { bookingStatusPill, transition } from "./state-machine";
+export type {
+  BookingEvent,
+  BookingStatus,
+  BookingStatusPill,
+  BookingStatusPillVariant,
+} from "./state-machine";
 
 // scheduler data
 export { hourlySchedulerData } from "./hourly-scheduler-data";
@@ -71,32 +67,13 @@ export type { ScheduleSelectionState } from "./schedule-selection";
 // busy-ranges
 export type { PublicBusyRange } from "./busy-ranges";
 
-// return-to
-export { safeReturnTo, buildReturnTo } from "./return-to";
-
-// Scheduler component
-export { Scheduler } from "./_components/scheduler";
-export type {
-  SchedulerData,
-  SchedulerCallbacks,
-  BusyBlock,
-} from "./_components/scheduler";
-
-// Other components
-export { PetAssignment } from "./_components/pet-assignment";
-export type { AssignablePet } from "./_components/pet-assignment";
-export type { PetSpecies } from "./_components/pet-avatar";
-export { PetAvatar } from "./_components/pet-avatar";
-export {
-  QuantityForm,
-  defaultQuantities,
-  quantitiesToRecord,
-} from "./_components/quantity-forms";
-export type { QuantityState } from "./_components/quantity-forms";
-export { QuotePanel } from "./_components/quote-panel";
+// quantities (pure state shapes + wire conversion; the form is client-only)
+export { defaultQuantities, quantitiesToRecord } from "./quantities";
+export type { QuantityState } from "./quantities";
 
 // meet-greet-upcoming
-export * from "./meet-greet-upcoming";
+export { deriveMeetGreetUpcoming } from "./meet-greet-upcoming";
+export type { MeetGreetBookingRow } from "./meet-greet-upcoming";
 
 // booking-form-data
 export { loadBookingFormData } from "./booking-form-data";
@@ -121,7 +98,29 @@ export { quantityStateFromQuoteInputs } from "./quantity-state-from-quote-inputs
 
 // service-detail
 export type { ServiceDetail } from "./service-detail";
-export { DEFAULT_CONSTRAINTS } from "./service-detail";
+export {
+  DEFAULT_CONSTRAINTS,
+  SERVICE_DETAIL_COLUMNS,
+  toServiceDetail,
+} from "./service-detail";
+
+// load-service-booking-page
+export { loadServiceBookingPage } from "./load-service-booking-page";
+export type {
+  AuthState,
+  LoadServiceBookingPageResult,
+  ServiceBookingPageData,
+  ServiceBookingViewer,
+  StoredFormResponse,
+} from "./load-service-booking-page";
+
+// booking-edit-view
+export { getBookingEditView } from "./booking-edit-view";
+export type {
+  BookingEditSeed,
+  BookingEditView,
+  BookingEditViewResult,
+} from "./booking-edit-view";
 
 // services-repo
 export { listActiveServices } from "./services-repo";
@@ -136,24 +135,15 @@ export {
   serviceIncludedCopyIds,
 } from "./service-card-display";
 
-// preview-edit
-export { previewEdit } from "./preview-edit";
-
-// preview-quote-for-client
-export { previewQuoteForClient } from "./preview-quote-for-client";
-
-// quote-action
-export { previewQuote } from "./quote-action";
+// quote-action (the action itself is client-called — index.client.ts)
 export type { PreviewActionResult } from "./quote-action";
 
 // diff-booking-patch
 export { diffBookingPatch } from "./diff-booking-patch";
 
-// series-cron
+// crons
 export { runSeriesRollCron } from "./series-cron";
-
-// scheduler-context
-export { useScheduler } from "./scheduler-context";
+export { runCompletionCron } from "./completion-cron";
 
 // drive-buffer
 export { driveBufferMinutes } from "./drive-buffer";

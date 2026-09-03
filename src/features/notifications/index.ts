@@ -1,13 +1,15 @@
 // Public API of the notifications feature.
 export { ResendMailer } from "./resend-mailer";
 export { ResendNotifier } from "./resend-notifier";
-export { sendBookingConfirmation } from "./send-booking-emails";
-export { runCompletionCron } from "./completion-cron";
+export { notifyAdmin, notifyAdminOfCancellation } from "./admin-alerts";
+export { sendBookingConfirmationFor } from "./booking-confirmation";
 export { runReminderCron } from "./reminder-cron";
 export { shouldNotify } from "./should-notify";
 export type { Mailer, SendResult, EmailMessage } from "./types";
 export type {
-  Notifier,
+  AdminAlertDispatch,
+  AdminAlertEvent,
+  ClientNotificationEvent,
   NotificationEvent,
-  BookingConfirmedPayload,
+  Notifier,
 } from "./notifier";

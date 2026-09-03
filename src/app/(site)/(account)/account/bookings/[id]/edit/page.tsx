@@ -1,30 +1,23 @@
 /**
  * /account/bookings/[id]/edit — server-gated edit page for a single booking.
  *
- * Guards: auth → ownership → editability (via clientCanEditBooking) → service
- * exists. Loads booking-form data and pets exactly as the book page does, then
- * seeds EditBookingClient from the booking's current values.
+ * Routing only: the auth guard lives here, every other guard and read lives in
+ * `getBookingEditView`, which answers whether this client may edit this booking
+ * at all before returning anything to render.
  */
 
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { getCachedUser } from "@/lib/supabase/server-cache";
 import { createServiceClient } from "@/lib/supabase/service";
-import {
-  createSupabaseBookingRepository,
-  clientCanEditBooking,
-  loadBookingFormData,
-  quantityStateFromQuoteInputs,
-  DEFAULT_CONSTRAINTS,
-  type ServiceDetail,
-  type AssignablePet,
-  type PetSpecies,
-} from "@/features/booking";
-import { EditBookingClient } from "./_components/edit-booking-client";
-import type { PricingType } from "@/features/pricing";
-import { parsePricingConfig } from "@/features/pricing";
+import { ErrorState } from "@/components/feedback/error-state";
+import { BackToSite } from "@/components/layout/back-to-site";
+import { PageContainer } from "@/components/layout/page-container";
+import { PageHeader } from "@/components/layout/page-header";
+import { getBookingEditView } from "@/features/booking";
+import { EditBookingClient } from "@/features/booking/index.client";
 
-const SIGNED_URL_TTL_SECONDS = 60 * 60;
+/** The booking flow's own column width (see booking-flow.tsx layout contract). */
+const BOOKING_WIDTH = "max-w-2xl";
 
 export default async function EditBookingPage({
   params,
@@ -33,149 +26,50 @@ export default async function EditBookingPage({
 }) {
   const { id } = await params;
 
-  // Auth guard.
   const { user } = await getCachedUser();
   if (!user) redirect("/login");
 
-  const svc = createServiceClient();
-  const repo = createSupabaseBookingRepository(svc);
+  const view = await getBookingEditView(createServiceClient(), id, user.id);
 
-  // Ownership guard.
-  const booking = await repo.getBookingForEdit(id);
-  if (!booking || booking.client_id !== user.id) redirect("/account/bookings");
-
-  // All render inputs are independent given the booking — fetch in parallel.
-  const [
-    settings,
-    { data: serviceRow },
-    { data: feeRow },
-    loaded,
-    { data: petRows },
-  ] = await Promise.all([
-    repo.getSettings(),
-    svc
-      .from("services")
-      .select(
-        "id, slug, name, description, pricing_type, pricing_config, default_duration_min",
-      )
-      .eq("slug", booking.service_slug)
-      .single(),
-    svc.from("bookings").select("final_cents").eq("id", id).single(),
-    loadBookingFormData(booking.service_slug),
-    svc
-      .from("pets")
-      .select("id, name, species, breed, notes, photo_url")
-      .eq("client_id", user.id)
-      .order("created_at", { ascending: true }),
-  ]);
-
-  // Editability guard (needs settings).
-  const editability = clientCanEditBooking(
-    {
-      status: booking.status,
-      startsAt: booking.startsAt,
-      paidCents: booking.paidCents,
-      serviceSlug: booking.service_slug,
-    },
-    new Date(),
-    settings.cancellation_full_refund_hours,
-  );
-  if (!editability.editable) redirect("/account/bookings");
-
-  if (!serviceRow) redirect("/account/bookings");
-
-  let constraints = DEFAULT_CONSTRAINTS;
-  try {
-    constraints = parsePricingConfig(serviceRow.pricing_config).constraints;
-  } catch {
-    // keep DEFAULT_CONSTRAINTS — never crash on bad config
-  }
-
-  const service: ServiceDetail = {
-    slug: serviceRow.slug as string,
-    name: serviceRow.name as string,
-    description:
-      typeof serviceRow.description === "string"
-        ? serviceRow.description
-        : null,
-    pricingType: serviceRow.pricing_type as PricingType,
-    defaultDurationMin:
-      typeof serviceRow.default_duration_min === "number"
-        ? serviceRow.default_duration_min
-        : null,
-    constraints,
-  };
-
-  // Prior final_cents (getBookingForEdit does not return it).
-  const priorFinalCents: number = (feeRow?.final_cents as number | null) ?? 0;
-
-  // Booking-rule settings + initial public busy ranges.
-  if (!loaded.ok) {
+  if (!view.ok) {
+    if (view.reason === "forbidden") redirect("/account/bookings");
     return (
-      <main className="mx-auto max-w-2xl px-4 py-12">
-        <p className="text-destructive">
-          Could not load booking settings. Please try again later.
-        </p>
-      </main>
+      <PageContainer className={BOOKING_WIDTH}>
+        <BackToSite
+          href="/account/bookings"
+          label="Your bookings"
+          className="mb-6"
+        />
+        <ErrorState
+          title="Couldn't load this"
+          message="Please try again shortly."
+        />
+      </PageContainer>
     );
   }
-  const { rules, initialBusy, initialPremiumDays } = loaded.data;
 
-  // Sign the (already-fetched) client pet photos.
-  const pets: AssignablePet[] = await Promise.all(
-    (petRows ?? []).map(async (p) => {
-      let photoUrl: string | null = null;
-      if (p.photo_url) {
-        const { data } = await svc.storage
-          .from("pet-photos")
-          .createSignedUrl(p.photo_url as string, SIGNED_URL_TTL_SECONDS);
-        photoUrl = data?.signedUrl ?? null;
-      }
-      return {
-        id: p.id as string,
-        name: p.name as string,
-        species: p.species as PetSpecies,
-        breed: typeof p.breed === "string" ? p.breed : null,
-        notes: typeof p.notes === "string" ? p.notes : null,
-        photoUrl,
-      };
-    }),
-  );
-
-  // Seed form from booking's current values.
-  const initial = {
-    startsAtIso: booking.startsAt.toISOString(),
-    endsAtIso: booking.endsAt.toISOString(),
-    petIds: booking.petIds,
-    quantities: quantityStateFromQuoteInputs(
-      service.pricingType,
-      booking.quote_inputs,
-    ),
-    comments: booking.comments ?? "",
-    wasConfirmed: booking.status === "confirmed",
-    isSeriesOccurrence: booking.series_id !== null,
-  };
+  const { service, formData, pets, priorFinalCents, driveBufferMin, initial } =
+    view.data;
 
   return (
-    <main className="mx-auto max-w-2xl px-4 py-12">
-      <Link
+    <PageContainer className={BOOKING_WIDTH}>
+      <BackToSite
         href="/account/bookings"
-        className="text-muted-foreground hover:text-foreground mb-6 inline-block text-sm"
-      >
-        ← Your bookings
-      </Link>
-      <h1 className="mb-1 text-2xl font-semibold">Edit booking</h1>
-      <p className="text-muted-foreground mb-8 text-sm">{service.name}</p>
+        label="Your bookings"
+        className="mb-6"
+      />
+      <PageHeader title="Edit booking" subtitle={service.name} />
       <EditBookingClient
         bookingId={id}
         service={service}
-        rules={rules}
-        initialBusy={initialBusy}
-        initialPremiumDays={initialPremiumDays}
+        rules={formData.rules}
+        initialBusy={formData.initialBusy}
+        initialPremiumDays={formData.initialPremiumDays}
         pets={pets}
         priorFinalCents={priorFinalCents}
+        viewerDriveBufferMin={driveBufferMin}
         initial={initial}
       />
-    </main>
+    </PageContainer>
   );
 }
