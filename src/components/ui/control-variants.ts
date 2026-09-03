@@ -42,3 +42,17 @@ export const controlBox = {
   md: "h-[var(--control-h-md)] rounded-control",
   lg: "h-[var(--control-h-lg)] rounded-control",
 } as const;
+
+/**
+ * The one keyboard-focus treatment for interactive surfaces that are NOT on the
+ * control track — icon buttons, dialog close affordances, nav and menu rows.
+ * Controls composing {@link controlVariants} already carry their own ring.
+ *
+ * Pins the outline to full-opacity `--ring` instead of the `outline-ring/50`
+ * the base layer gives every element, so a focus ring reads at the same
+ * strength here as on a control-track field. Append
+ * `focus-visible:-outline-offset-2` where an `overflow-hidden` ancestor would
+ * clip an outset ring.
+ */
+export const focusRing =
+  "focus-visible:outline-ring focus-visible:outline-2 focus-visible:outline-offset-2";

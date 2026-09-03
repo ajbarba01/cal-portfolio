@@ -3,6 +3,7 @@ import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { Reveal, RevealGroup } from "@/components/effects/reveal";
 import { Eyebrow } from "./eyebrow";
+import { headingClass } from "./section-header";
 
 /**
  * Shared marketing hero: a photo with copy overlaid on desktop and stacked
@@ -90,7 +91,10 @@ export function MarketingHero({
           <Reveal
             as="h1"
             id={titleId}
-            className="font-heading text-foreground max-w-[18ch] text-4xl leading-[1.04] font-bold tracking-tight sm:text-5xl sm:text-white lg:text-6xl"
+            className={cn(
+              headingClass.display,
+              "text-foreground max-w-[18ch] leading-[1.04] sm:text-white lg:text-6xl",
+            )}
           >
             {title}
           </Reveal>

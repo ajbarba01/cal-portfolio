@@ -5,19 +5,26 @@ import { cn } from "@/lib/utils";
  * Small uppercase clay label that sits above headings across marketing pages
  * (the "field journal" eyebrow). Defaults to brand-strong; pass `className` to
  * recolor (e.g. on the dark hero overlay).
+ *
+ * Renders a `<p>` unless `as` says otherwise — an eyebrow is sometimes the
+ * section's own heading (`as="h2"`, so the landmark has a real label) or an
+ * inline run beside an icon (`as="span"`).
  */
 export function Eyebrow({
   children,
   className,
   id,
+  as: Tag = "p",
 }: {
   children: React.ReactNode;
   className?: string;
   /** Set when the eyebrow labels a region via `aria-labelledby` (e.g. FormSection). */
   id?: string;
+  /** Element to render — use a heading tag when the eyebrow IS the section heading. */
+  as?: "p" | "span" | "h2" | "h3";
 }) {
   return (
-    <p
+    <Tag
       id={id}
       data-slot="eyebrow"
       className={cn(
@@ -26,6 +33,6 @@ export function Eyebrow({
       )}
     >
       {children}
-    </p>
+    </Tag>
   );
 }

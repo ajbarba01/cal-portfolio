@@ -21,7 +21,14 @@ import type {
   ZoneNav,
 } from "@/components/layout/nav-config";
 import { zoneNavForPath } from "@/components/layout/zone-for-path";
+import { focusRing } from "@/components/ui/control-variants";
 import { NavBadge } from "@/components/ui/nav-badge";
+
+/**
+ * Drawer rows are full-bleed inside a scroll container, so an outset focus ring
+ * would be clipped at the panel edge — draw it inside the row instead.
+ */
+const DRAWER_ROW_FOCUS = cn(focusRing, "focus-visible:-outline-offset-2");
 
 /** Desktop-only centered tab row. */
 export function SiteNavTabs({ links }: { links: NavItem[] }) {
@@ -137,19 +144,30 @@ function SiteNavMobileDrawer({
     >
       <Drawer.Trigger
         aria-label="Open menu"
-        className="text-foreground -mr-3 inline-flex size-11 items-center justify-center rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2"
+        className={cn(
+          "text-foreground -mr-3 inline-flex size-11 items-center justify-center rounded-lg",
+          focusRing,
+        )}
       >
         <Menu className="size-5" />
       </Drawer.Trigger>
       <Drawer.Portal>
         <Drawer.Backdrop className="bg-foreground/20 fixed inset-0 z-50" />
         <Drawer.Viewport className="fixed inset-0 z-50">
-          <Drawer.Popup className="bg-background absolute inset-y-0 right-0 flex w-72 max-w-[85vw] translate-x-[var(--drawer-swipe-movement-x,0px)] flex-col overflow-y-auto shadow-xl transition-transform duration-300 ease-out data-[ending-style]:translate-x-full data-[starting-style]:translate-x-full">
+          <Drawer.Popup className="bg-background shadow-elev-2 absolute inset-y-0 right-0 flex w-72 max-w-[85vw] translate-x-[var(--drawer-swipe-movement-x,0px)] flex-col overflow-y-auto transition-transform duration-300 ease-out data-[ending-style]:translate-x-full data-[starting-style]:translate-x-full">
             <div className="flex items-center justify-between p-4">
-              <span className="font-heading text-lg font-semibold">Menu</span>
+              {/* Drawer.Title, not a bare span: it is what names the dialog, so
+                  a screen reader announces "Menu" instead of an unlabelled
+                  popup on open. */}
+              <Drawer.Title className="font-heading text-lg font-semibold">
+                Menu
+              </Drawer.Title>
               <Drawer.Close
                 aria-label="Close menu"
-                className="inline-flex size-11 items-center justify-center focus-visible:outline-2 focus-visible:outline-offset-2"
+                className={cn(
+                  "inline-flex size-11 items-center justify-center rounded-lg",
+                  focusRing,
+                )}
               >
                 <X className="size-5" />
               </Drawer.Close>
@@ -174,6 +192,7 @@ function SiteNavMobileDrawer({
                           aria-current={active ? "page" : undefined}
                           className={cn(
                             "flex min-h-11 items-center gap-2 rounded-lg px-3 text-base",
+                            DRAWER_ROW_FOCUS,
                             active
                               ? "bg-sidebar-active text-brand-strong font-semibold"
                               : "text-foreground hover:bg-muted",
@@ -216,6 +235,7 @@ function SiteNavMobileDrawer({
                         aria-current={current ? "page" : undefined}
                         className={cn(
                           "border-border flex min-h-11 items-center border-b px-4 text-base",
+                          DRAWER_ROW_FOCUS,
                           active
                             ? "text-brand-strong border-l-brand-strong border-l-2 font-semibold"
                             : "text-foreground",
@@ -233,7 +253,10 @@ function SiteNavMobileDrawer({
                   <li>
                     <Link
                       href="/admin"
-                      className="border-border text-foreground flex min-h-11 items-center border-b px-4 text-base font-medium"
+                      className={cn(
+                        "border-border text-foreground flex min-h-11 items-center border-b px-4 text-base font-medium",
+                        DRAWER_ROW_FOCUS,
+                      )}
                     >
                       Admin
                     </Link>
@@ -244,13 +267,21 @@ function SiteNavMobileDrawer({
                     <li>
                       <Link
                         href="/account"
-                        className="border-border text-foreground flex min-h-11 items-center border-b px-4 text-base"
+                        className={cn(
+                          "border-border text-foreground flex min-h-11 items-center border-b px-4 text-base",
+                          DRAWER_ROW_FOCUS,
+                        )}
                       >
                         Account
                       </Link>
                     </li>
                     <li>
-                      <SignOutButton className="border-border text-foreground flex min-h-11 w-full items-center border-b px-4 text-base" />
+                      <SignOutButton
+                        className={cn(
+                          "border-border text-foreground flex min-h-11 w-full items-center border-b px-4 text-base",
+                          DRAWER_ROW_FOCUS,
+                        )}
+                      />
                     </li>
                   </>
                 ) : (
@@ -261,7 +292,10 @@ function SiteNavMobileDrawer({
                           ? `/login?returnTo=${encodeURIComponent(pathname)}`
                           : "/login"
                       }
-                      className="border-border text-foreground flex min-h-11 items-center border-b px-4 text-base"
+                      className={cn(
+                        "border-border text-foreground flex min-h-11 items-center border-b px-4 text-base",
+                        DRAWER_ROW_FOCUS,
+                      )}
                     >
                       Sign in
                     </Link>

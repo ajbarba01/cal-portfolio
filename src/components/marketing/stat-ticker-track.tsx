@@ -1,6 +1,10 @@
 "use client";
 
 import * as React from "react";
+import { Pause, Play } from "lucide-react";
+
+import { cn } from "@/lib/utils";
+import { focusRing } from "@/components/ui/control-variants";
 
 /**
  * Client island wrapping the marquee track. Drives the ribbon with a single
@@ -11,12 +15,16 @@ import * as React from "react";
  * - Hover (mouse only): the cursor does NOT steer the ribbon. The drift simply
  *   decelerates, its velocity decaying exponentially toward a near-stop so the
  *   ribbon eases to rest under the pointer.
- * - On leave: whatever momentum the ribbon carried is preserved and decays
- *   exponentially back to the baseline drift — iOS-style kinetic deceleration,
- *   `v = vBase + (v - vBase) * exp(-dt/τ)` (Ariya Hidayat's kinetic model).
+ * - Paused: the same deceleration, held until the control is pressed again.
+ * - On leave/resume: whatever momentum the ribbon carried is preserved and
+ *   decays exponentially back to the baseline drift — iOS-style kinetic
+ *   deceleration, `v = vBase + (v - vBase) * exp(-dt/τ)` (Ariya Hidayat's
+ *   kinetic model).
  *
- * Reduced-motion users get no loop (the track stays frozen at its start). Touch
- * pointers never enter the coupled hover mode — they only see the drift.
+ * Reduced-motion users get no loop (the track stays frozen at its start, and the
+ * pause control is hidden — there is nothing to pause). Touch pointers never
+ * enter the hover mode — they only see the drift, so the control is the only way
+ * they can stop it.
  */
 
 // One group width per this many ms — matches the original 38s CSS marquee.
@@ -30,6 +38,16 @@ const MAX_DT = 64;
 
 export function StatTickerTrack({ children }: { children: React.ReactNode }) {
   const ref = React.useRef<HTMLDivElement>(null);
+  const [paused, setPaused] = React.useState(false);
+  // The rAF loop is set up once and reads the flag through a ref, so toggling
+  // the control never tears down and restarts the animation mid-drift.
+  const pausedRef = React.useRef(false);
+
+  function togglePaused() {
+    const next = !paused;
+    pausedRef.current = next;
+    setPaused(next);
+  }
 
   React.useEffect(() => {
     const el = ref.current;
@@ -66,8 +84,8 @@ export function StatTickerTrack({ children }: { children: React.ReactNode }) {
       const dt = Math.min(now - last, MAX_DT);
       last = now;
 
-      if (hovering) {
-        // Decelerate toward a near-stop while hovered (no cursor coupling).
+      if (hovering || pausedRef.current) {
+        // Decelerate toward a stop (no cursor coupling).
         velocity *= Math.exp(-dt / FRICTION_TAU);
         offset += velocity * dt;
       } else {
@@ -102,9 +120,29 @@ export function StatTickerTrack({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  const Icon = paused ? Play : Pause;
+
   return (
-    <div ref={ref} className="stat-ticker-track">
-      {children}
-    </div>
+    <>
+      <div ref={ref} className="stat-ticker-track">
+        {children}
+      </div>
+      {/* The ribbon moves on its own, so it needs a way to stop (WCAG 2.2.2).
+          Hover already halts it for mouse users; this is the only stop a
+          keyboard or touch user has. Hidden under reduced motion, where the
+          track never animates in the first place. */}
+      <button
+        type="button"
+        onClick={togglePaused}
+        aria-label={paused ? "Play" : "Pause"}
+        className={cn(
+          "text-muted-foreground hover:text-brand-strong hover:bg-muted absolute top-1/2 right-1 z-20 flex size-11 -translate-y-1/2 items-center justify-center rounded-full transition-colors sm:right-2",
+          focusRing,
+          "motion-reduce:hidden",
+        )}
+      >
+        <Icon className="size-4" aria-hidden="true" />
+      </button>
+    </>
   );
 }

@@ -47,7 +47,7 @@ export function NavPendingProvider({ children }: { children: ReactNode }) {
   const start = (href: string) => {
     // Drop query/hash: a same-path click won't change `pathname`, so the flag
     // would never clear and the skeleton would stick.
-    const target = normalize(href.split("?")[0].split("#")[0]);
+    const target = normalize(href.replace(/[?#].*/, ""));
     if (target !== normalize(pathname)) setPending(true);
   };
 

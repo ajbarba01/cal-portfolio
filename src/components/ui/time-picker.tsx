@@ -17,6 +17,9 @@ const HOURS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] as const;
 const MINUTES = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55] as const;
 const MERIDIEMS: Meridiem[] = ["AM", "PM"];
 
+/** Minutes read as a two-digit clock field, so ":05" never renders as ":5". */
+const minuteLabel = (minute: number) => String(minute).padStart(2, "0");
+
 export interface TimePickerProps {
   /** Minutes since midnight (0–1439). */
   value: number;
@@ -49,7 +52,7 @@ export function TimePicker({ value, onChange, label, id }: TimePickerProps) {
           }}
         >
           <SelectTrigger aria-label={`${label} hour`} className="w-20">
-            <SelectValue />
+            <SelectValue>{clock.hour12}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             {HOURS.map((h) => (
@@ -67,12 +70,12 @@ export function TimePicker({ value, onChange, label, id }: TimePickerProps) {
           }}
         >
           <SelectTrigger aria-label={`${label} minute`} className="w-20">
-            <SelectValue />
+            <SelectValue>{minuteLabel(clock.minute)}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             {MINUTES.map((m) => (
               <SelectItem key={m} value={String(m)}>
-                {String(m).padStart(2, "0")}
+                {minuteLabel(m)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -85,7 +88,7 @@ export function TimePicker({ value, onChange, label, id }: TimePickerProps) {
           }}
         >
           <SelectTrigger aria-label={`${label} AM or PM`} className="w-20">
-            <SelectValue />
+            <SelectValue>{clock.meridiem}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             {MERIDIEMS.map((m) => (

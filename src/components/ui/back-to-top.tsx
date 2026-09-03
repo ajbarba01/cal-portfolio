@@ -47,7 +47,7 @@ export function BackToTop({ threshold = 600 }: { threshold?: number }) {
             : "smooth",
         })
       }
-      className="bg-card text-foreground border-border hover:bg-muted fixed right-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-40 inline-flex size-11 items-center justify-center rounded-full border shadow-lg transition-opacity duration-1000 ease-out data-[visible=false]:pointer-events-none data-[visible=false]:opacity-0 data-[visible=true]:opacity-100 motion-reduce:transition-none"
+      className="bg-card text-foreground border-border hover:bg-muted shadow-elev-2 fixed right-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-40 inline-flex size-11 items-center justify-center rounded-full border transition-opacity duration-1000 ease-out data-[visible=false]:pointer-events-none data-[visible=false]:opacity-0 data-[visible=true]:opacity-100 motion-reduce:transition-none"
     >
       <ArrowUp className="size-5" aria-hidden="true" />
     </button>

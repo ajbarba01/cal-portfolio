@@ -26,8 +26,9 @@ export function submitAction<TValues extends FieldValues>(
     for (const [name, message] of entries) {
       form.setError(name as Path<TValues>, { type: "server", message });
     }
-    if (entries.length > 0) {
-      form.setFocus(entries[0][0] as Path<TValues>);
+    const [firstEntry] = entries;
+    if (firstEntry) {
+      form.setFocus(firstEntry[0] as Path<TValues>);
     }
     if (result.message || entries.length === 0) {
       form.setError("root", {

@@ -50,20 +50,25 @@ type CardShimmerProps = {
   ringMatchesBg?: boolean;
 };
 
-type Seg = {
-  t: "l" | "a";
-  len: number;
-  start: number;
-  x0?: number;
-  y0?: number;
-  x1?: number;
-  y1?: number;
-  cx?: number;
-  cy?: number;
-  a0?: number;
-  a1?: number;
-  r?: number;
-};
+/**
+ * One piece of the rounded-rect perimeter: a straight run ("l") or a corner
+ * arc ("a"). Discriminated on `t`, so each branch carries exactly the fields it
+ * uses and `pointAt` reads them without assertions.
+ */
+type SegShape =
+  | { t: "l"; len: number; x0: number; y0: number; x1: number; y1: number }
+  | {
+      t: "a";
+      len: number;
+      cx: number;
+      cy: number;
+      a0: number;
+      a1: number;
+      r: number;
+    };
+
+/** A `SegShape` placed on the path, `start` being its arc-length offset. */
+type Seg = SegShape & { start: number };
 
 const MARGIN = 8; // canvas bleed so anti-aliasing never clips at the edges
 const DIR = -1; // clockwise
@@ -130,7 +135,7 @@ export function CardShimmer({
       const L = Math.max(0, w - 2 * r);
       const V = Math.max(0, h - 2 * r);
       const A = HALF_PI * r;
-      const raw: Omit<Seg, "start">[] = [
+      const raw: SegShape[] = [
         { t: "l", len: L, x0: x + r, y0: y, x1: x + w - r, y1: y },
         { t: "a", len: A, cx: x + w - r, cy: y + r, a0: -HALF_PI, a1: 0, r },
         { t: "l", len: V, x0: x + w, y0: y + r, x1: x + w, y1: y + h - r },
@@ -157,11 +162,11 @@ export function CardShimmer({
         },
       ];
       let total = 0;
-      const segs = raw.map((s) => {
-        const seg = { ...s, start: total } as Seg;
+      const segs: Seg[] = [];
+      for (const s of raw) {
+        segs.push({ ...s, start: total });
         total += s.len;
-        return seg;
-      });
+      }
       return { segs, total };
     };
 
@@ -173,18 +178,25 @@ export function CardShimmer({
           const f = seg.len ? (s - seg.start) / seg.len : 0;
           if (seg.t === "l") {
             return [
-              seg.x0! + (seg.x1! - seg.x0!) * f,
-              seg.y0! + (seg.y1! - seg.y0!) * f,
+              seg.x0 + (seg.x1 - seg.x0) * f,
+              seg.y0 + (seg.y1 - seg.y0) * f,
             ] as const;
           }
-          const a = seg.a0! + (seg.a1! - seg.a0!) * f;
+          const a = seg.a0 + (seg.a1 - seg.a0) * f;
           return [
-            seg.cx! + Math.cos(a) * seg.r!,
-            seg.cy! + Math.sin(a) * seg.r!,
+            seg.cx + Math.cos(a) * seg.r,
+            seg.cy + Math.sin(a) * seg.r,
           ] as const;
         }
       }
-      return [p.segs[0].x0!, p.segs[0].y0!] as const;
+      // Unreachable for a normalized `s` — the loop always matches the last
+      // segment. Fall back to the start of the path rather than throwing, and to
+      // the canvas origin when the path has no segments at all.
+      const first = p.segs[0];
+      if (!first) return [0, 0] as const;
+      return first.t === "l"
+        ? ([first.x0, first.y0] as const)
+        : ([first.cx, first.cy] as const);
     };
 
     const draw = () => {

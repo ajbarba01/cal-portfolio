@@ -52,7 +52,7 @@ function SelectContent({
         <SelectPrimitive.Popup
           data-slot="select-content"
           className={cn(
-            "bg-popover text-popover-foreground border-border w-[var(--anchor-width)] origin-[var(--transform-origin)] rounded-lg border p-1 shadow-lg",
+            "bg-popover text-popover-foreground border-border shadow-elev-2 w-[var(--anchor-width)] origin-[var(--transform-origin)] rounded-lg border p-1",
             "transition-[opacity,transform] duration-150 ease-out data-[ending-style]:-translate-y-1 data-[ending-style]:opacity-0 data-[starting-style]:-translate-y-1 data-[starting-style]:opacity-0 motion-reduce:transition-none",
             className,
           )}

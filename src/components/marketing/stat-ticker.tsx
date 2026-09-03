@@ -1,4 +1,3 @@
-import * as React from "react";
 import Image from "next/image";
 import { Star } from "lucide-react";
 
@@ -7,11 +6,12 @@ import { StatTickerTrack } from "./stat-ticker-track";
 /**
  * Continuous horizontal stat ribbon (LED sports-panel style) for marketing pages.
  * The track renders the item set twice (each set doubled so one group always
- * exceeds the sheet width) so the rightward marquee loops seamlessly. The first
- * group is read by screen readers; the looping duplicate is `aria-hidden`. Items
- * render server-side; a thin client island (`<StatTickerTrack>`) drives the
- * motion via a rAF physics loop — baseline drift, eased cursor-coupling on
- * hover, and kinetic momentum decay on leave (frozen for reduced-motion users).
+ * exceeds the sheet width) so the rightward marquee loops seamlessly. Only the
+ * first copy of the set is exposed to assistive tech; the three that exist to
+ * keep the loop seamless are `aria-hidden`. Items render server-side; a thin
+ * client island (`<StatTickerTrack>`) drives the motion via a rAF physics loop
+ * — baseline drift, eased deceleration on hover, kinetic momentum decay on
+ * leave, and a pause control (frozen outright for reduced-motion users).
  * Full-bleed within the marketing sheet; authored mobile-first.
  */
 export type StatTickerItem =
@@ -99,6 +99,11 @@ export function StatTicker({
       {groupItems.map((item, i) => (
         <li
           key={i}
+          // Only the first copy of the set is announced. Both the second group
+          // and the second half of THIS group exist purely to keep the marquee
+          // seamless, so a screen reader would otherwise read every stat four
+          // times over.
+          aria-hidden={hidden || i >= items.length || undefined}
           className="border-border/60 flex shrink-0 items-center gap-3 border-r px-7 py-5 whitespace-nowrap sm:px-9 sm:py-6"
         >
           <ItemBody item={item} />

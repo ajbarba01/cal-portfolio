@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { focusRing } from "@/components/ui/control-variants";
 
 /**
  * Wayfinding affordance for dead-end pages (onboarding, and any page without a
@@ -20,7 +21,8 @@ export function BackToSite({
     <Link
       href={href}
       className={cn(
-        "text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-sm",
+        "text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 rounded-sm text-sm",
+        focusRing,
         className,
       )}
     >

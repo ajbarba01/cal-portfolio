@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { clampToStep, sanitizeIntInput } from "@/lib/number-input";
 import { cn } from "@/lib/utils";
-import { controlBox } from "@/components/ui/control-variants";
+import { controlBox, focusRing } from "@/components/ui/control-variants";
 
 interface NumberStepperProps {
   value: number;
@@ -64,7 +64,10 @@ export function NumberStepper({
     "inline-flex h-full w-11 shrink-0 items-center justify-center",
     "bg-muted text-brand-strong",
     "hover:bg-brand/15 hover:text-brand active:bg-brand/25",
-    "focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset",
+    // The shared ring, drawn inside: the box clips its children, so an outset
+    // one would be cut off at the control edge.
+    focusRing,
+    "focus-visible:-outline-offset-2",
     "transition-colors",
     "disabled:opacity-40 disabled:pointer-events-none",
   );
@@ -74,6 +77,13 @@ export function NumberStepper({
       className={cn(
         controlBox.lg,
         "border-border bg-card inline-flex items-center overflow-hidden border",
+        // The text field inside sets outline-none, so the box has to draw the
+        // ring for it. Scoped to the input rather than `focus-within` as on
+        // UnitInput: this control also holds buttons, which browsers focus on
+        // a mouse click, and focus-within would leave the whole stepper haloed
+        // after every click on − or + (and double-ring on Tab, over the
+        // buttons' own focusRing).
+        "has-[input:focus-visible]:border-ring has-[input:focus-visible]:ring-ring/50 has-[input:focus-visible]:ring-3",
       )}
     >
       <button

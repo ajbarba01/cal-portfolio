@@ -26,3 +26,20 @@ it("renders 6:30 AM for booking_open_minute = 390", () => {
   const meridiemTrigger = screen.getByLabelText("Bookings open at AM or PM");
   expect(meridiemTrigger.textContent).toContain("AM");
 });
+
+// A bare <SelectValue /> prints the raw stored value, so the closed trigger read
+// "5" while the open list offered "05". The trigger owes the list's own label.
+it("zero-pads the minute on the closed trigger", () => {
+  render(
+    <TimePicker
+      id="close"
+      label="Bookings close at"
+      value={365}
+      onChange={() => undefined}
+    />,
+  );
+
+  expect(
+    screen.getByLabelText("Bookings close at minute").textContent,
+  ).toContain("05");
+});

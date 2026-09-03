@@ -5,15 +5,21 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 type ErrorStateProps = {
-  title: React.ReactNode;
+  title?: React.ReactNode;
   message?: React.ReactNode;
   onRetry?: () => void;
   className?: string;
 };
 
+/**
+ * Full-panel failure state. `title` and `message` default to the generic
+ * load-failure pair most callers already pass verbatim, so a page that has
+ * nothing specific to say renders `<ErrorState />` and still reads the same.
+ * Passing either prop overrides only that one.
+ */
 export function ErrorState({
-  title,
-  message,
+  title = "Couldn't load this",
+  message = "We couldn't load this right now. Please try again.",
   onRetry,
   className,
 }: ErrorStateProps) {

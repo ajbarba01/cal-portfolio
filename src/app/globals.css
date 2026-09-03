@@ -27,11 +27,6 @@
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -199,7 +194,6 @@
   --brand-foreground: var(--clay-onfill);
   --brand-strong: var(--clay-strong);
   /* Hotter clay for proximity warming of already-clay text (FocusText `to`). */
-  --brand-hot: var(--clay-hot);
   /* Terracotta fill clay — star-rating hover preview outline (over the dark clay fill). */
   --rating-preview: var(--clay-light);
   /* Trust-card hover ring (effects/card-shimmer.tsx). ring = resting clay
@@ -208,8 +202,6 @@
   --card-ring-hot: #c1693c;
   /* Light ring for shimmer on a clay-filled button (reads as firelight on the
      warm fill); identical in both themes since the brand fill is clay in both. */
-  --button-shimmer: #ffffff;
-  --button-shimmer-hot: #ffe6c2;
   --destructive: var(--danger);
   --destructive-warm: var(--danger-warm);
   /* Attention badge — slate (#3c5566, blue-deep family), white text ≈7.9:1 AA.
@@ -220,11 +212,6 @@
   --border: var(--sand-200);
   --input: var(--sand-200);
   --ring: var(--clay-strong);
-  --chart-1: var(--clay-fill);
-  --chart-2: var(--sand-500);
-  --chart-3: var(--sand-700);
-  --chart-4: var(--green-deep);
-  --chart-5: var(--blue-deep);
   /* ── Status roles (scheduler cell states) ───────────────────────── */
   --status-available: var(--green-soft);
   --status-available-foreground: var(--green-deep);
@@ -253,10 +240,8 @@
      Single static site-wide pattern painted on <html> (bg-canvas + this,
      background-attachment: fixed) — shows through the transparent desk in the
      gutters + overscroll. Each --tex-* is theme-aware (tint differs light/dark):
-     --tex-wood is an inline procedural SVG data-URI (from texture-lab.html);
      --tex-topo points at recolored asset files in public/bg/. Swap the whole
      site pattern by repointing --bg-texture — set `none` to disable. */
-  --tex-wood: url("data:image/svg+xml,%3Csvg xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22 width%3D%22600%22 height%3D%22600%22%3E%3Cfilter id%3D%22w%22 x%3D%220%22 y%3D%220%22 width%3D%22100%25%22 height%3D%22100%25%22%3E%3CfeTurbulence type%3D%22fractalNoise%22 baseFrequency%3D%220.0170 0.0019%22 numOctaves%3D%223%22 seed%3D%227%22 stitchTiles%3D%22stitch%22 result%3D%22n%22%2F%3E%3CfeColorMatrix in%3D%22n%22 type%3D%22matrix%22 values%3D%220 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0.33 0.33 0.34 0 0%22 result%3D%22a%22%2F%3E%3CfeComponentTransfer in%3D%22a%22 result%3D%22b%22%3E%3CfeFuncA type%3D%22table%22 tableValues%3D%220.0000 0.0237 0.0106 0.0017 0.0300 0.0017 0.0106 0.0237 0.0000 0.0237 0.0106 0.0017 0.0300 0.0017 0.0106 0.0237 0.0000 0.0237 0.0106 0.0017 0.0300 0.0017 0.0106 0.0237 0.0000 0.0237 0.0106 0.0017 0.0300 0.0017 0.0106 0.0237 0.0000%22%2F%3E%3C%2FfeComponentTransfer%3E%3CfeFlood flood-color%3D%22%233a2a20%22 result%3D%22c%22%2F%3E%3CfeComposite in%3D%22c%22 in2%3D%22b%22 operator%3D%22in%22%2F%3E%3C%2Ffilter%3E%3Crect width%3D%22100%25%22 height%3D%22100%25%22 filter%3D%22url(%23w)%22%2F%3E%3C%2Fsvg%3E");
   --tex-topo: url("/bg/topography-light.svg");
   --bg-texture: var(--tex-topo);
 
@@ -311,7 +296,6 @@
   --brand: var(--clay-fill);
   --brand-foreground: var(--clay-onfill);
   --brand-strong: var(--clay-light);
-  --brand-hot: var(--clay-hot-dark);
   --rating-preview: var(--clay-fill);
   --card-ring: var(--clay-light);
   --card-ring-hot: #f2a063;
@@ -320,11 +304,6 @@
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: var(--clay-light);
-  --chart-1: var(--clay-bright);
-  --chart-2: var(--sand-400);
-  --chart-3: var(--sand-200);
-  --chart-4: var(--green-text-dark);
-  --chart-5: var(--blue-text-dark);
   /* ── Status roles (warm-dark overrides) ─────────────────────────── */
   --status-available: var(--green-fill-dark);
   --status-available-foreground: var(--green-text-dark);
@@ -368,10 +347,6 @@
     rgba(174, 90, 53, 0.055),
     transparent 62%
   );
-
-  /* Background texture — dark-tint variant (warm tan reads on near-black canvas).
-     Same grain geometry as the light --tex-wood; see :root texture library. */
-  --tex-wood: url("data:image/svg+xml,%3Csvg xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22 width%3D%22600%22 height%3D%22600%22%3E%3Cfilter id%3D%22w%22 x%3D%220%22 y%3D%220%22 width%3D%22100%25%22 height%3D%22100%25%22%3E%3CfeTurbulence type%3D%22fractalNoise%22 baseFrequency%3D%220.0170 0.0019%22 numOctaves%3D%223%22 seed%3D%227%22 stitchTiles%3D%22stitch%22 result%3D%22n%22%2F%3E%3CfeColorMatrix in%3D%22n%22 type%3D%22matrix%22 values%3D%220 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0.33 0.33 0.34 0 0%22 result%3D%22a%22%2F%3E%3CfeComponentTransfer in%3D%22a%22 result%3D%22b%22%3E%3CfeFuncA type%3D%22table%22 tableValues%3D%220.0000 0.0237 0.0106 0.0017 0.0300 0.0017 0.0106 0.0237 0.0000 0.0237 0.0106 0.0017 0.0300 0.0017 0.0106 0.0237 0.0000 0.0237 0.0106 0.0017 0.0300 0.0017 0.0106 0.0237 0.0000 0.0237 0.0106 0.0017 0.0300 0.0017 0.0106 0.0237 0.0000%22%2F%3E%3C%2FfeComponentTransfer%3E%3CfeFlood flood-color%3D%22%23c9a36e%22 result%3D%22c%22%2F%3E%3CfeComposite in%3D%22c%22 in2%3D%22b%22 operator%3D%22in%22%2F%3E%3C%2Ffilter%3E%3Crect width%3D%22100%25%22 height%3D%22100%25%22 filter%3D%22url(%23w)%22%2F%3E%3C%2Fsvg%3E");
 }
 
 @layer base {
@@ -580,30 +555,6 @@
   @media (prefers-reduced-motion: reduce) {
     .cursor-ring-overlay {
       display: none;
-    }
-  }
-
-  /*
-   * Cursor focus text — words inside a <FocusText> island warm toward a focal
-   * token (default --brand-strong, AA-safe on the warm canvas) as the pointer
-   * nears, like a finger tracking the line you're reading. The island sets --f
-   * in [0,1] per word from cursor distance; here that drives a pure color-mix
-   * from the word's own (inherited) color toward the focal one. Pure paint —
-   * nothing reflows. Reduced motion: the island attaches no listeners and this
-   * forces the plain inherited color, so text is always fully legible.
-   */
-  [data-focus-text] [data-focus-word] {
-    color: color-mix(
-      in oklab,
-      var(--focus-to, var(--brand-strong)) calc(var(--f, 0) * 100%),
-      currentColor
-    );
-    transition: color 80ms linear;
-  }
-  @media (prefers-reduced-motion: reduce) {
-    [data-focus-text] [data-focus-word] {
-      color: inherit;
-      transition: none;
     }
   }
 

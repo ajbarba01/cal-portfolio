@@ -95,7 +95,16 @@ export function AppShell({
           )}
         </div>
       </aside>
-      <main className="min-w-0 flex-1 px-5 py-8 sm:px-8">
+      {/* Horizontal padding stays here even though most AppShell pages wrap
+          their content in `PageContainer` (which applies `space.pageX` on its
+          own, so this pads those pages twice): the admin availability,
+          reviews, services and settings pages return a bare `<ErrorState>` at
+          the top level with no PageContainer and no gutter of its own, so
+          dropping it here leaves those branches flush against the viewport
+          edge below 384px. Drop this once every AppShell page routes its
+          content through PageContainer (or ErrorState carries its own
+          padding). */}
+      <main id="main-content" className="min-w-0 flex-1 px-5 py-8 sm:px-8">
         <ContentArea>{children}</ContentArea>
       </main>
     </div>

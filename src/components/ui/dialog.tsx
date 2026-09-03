@@ -3,6 +3,7 @@ import * as React from "react";
 import { Dialog as BaseDialog } from "@base-ui/react/dialog";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { focusRing } from "@/components/ui/control-variants";
 import { CardShimmer } from "@/components/effects/card-shimmer";
 import {
   dialogBackdropClass,
@@ -39,7 +40,10 @@ export function Dialog({
             </BaseDialog.Title>
             <BaseDialog.Close
               aria-label="Close"
-              className="text-muted-foreground hover:text-foreground -m-1 rounded-md p-1"
+              className={cn(
+                "text-muted-foreground hover:text-foreground -m-1 rounded-md p-1",
+                focusRing,
+              )}
             >
               <X className="size-4" />
             </BaseDialog.Close>

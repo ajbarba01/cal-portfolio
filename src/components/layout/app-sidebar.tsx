@@ -10,6 +10,7 @@ import { useNavPending } from "./nav-pending";
 import { NAV_ICONS } from "./nav-config";
 import type { ZoneNav, NavBadges } from "./nav-config";
 import { SignOutButton } from "@/components/sign-out-button";
+import { focusRing } from "@/components/ui/control-variants";
 import { NavBadge } from "@/components/ui/nav-badge";
 
 const ONBOARDING_HREF = "/onboarding";
@@ -69,8 +70,11 @@ export function AppSidebar({
       start(href);
     };
 
-  const itemBase =
-    "flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm transition-colors duration-200 ease-out focus-visible:outline-2 focus-visible:-outline-offset-2 md:min-h-9";
+  const itemBase = cn(
+    "flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm transition-colors duration-200 ease-out md:min-h-9",
+    focusRing,
+    "focus-visible:-outline-offset-2",
+  );
   const activeCls = "bg-sidebar-active text-brand-strong font-semibold";
   const idleCls = "text-foreground hover:bg-sidebar-accent";
 
@@ -141,7 +145,12 @@ export function AppSidebar({
       </nav>
       <div className="border-border mt-auto flex flex-col gap-2 border-t p-4">
         <span className="text-muted-foreground text-xs">{identity}</span>
-        <SignOutButton className="bg-destructive-warm/10 text-destructive-warm hover:bg-destructive-warm/20 flex min-h-11 w-full items-center justify-center gap-2 rounded-lg text-sm font-medium transition-colors duration-200 ease-out focus-visible:outline-2 focus-visible:outline-offset-2">
+        <SignOutButton
+          className={cn(
+            "bg-destructive-warm/10 text-destructive-warm hover:bg-destructive-warm/20 flex min-h-11 w-full items-center justify-center gap-2 rounded-lg text-sm font-medium transition-colors duration-200 ease-out",
+            focusRing,
+          )}
+        >
           <LogOut className="size-4" /> Sign out
         </SignOutButton>
       </div>

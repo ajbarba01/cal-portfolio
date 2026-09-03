@@ -104,7 +104,7 @@ export function Multiswitch<T extends string>({
             "pointer-events-none absolute top-0 left-0 rounded-md transition-[transform,width,height] duration-200 ease-out motion-reduce:transition-none",
             activeOption?.tone === "warn"
               ? "bg-destructive"
-              : "bg-card shadow-sm",
+              : "bg-card shadow-elev-1",
           )}
           style={{
             transform: `translate(${indicator.left}px, ${indicator.top}px)`,
@@ -134,7 +134,7 @@ export function Multiswitch<T extends string>({
                   // button does (no-flash / no-JS fallback).
                   cn("text-white", !ready && "bg-destructive")
                 : isActive
-                  ? cn("text-foreground", !ready && "bg-card shadow-sm")
+                  ? cn("text-foreground", !ready && "bg-card shadow-elev-1")
                   : "text-muted-foreground hover:text-foreground",
             )}
           >

@@ -10,42 +10,6 @@
  * See docs/FRONTEND.md ("Modular theming"). Project palette/type are finalized in docs/DESIGN.md.
  */
 
-/**
- * Curated list of the primary semantic color roles defined in globals.css — the ones referenced by
- * name in code. Use via Tailwind classes (e.g. `bg-primary`), never raw hex. Intentionally NOT
- * exhaustive: paired `*-foreground` variants (e.g. `card-foreground`) are implied by their base role
- * and omitted here to keep this a concise reference, not a mirror of every CSS var.
- */
-export const SEMANTIC_COLORS = [
-  "background",
-  "foreground",
-  "card",
-  "popover",
-  "primary",
-  "secondary",
-  "muted",
-  "accent",
-  "canvas",
-  "section-alt",
-  "brand",
-  "brand-foreground",
-  "brand-strong",
-  "sidebar-active",
-  "destructive",
-  "border",
-  "input",
-  "ring",
-  "status-available",
-  "status-available-foreground",
-  "status-booked",
-  "status-booked-foreground",
-  "status-unavailable",
-  "status-unavailable-foreground",
-  "warning",
-] as const;
-
-export type SemanticColor = (typeof SEMANTIC_COLORS)[number];
-
 /** Motion tokens — keep animations consistent and easy to tune in one place. */
 export const motion = {
   duration: { fast: 150, base: 250, slow: 400 },
@@ -81,16 +45,6 @@ export const breakpoints = {
   lg: 1024,
   xl: 1280,
   "2xl": 1536,
-} as const;
-
-/** Z-index scale — named layers so stacking order is intentional, not ad hoc. */
-export const zIndex = {
-  base: 0,
-  dropdown: 10,
-  sticky: 20,
-  overlay: 30,
-  modal: 40,
-  toast: 50,
 } as const;
 
 /**

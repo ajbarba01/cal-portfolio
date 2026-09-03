@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { Mail, Calendar } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { focusRing } from "@/components/ui/control-variants";
 import { MarketingCopy } from "@/components/marketing/marketing-copy";
 import { socials } from "@/content/socials";
 import { FooterReveal } from "./footer-reveal";
@@ -41,55 +43,69 @@ function TikTokIcon({ className }: { className?: string }) {
   );
 }
 
-const socialIconClass =
-  "text-muted-foreground hover:bg-muted hover:text-brand-strong flex size-9 items-center justify-center rounded-[10px] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2";
+const socialIconClass = cn(
+  "text-muted-foreground hover:bg-muted hover:text-brand-strong flex size-9 items-center justify-center rounded-[10px] transition-colors",
+  focusRing,
+);
 
-/** Social icon row. Icons with no URL render nothing (no dead links). */
+/**
+ * Social icon row. Icons with no URL render nothing (no dead links).
+ *
+ * A real `<ul>`/`<li>` list, not `role="list"` on a div with `role="listitem"`
+ * on the links: those roles overrode the links' own semantics, so a screen
+ * reader announced list items where the user could only ever activate links.
+ * `role="list"` stays on the `<ul>` because the reset drops `list-style`, which
+ * makes Safari drop list semantics with it.
+ */
 function SocialLinks() {
   return (
-    <div className="flex gap-1.5" role="list" aria-label="Social links">
+    <ul role="list" className="flex gap-1.5" aria-label="Social links">
       {socials.instagram ? (
-        <a
-          href={socials.instagram}
-          role="listitem"
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Instagram"
-          className={socialIconClass}
-        >
-          <InstagramIcon className="size-4.25" />
-        </a>
+        <li>
+          <a
+            href={socials.instagram}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Instagram"
+            className={socialIconClass}
+          >
+            <InstagramIcon className="size-4.25" />
+          </a>
+        </li>
       ) : null}
       {socials.tiktok ? (
-        <a
-          href={socials.tiktok}
-          role="listitem"
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="TikTok"
+        <li>
+          <a
+            href={socials.tiktok}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="TikTok"
+            className={socialIconClass}
+          >
+            <TikTokIcon className="size-4.25" />
+          </a>
+        </li>
+      ) : null}
+      <li>
+        <Link
+          href="/services"
+          aria-label="Booking page"
           className={socialIconClass}
         >
-          <TikTokIcon className="size-4.25" />
-        </a>
-      ) : null}
-      <Link
-        href="/services"
-        role="listitem"
-        aria-label="Booking page"
-        className={socialIconClass}
-      >
-        <Calendar size={17} strokeWidth={1.8} aria-hidden="true" />
-      </Link>{" "}
+          <Calendar size={17} strokeWidth={1.8} aria-hidden="true" />
+        </Link>
+      </li>
       {/* Mail always renders — links to /contact, NEVER mailto: */}
-      <Link
-        href="/contact"
-        role="listitem"
-        aria-label="Contact form"
-        className={socialIconClass}
-      >
-        <Mail size={17} strokeWidth={1.8} aria-hidden="true" />
-      </Link>
-    </div>
+      <li>
+        <Link
+          href="/contact"
+          aria-label="Contact form"
+          className={socialIconClass}
+        >
+          <Mail size={17} strokeWidth={1.8} aria-hidden="true" />
+        </Link>
+      </li>
+    </ul>
   );
 }
 
@@ -106,7 +122,10 @@ function DesignerCredit() {
         Site by{" "}
         <a
           href="mailto:zander@barba.org"
-          className="hover:text-brand-strong font-medium underline-offset-[3px] transition-colors hover:underline focus-visible:outline-2 focus-visible:outline-offset-2"
+          className={cn(
+            "hover:text-brand-strong font-medium underline-offset-[3px] transition-colors hover:underline",
+            focusRing,
+          )}
         >
           Zander Barba
         </a>
@@ -123,10 +142,11 @@ export function SiteFooter() {
       <div className="mx-auto w-full max-w-6xl px-5 sm:px-8">
         {/* ── Desktop: single row ─────────────────────────────────────── */}
         <div className="hidden sm:flex sm:items-center sm:justify-between sm:gap-4 sm:py-6.5">
-          {/* Left: copyright */}
+          {/* Left: copyright. No year — the marketing routes prerender at
+              build, so a baked year goes stale between deploys, and a client
+              island to print four digits costs more than it returns. */}
           <p className="text-muted-foreground text-sm">
-            ©&nbsp;{new Date().getFullYear()}&nbsp;Cal Barba —{" "}
-            <MarketingCopy id="footer.tagline" />
+            ©&nbsp;Cal Barba — <MarketingCopy id="footer.tagline" />
           </p>
 
           {/* Right: social icons */}
@@ -140,7 +160,7 @@ export function SiteFooter() {
 
           {/* Copyright last on mobile */}
           <p className="text-muted-foreground text-sm">
-            ©&nbsp;{new Date().getFullYear()}&nbsp;Cal Barba · Colorado
+            ©&nbsp;Cal Barba · Colorado
           </p>
         </div>
 
