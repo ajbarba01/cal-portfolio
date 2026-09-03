@@ -102,7 +102,7 @@ describe("deriveApprovalWithReasons", () => {
       locationKnown: false,
     });
     expect(r.decision).toBe("manual");
-    expect(r.reasons[0].code).toBe("location_unknown");
+    expect(r.reasons[0]?.code).toBe("location_unknown");
   });
 
   it("far → refuse with distance_refuse block", () => {

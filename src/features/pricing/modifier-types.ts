@@ -4,10 +4,22 @@ import type { PetSpecies } from "@/features/pets";
 export type Species = PetSpecies;
 
 export type Unit = "dog" | "cat" | "other";
+
+/**
+ * Id of the manual discount that makes a booking free end to end.
+ *
+ * Travel is the last quote phase and is never discounted, so even a 100%
+ * discount leaves the mileage line standing. The engine therefore drops the
+ * travel line outright when this discount is enabled (DECISIONS 4). The id is
+ * named here rather than derived from the config because it is the one modifier
+ * whose meaning the engine itself has to know.
+ */
+export const COMPLIMENTARY_MODIFIER_ID = "complimentary";
 export type Tier = { from: number; cents?: number; pct?: number };
 export type Condition =
   | "always"
   | "noDogs"
+  | "catsOnly"
   | "anyDogUnder6mo"
   | "recurringSeries"
   | "nightsOver4"
@@ -84,7 +96,7 @@ export interface QuoteInput {
   config: ServicePricingConfig;
   dogs?: number;
   cats?: number;
-  others?: number; // others EXCLUDES fish
+  others?: number; // every pet that is neither a dog nor a cat
   nights?: number;
   hours?: number;
   premiumNights?: number;

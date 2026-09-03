@@ -1,7 +1,11 @@
 // evaluate.test.ts
 import { describe, it, expect } from "vitest";
 import { evaluate } from "./evaluate";
-import type { ServicePricingConfig } from "../modifier-types";
+import type {
+  Condition,
+  QuoteInput,
+  ServicePricingConfig,
+} from "../modifier-types";
 
 const HS: ServicePricingConfig = {
   modifiers: [
@@ -53,9 +57,169 @@ describe("evaluate base + per-unit", () => {
       evaluate(HS, { config: HS, dogs: 0, cats: 2, nights: 2 }).finalCents,
     ).toBe(8600);
   });
-  it("others excludes fish: 2 others, 1 night → +1000", () => {
+  it("2 others alongside a dog, 1 night → +1000", () => {
     const r = evaluate(HS, { config: HS, dogs: 1, others: 2, nights: 1 });
     expect(r.finalCents).toBe(7000);
+  });
+  it("a stay with only other pets still gets the base night", () => {
+    // 6000 base − 2500 no-dog toggle, and the single rabbit is the base pet, so
+    // it is not billed a second time as an extra.
+    const r = evaluate(HS, {
+      config: HS,
+      dogs: 0,
+      cats: 0,
+      others: 1,
+      nights: 1,
+    });
+    expect(r.lines[0]?.label).toBe("House sitting base (1 night)");
+    expect(r.finalCents).toBe(3500);
+  });
+  it("names the other unit rather than leaking its config key", () => {
+    const r = evaluate(HS, { config: HS, dogs: 1, others: 2, nights: 1 });
+    expect(r.lines.map((l) => l.label)).toContain("Extra small animal (2)");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Per-night toggles — one table over every condition the vocabulary offers
+// ---------------------------------------------------------------------------
+
+/** A config whose only toggle fires on `condition`, at 100 cents per night. */
+function toggleConfig(condition: Condition): ServicePricingConfig {
+  return {
+    modifiers: [
+      { kind: "base_per_night", cents: 1000 },
+      {
+        kind: "flat_per_night_toggle",
+        id: "toggle",
+        label: "Toggle",
+        cents: 100,
+        source: { kind: "condition", condition },
+      },
+    ],
+    constraints: { intervalMin: 15, allowedSpecies: ["dog", "cat"] },
+  };
+}
+
+const TOGGLE_CASES: {
+  condition: Condition;
+  when: string;
+  input: Partial<QuoteInput>;
+  expected: number;
+}[] = [
+  { condition: "always", when: "any booking", input: {}, expected: 100 },
+  {
+    condition: "noDogs",
+    when: "the household has no dogs",
+    input: { cats: 1 },
+    expected: 100,
+  },
+  {
+    condition: "noDogs",
+    when: "a dog is staying",
+    input: { dogs: 1 },
+    expected: 0,
+  },
+  {
+    condition: "catsOnly",
+    when: "the household is cats and no dogs",
+    input: { cats: 1 },
+    expected: 100,
+  },
+  {
+    condition: "catsOnly",
+    when: "a dog is staying",
+    input: { dogs: 1, cats: 1 },
+    expected: 0,
+  },
+  {
+    condition: "catsOnly",
+    when: "the stay is for a bird and no cat",
+    input: { others: 1 },
+    expected: 0,
+  },
+  {
+    condition: "anyDogUnder6mo",
+    when: "a dog is under six months",
+    input: { dogs: 1, anyDogUnder6mo: true },
+    expected: 100,
+  },
+  {
+    condition: "anyDogUnder6mo",
+    when: "every dog is grown",
+    input: { dogs: 1 },
+    expected: 0,
+  },
+  {
+    condition: "recurringSeries",
+    when: "the booking repeats",
+    input: { dogs: 1, recurringSeries: true },
+    expected: 100,
+  },
+  {
+    condition: "recurringSeries",
+    when: "the booking is a one-off",
+    input: { dogs: 1 },
+    expected: 0,
+  },
+  {
+    condition: "nightsOver4",
+    when: "the stay runs five nights",
+    input: { dogs: 1, nights: 5 },
+    expected: 500,
+  },
+  {
+    condition: "nightsOver4",
+    when: "the stay runs exactly four nights",
+    input: { dogs: 1, nights: 4 },
+    expected: 0,
+  },
+  {
+    condition: "nightsOver6",
+    when: "the stay runs seven nights",
+    input: { dogs: 1, nights: 7 },
+    expected: 700,
+  },
+  {
+    condition: "nightsOver6",
+    when: "the stay runs exactly six nights",
+    input: { dogs: 1, nights: 6 },
+    expected: 0,
+  },
+];
+
+describe("evaluate per-night toggles", () => {
+  it.each(TOGGLE_CASES)(
+    "$condition: charges $expected when $when",
+    ({ condition, input, expected }) => {
+      const config = toggleConfig(condition);
+      const r = evaluate(config, { config, nights: 1, ...input });
+      const line = r.lines.find((l) => l.label === "Toggle");
+      expect(line?.amountCents ?? 0).toBe(expected);
+    },
+  );
+
+  it("a ladder toggle counts its rungs, capped at maxTier", () => {
+    const config: ServicePricingConfig = {
+      modifiers: [
+        { kind: "base_per_night", cents: 1000 },
+        {
+          kind: "flat_per_night_toggle",
+          id: "needy",
+          label: "Needy pet care",
+          cents: 100,
+          source: { kind: "ladder", input: "needyTier", maxTier: 2 },
+        },
+      ],
+      constraints: { intervalMin: 15, allowedSpecies: ["dog"] },
+    };
+    const at = (needyTier: QuoteInput["needyTier"]) =>
+      evaluate(config, { config, dogs: 1, nights: 1, needyTier }).lines.find(
+        (l) => l.label === "Needy pet care",
+      )?.amountCents ?? 0;
+    expect(at(0)).toBe(0);
+    expect(at(1)).toBe(100);
+    expect(at(4)).toBe(200); // capped at maxTier 2
   });
 });
 
@@ -146,6 +310,43 @@ describe("evaluate full pipeline (golden)", () => {
     });
     const travel = r.lines.find((l) => l.label === "Travel")!;
     expect(travel.amountCents).toBe(1000); // (10-5)*200, untouched by -5%
+  });
+  it("travel survives a complimentary id this config does not offer", () => {
+    // Dropping the mileage is the tail of the complimentary discount, so it
+    // happens only when that discount actually applied. An id left over from
+    // another service would otherwise take the travel line away silently, with
+    // no discount line on the receipt to explain where it went.
+    const r = evaluate(WALK, {
+      config: WALK,
+      hours: 1,
+      dogs: 1,
+      billableMiles: 10,
+      enabledManualIds: ["complimentary"],
+    });
+    expect(r.lines.find((l) => l.label === "Travel")?.amountCents).toBe(1000);
+  });
+  it("a tiered per-unit line over a part night is still whole cents", () => {
+    // Nights are not required to be whole (a stay can be booked to the hour), so
+    // a per-night tier rate can land on a fraction of a cent. Every line amount
+    // is integer cents, so the line rounds rather than carrying the fraction
+    // into the discount phases.
+    const config: ServicePricingConfig = {
+      modifiers: [
+        { kind: "base_per_night", cents: 1000 },
+        {
+          kind: "tiered_per_unit",
+          unit: "dog",
+          tiers: [{ from: 2, cents: 333 }],
+        },
+      ],
+      constraints: { intervalMin: 15, allowedSpecies: ["dog"] },
+    };
+    const r = evaluate(config, { config, dogs: 2, nights: 1.5 });
+    // 333 × 1.5 = 499.5
+    expect(r.lines.find((l) => l.label === "Additional dog")?.amountCents).toBe(
+      500,
+    );
+    expect(Number.isInteger(r.finalCents)).toBe(true);
   });
   it("min_floor tops short visit up to 1500", () => {
     const r = evaluate(WALK, { config: WALK, hours: 0.25, dogs: 0 }); // 625 base → floor 1500

@@ -41,6 +41,7 @@ const unitSchema = z.enum(["dog", "cat", "other"]);
 const conditionSchema = z.enum([
   "always",
   "noDogs",
+  "catsOnly",
   "anyDogUnder6mo",
   "recurringSeries",
   "nightsOver4",

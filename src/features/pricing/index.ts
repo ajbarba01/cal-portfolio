@@ -14,6 +14,7 @@ export type {
 export {
   headlineRate,
   formatCents,
+  centsToDollars,
   pricingBreakdown,
   centsToDollarsNumber,
   dollarsToCents,
@@ -22,16 +23,9 @@ export type { PricingBreakdownRow } from "./display";
 export { describeModifier } from "./term-descriptions";
 export { defaultGeocoder } from "./geocoding/zip-centroid-geocoder";
 export type { Geocoder } from "./geocoding/geocoder";
-export type {
-  PricingType,
-  QuoteInput,
-  QuoteBreakdown,
-  WalkConfig,
-  HouseSittingConfig,
-  CheckInConfig,
-  TrainingConfig,
-  MeetGreetConfig,
-} from "./types";
+export { isPetAware } from "./types";
+export type { PricingType, QuoteInput, QuoteBreakdown } from "./types";
+export { COMPLIMENTARY_MODIFIER_ID } from "./modifier-types";
 export type {
   ServicePricingConfig,
   Modifier,

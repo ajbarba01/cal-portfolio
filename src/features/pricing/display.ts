@@ -2,12 +2,22 @@
  * Pure pricing display helpers — no IO, no side effects.
  *
  * formatCents: integer cents → formatted dollar string (whole dollars if even).
+ * centsToDollars: integer cents → the same amount always at two decimals.
  * headlineRate: short "from" label derived from ServicePricingConfig modifiers.
  * pricingBreakdown: itemized rate structure rows derived from config.modifiers.
  */
 
-import type { ServicePricingConfig, Modifier } from "./modifier-types";
+import type { ServicePricingConfig, Modifier, Unit } from "./modifier-types";
 import { describeModifier } from "./term-descriptions";
+
+/**
+ * The customer-facing noun for a pricing unit, so the rate table and the quote
+ * receipt name the same animal the same way. The `other` unit covers every pet
+ * that is neither a dog nor a cat, and its key must never reach a receipt line.
+ */
+export function unitNoun(unit: Unit): string {
+  return unit === "other" ? "small animal" : unit;
+}
 
 /**
  * Formats integer cents as a dollar string.
@@ -19,6 +29,30 @@ export function formatCents(cents: number): string {
   return dollars % 1 === 0
     ? `$${dollars.toFixed(0)}`
     : `$${dollars.toFixed(2)}`;
+}
+
+// Constructed once at module scope: constructing an Intl.NumberFormat costs far
+// more than formatting with it, and a ledger formats a money column per row.
+// `Number.prototype.toLocaleString` with options allocates one per call, so it
+// is deliberately not used here.
+const moneyFormat = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+});
+
+/**
+ * Formats integer cents as a dollar string with two decimals always shown
+ * (5000 → "$50.00"), the format ledger surfaces want — a receipt line, a
+ * balance, a refund. Use {@link formatCents} for headline rates instead, which
+ * drops the decimals on a whole dollar amount.
+ *
+ * A debit renders its minus sign ahead of the symbol ("-$25.00"), which is what
+ * separates this from a hand-rolled `toFixed(2)` ("$-25.00").
+ */
+export function centsToDollars(cents: number): string {
+  // Negative zero reaches here from differences like `-(paid - owed)`; left
+  // alone it would render as "-$0.00".
+  return moneyFormat.format(cents === 0 ? 0 : cents / 100);
 }
 
 /**
@@ -105,12 +139,7 @@ export function pricingBreakdown(
       }
 
       case "tiered_per_unit": {
-        const unitLabel =
-          mod.unit === "dog"
-            ? "Each additional dog"
-            : mod.unit === "cat"
-              ? "Each additional cat"
-              : "Each additional small animal";
+        const unitLabel = `Each additional ${unitNoun(mod.unit)}`;
         // Summarise using the first tier rate or pct.
         const firstTier = mod.tiers[0];
         if (firstTier !== undefined) {

@@ -7,8 +7,10 @@ export type ApprovalDecision = "auto" | "manual" | "refuse";
  * Applies a road factor (straight-line → road distance multiplier) then
  * divides by average speed. All constants are Cal-tunable via settings.
  *
- * Used ONLY for the travel-**cost** line (driving time billed at the hourly
- * rate); the approval gate reasons in miles — see {@link deriveApproval}.
+ * Used ONLY by the scheduler's drive buffer — the travel time held either side
+ * of a booking so two jobs are not stacked closer than Cal can drive. It is not
+ * a money input: the travel **cost** line comes from billable miles, and the
+ * approval gate reasons in miles too (see {@link deriveApproval}).
  *
  * @returns One-way driving minutes (not round-trip).
  */

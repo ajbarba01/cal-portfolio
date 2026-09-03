@@ -1,6 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { parsePricingConfig } from "./config-schemas";
-import type { ServicePricingConfig } from "./modifier-types";
+import { SPECIES_VALUES } from "@/features/pets";
+import {
+  SEEDED_PRICING_CONFIGS,
+  SEEDED_PRICING_CONFIGS_RAW,
+} from "@/test-stubs/seed-fixture";
 
 // ---------------------------------------------------------------------------
 // Shared fixtures
@@ -21,7 +25,7 @@ describe("parsePricingConfig", () => {
       modifiers: [{ kind: "base_per_hour", cents: 2500 }],
       constraints: VALID_CONSTRAINTS,
     });
-    expect(cfg.modifiers[0].kind).toBe("base_per_hour");
+    expect(cfg.modifiers[0]?.kind).toBe("base_per_hour");
   });
 
   it("rejects unknown kind", () => {
@@ -199,7 +203,7 @@ describe("parsePricingConfig — modifier variants", () => {
       modifiers: [{ kind: "base_per_night", cents: 5000 }],
       constraints: VALID_CONSTRAINTS,
     });
-    expect(cfg.modifiers[0].kind).toBe("base_per_night");
+    expect(cfg.modifiers[0]?.kind).toBe("base_per_night");
   });
 
   it("tiered_per_unit", () => {
@@ -216,7 +220,7 @@ describe("parsePricingConfig — modifier variants", () => {
       ],
       constraints: VALID_CONSTRAINTS,
     });
-    expect(cfg.modifiers[0].kind).toBe("tiered_per_unit");
+    expect(cfg.modifiers[0]?.kind).toBe("tiered_per_unit");
   });
 
   it("per_hour_addon", () => {
@@ -232,7 +236,7 @@ describe("parsePricingConfig — modifier variants", () => {
       ],
       constraints: VALID_CONSTRAINTS,
     });
-    expect(cfg.modifiers[0].kind).toBe("per_hour_addon");
+    expect(cfg.modifiers[0]?.kind).toBe("per_hour_addon");
   });
 
   it("allowance_then_per_unit", () => {
@@ -248,7 +252,7 @@ describe("parsePricingConfig — modifier variants", () => {
       ],
       constraints: VALID_CONSTRAINTS,
     });
-    expect(cfg.modifiers[0].kind).toBe("allowance_then_per_unit");
+    expect(cfg.modifiers[0]?.kind).toBe("allowance_then_per_unit");
   });
 
   it("pct_surcharge", () => {
@@ -265,7 +269,7 @@ describe("parsePricingConfig — modifier variants", () => {
       ],
       constraints: VALID_CONSTRAINTS,
     });
-    expect(cfg.modifiers[0].kind).toBe("pct_surcharge");
+    expect(cfg.modifiers[0]?.kind).toBe("pct_surcharge");
   });
 
   it("min_floor", () => {
@@ -273,7 +277,7 @@ describe("parsePricingConfig — modifier variants", () => {
       modifiers: [{ kind: "min_floor", cents: 2000 }],
       constraints: VALID_CONSTRAINTS,
     });
-    expect(cfg.modifiers[0].kind).toBe("min_floor");
+    expect(cfg.modifiers[0]?.kind).toBe("min_floor");
   });
 
   it("flat_per_night_toggle with ladder source", () => {
@@ -290,269 +294,13 @@ describe("parsePricingConfig — modifier variants", () => {
       ],
       constraints: VALID_CONSTRAINTS,
     });
-    expect(cfg.modifiers[0].kind).toBe("flat_per_night_toggle");
+    expect(cfg.modifiers[0]?.kind).toBe("flat_per_night_toggle");
   });
 });
 
 // ---------------------------------------------------------------------------
-// Seed round-trip tests — each seeded JSON literal must parse without throwing
-// and must have the expected modifier count / key fields.
-// These are the primary gate for Task 8 (migrate pricing_config to modifier lists).
-// ---------------------------------------------------------------------------
-
-const HOUSE_SITTING_SEED: unknown = {
-  modifiers: [
-    { kind: "base_per_night", cents: 6000 },
-    {
-      kind: "flat_per_night_toggle",
-      id: "cat_only",
-      label: "Cat-only home",
-      cents: -2500,
-      source: { kind: "condition", condition: "noDogs" },
-    },
-    {
-      kind: "flat_per_night_toggle",
-      id: "puppy_household",
-      label: "Puppy household",
-      cents: -1000,
-      source: { kind: "condition", condition: "anyDogUnder6mo" },
-    },
-    {
-      kind: "tiered_per_unit",
-      unit: "dog",
-      tiers: [
-        { from: 2, cents: 1500 },
-        { from: 3, cents: 1000 },
-      ],
-    },
-    { kind: "flat_per_unit", unit: "cat", cents: 800 },
-    { kind: "flat_per_unit", unit: "other", cents: 500 },
-    {
-      kind: "flat_per_night_toggle",
-      id: "needy",
-      label: "Needy pet care",
-      cents: 500,
-      source: { kind: "ladder", input: "needyTier", maxTier: 4 },
-    },
-    {
-      kind: "allowance_then_per_unit",
-      unit: "exercise",
-      label: "Extra exercise",
-      freeUnits: 45,
-      cents: 500,
-    },
-    {
-      kind: "allowance_then_per_unit",
-      unit: "mile",
-      label: "Travel",
-      freeUnits: 5,
-      cents: 250,
-    },
-    {
-      kind: "pct_surcharge",
-      id: "premium",
-      label: "Premium night (+20%)",
-      pct: 20,
-      scope: "perPremiumNight",
-      condition: "premiumDays",
-    },
-    {
-      kind: "pct_discount",
-      id: "long_a",
-      label: "Long stay (-5%)",
-      pct: 5,
-      condition: "nightsOver4",
-    },
-    {
-      kind: "pct_discount",
-      id: "long_b",
-      label: "Extended stay (-5%)",
-      pct: 5,
-      condition: "nightsOver6",
-    },
-    {
-      kind: "pct_discount",
-      id: "kiche",
-      label: "Kiche discount (-15%)",
-      pct: 15,
-      condition: "always",
-      manual: true,
-    },
-  ],
-  constraints: {
-    intervalMin: 15,
-    allowedSpecies: [
-      "dog",
-      "cat",
-      "bird",
-      "rodent",
-      "reptile",
-      "fish",
-      "other",
-    ],
-    softDistanceWarnMiles: 15,
-  },
-};
-
-const CHECK_IN_SEED: unknown = {
-  modifiers: [
-    { kind: "base_per_hour", cents: 2500 },
-    { kind: "min_floor", cents: 1500 },
-    {
-      kind: "allowance_then_per_unit",
-      unit: "mile",
-      label: "Travel",
-      freeUnits: 5,
-      cents: 200,
-    },
-    {
-      kind: "pct_surcharge",
-      id: "premium",
-      label: "Premium day (+20%)",
-      pct: 20,
-      scope: "wholeBooking",
-      condition: "premiumDays",
-    },
-    {
-      kind: "pct_discount",
-      id: "recurring",
-      label: "Recurring discount (-5%)",
-      pct: 5,
-      condition: "recurringSeries",
-    },
-  ],
-  constraints: {
-    intervalMin: 5,
-    minDurationMin: 15,
-    maxDurationMin: 60,
-    allowedSpecies: ["dog"],
-  },
-};
-
-const WALK_SEED: unknown = {
-  modifiers: [
-    { kind: "base_per_hour", cents: 2500 },
-    { kind: "tiered_per_unit", unit: "dog", tiers: [{ from: 2, pct: 50 }] },
-    {
-      kind: "per_hour_addon",
-      id: "leash_manners",
-      label: "Leash manners (+$10/h)",
-      cents: 1000,
-      optIn: true,
-    },
-    {
-      kind: "allowance_then_per_unit",
-      unit: "mile",
-      label: "Travel",
-      freeUnits: 5,
-      cents: 200,
-    },
-    { kind: "min_floor", cents: 1500 },
-    {
-      kind: "pct_surcharge",
-      id: "premium",
-      label: "Premium day (+20%)",
-      pct: 20,
-      scope: "wholeBooking",
-      condition: "premiumDays",
-    },
-    {
-      kind: "pct_discount",
-      id: "recurring",
-      label: "Recurring discount (-5%)",
-      pct: 5,
-      condition: "recurringSeries",
-    },
-    {
-      kind: "pct_discount",
-      id: "kiche",
-      label: "Kiche discount (-15%)",
-      pct: 15,
-      condition: "always",
-      manual: true,
-    },
-    {
-      kind: "pct_discount",
-      id: "off_leash",
-      label: "Off-leash discount (-15%)",
-      pct: 15,
-      condition: "always",
-      manual: true,
-    },
-    {
-      kind: "pct_discount",
-      id: "vetted_2nd_dog",
-      label: "Vetted 2nd dog (-25%)",
-      pct: 25,
-      condition: "always",
-      manual: true,
-    },
-  ],
-  constraints: {
-    intervalMin: 15,
-    minDurationMin: 30,
-    maxDurationMin: 180,
-    maxDogs: 2,
-    allowedSpecies: ["dog"],
-  },
-};
-
-const TRAINING_SEED: unknown = {
-  modifiers: [
-    { kind: "base_per_hour", cents: 4500 },
-    { kind: "min_floor", cents: 1500 },
-    {
-      kind: "allowance_then_per_unit",
-      unit: "mile",
-      label: "Travel",
-      freeUnits: 5,
-      cents: 150,
-    },
-    {
-      kind: "pct_surcharge",
-      id: "premium",
-      label: "Premium day (+20%)",
-      pct: 20,
-      scope: "wholeBooking",
-      condition: "premiumDays",
-    },
-    {
-      kind: "pct_discount",
-      id: "recurring",
-      label: "Recurring discount (-5%)",
-      pct: 5,
-      condition: "recurringSeries",
-    },
-    {
-      kind: "pct_discount",
-      id: "puppy_training",
-      label: "Puppy training (-15%)",
-      pct: 15,
-      condition: "anyDogUnder6mo",
-    },
-  ],
-  constraints: {
-    intervalMin: 5,
-    minDurationMin: 30,
-    maxDurationMin: 60,
-    maxDogs: 1,
-    allowedSpecies: ["dog"],
-  },
-};
-
-const MEET_GREET_SEED: unknown = {
-  modifiers: [],
-  constraints: {
-    intervalMin: 15,
-    allowedSpecies: ["dog", "cat"],
-  },
-};
-
-// ---------------------------------------------------------------------------
 // Canonical species integration
 // ---------------------------------------------------------------------------
-
-import { SPECIES_VALUES } from "@/features/pets";
 
 describe("allowedSpecies accepts the full taxonomy", () => {
   it("accepts every canonical species", () => {
@@ -564,43 +312,62 @@ describe("allowedSpecies accepts the full taxonomy", () => {
   });
 });
 
-describe("parsePricingConfig — seeded JSON round-trips", () => {
-  it("house_sitting: parses without throw, 13 modifiers, base_per_night first", () => {
-    const cfg = parsePricingConfig(HOUSE_SITTING_SEED) as ServicePricingConfig;
-    expect(cfg.modifiers.length).toBe(13);
-    expect(cfg.modifiers[0].kind).toBe("base_per_night");
+// ---------------------------------------------------------------------------
+// Seed round-trips — every config the migrations seed must survive the parser,
+// which is what stands between a rate edit and a service that cannot be quoted.
+// ---------------------------------------------------------------------------
+
+describe("parsePricingConfig — seeded configs round-trip", () => {
+  it("house_sitting: 15 modifiers, base_per_night first, every species allowed", () => {
+    const cfg = parsePricingConfig(SEEDED_PRICING_CONFIGS_RAW.house_sitting);
+    expect(cfg.modifiers.length).toBe(15);
+    expect(cfg.modifiers[0]?.kind).toBe("base_per_night");
     expect(cfg.constraints.intervalMin).toBe(15);
     expect(cfg.constraints.softDistanceWarnMiles).toBe(15);
-    expect(cfg.constraints.allowedSpecies).toContain("bird");
+    expect(cfg.constraints.allowedSpecies).toEqual([...SPECIES_VALUES]);
   });
 
-  it("check_in: parses without throw, 5 modifiers, base_per_hour first", () => {
-    const cfg = parsePricingConfig(CHECK_IN_SEED) as ServicePricingConfig;
-    expect(cfg.modifiers.length).toBe(5);
-    expect(cfg.modifiers[0].kind).toBe("base_per_hour");
+  it("check_in: 7 modifiers, base_per_hour first, dogs and cats allowed", () => {
+    const cfg = parsePricingConfig(SEEDED_PRICING_CONFIGS_RAW.check_in);
+    expect(cfg.modifiers.length).toBe(7);
+    expect(cfg.modifiers[0]?.kind).toBe("base_per_hour");
     expect(cfg.constraints.minDurationMin).toBe(15);
     expect(cfg.constraints.maxDurationMin).toBe(60);
+    expect(cfg.constraints.allowedSpecies).toEqual(["dog", "cat"]);
   });
 
-  it("walk: parses without throw, 10 modifiers, base_per_hour first", () => {
-    const cfg = parsePricingConfig(WALK_SEED) as ServicePricingConfig;
-    expect(cfg.modifiers.length).toBe(10);
-    expect(cfg.modifiers[0].kind).toBe("base_per_hour");
+  it("walk: 12 modifiers, base_per_hour first", () => {
+    const cfg = parsePricingConfig(SEEDED_PRICING_CONFIGS_RAW.walk);
+    expect(cfg.modifiers.length).toBe(12);
+    expect(cfg.modifiers[0]?.kind).toBe("base_per_hour");
     expect(cfg.constraints.maxDogs).toBe(2);
     expect(cfg.constraints.minDurationMin).toBe(30);
   });
 
-  it("training: parses without throw, 6 modifiers, base_per_hour first", () => {
-    const cfg = parsePricingConfig(TRAINING_SEED) as ServicePricingConfig;
-    expect(cfg.modifiers.length).toBe(6);
-    expect(cfg.modifiers[0].kind).toBe("base_per_hour");
+  it("training: 8 modifiers, base_per_hour first", () => {
+    const cfg = parsePricingConfig(SEEDED_PRICING_CONFIGS_RAW.training);
+    expect(cfg.modifiers.length).toBe(8);
+    expect(cfg.modifiers[0]?.kind).toBe("base_per_hour");
     expect(cfg.constraints.maxDogs).toBe(1);
   });
 
-  it("meet_greet: parses without throw, 0 modifiers", () => {
-    const cfg = parsePricingConfig(MEET_GREET_SEED) as ServicePricingConfig;
+  it("meet_greet: no modifiers at all", () => {
+    const cfg = parsePricingConfig(SEEDED_PRICING_CONFIGS_RAW.meet_greet);
     expect(cfg.modifiers.length).toBe(0);
     expect(cfg.constraints.intervalMin).toBe(15);
     expect(cfg.constraints.allowedSpecies).toContain("cat");
+  });
+
+  it("every paid service offers the two Cal-toggled manual discounts", () => {
+    const paid = ["house_sitting", "check_in", "walk", "training"] as const;
+    for (const type of paid) {
+      const ids = SEEDED_PRICING_CONFIGS[type].modifiers.flatMap((mod) =>
+        "id" in mod ? [mod.id] : [],
+      );
+      expect(ids).toContain("friends_family");
+      expect(ids).toContain("complimentary");
+    }
+    const freeIds = SEEDED_PRICING_CONFIGS.meet_greet.modifiers;
+    expect(freeIds).toEqual([]);
   });
 });

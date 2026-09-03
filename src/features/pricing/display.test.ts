@@ -3,9 +3,10 @@
  * Pure — no IO, no DB.
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   formatCents,
+  centsToDollars,
   headlineRate,
   pricingBreakdown,
   centsToDollarsNumber,
@@ -29,6 +30,56 @@ describe("formatCents", () => {
     expect(formatCents(5050)).toBe("$50.50");
     expect(formatCents(1)).toBe("$0.01");
     expect(formatCents(99)).toBe("$0.99");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// centsToDollars — the two-decimal ledger format
+// ---------------------------------------------------------------------------
+
+describe("centsToDollars", () => {
+  it("always shows two decimals, unlike formatCents", () => {
+    expect(centsToDollars(5000)).toBe("$50.00");
+    expect(formatCents(5000)).toBe("$50");
+    expect(centsToDollars(5050)).toBe("$50.50");
+    expect(centsToDollars(1)).toBe("$0.01");
+  });
+
+  it("groups thousands", () => {
+    expect(centsToDollars(123456789)).toBe("$1,234,567.89");
+  });
+
+  it("puts the minus sign ahead of the currency symbol on a debit", () => {
+    // A hand-rolled `$${(cents / 100).toFixed(2)}` renders "$-25.00" here,
+    // which is what the debit surfaces used to show.
+    expect(centsToDollars(-2500)).toBe("-$25.00");
+    expect(centsToDollars(-1)).toBe("-$0.01");
+  });
+
+  it("renders zero without a sign", () => {
+    expect(centsToDollars(0)).toBe("$0.00");
+    // A settled balance can arrive as negative zero from `-(a - b)`.
+    expect(centsToDollars(-0)).toBe("$0.00");
+  });
+
+  it("builds no Intl formatter per call", () => {
+    // Ledger surfaces format a money column per row, and constructing an
+    // Intl.NumberFormat costs far more than formatting with it — the formatter
+    // belongs at module scope. Date.prototype.toLocaleString is spied alongside
+    // the constructor because it allocates a formatter internally without
+    // touching the Intl binding, so a regression written that way would
+    // otherwise slip past.
+    const construct = vi.spyOn(Intl, "NumberFormat");
+    const viaNumber = vi.spyOn(Number.prototype, "toLocaleString");
+    try {
+      centsToDollars(5000);
+      centsToDollars(-2500);
+      centsToDollars(0);
+      expect(construct).not.toHaveBeenCalled();
+      expect(viaNumber).not.toHaveBeenCalled();
+    } finally {
+      vi.restoreAllMocks();
+    }
   });
 });
 
