@@ -1,12 +1,11 @@
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
+import type { Database } from "@/lib/supabase/database.types";
 import { getCachedUser } from "@/lib/supabase/server-cache";
 import { createServiceClient } from "@/lib/supabase/service";
-import {
-  createSupabaseBookingRepository,
-  type BookingStatusDb,
-} from "@/features/booking";
+import { createSupabaseBookingRepository } from "@/features/booking";
+import { netPaid } from "@/features/payments";
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
 
@@ -14,60 +13,23 @@ import {
   AccountBookingsClient,
   type AccountBookingRow,
   type AccountBookingPet,
-  type AccountBookingQuoteInputs,
 } from "./_components/account-bookings-client";
-import { firstRelated } from "./_components/normalize-related";
 
-interface PaymentRow {
-  amount_cents: number;
-  status: string;
-}
+/** The `payments` columns the balance line reads, projected out of the schema. */
+type PaymentRow = Pick<
+  Database["public"]["Tables"]["payments"]["Row"],
+  "amount_cents" | "refunded_cents" | "status"
+>;
 
-interface PetRow {
-  name: string;
-  species: string | null;
-}
-
-interface BookingPetRow {
-  pets: PetRow | PetRow[] | null;
-}
-
-interface RawBookingRow {
-  id: string;
-  starts_at: string;
-  ends_at: string;
-  status: BookingStatusDb;
-  final_cents: number;
-  payments: PaymentRow[];
-  // Supabase nests this to-one relationship as an object, though the generated
-  // types widen it to an array — accept both and collapse with `firstRelated`.
-  services:
-    | { name: string; slug: string }
-    | { name: string; slug: string }[]
-    | null;
-  booking_pets: BookingPetRow[] | null;
-  quote_inputs: AccountBookingQuoteInputs | null;
-}
-
-/** Sum of succeeded payments (cents). */
+/** What the client is actually out of pocket, refunds netted out. */
 function paidCents(payments: PaymentRow[]): number {
-  return payments
-    .filter((p) => p.status === "succeeded")
-    .reduce((acc, p) => acc + p.amount_cents, 0);
-}
-
-function parsePets(bookingPets: BookingPetRow[] | null): AccountBookingPet[] {
-  if (!bookingPets) return [];
-  const result: AccountBookingPet[] = [];
-  for (const bp of bookingPets) {
-    if (!bp.pets) continue;
-    // Supabase returns a single object for a to-one join or an array for to-many
-    const petArr = Array.isArray(bp.pets) ? bp.pets : [bp.pets];
-    for (const pet of petArr) {
-      result.push({ name: pet.name, species: pet.species });
-    }
-  }
-  return result;
+  return netPaid(
+    payments.map((p) => ({
+      status: p.status,
+      amountCents: p.amount_cents,
+      refundedCents: p.refunded_cents,
+    })),
+  );
 }
 
 export default async function BookingsPage() {
@@ -90,29 +52,38 @@ export default async function BookingsPage() {
     supabase
       .from("bookings")
       .select(
-        "id, starts_at, ends_at, status, final_cents, quote_inputs, payments(amount_cents, status), services(name, slug), booking_pets(pets(name, species))",
+        "id, starts_at, ends_at, status, final_cents, quote_inputs, quote_breakdown, payments(amount_cents, refunded_cents, status), services(name, slug), booking_pets(pets(name, species))",
       )
       .eq("client_id", user.id)
       .order("starts_at", { ascending: false })
       .limit(500),
   ]);
 
-  const raw = (bookings as RawBookingRow[]) ?? [];
-  const rows: AccountBookingRow[] = raw.map((b) => {
-    const service = firstRelated(b.services);
-    return {
-      id: b.id,
-      starts_at: b.starts_at,
-      ends_at: b.ends_at,
-      status: b.status,
-      final_cents: b.final_cents,
-      paid_cents: paidCents(b.payments),
-      service_name: service?.name ?? "Service",
-      service_slug: service?.slug ?? "",
-      pets: parsePets(b.booking_pets),
-      quoteInputs: b.quote_inputs ?? undefined,
-    };
-  });
+  const rows: AccountBookingRow[] = (bookings ?? []).map((b) => ({
+    id: b.id,
+    starts_at: b.starts_at,
+    ends_at: b.ends_at,
+    status: b.status,
+    final_cents: b.final_cents,
+    paid_cents: paidCents(b.payments),
+    // `bookings.service_id` is `not null references services(id)`, so the join
+    // always resolves to exactly one service.
+    service_name: b.services.name,
+    service_slug: b.services.slug,
+    pets: b.booking_pets.map(
+      (bp): AccountBookingPet => ({
+        name: bp.pets.name,
+        species: bp.pets.species,
+      }),
+    ),
+    // Both columns are jsonb, so the generated type is the open `Json`. Legacy
+    // bookings hold `{}` and every reader guards the fields it touches, so the
+    // display shapes are asserted rather than parsed.
+    quoteInputs:
+      (b.quote_inputs as AccountBookingRow["quoteInputs"]) ?? undefined,
+    quoteBreakdown:
+      (b.quote_breakdown as AccountBookingRow["quoteBreakdown"]) ?? undefined,
+  }));
 
   return (
     <PageContainer width="app">

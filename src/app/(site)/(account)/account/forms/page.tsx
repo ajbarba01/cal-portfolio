@@ -1,24 +1,21 @@
-import { createClient } from "@/lib/supabase/server";
-import { getCachedUser } from "@/lib/supabase/server-cache";
 import { redirect } from "next/navigation";
-import { EXPENSE_AUTH_KIND } from "@/features/accounts";
-import { FormsClient } from "./_components/forms-client";
+
+import { EXPENSE_AUTH_KIND, listClientForms } from "@/features/accounts";
+import type { PetRow } from "@/features/pets";
+import { ErrorState } from "@/components/feedback/error-state";
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
+import { createClient } from "@/lib/supabase/server";
+import { getCachedUser } from "@/lib/supabase/server-cache";
 
-export interface FormResponseRow {
-  id: string;
-  form_key: string;
-  pet_id: string | null;
-  data: Record<string, unknown>;
-  submitted_at: string;
-}
+import { FormsClient } from "./_components/forms-client";
 
-export interface PetRef {
-  id: string;
-  name: string;
-  species: "dog" | "cat";
-}
+/**
+ * The pet fields this page hands the forms client, projected out of the pets
+ * read so the species union stays the table's own — the hand-rolled copy this
+ * replaced claimed `"dog" | "cat"` while the column holds all seven species.
+ */
+export type PetRef = Pick<PetRow, "id" | "name" | "species">;
 
 export default async function FormsPage() {
   const { user } = await getCachedUser();
@@ -26,12 +23,10 @@ export default async function FormsPage() {
 
   const supabase = await createClient();
 
-  // Load profile responses, pets, and the latest expense authorization together.
-  const [responsesRes, petsRes, authRes] = await Promise.all([
-    supabase
-      .from("form_responses")
-      .select("id, form_key, pet_id, data, submitted_at")
-      .eq("client_id", user.id),
+  // Profile responses, pets, and the latest expense authorization are
+  // independent — fetch in parallel.
+  const [formsRes, petsRes, authRes] = await Promise.all([
+    listClientForms(supabase, user.id),
     supabase
       .from("pets")
       .select("id, name, species")
@@ -46,28 +41,22 @@ export default async function FormsPage() {
       .limit(1),
   ]);
 
-  const responses = (responsesRes.data as FormResponseRow[]) ?? [];
-  const pets = (petsRes.data as PetRef[]) ?? [];
-  const latestAuth = (
-    authRes.data as { version: string; accepted_at: string }[]
-  )?.[0];
-
-  // Account-scoped rows key by form_key (pet_id null).
-  const owner = responses.find((r) => r.form_key === "owner" && !r.pet_id);
-  const homeAccess = responses.find(
-    (r) => r.form_key === "home_access" && !r.pet_id,
-  );
-  const homeSitting = responses.find(
-    (r) => r.form_key === "home_sitting" && !r.pet_id,
-  );
-
-  // Pet-scoped rows: keyed by `${form_key}:${pet_id}` for pet_care and pet_walk.
-  const petResponses: Record<string, FormResponseRow> = {};
-  for (const r of responses) {
-    if (r.pet_id && (r.form_key === "pet_care" || r.form_key === "pet_walk")) {
-      petResponses[`${r.form_key}:${r.pet_id}`] = r;
-    }
+  const readError = formsRes.error ?? petsRes.error ?? authRes.error;
+  if (readError) {
+    console.error("FormsPage: failed to load account forms", readError);
+    return (
+      <PageContainer width="app">
+        <PageHeader title="Your profiles" />
+        <ErrorState
+          title="Couldn't load your profiles"
+          message="Please try again shortly."
+        />
+      </PageContainer>
+    );
   }
+
+  const pets = petsRes.data ?? [];
+  const latestAuth = authRes.data?.[0];
 
   return (
     <PageContainer width="app">
@@ -76,11 +65,8 @@ export default async function FormsPage() {
         subtitle="Keep these up to date. They're confidential and secure."
       />
       <FormsClient
-        owner={owner}
-        homeAccess={homeAccess}
-        homeSitting={homeSitting}
+        responses={formsRes.data}
         pets={pets}
-        petResponses={petResponses}
         acceptedAuthVersion={latestAuth?.version ?? null}
         acceptedAuthAt={latestAuth?.accepted_at ?? null}
       />

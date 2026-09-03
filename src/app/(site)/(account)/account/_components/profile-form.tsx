@@ -30,8 +30,11 @@ export function ProfileForm({ initialValues }: ProfileFormProps) {
         form,
         async (values) => {
           const result = await updateProfile(values);
-          return result.kind === "success"
-            ? { ok: true }
+          if (result.kind === "success") return { ok: true };
+          // Field errors go to their own field; only a form-level failure needs
+          // the root message, or the same sentence would appear twice.
+          return result.kind === "validation_error" && result.fieldErrors
+            ? { ok: false, fieldErrors: result.fieldErrors }
             : { ok: false, message: result.message };
         },
         {
@@ -66,6 +69,7 @@ export function ProfileForm({ initialValues }: ProfileFormProps) {
           name="address"
           type="text"
           autoComplete="street-address"
+          hint="Street address, apt or unit"
           maxLength={FIELD_LIMITS.addressLine}
         />
 

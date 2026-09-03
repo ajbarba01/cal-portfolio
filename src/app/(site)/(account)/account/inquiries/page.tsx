@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { ErrorState } from "@/components/feedback/error-state";
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
 import { buttonVariants } from "@/components/ui/button";
@@ -16,7 +17,7 @@ export default async function AccountInquiriesPage() {
 
   const supabase = await createClient();
   // window = newest 500; client search/pager operate on the window.
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("inquiries")
     .select(
       "id, client_id, name, email, phone, subject, message, status, replied_at, resolved_at, created_at",
@@ -25,7 +26,27 @@ export default async function AccountInquiriesPage() {
     .order("created_at", { ascending: false })
     .limit(500);
 
-  const inquiries = (data ?? []) as InquiryRow[];
+  if (error) {
+    console.error("AccountInquiriesPage: failed to load inquiries", error);
+    return (
+      <PageContainer width="app">
+        <PageHeader title="Your inquiries" />
+        <ErrorState
+          title="Couldn't load your inquiries"
+          message="Please try again shortly."
+        />
+      </PageContainer>
+    );
+  }
+
+  const inquiries: InquiryRow[] = (data ?? []).map((row) => ({
+    ...row,
+    // `inquiries.status` is a text column carrying
+    // `check (status in ('new', 'resolved'))`, so the generated `string` is
+    // wider than the column can hold. Only this field is asserted; the rest of
+    // the row still has to satisfy `InquiryRow` on its own.
+    status: row.status as InquiryRow["status"],
+  }));
 
   return (
     <PageContainer width="app">

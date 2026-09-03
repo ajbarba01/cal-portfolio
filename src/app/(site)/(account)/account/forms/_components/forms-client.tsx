@@ -8,13 +8,14 @@ import {
   EXPENSE_AUTH_VERSION,
   EXPENSE_AUTH_TEXT,
   type AuthConfig,
+  type FormResponseLike,
 } from "@/features/accounts/index.client";
 import {
   servicesRequiring,
   type RequiredFormKey,
 } from "@/features/booking/index.client";
 import { Eyebrow } from "@/components/marketing/eyebrow";
-import type { FormResponseRow, PetRef } from "../page";
+import type { PetRef } from "../page";
 
 // ─── Service label map ────────────────────────────────────────────────────────
 
@@ -43,11 +44,9 @@ function RequiredFor({ formKey }: { formKey: RequiredFormKey }) {
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface FormsClientProps {
-  owner: FormResponseRow | undefined;
-  homeAccess: FormResponseRow | undefined;
-  homeSitting: FormResponseRow | undefined;
+  /** Stored responses indexed by scope key (`listClientForms`). */
+  responses: Record<string, FormResponseLike | undefined>;
   pets: PetRef[];
-  petResponses: Record<string, FormResponseRow>;
   acceptedAuthVersion: string | null;
   acceptedAuthAt: string | null;
 }
@@ -55,11 +54,8 @@ interface FormsClientProps {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function FormsClient({
-  owner,
-  homeAccess,
-  homeSitting,
+  responses,
   pets,
-  petResponses,
   acceptedAuthVersion,
   acceptedAuthAt,
 }: FormsClientProps) {
@@ -84,7 +80,7 @@ export function FormsClient({
         <div className="flex flex-col gap-1">
           <FormCard
             formKey="owner"
-            existing={owner}
+            existing={responses.owner}
             onSubmit={submitForm}
             auth={ownerAuth}
           />
@@ -93,7 +89,7 @@ export function FormsClient({
         <div className="flex flex-col gap-1">
           <FormCard
             formKey="home_access"
-            existing={homeAccess}
+            existing={responses.home_access}
             onSubmit={submitForm}
           />
           <RequiredFor formKey="home_access" />
@@ -101,7 +97,7 @@ export function FormsClient({
         <div className="flex flex-col gap-1">
           <FormCard
             formKey="home_sitting"
-            existing={homeSitting}
+            existing={responses.home_sitting}
             onSubmit={submitForm}
           />
           <RequiredFor formKey="home_sitting" />
@@ -140,7 +136,7 @@ export function FormsClient({
                     petId={pet.id}
                     species={pet.species}
                     title={`${pet.name} — care details`}
-                    existing={petResponses[`pet_care:${pet.id}`]}
+                    existing={responses[`pet_care:${pet.id}`]}
                     onSubmit={submitForm}
                   />
                   <RequiredFor formKey="pet_care" />
@@ -151,7 +147,7 @@ export function FormsClient({
                       formKey="pet_walk"
                       petId={pet.id}
                       title={`${pet.name} — walks & outings`}
-                      existing={petResponses[`pet_walk:${pet.id}`]}
+                      existing={responses[`pet_walk:${pet.id}`]}
                       onSubmit={submitForm}
                     />
                     <RequiredFor formKey="pet_walk" />

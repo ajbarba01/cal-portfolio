@@ -4,6 +4,8 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { createPrepayIntent } from "@/features/payments/index.client";
+import { centsToDollars } from "@/features/pricing";
+import { PAYMENTS_ENABLED } from "@/lib/payments-enabled";
 import { PrepayDialog } from "./prepay-dialog";
 
 interface PrepayButtonProps {
@@ -18,9 +20,13 @@ export function PrepayButton({ bookingId, owedCents }: PrepayButtonProps) {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
-  if (owedCents <= 0) return null;
+  // With payments off there is no way to pay online, so the CTA goes away
+  // entirely. The balance itself still reads as owed on the row above — the
+  // kill-switch hides the payment path, not the debt. Placed below the hooks
+  // so the hook order never depends on the flag.
+  if (!PAYMENTS_ENABLED || owedCents <= 0) return null;
 
-  const amountLabel = `$${(owedCents / 100).toFixed(2)}`;
+  const amountLabel = centsToDollars(owedCents);
 
   function handlePrepay() {
     setError(null);

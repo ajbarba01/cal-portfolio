@@ -31,14 +31,24 @@ import {
 } from "@/components/ui/select";
 import {
   Scheduler,
+  QuoteLines,
   INSPECT_CAPABILITIES,
+  bookingStatusPill,
   useScheduler,
-  denverDayKey,
+  denverMidnight,
   type BusyBlock,
   type SchedulerData,
   type BookingStatusDb,
+  type StoredQuoteBreakdown,
 } from "@/features/booking/index.client";
+import { centsToDollars } from "@/features/pricing";
 import { paginate } from "@/lib/pagination";
+import {
+  denverDate,
+  denverDayKey,
+  denverDayLabel,
+  denverTime,
+} from "@/lib/time-of-day";
 
 import { PrepayButton } from "./prepay-button";
 import { EditCell } from "./edit-cell";
@@ -46,7 +56,6 @@ import { CancelCell } from "./cancel-cell";
 
 // ── constants / helpers ───────────────────────────────────────────────────────
 
-const TIME_ZONE = "America/Denver";
 const PAGE_SIZE = 12;
 
 type View = "calendar" | "list";
@@ -56,14 +65,24 @@ const VIEW_OPTIONS = [
   { value: "list" as const, label: "List", icon: List },
 ];
 
-// no_show is intentionally absent — it was removed from client-facing UI in SP5.
+// The statuses a client may filter by, in display order. `no_show` is
+// intentionally absent — it is not offered as a filter on client-facing UI.
+// Labels come from the shared pill map so the filter and the badge on the row
+// it selects can never disagree.
+const FILTERABLE_STATUSES = [
+  "confirmed",
+  "pending_approval",
+  "completed",
+  "cancelled",
+  "declined",
+] as const satisfies readonly BookingStatusDb[];
+
 const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: "all", label: "All statuses" },
-  { value: "confirmed", label: "Confirmed" },
-  { value: "pending_approval", label: "Pending approval" },
-  { value: "completed", label: "Completed" },
-  { value: "cancelled", label: "Cancelled" },
-  { value: "declined", label: "Declined" },
+  ...FILTERABLE_STATUSES.map((value) => ({
+    value,
+    label: bookingStatusPill(value).label,
+  })),
 ];
 
 /** Minimal pet info for display. */
@@ -95,74 +114,17 @@ export interface AccountBookingRow {
   pets?: AccountBookingPet[];
   /** Stored quote inputs — used to derive duration + service detail lines. */
   quoteInputs?: AccountBookingQuoteInputs;
-}
-
-type BadgeVariant =
-  | "available"
-  | "pending"
-  | "unavailable"
-  | "destructive"
-  | "default";
-
-function statusMeta(status: BookingStatusDb): {
-  label: string;
-  variant: BadgeVariant;
-} {
-  switch (status) {
-    case "confirmed":
-      return { label: "Confirmed", variant: "available" };
-    case "pending_approval":
-      return { label: "Pending approval", variant: "pending" };
-    case "completed":
-      return { label: "Completed", variant: "unavailable" };
-    case "no_show":
-      return { label: "No-show", variant: "unavailable" };
-    case "declined":
-      return { label: "Declined", variant: "destructive" };
-    case "cancelled":
-      return { label: "Cancelled", variant: "destructive" };
-  }
-}
-
-function formatDollars(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
-}
-
-function denverParts(iso: string): { date: string; time: string; key: string } {
-  const d = new Date(iso);
-  return {
-    date: d.toLocaleDateString("en-US", {
-      timeZone: TIME_ZONE,
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    }),
-    time: d.toLocaleTimeString("en-US", {
-      timeZone: TIME_ZONE,
-      hour: "numeric",
-      minute: "2-digit",
-    }),
-    key: d.toLocaleDateString("en-CA", { timeZone: TIME_ZONE }),
-  };
+  /** The itemized quote this booking was priced by. */
+  quoteBreakdown?: StoredQuoteBreakdown;
 }
 
 /** Single-day visit → "date · start – end"; multi-day stay → "date – date". */
 function formatWhen(startIso: string, endIso: string): string {
-  const s = denverParts(startIso);
-  const e = denverParts(endIso);
-  return s.key === e.key
-    ? `${s.date} · ${s.time} – ${e.time}`
-    : `${s.date} – ${e.date}`;
-}
-
-function dayHeading(dayKey: string): string {
-  const [y, m, d] = dayKey.split("-").map((n) => parseInt(n, 10));
-  return new Date(Date.UTC(y, m - 1, d, 12)).toLocaleDateString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+  const start = new Date(startIso);
+  const end = new Date(endIso);
+  return denverDayKey(start) === denverDayKey(end)
+    ? `${denverDate(start)} · ${denverTime(start)} – ${denverTime(end)}`
+    : `${denverDate(start)} – ${denverDate(end)}`;
 }
 
 function owedCents(b: AccountBookingRow): number {
@@ -246,7 +208,7 @@ function BookingCard({
   cancellationFullRefundHours: number;
 }) {
   const owed = owedCents(booking);
-  const { label, variant } = statusMeta(booking.status);
+  const { label, variant } = bookingStatusPill(booking.status);
   const duration = formatDuration(booking.quoteInputs);
   const petNames =
     booking.pets && booking.pets.length > 0
@@ -261,11 +223,11 @@ function BookingCard({
         </span>
         <Badge variant={variant}>{label}</Badge>
         <span className="ml-auto font-semibold">
-          {formatDollars(booking.final_cents)}
+          {centsToDollars(booking.final_cents)}
           {owed > 0 ? (
             <span className="text-brand-strong">
               {" "}
-              · owed {formatDollars(owed)}
+              · owed {centsToDollars(owed)}
             </span>
           ) : null}
         </span>
@@ -275,6 +237,13 @@ function BookingCard({
         {duration ? <> · {duration}</> : null}
         {petNames ? <> · {petNames}</> : null}
       </p>
+      {/* Itemized price, so an applied discount is visible on the booking
+          itself. Self-guarding: a booking with no stored lines renders no
+          divider either. */}
+      <QuoteLines
+        breakdown={booking.quoteBreakdown}
+        className="border-border mt-2.5 border-t border-dashed pt-2.5"
+      />
       <div className="mt-2.5 flex flex-wrap items-center gap-2">
         <PrepayButton bookingId={booking.id} owedCents={owed} />
         <EditCell
@@ -342,10 +311,12 @@ export function AccountBookingsClient({
   // Read-only calendar: only this client's booked days; no availability.
   // myBookings signals MonthGrid to tint these cells in muted clay (sidebar-active)
   // instead of the admin-style blue, so the client can recognise their own days.
+  // Built from `filtered`, the same set the day list reads, so a highlighted day
+  // always opens onto the bookings it promised.
   const data = useMemo<SchedulerData>(() => {
-    const blocks = bookings.map(toBusyBlock);
+    const blocks = filtered.map(toBusyBlock);
     const myBookingKeys = new Set<string>(
-      bookings.map((b) => denverDayKey(new Date(b.starts_at))),
+      filtered.map((b) => denverDayKey(new Date(b.starts_at))),
     );
     return {
       overnightNights: new Set<string>(),
@@ -361,7 +332,7 @@ export function AccountBookingsClient({
       },
       now,
     };
-  }, [bookings, now]);
+  }, [filtered, now]);
 
   const calendarDayList = useMemo(() => {
     if (!selectedDay) return [];
@@ -489,7 +460,7 @@ export function AccountBookingsClient({
             {selectedDay ? (
               <div className="flex flex-col gap-2">
                 <SectionLabel>
-                  Bookings · {dayHeading(selectedDay)}
+                  Bookings · {denverDayLabel(denverMidnight(selectedDay))}
                 </SectionLabel>
                 {calendarDayList.length === 0 ? (
                   <EmptyState title="No bookings on this day." />

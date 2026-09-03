@@ -6,6 +6,7 @@ import { PasswordForm } from "./_components/password-form";
 import { PageContainer } from "@/components/layout/page-container";
 import { PageHeader } from "@/components/layout/page-header";
 import { ShimmerCard } from "@/components/ui/shimmer-card";
+import { ErrorState } from "@/components/feedback/error-state";
 
 export default async function AccountPage() {
   const { user } = await getCachedUser();
@@ -13,11 +14,24 @@ export default async function AccountPage() {
   if (!user) redirect("/login");
 
   const supabase = await createClient();
-  const { data: profile } = await supabase
+  const { data: profile, error } = await supabase
     .from("profiles")
     .select("full_name, phone, address, zip")
     .eq("id", user.id)
     .single();
+
+  if (error) {
+    console.error("AccountPage: failed to load profile", error);
+    return (
+      <PageContainer width="app">
+        <PageHeader title="Your profile" />
+        <ErrorState
+          title="Couldn't load your profile"
+          message="Please try again shortly."
+        />
+      </PageContainer>
+    );
+  }
 
   return (
     <PageContainer width="app">
@@ -29,9 +43,9 @@ export default async function AccountPage() {
       <div className="flex flex-col gap-5">
         <ShimmerCard className="flex flex-col gap-4 p-5">
           <div className="flex flex-col gap-1">
-            <h3 className="text-base leading-tight font-semibold">
+            <h2 className="text-base leading-tight font-semibold">
               Contact info
-            </h3>
+            </h2>
           </div>
           <div className="flex flex-col gap-4 text-sm">
             {/* Email is read-only — comes from auth.users, not the profiles table. */}
@@ -57,9 +71,9 @@ export default async function AccountPage() {
 
         <ShimmerCard className="flex flex-col gap-4 p-5">
           <div className="flex flex-col gap-1">
-            <h3 className="text-base leading-tight font-semibold">
+            <h2 className="text-base leading-tight font-semibold">
               Change password
-            </h3>
+            </h2>
           </div>
           <div className="text-sm">
             <PasswordForm />
