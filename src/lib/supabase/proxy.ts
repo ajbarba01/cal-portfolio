@@ -1,9 +1,14 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+import type { Database } from "./database.types";
+import { isGatedPath, onboardingRedirect } from "./onboarding-redirect";
+
 /**
  * Refreshes the Supabase auth session and enforces the auth + onboarding gate
  * for the account area. Runs on every matched request (see `src/proxy.ts`).
+ * The gate's decision rule itself is pure and lives in `onboarding-redirect.ts`;
+ * this function is the IO around it.
  *
  * Why the gate lives here and not in `(account)/layout.tsx`: a server-component
  * layout cannot read the current pathname directly, so the old design forwarded
@@ -13,6 +18,8 @@ import { NextResponse, type NextRequest } from "next/server";
  * briefly off. Middleware sees the canonical `nextUrl.pathname` and issues one
  * clean redirect that Next's router handles uniformly for document and RSC
  * navigations, so the loop is structurally impossible.
+ *
+ * Typed with the generated `Database` schema — regenerate it with `npm run db:types`.
  *
  * Keep the `getClaims()` call immediately after client creation — inserting
  * logic between client creation and the auth read risks logging users out.
@@ -28,7 +35,7 @@ export async function updateSession(request: NextRequest) {
     );
   }
 
-  const supabase = createServerClient(url, publishableKey, {
+  const supabase = createServerClient<Database>(url, publishableKey, {
     cookies: {
       getAll() {
         return request.cookies.getAll();
@@ -50,9 +57,6 @@ export async function updateSession(request: NextRequest) {
   const claims = data?.claims ?? null;
 
   const { pathname } = request.nextUrl;
-  const isOnboarding = pathname === "/onboarding";
-  const isAccountArea =
-    pathname === "/account" || pathname.startsWith("/account/");
 
   // Carries refreshed auth cookies onto a redirect so the session survives it.
   const redirectTo = (path: string) => {
@@ -64,25 +68,28 @@ export async function updateSession(request: NextRequest) {
     return redirect;
   };
 
-  if (isOnboarding || isAccountArea) {
+  if (isGatedPath(pathname)) {
     if (!claims) {
       return redirectTo("/login");
     }
 
     // Self-read of onboarding status (RLS permits a user to read their own row).
-    const { data: profile } = await supabase
+    const { data: profile, error } = await supabase
       .from("profiles")
       .select("onboarding_status")
       .eq("id", claims.sub)
       .single();
-    const onboarded = profile?.onboarding_status === "approved";
 
-    // Un-onboarded users are confined to /onboarding; onboarded users never see it.
-    if (!onboarded && isAccountArea) {
-      return redirectTo("/onboarding");
+    const decision = onboardingRedirect({ profile, error, pathname });
+    if (decision.kind === "error") {
+      // A failed read is not evidence of an unfinished onboarding, so redirecting
+      // would lock an approved client out on a transient failure. Let the request
+      // through instead — the zone layout surfaces the error.
+      console.error("updateSession: onboarding status read failed", error);
+      return response;
     }
-    if (onboarded && isOnboarding) {
-      return redirectTo("/account");
+    if (decision.kind === "redirect") {
+      return redirectTo(decision.to);
     }
   }
 
