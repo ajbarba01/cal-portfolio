@@ -5,7 +5,9 @@ import * as React from "react";
 import { Dialog } from "@base-ui/react/dialog";
 import { Check, Pencil, Save, X } from "lucide-react";
 
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { focusRing } from "@/components/ui/control-variants";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CharCounter } from "@/components/ui/char-counter";
@@ -44,6 +46,10 @@ function InquiryEditFields({
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="inquiry-edit-subject">Subject</Label>
           <Input
+            // Edit mode swaps the whole body in place, so without this the
+            // caret stays wherever "Edit" left it and a keyboard user has to
+            // hunt for the field that just appeared.
+            autoFocus
             id="inquiry-edit-subject"
             name="subject"
             value={subject}
@@ -123,6 +129,10 @@ export function InquiryDetailDialog({
   onSave: (patch: { subject: string | null; message: string }) => void;
 }) {
   const open = inquiry !== null;
+  // Leaving edit mode unmounts the Cancel/Save row that holds focus. The Edit
+  // button remounts in its place, so autofocusing it there hands focus back to
+  // the control the user came from instead of dropping it on the document.
+  const [returnFocusToEdit, setReturnFocusToEdit] = React.useState(false);
 
   const showEdit = inquiry !== null && editable && canEditInquiry(inquiry);
   const showResolve = inquiry !== null && inquiry.status === "new";
@@ -130,12 +140,18 @@ export function InquiryDetailDialog({
   const hasReadActions = Boolean(renderExtraActions) || showEdit || showResolve;
 
   return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
+    <Dialog.Root
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) setReturnFocusToEdit(false);
+        onOpenChange(next);
+      }}
+    >
       <Dialog.Portal>
         <Dialog.Backdrop className="bg-foreground/60 fixed inset-0 z-50 backdrop-blur-[2px]" />
         <Dialog.Popup
           data-ring-modal-surface
-          className="group bg-popover text-popover-foreground border-border fixed inset-x-0 bottom-0 z-50 flex max-h-[88vh] flex-col rounded-t-2xl border shadow-2xl outline-none sm:inset-x-auto sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:max-h-[80vh] sm:w-[min(32rem,calc(100%-2rem))] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl"
+          className="group bg-popover text-popover-foreground border-border rounded-t-card shadow-elev-2 sm:rounded-card fixed inset-x-0 bottom-0 z-50 flex max-h-[88vh] flex-col border outline-none sm:inset-x-auto sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:max-h-[80vh] sm:w-[min(32rem,calc(100%-2rem))] sm:-translate-x-1/2 sm:-translate-y-1/2"
         >
           <CardShimmer alwaysOn />
           {/* Inner clip layer: rounds the full-bleed footer's corners to the
@@ -167,7 +183,10 @@ export function InquiryDetailDialog({
                   </div>
                   <Dialog.Close
                     aria-label="Close"
-                    className="bg-muted text-muted-foreground hover:bg-accent hover:text-foreground flex size-8 shrink-0 items-center justify-center rounded-full"
+                    className={cn(
+                      "bg-muted text-muted-foreground hover:bg-accent hover:text-foreground flex size-8 shrink-0 items-center justify-center rounded-full",
+                      focusRing,
+                    )}
                   >
                     <X className="size-4" />
                   </Dialog.Close>
@@ -178,8 +197,14 @@ export function InquiryDetailDialog({
                     key={inquiry.id}
                     inquiry={inquiry}
                     pending={pending}
-                    onCancelEdit={onCancelEdit}
-                    onSave={onSave}
+                    onCancelEdit={() => {
+                      setReturnFocusToEdit(true);
+                      onCancelEdit();
+                    }}
+                    onSave={(patch) => {
+                      setReturnFocusToEdit(true);
+                      onSave(patch);
+                    }}
                   />
                 ) : (
                   <>
@@ -193,7 +218,11 @@ export function InquiryDetailDialog({
                           ? renderExtraActions(inquiry)
                           : null}
                         {showEdit ? (
-                          <Button variant="ghost" onClick={onStartEdit}>
+                          <Button
+                            autoFocus={returnFocusToEdit}
+                            variant="ghost"
+                            onClick={onStartEdit}
+                          >
                             <Pencil className="size-3.5" /> Edit
                           </Button>
                         ) : null}

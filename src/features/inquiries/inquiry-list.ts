@@ -1,24 +1,8 @@
-import { paginate, type Page } from "@/lib/pagination";
-
 import type { InquiryRow } from "./inquiry-actions";
-
-// Re-exported for existing consumers; the implementation now lives in @/lib/pagination.
-export { paginate, type Page };
 
 const DENVER_TZ = "America/Denver";
 
 export type StatusFilter = "all" | "new" | "resolved";
-
-/**
- * Newest-first. Pure: returns a new array, never mutates the input.
- * `created_at` is ISO-8601, so direct string comparison is correct lexicographic
- * (and avoids locale-collation surprises from `localeCompare`).
- */
-export function sortByRecency(inquiries: InquiryRow[]): InquiryRow[] {
-  return [...inquiries].sort((a, b) =>
-    a.created_at < b.created_at ? 1 : a.created_at > b.created_at ? -1 : 0,
-  );
-}
 
 /** Case-insensitive substring match across subject, message, name, email. */
 export function filterInquiries(

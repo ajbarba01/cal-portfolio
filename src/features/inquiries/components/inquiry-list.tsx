@@ -12,10 +12,9 @@ import { SearchField } from "@/components/ui/search-field";
 import type { InquiryRow } from "@/features/inquiries/inquiry-actions";
 import {
   filterInquiries,
-  paginate,
-  sortByRecency,
   type StatusFilter,
 } from "@/features/inquiries/inquiry-list";
+import { paginate } from "@/lib/pagination";
 
 import { InquiryCard } from "./inquiry-card";
 import { InquiryDetailDialog } from "./inquiry-detail-dialog";
@@ -65,7 +64,10 @@ export function InquiryList({
   // a save handler — otherwise the Edit affordance would silently no-op.
   const canEdit = editable && Boolean(onSaveEdit);
 
-  const filtered = filterInquiries(sortByRecency(inquiries), query, status);
+  // Rendered in the order the caller supplies. The admin queue arrives sorted
+  // status-first (unanswered before resolved, then newest) from the server
+  // action; re-sorting here would bury the messages Cal has not answered yet.
+  const filtered = filterInquiries(inquiries, query, status);
   const view = paginate(filtered, page, PAGE_SIZE);
 
   const openInquiry = openId

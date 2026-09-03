@@ -5,10 +5,11 @@
  * reads; admin queue actions require an authoritative admin-role check.
  */
 
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { DbClient } from "@/lib/supabase/db-client";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
+import { notifyAdmin } from "@/features/notifications";
 import { assertActorIsAdmin } from "@/lib/admin-guard";
 import { getActorOrRedirect } from "@/lib/admin-session";
 import { createClient } from "@/lib/supabase/server";
@@ -22,23 +23,21 @@ import {
   type SubmitInquiryInput,
 } from "./inquiry-schema";
 
-const RATE_LIMIT_WINDOW_MS = 60_000;
+/** One message per email address per minute — the burst guard. */
+const EMAIL_WINDOW_MS = 60_000;
+
+/**
+ * A signed-in sender may vary the email field freely, so their submissions are
+ * also capped by account. Deliberately keyed to the session: an unkeyed window
+ * would let one spammer lock every other sender out of the contact form.
+ */
+const SESSION_WINDOW_MS = 60 * 60 * 1000;
+const SESSION_WINDOW_MAX = 5;
+
+/** Static failure text; raw database messages never reach a caller. */
+const GENERIC_ERROR = "Something went wrong. Please try again.";
 
 export type InquirySubmitResult = { ok: true } | { ok: false; error: string };
-
-export interface InquiryRow {
-  id: string;
-  client_id: string | null;
-  name: string;
-  email: string;
-  phone: string | null;
-  subject: string | null;
-  message: string;
-  status: "new" | "resolved";
-  replied_at: string | null;
-  resolved_at: string | null;
-  created_at: string;
-}
 
 const inquiryRowSchema = z.object({
   id: z.string(),
@@ -54,6 +53,12 @@ const inquiryRowSchema = z.object({
   created_at: z.string(),
 });
 
+/**
+ * One inquiry as the admin queue and the client's own list read it. Derived
+ * from the schema that parses the row, so the two cannot drift.
+ */
+export type InquiryRow = z.infer<typeof inquiryRowSchema>;
+
 export type ListInquiriesResult =
   | { kind: "success"; inquiries: InquiryRow[] }
   | { kind: "forbidden" }
@@ -66,12 +71,12 @@ export type InquiryMutationResult =
   | { kind: "error"; message: string };
 
 export interface AdminDeps {
-  serviceClient: SupabaseClient;
+  serviceClient: DbClient;
   actorUserId: string;
 }
 
 export interface ClientDeps {
-  serviceClient: SupabaseClient;
+  serviceClient: DbClient;
   /** The authenticated client's user id; ownership is enforced against this. */
   actorUserId: string;
 }
@@ -82,8 +87,34 @@ const inquiryGuardSchema = z.object({
   replied_at: z.string().nullable(),
 });
 
+/**
+ * Inquiries this sender has filed since `windowMs` ago, or null when the count
+ * itself failed (the caller must refuse rather than assume zero).
+ */
+async function recentInquiryCount(
+  serviceClient: DbClient,
+  column: "email" | "client_id",
+  value: string,
+  windowMs: number,
+): Promise<number | null> {
+  const cutoff = new Date(Date.now() - windowMs).toISOString();
+  const { count, error } = await serviceClient
+    .from("inquiries")
+    .select("id", { count: "exact", head: true })
+    .eq(column, value)
+    .gte("created_at", cutoff);
+  if (error) {
+    console.error(
+      `submitInquiryCore: ${column} rate-limit count failed`,
+      error,
+    );
+    return null;
+  }
+  return count ?? 0;
+}
+
 export async function submitInquiryCore(
-  serviceClient: SupabaseClient,
+  serviceClient: DbClient,
   userId: string | null,
   rawInput: SubmitInquiryInput,
 ): Promise<InquirySubmitResult> {
@@ -98,17 +129,25 @@ export async function submitInquiryCore(
 
   if (input.company && input.company.length > 0) return { ok: true };
 
-  const cutoff = new Date(Date.now() - RATE_LIMIT_WINDOW_MS).toISOString();
-  const { count, error: countError } = await serviceClient
-    .from("inquiries")
-    .select("id", { count: "exact", head: true })
-    .eq("email", input.email)
-    .gte("created_at", cutoff);
-  if (countError) {
-    console.error("submitInquiryCore: rate-limit count failed", countError);
-    return { ok: false, error: "Something went wrong. Please try again." };
+  const emailCount = await recentInquiryCount(
+    serviceClient,
+    "email",
+    input.email,
+    EMAIL_WINDOW_MS,
+  );
+  const sessionCount =
+    userId === null
+      ? 0
+      : await recentInquiryCount(
+          serviceClient,
+          "client_id",
+          userId,
+          SESSION_WINDOW_MS,
+        );
+  if (emailCount === null || sessionCount === null) {
+    return { ok: false, error: GENERIC_ERROR };
   }
-  if ((count ?? 0) > 0) {
+  if (emailCount > 0 || sessionCount >= SESSION_WINDOW_MAX) {
     return {
       ok: false,
       error:
@@ -127,8 +166,24 @@ export async function submitInquiryCore(
   });
   if (error) {
     console.error("submitInquiryCore: insert failed", error);
-    return { ok: false, error: "Something went wrong. Please try again." };
+    return { ok: false, error: GENERIC_ERROR };
   }
+
+  // Cal hears about the message once it is stored, so a honeypot hit — which
+  // returns success without inserting — never reaches him. The alert is gated
+  // on `ADMIN_NOTIFICATION_EMAIL` and never throws, so a sender's submission
+  // does not depend on Cal's copy going out.
+  await notifyAdmin({
+    type: "inquiry_received",
+    payload: {
+      name: input.name,
+      email: input.email,
+      phone: input.phone ? input.phone : null,
+      subject: input.subject ? input.subject : null,
+      message: input.message,
+    },
+  });
+
   return { ok: true };
 }
 
@@ -157,16 +212,17 @@ export async function listInquiriesCore(
     )
     .order("created_at", { ascending: false })
     .limit(1000);
-  if (error) return { kind: "error", message: error.message };
+  if (error) {
+    console.error("listInquiriesCore: query failed", error);
+    return { kind: "error", message: GENERIC_ERROR };
+  }
 
   const inquiries: InquiryRow[] = [];
   for (const row of data ?? []) {
     const parsed = inquiryRowSchema.safeParse(row);
     if (!parsed.success) {
-      return {
-        kind: "error",
-        message: `Bad inquiry row: ${parsed.error.message}`,
-      };
+      console.error("listInquiriesCore: bad inquiry row", parsed.error.issues);
+      return { kind: "error", message: "Bad inquiry row." };
     }
     inquiries.push(parsed.data);
   }
@@ -189,7 +245,10 @@ export async function markInquiryResolvedCore(
     .from("inquiries")
     .update({ status: "resolved", resolved_at: new Date().toISOString() })
     .eq("id", inquiryId);
-  if (error) return { kind: "error", message: error.message };
+  if (error) {
+    console.error("markInquiryResolvedCore: update failed", error);
+    return { kind: "error", message: GENERIC_ERROR };
+  }
   return { kind: "success" };
 }
 
@@ -204,7 +263,10 @@ export async function stampInquiryRepliedCore(
     .from("inquiries")
     .update({ replied_at: new Date().toISOString() })
     .eq("id", inquiryId);
-  if (error) return { kind: "error", message: error.message };
+  if (error) {
+    console.error("stampInquiryRepliedCore: update failed", error);
+    return { kind: "error", message: GENERIC_ERROR };
+  }
   return { kind: "success" };
 }
 
@@ -217,7 +279,10 @@ export async function resolveMyInquiryCore(
     .select("client_id, status, replied_at")
     .eq("id", inquiryId)
     .maybeSingle();
-  if (error) return { kind: "error", message: error.message };
+  if (error) {
+    console.error("resolveMyInquiryCore: read failed", error);
+    return { kind: "error", message: GENERIC_ERROR };
+  }
   if (!data) return { kind: "not_found" };
 
   const guard = inquiryGuardSchema.safeParse(data);
@@ -229,7 +294,10 @@ export async function resolveMyInquiryCore(
     .update({ status: "resolved", resolved_at: new Date().toISOString() })
     .eq("id", inquiryId)
     .eq("client_id", deps.actorUserId);
-  if (updateError) return { kind: "error", message: updateError.message };
+  if (updateError) {
+    console.error("resolveMyInquiryCore: update failed", updateError);
+    return { kind: "error", message: GENERIC_ERROR };
+  }
   return { kind: "success" };
 }
 
@@ -240,9 +308,13 @@ export async function editMyInquiryCore(
 ): Promise<InquiryMutationResult> {
   const parsed = editInquirySchema.safeParse(rawInput);
   if (!parsed.success) {
+    console.error(
+      "editMyInquiryCore: input validation failed",
+      parsed.error.issues,
+    );
     return {
       kind: "error",
-      message: parsed.error.issues.map((issue) => issue.message).join("; "),
+      message: "Please check your entries and try again.",
     };
   }
   const input = parsed.data;
@@ -252,7 +324,10 @@ export async function editMyInquiryCore(
     .select("client_id, status, replied_at")
     .eq("id", inquiryId)
     .maybeSingle();
-  if (error) return { kind: "error", message: error.message };
+  if (error) {
+    console.error("editMyInquiryCore: read failed", error);
+    return { kind: "error", message: GENERIC_ERROR };
+  }
   if (!data) return { kind: "not_found" };
 
   const guard = inquiryGuardSchema.safeParse(data);
@@ -270,7 +345,10 @@ export async function editMyInquiryCore(
     })
     .eq("id", inquiryId)
     .eq("client_id", deps.actorUserId);
-  if (updateError) return { kind: "error", message: updateError.message };
+  if (updateError) {
+    console.error("editMyInquiryCore: update failed", updateError);
+    return { kind: "error", message: GENERIC_ERROR };
+  }
   return { kind: "success" };
 }
 
