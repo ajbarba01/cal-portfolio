@@ -9,3 +9,15 @@ export {
   SPECIES,
   speciesEnum,
 } from "./species";
+
+export { PetAvatar } from "./pet-avatar";
+
+export {
+  listClientPets,
+  PET_COLUMNS,
+  SIGNED_URL_TTL_SECONDS,
+  type AssignablePet,
+  type ClientPetView,
+  type ListClientPetsResult,
+  type PetRow,
+} from "./pets-repo";
