@@ -13,7 +13,7 @@
  * and rendered by the `MarketingCopy` component (see `src/content/linkify.ts`).
  */
 export const copy = {
-  // Home — src/app/(marketing)/page.tsx
+  // Home — src/app/(site)/(marketing)/page.tsx
   "home.hero.hook": "Reliable pet care on the Front Range",
   "home.hero.body":
     "Highly individualized drop-in visits, walks, house sitting, and training from a local animal-lover",
@@ -23,14 +23,14 @@ export const copy = {
     "Through my experiences as an EMT, Wilderness First Responder (WFR), and veterinary shadow, I've learned a great deal about pet safety, health, and risk prevention. I incorporate this knowledge into every walk, visit, and house sit, helping keep pets safe, healthy, and happy. I also hope to help pet owners learn more about keeping their animals safe through the [resources](/resources) available on this site.",
   "home.trust.2.title": "Well-trusted",
   "home.trust.2.body":
-    "I work hard to earn the trust of both pets and their people. I'm grateful for the many kind reviews and recommendations I've received over the years, and I approach every visit, walk, and house sit with the same level of care and attention. You can read reviews and references from past clients [here](/reviews).",
+    "I work hard to earn the trust of both pets and their people. I'm grateful for the many kind reviews and recommendations I've received over the years, and I approach every visit, walk, and house sit with the same level of care and attention. You can read reviews and references from past clients [here](/about).",
   "home.trust.3.title": "Experienced",
   "home.trust.3.body":
     "I've been working in the pet care industry since 2021 and have cared for hundreds of animals with a wide range of personalities, ages, and needs. While most of my experience is with large-breed dogs, I've worked with all kinds of pets—from chickens and tortoises to senior Chihuahuas and energetic puppies. Every animal is different, and I enjoy getting to know each one as an individual.",
   "home.cta.header": "Think we might be a good fit?",
   "home.cta.body": "See services and pricing below",
 
-  // About — src/app/(marketing)/about/page.tsx
+  // About — src/app/(site)/(marketing)/about/page.tsx
   "about.summary": "And Kiche!",
   "about.bio.p1":
     "I recently graduated from Colorado College with a degree in Anthropology and currently live in Lakewood—though I also spend time in Boulder and throughout the Front Range.",
@@ -44,8 +44,9 @@ export const copy = {
     "Every pet has different needs, and every household has different routines, preferences, and expectations. My goal is to provide thoughtful, individualized care that helps both pets and their people feel comfortable and supported. I welcome clients from all backgrounds and strive to create an experience that is respectful, inclusive, and free of judgment.",
   "about.approach.p2":
     "Whether I'm taking your dog on a walk, stopping by for a visit, or caring for your pets and your home while you're away, I aim to provide the same level of attention, reliability, and compassion that I would want for my own animals.",
-  // Stat ribbon (about page) — short, factual credentials Cal can tune. The CC
-  // entry renders as the Colorado College logo.
+  // Stat ribbon — short, factual credentials Cal can tune. The CC entry renders
+  // as the Colorado College logo. Keyed `about.*` because the credentials are
+  // Cal's; the ribbon itself moved to the home page.
   "about.stat.cc.label": "B.A. Anthropology",
   // Replaced the derived-age stat at Cal's request (2026-07-12).
   "about.stat.pets.value": "150+",
@@ -67,48 +68,43 @@ export const copy = {
   "about.quote.author": "Dr. Jane Goodall",
   // Caption for the offset bio photo.
   "about.bio.photo.caption": "Kiche and her sister Harper having a playdate",
-  // Shown while the real reference names below stay withheld pending consent.
+  // Shown when the references registry is empty.
   "about.references.pending":
     "References from past clients are coming soon. In the meantime, reach out and I'll gladly put you in touch.",
-  // References intro + named clients. Contact info is intentionally NOT published
-  // (privacy) — it's "available on request" via the reach-out line in the intro.
+  // References intro. The named clients live in `references.ts` now — a reference
+  // is a record (name, consent, photo), not a copy string. The eight `about.references.N`
+  // name strings that used to sit here were read by nothing and were still bundled into
+  // client JS (this registry is imported by a "use client" component), so six households
+  // who never consented to being named shipped to the browser. They were removed on
+  // 2026-09-03; Cal's captured source for them is kept in docs/content/cal-source.md and
+  // docs/content/copy-ledger.md, which are not served.
   "about.references":
     "The following clients have graciously agreed to serve as references. Please feel free to reach out if you have any questions about their experience working with me.",
-  "about.references.1": "Ginna, Bill and Niko",
-  "about.references.2": "Simone and Splash",
-  "about.references.3": "Carol and Millie",
-  "about.references.4": "Claudia and Sophie",
-  "about.references.5": "Abby and Sloane",
-  "about.references.6": "Kula and Lila",
-  "about.references.7": "Madeleine, Apollo, Anabella",
-  "about.references.8": "Bugaboo",
 
-  // Services — src/app/(marketing)/services/page.tsx
+  // Services — src/app/(site)/(marketing)/services/page.tsx
   "services.hero.title": "Services",
   "services.overview":
     "Drop-in visits, walks, house sitting, and training—each tailored to your pet's needs.",
-  // Temporary availability notice — time-bound (remove after 2026-09-01).
-  "services.notice.lede":
-    "I'm recovering from a broken leg, so until August 25, 2026, I am unable to:",
-  "services.notice.1": "Travel more than one mile for a booking",
-  "services.notice.2": "Do walks longer than 15 min for dogs over 40lbs",
-  "services.notice.3":
-    "Housesit for dogs over 40lbs unless they don't need walks over 15 min at a time",
   "services.pricing.header": "Pricing Flexibility Available",
   "services.pricing.body":
     "To accommodate different financial situations, I offer a limited number of free or discounted slots. Please reach out if this is something you're interested in.",
 
-  // Reviews — src/app/(marketing)/reviews/page.tsx
+  // Reviews — src/app/(site)/(marketing)/reviews/page.tsx
   "reviews.purpose": "Feedback from pet-parents",
 
-  // Resources — src/app/(marketing)/resources/page.tsx
+  // Resources — src/app/(site)/(marketing)/resources/page.tsx
   // Names link to the external URL Cal supplied; href lives in the page data, the
   // name stays raw copy (a link can't nest in the <a>). Section headings are
   // hardcoded structural labels, not copy IDs. Tools/Enrichment are names only.
+  // The three `.note` slots are the exception to this registry being Cal-owned:
+  // they were written by an agent in Cal's first person and never sourced from
+  // him. They await his sign-off — see docs/content/copy-ledger.md.
   "resources.intro":
     "Over the years, I've spent a lot of time learning about animal health, behavior, training, and safety. The resources below cover topics I frequently discuss with clients, including several hazards that are particularly common in Colorado.",
 
   // Health & Safety
+  "resources.health.note":
+    "First aid and prevention — the topics I discuss most. Each links to a trusted external guide.",
   "resources.health.1.name": "Animal CPR",
   "resources.health.1.desc":
     "Animal CPR is similar to human CPR, but differs in technique due to differences in anatomy. While we hope to never need this skill, knowing the basics can make a critical difference in an emergency and can provide valuable peace of mind.",
@@ -138,12 +134,15 @@ export const copy = {
     "While most pet owners know about hazards like chocolate and grapes, toxins such as minoxidil (Rogaine), xylitol/sugar alcohols, cannabis, and caffeine are often overlooked. It's worth familiarizing yourself with common household hazards, understanding the potential severity of reactions (such as those caused by grapes/raisins/wine), and keeping potentially toxic substances out of reach of pets.",
 
   // Tools & Training (names only — links/descriptions may come later)
+  "resources.tools.note": "Gear and methods I get asked about most.",
   "resources.tools.1.name": "E collars",
   "resources.tools.2.name": "Harness vs collar",
   "resources.tools.3.name": "Recall Training",
   "resources.tools.4.name": "Loose-leash walking",
 
   // Enrichment & Well-Being (names only)
+  "resources.enrichment.note":
+    "Beyond the walk — keeping dogs happy and stimulated.",
   "resources.enrichment.1.name": "Doggy consent",
   "resources.enrichment.2.name": "Puppy socialization checklist",
   "resources.enrichment.3.name": "Mental stimulation ideas",
@@ -152,10 +151,10 @@ export const copy = {
   "resources.closing":
     "Please let me know if there are other resources you think I should share. I'm always learning, and I'd love to continue expanding this list with helpful information!",
 
-  // Gallery — src/app/(marketing)/gallery/page.tsx
+  // Gallery — src/app/(site)/(marketing)/gallery/page.tsx
   "gallery.body": "A few of the animals I've had the pleasure of caring for.",
 
-  // Contact — src/app/(marketing)/contact/page.tsx
+  // Contact — src/app/(site)/(marketing)/contact/page.tsx
   // No subtitle: Cal dropped it ("actually i don't think we need this") — 2026-06-09.
   // intro + replyNote: from the maintainer-approved SP6 contact mockup (2026-06-11).
   "contact.header": "Contact Me",
@@ -183,7 +182,7 @@ export const copy = {
   "service.meet_greet.card.body":
     "A free, in-person introduction before your first booking.",
 
-  // Long-form service detail — src/app/(marketing)/book/[serviceSlug]/page.tsx
+  // Long-form service detail — src/app/(site)/(marketing)/book/[serviceSlug]/page.tsx
   "service.house_sitting.detail.lede":
     "House sitting allows your pet to stay in the comfort of their own home and maintain their normal routine while you're away.",
   "service.house_sitting.detail.body":

@@ -29,11 +29,17 @@ export function segmentCopy(text: string): CopySegment[] {
   let cursor = 0;
 
   for (const match of text.matchAll(LINK_PATTERN)) {
+    // Both groups are mandatory in LINK_PATTERN; the guard exists only because
+    // an indexed capture is typed as possibly absent.
+    const label = match[1];
+    const href = match[2];
+    if (label === undefined || href === undefined) continue;
+
     const start = match.index;
     if (start > cursor) {
       segments.push({ text: text.slice(cursor, start) });
     }
-    segments.push({ text: match[1], href: match[2] });
+    segments.push({ text: label, href });
     cursor = start + match[0].length;
   }
 

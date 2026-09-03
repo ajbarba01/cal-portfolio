@@ -14,7 +14,6 @@
  */
 
 /** The single Rover profile/reviews URL every imported review links to. */
-// TODO(cal): replace with Cal's real Rover profile URL.
 export const ROVER_PROFILE_URL = "https://www.rover.com/sit/alyb82516";
 
 export interface RoverReviewEntry {
