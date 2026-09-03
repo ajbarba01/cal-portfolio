@@ -28,15 +28,16 @@ export function runEdges(
 ): Map<string, RunEdge> {
   const result = new Map<string, RunEdge>();
 
-  for (let i = 0; i < orderedIds.length; i++) {
-    const id = orderedIds[i];
+  for (const [i, id] of orderedIds.entries()) {
     const group = groupOf(id);
 
     if (!group) continue;
 
-    const prevGroup = i > 0 ? groupOf(orderedIds[i - 1]) : null;
-    const nextGroup =
-      i < orderedIds.length - 1 ? groupOf(orderedIds[i + 1]) : null;
+    // Off either end there is no neighbour, so no same-group member adjoins.
+    const prevId = orderedIds[i - 1];
+    const nextId = orderedIds[i + 1];
+    const prevGroup = prevId === undefined ? null : groupOf(prevId);
+    const nextGroup = nextId === undefined ? null : groupOf(nextId);
 
     result.set(id, {
       start: prevGroup !== group,

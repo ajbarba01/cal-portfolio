@@ -42,7 +42,7 @@ describe("REQUIRED_PROFILES manifest", () => {
       "owner",
       "pet_care",
     ]);
-    expect(REQUIRED_PROFILES.meet_greet.map((f) => f.key)).toEqual(["owner"]);
+    expect(REQUIRED_PROFILES.meet_greet).toEqual([]);
   });
 
   it("marks pet_walk as dog-only across every service that requires it", () => {
@@ -54,20 +54,41 @@ describe("REQUIRED_PROFILES manifest", () => {
 });
 
 describe("bookingRequirements", () => {
-  it("meet_greet requires only a fresh owner profile", () => {
+  // The meet & greet is the free introductory visit that PRECEDES any intake,
+  // so its gate must be vacuous: a brand-new client has submitted nothing.
+  it("meet_greet requires nothing, even for a client with no forms at all", () => {
     const items = bookingRequirements({
       pricingType: "meet_greet",
       assignedPets: [],
-      accountForms: { owner: FRESH },
+      accountForms: {},
       petForms: {},
       now: NOW,
     });
-    expect(items).toEqual([{ formKey: "owner", status: "complete" }]);
+    expect(items).toEqual([]);
+    expect(requirementsSatisfied(items)).toBe(true);
+  });
+
+  it("still requires a fresh owner profile for every paid service", () => {
+    for (const pt of [
+      "house_sitting",
+      "check_in",
+      "walk",
+      "training",
+    ] as const) {
+      const items = bookingRequirements({
+        pricingType: pt,
+        assignedPets: [],
+        accountForms: { owner: null },
+        petForms: {},
+        now: NOW,
+      });
+      expect(items).toContainEqual({ formKey: "owner", status: "missing" });
+    }
   });
 
   it("marks an account profile missing/stale by submitted_at", () => {
     const missing = bookingRequirements({
-      pricingType: "meet_greet",
+      pricingType: "training",
       assignedPets: [],
       accountForms: { owner: null },
       petForms: {},
@@ -76,7 +97,7 @@ describe("bookingRequirements", () => {
     expect(missing).toEqual([{ formKey: "owner", status: "missing" }]);
 
     const stale = bookingRequirements({
-      pricingType: "meet_greet",
+      pricingType: "training",
       assignedPets: [],
       accountForms: { owner: STALE },
       petForms: {},
@@ -156,13 +177,13 @@ describe("bookingRequirements", () => {
   it("treats a submission exactly at the window edge as still complete", () => {
     const justInside = daysAgo(FRESHNESS_WINDOW_DAYS);
     const items = bookingRequirements({
-      pricingType: "meet_greet",
+      pricingType: "training",
       assignedPets: [],
       accountForms: { owner: justInside },
       petForms: {},
       now: NOW,
     });
-    expect(items[0].status).toBe("complete");
+    expect(items[0]?.status).toBe("complete");
   });
 
   it("small animals require pet_care but never pet_walk", () => {
@@ -204,7 +225,6 @@ describe("servicesRequiring", () => {
       "check_in",
       "walk",
       "training",
-      "meet_greet",
     ]);
     expect(servicesRequiring("home_sitting")).toEqual(["house_sitting"]);
     expect(servicesRequiring("pet_walk")).toEqual([

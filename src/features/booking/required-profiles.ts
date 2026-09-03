@@ -56,7 +56,11 @@ export const REQUIRED_PROFILES: Record<PricingType, RequiredForm[]> = {
   ],
   walk: [acct("owner"), pet("pet_care"), pet("pet_walk", "dog")],
   training: [acct("owner"), pet("pet_care")],
-  meet_greet: [acct("owner")],
+  // The meet & greet is the free introductory visit that comes BEFORE any
+  // intake, so its gate is deliberately empty. Requiring a profile here would
+  // dead-end every self-serve signup: the owner form is only reachable once Cal
+  // has approved the account, which only happens after this visit.
+  meet_greet: [],
 };
 
 /**

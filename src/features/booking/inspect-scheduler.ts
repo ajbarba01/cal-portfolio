@@ -3,6 +3,21 @@ import type { BusyBlock, SchedulerData } from "./scheduler-context";
 const DAY_MS = 86_400_000;
 
 /**
+ * The lead time that lets the inspect rules refuse nothing.
+ *
+ * `deriveBookableDays` measures lead time from each day's own Denver midnight,
+ * so a lead time of zero still refuses TODAY from the moment that midnight
+ * passes — the hub's cell for today would go inert for the rest of the day
+ * unless a booking happened to overlap it and win the earlier `busy` branch. A
+ * negative lead time is that same comparison's way of saying "a start already
+ * in the past is fine". One day of slack plus the hour a fall-back Denver day
+ * gains covers today at every instant it can be looked at, and no other day was
+ * ever at risk: yesterday and earlier are `past` before lead time is consulted,
+ * and every later midnight is still ahead of `now`.
+ */
+const INSPECT_LEAD_TIME_HOURS = -25;
+
+/**
  * The ~5-month span of day-keys (UTC, "YYYY-MM-DD") centered roughly on
  * `monthStartIso`. Used to mark every day bookable in an INSPECT calendar so any
  * day can be clicked to reveal its — possibly empty — bookings, while covering a
@@ -47,7 +62,7 @@ export function buildInspectSchedulerData(input: {
     rules: {
       bookingOpenMinute: 0,
       bookingCloseMinute: 1440,
-      minLeadTimeHours: 0,
+      minLeadTimeHours: INSPECT_LEAD_TIME_HOURS,
       hardMaxAdvanceDays: 3650,
     },
     now: new Date(nowIso),

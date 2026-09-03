@@ -12,6 +12,10 @@
  * clock and is deterministic. MST/MDT transitions are handled automatically by
  * the IANA tz database built into the JS runtime — no manual offset arithmetic.
  *
+ * The Denver formatters and timezone arithmetic themselves live in
+ * `@/lib/time-of-day` (business-agnostic, and reachable without pulling the
+ * booking client graph in); this module re-exports the pair its callers use.
+ *
  * BOUNDARY SEMANTICS
  * ------------------
  * - `fitsWindow`:      window.startsAt <= candidate.startsAt && candidate.endsAt <= window.endsAt  (both inclusive)
@@ -33,6 +37,16 @@
  */
 
 import type { PricingType } from "@/features/pricing";
+import {
+  denverDayKey,
+  denverMidnight,
+  denverMinutesSinceMidnight,
+} from "@/lib/time-of-day";
+
+// The Denver formatters and timezone arithmetic belong to the shared display
+// module; re-exported here so the availability callers keep one import for the
+// whole Denver helper set.
+export { denverDayKey, denverMidnight, denverMinutesSinceMidnight };
 
 // ---------------------------------------------------------------------------
 // Types
@@ -133,110 +147,27 @@ export function fitsOvernightNights(
   if (key >= checkoutKey) return false;
   while (key < checkoutKey) {
     if (!overnightNights.has(key)) return false;
-    // Advance one Denver calendar day (DST-safe via denverMidnight).
-    const [y, m, d] = key.split("-").map((n) => parseInt(n, 10));
-    const next = denverMidnight(
-      `${String(y).padStart(4, "0")}-${String(m).padStart(2, "0")}-${String(d + 1).padStart(2, "0")}`,
-    );
-    key = denverDayKey(next);
+    key = denverDayKey(nextDenverMidnight(key));
   }
   return true;
 }
 
 // ---------------------------------------------------------------------------
-// Denver hour helper
+// Denver day helper
 // ---------------------------------------------------------------------------
 
 /**
- * Returns the local time-of-day of `date` as minutes since midnight (0–1439)
- * in America/Denver.
- *
- * Uses `Intl.DateTimeFormat` with `hour12: false`. The IANA tz database in the
- * JS runtime handles MST (UTC-7) and MDT (UTC-6) transparently — no manual
- * offset math.
+ * Denver midnight on the calendar day AFTER `dayKey` — the DST-correct step for
+ * walking Denver days one at a time. `Date.UTC` rolls a day number past the end
+ * of its month over, so no month-length math is needed here.
  */
-export function denverMinutesSinceMidnight(date: Date): number {
-  const fmt = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Denver",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-  const parts = fmt.formatToParts(date);
-  const hourRaw = parts.find((p) => p.type === "hour")?.value ?? "0";
-  const minuteRaw = parts.find((p) => p.type === "minute")?.value ?? "0";
-  // hour12:false can render midnight as "24" in some environments; normalise.
-  const hour = parseInt(hourRaw, 10) % 24;
-  const minute = parseInt(minuteRaw, 10);
-  return hour * 60 + minute;
-}
-
-/**
- * Returns the America/Denver calendar day of `date` as an ISO "YYYY-MM-DD"
- * string. Pure: derived from `Intl.DateTimeFormat` with the IANA tz, no clock
- * read. Two instants on the same Denver day share a key regardless of UTC
- * offset (MST/MDT). Useful for grouping/comparing days without offset math.
- */
-export function denverDayKey(date: Date): string {
-  const fmt = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Denver",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
-  // en-CA renders ISO-ordered "YYYY-MM-DD".
-  return fmt.format(date);
-}
-
-/**
- * America/Denver UTC offset in minutes east of UTC for the given instant
- * (negative: -420 in MST, -360 in MDT). Derived from `Intl` — DST-correct, no
- * hardcoded offsets.
- */
-function denverOffsetMinutes(date: Date): number {
-  const fmt = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Denver",
-    hour12: false,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
-  const parts = fmt.formatToParts(date);
-  const get = (t: string) =>
-    parseInt(parts.find((p) => p.type === t)!.value, 10);
-  const asUtc = Date.UTC(
-    get("year"),
-    get("month") - 1,
-    get("day"),
-    get("hour") % 24,
-    get("minute"),
-    get("second"),
+export function nextDenverMidnight(dayKey: string): Date {
+  const [y = NaN, m = NaN, d = NaN] = dayKey
+    .split("-")
+    .map((n) => parseInt(n, 10));
+  return denverMidnight(
+    `${String(y).padStart(4, "0")}-${String(m).padStart(2, "0")}-${String(d + 1).padStart(2, "0")}`,
   );
-  return (asUtc - date.getTime()) / 60000;
-}
-
-/**
- * Inverse of {@link denverDayKey}: returns the UTC instant of 00:00 America/Denver
- * for the calendar day "YYYY-MM-DD". DST-correct (probes the offset at local
- * midday, after any 2am transition). Pure — no clock read.
- *
- * Calendar grids (month-range mode) select whole calendar days; the booking core
- * works in concrete instants. This bridges the two so `deriveBookableDays` /
- * `validateStayRange` receive true Denver-midnight instants.
- */
-export function denverMidnight(dayKey: string): Date {
-  const [y, m, d] = dayKey.split("-").map((n) => parseInt(n, 10));
-  const utc = Date.UTC(y, m - 1, d, 0, 0, 0);
-  // Two-step solve: the offset at the first candidate can differ from the offset
-  // at the UTC anchor across a DST transition (spring-forward midnight is still
-  // standard time). Re-probe at the candidate and adopt that offset if it moved.
-  const off1 = denverOffsetMinutes(new Date(utc));
-  const candidate = utc - off1 * 60000;
-  const off2 = denverOffsetMinutes(new Date(candidate));
-  return new Date(off2 === off1 ? candidate : utc - off2 * 60000);
 }
 
 // ---------------------------------------------------------------------------

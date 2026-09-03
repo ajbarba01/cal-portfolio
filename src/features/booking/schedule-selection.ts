@@ -33,7 +33,11 @@ const MS_PER_DAY = 86_400_000;
 
 /** Parse a "YYYY-MM-DD" key to a UTC ordinal (ms since epoch). */
 function keyToUtc(dayKey: string): number {
-  const [y, m, d] = dayKey.split("-").map((s) => parseInt(s, 10));
+  // A key with missing parts parses to NaN, which carries through to an Invalid
+  // Date exactly as an unparseable part always has.
+  const [y = NaN, m = NaN, d = NaN] = dayKey
+    .split("-")
+    .map((s) => parseInt(s, 10));
   return Date.UTC(y, m - 1, d);
 }
 
@@ -106,7 +110,9 @@ const MONTH_NAMES = [
 ] as const;
 
 function monthName(utc: number): string {
-  return MONTH_NAMES[new Date(utc).getUTCMonth()];
+  // getUTCMonth is 0–11 for any real date and NaN for an invalid one, which has
+  // no month name to print.
+  return MONTH_NAMES[new Date(utc).getUTCMonth()] ?? "";
 }
 
 function dayOfMonth(utc: number): number {
@@ -132,21 +138,14 @@ export function collapseRuns(dayKeys: string[]): string {
   // Convert to ordinals
   const ordinals = sorted.map(keyToUtc);
 
-  // Build runs: array of [startOrdinal, endOrdinal]
+  // Build runs: array of [startOrdinal, endOrdinal]. An ordinal one day past the
+  // open run extends it; anything else starts a new run.
   const runs: Array<[number, number]> = [];
-  let runStart = ordinals[0];
-  let runEnd = ordinals[0];
-
-  for (let i = 1; i < ordinals.length; i++) {
-    if (ordinals[i] - runEnd === MS_PER_DAY) {
-      runEnd = ordinals[i];
-    } else {
-      runs.push([runStart, runEnd]);
-      runStart = ordinals[i];
-      runEnd = ordinals[i];
-    }
+  for (const ordinal of ordinals) {
+    const openRun = runs.at(-1);
+    if (openRun && ordinal - openRun[1] === MS_PER_DAY) openRun[1] = ordinal;
+    else runs.push([ordinal, ordinal]);
   }
-  runs.push([runStart, runEnd]);
 
   // Format runs
   const parts: string[] = [];
@@ -180,84 +179,6 @@ export function collapseRuns(dayKeys: string[]): string {
   }
 
   return parts.join(", ");
-}
-
-// ---------------------------------------------------------------------------
-// mergeDraftToRanges
-// ---------------------------------------------------------------------------
-
-export interface DraftRange {
-  dayKey: string;
-  fromMinute: number;
-  toMinute: number;
-}
-
-/**
- * Collapse a gridDraft Set<"dayKey@minute"> into contiguous time ranges per day.
- *
- * Each cell id represents the interval [minute, minute+intervalMinutes).
- * Adjacent slots (next minute === previous minute + intervalMinutes) are merged
- * into a single DraftRange. A gap starts a new range.
- *
- * Returns ranges sorted by dayKey then fromMinute. Malformed ids are ignored.
- * Empty set → [].
- */
-export function mergeDraftToRanges(
-  gridDraft: Set<string>,
-  intervalMinutes: number,
-): DraftRange[] {
-  // Group minutes by dayKey, ignoring malformed ids.
-  const byDay = new Map<string, number[]>();
-  for (const cellId of gridDraft) {
-    const atIdx = cellId.indexOf("@");
-    if (atIdx === -1) continue; // malformed — no "@"
-    const dayKey = cellId.slice(0, atIdx);
-    const minuteStr = cellId.slice(atIdx + 1);
-    const minute = parseInt(minuteStr, 10);
-    if (isNaN(minute) || dayKey.length === 0) continue; // malformed minute
-
-    let minutes = byDay.get(dayKey);
-    if (minutes === undefined) {
-      minutes = [];
-      byDay.set(dayKey, minutes);
-    }
-    minutes.push(minute);
-  }
-
-  const ranges: DraftRange[] = [];
-
-  // Sort day keys, then merge within each day.
-  const sortedDayKeys = [...byDay.keys()].sort();
-  for (const dayKey of sortedDayKeys) {
-    const minutes = byDay
-      .get(dayKey)!
-      .slice()
-      .sort((a, b) => a - b);
-
-    let fromMinute = minutes[0];
-    let prevMinute = minutes[0];
-
-    for (let i = 1; i < minutes.length; i++) {
-      const curr = minutes[i];
-      if (curr === prevMinute + intervalMinutes) {
-        // Contiguous — extend the current run.
-        prevMinute = curr;
-      } else {
-        // Gap — close current range and start a new one.
-        ranges.push({
-          dayKey,
-          fromMinute,
-          toMinute: prevMinute + intervalMinutes,
-        });
-        fromMinute = curr;
-        prevMinute = curr;
-      }
-    }
-    // Close the final range for this day.
-    ranges.push({ dayKey, fromMinute, toMinute: prevMinute + intervalMinutes });
-  }
-
-  return ranges;
 }
 
 // ---------------------------------------------------------------------------

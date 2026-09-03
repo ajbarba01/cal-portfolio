@@ -29,7 +29,7 @@
  * `ValidateStayRangeArgs`.
  */
 
-import { denverDayKey, denverMidnight } from "./availability";
+import { denverDayKey, nextDenverMidnight } from "./availability";
 import type { TimeRange, BookingRuleSettings } from "./availability";
 import { startOptions, type MinuteWindow } from "./day-timeline-model";
 
@@ -54,30 +54,6 @@ export function overlapsHalfOpen(a: TimeRange, b: TimeRange): boolean {
     a.startsAt.getTime() < b.endsAt.getTime() &&
     b.startsAt.getTime() < a.endsAt.getTime()
   );
-}
-
-// ---------------------------------------------------------------------------
-// markSlotsBusy
-// ---------------------------------------------------------------------------
-
-export interface MarkedSlot {
-  slot: TimeRange;
-  busy: boolean;
-}
-
-/**
- * Tags each slot with whether it overlaps any busy range (half-open). Advisory
- * only — the DB exclusion constraint arbitrates at submit. Callers should have
- * already filtered `busy` to the relevant concurrency class.
- */
-export function markSlotsBusy(
-  slots: TimeRange[],
-  busy: TimeRange[],
-): MarkedSlot[] {
-  return slots.map((slot) => ({
-    slot,
-    busy: busy.some((b) => overlapsHalfOpen(slot, b)),
-  }));
 }
 
 // ---------------------------------------------------------------------------
@@ -330,8 +306,8 @@ export interface ValidateStayRangeArgs {
  *
  * NIGHT ENUMERATION (DST-safe)
  * Each night n (0-indexed from checkIn) is identified by computing its Denver
- * midnight via `denverMidnight` on the n-th day key, which is derived from the
- * n-th Denver midnight itself — a fixed-point that correctly handles the
+ * midnight via `nextDenverMidnight` on the n-th day key, which is derived from
+ * the n-th Denver midnight itself — a fixed-point that correctly handles the
  * spring-forward / fall-back 1h gap without drift.
  */
 export function validateStayRange(args: ValidateStayRangeArgs): StayValidation {
@@ -355,7 +331,7 @@ export function validateStayRange(args: ValidateStayRangeArgs): StayValidation {
 
   // Check every night [checkIn, checkOut) is in overnightNights. Enumerate
   // covered nights DST-safely: start from checkIn's dayKey, advance via
-  // denverMidnight to get successive true midnight instants, stop when the
+  // nextDenverMidnight to get successive true midnight instants, stop when the
   // resulting instant >= checkOut.
   let cursor = checkIn;
   while (cursor.getTime() < checkOut.getTime()) {
@@ -366,11 +342,7 @@ export function validateStayRange(args: ValidateStayRangeArgs): StayValidation {
         reason: "Selected dates are outside Cal's availability.",
       };
     }
-    // Advance to next Denver midnight DST-correctly.
-    const [y, m, d] = dayKey.split("-").map((n) => parseInt(n, 10));
-    cursor = denverMidnight(
-      `${String(y).padStart(4, "0")}-${String(m).padStart(2, "0")}-${String(d + 1).padStart(2, "0")}`,
-    );
+    cursor = nextDenverMidnight(dayKey);
   }
 
   const leadMs = range.startsAt.getTime() - now.getTime();

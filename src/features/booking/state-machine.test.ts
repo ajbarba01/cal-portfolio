@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { transition } from "./state-machine";
+import { bookingStatusPill, transition } from "./state-machine";
 import type {
   BookingState,
   BookingEvent,
@@ -434,4 +434,47 @@ describe("transition: exhaustive matrix", () => {
       });
     }
   }
+});
+
+// ---------------------------------------------------------------------------
+// Status pill
+// ---------------------------------------------------------------------------
+
+/**
+ * Canonical expectations. Labels and variants come from the admin bookings row,
+ * which is the most complete of the four maps shipping today.
+ *
+ * Recorded drift, so the wave that repoints the call sites keeps ONE map:
+ *   - the account bookings view renders `completed` and `no_show` as
+ *     "unavailable"; admin renders them "default" and "destructive". Admin wins.
+ *   - the admin client-detail map has no `no_show` entry at all and falls back
+ *     to a de-underscored slug, printing "no show" instead of "No-show".
+ * Every label below is a string one of those maps already shows.
+ */
+const PILL_EXPECTATIONS: Record<
+  BookingStatus,
+  { label: string; variant: string }
+> = {
+  pending_approval: { label: "Pending approval", variant: "pending" },
+  confirmed: { label: "Confirmed", variant: "available" },
+  completed: { label: "Completed", variant: "default" },
+  declined: { label: "Declined", variant: "destructive" },
+  cancelled: { label: "Cancelled", variant: "destructive" },
+  no_show: { label: "No-show", variant: "destructive" },
+};
+
+describe("bookingStatusPill", () => {
+  // Keying the table by BookingStatus makes the enum coverage a compile error
+  // to break, not a runtime hole.
+  for (const [status, expected] of Object.entries(PILL_EXPECTATIONS)) {
+    it(`maps ${status} to "${expected.label}" / ${expected.variant}`, () => {
+      expect(bookingStatusPill(status as BookingStatus)).toEqual(expected);
+    });
+  }
+
+  it("resolves the completed and no_show drift toward the admin wording", () => {
+    expect(bookingStatusPill("completed").variant).not.toBe("unavailable");
+    expect(bookingStatusPill("no_show").variant).not.toBe("unavailable");
+    expect(bookingStatusPill("no_show").label).not.toBe("no show");
+  });
 });

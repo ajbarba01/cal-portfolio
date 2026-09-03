@@ -26,9 +26,9 @@ describe("expandOccurrences: weekly count=3", () => {
     const rule: RecurrenceRule = { freq: "weekly", interval: 1, count: 3 };
     const result = expandOccurrences(BASE, rule);
     expect(result).toHaveLength(3);
-    expect(result[0].getTime()).toBe(BASE.getTime());
-    expect(result[1].getTime()).toBe(addDays(BASE, 7).getTime());
-    expect(result[2].getTime()).toBe(addDays(BASE, 14).getTime());
+    expect(result[0]?.getTime()).toBe(BASE.getTime());
+    expect(result[1]?.getTime()).toBe(addDays(BASE, 7).getTime());
+    expect(result[2]?.getTime()).toBe(addDays(BASE, 14).getTime());
   });
 });
 
@@ -37,8 +37,8 @@ describe("expandOccurrences: weekly interval=2 (fortnightly)", () => {
     const rule: RecurrenceRule = { freq: "weekly", interval: 2, count: 3 };
     const result = expandOccurrences(BASE, rule);
     expect(result).toHaveLength(3);
-    expect(result[1].getTime()).toBe(addDays(BASE, 14).getTime());
-    expect(result[2].getTime()).toBe(addDays(BASE, 28).getTime());
+    expect(result[1]?.getTime()).toBe(addDays(BASE, 14).getTime());
+    expect(result[2]?.getTime()).toBe(addDays(BASE, 28).getTime());
   });
 });
 
@@ -54,8 +54,8 @@ describe("expandOccurrences: until bound", () => {
     const rule: RecurrenceRule = { freq: "weekly", interval: 1, until };
     const result = expandOccurrences(BASE, rule);
     expect(result).toHaveLength(2);
-    expect(result[0].getTime()).toBe(BASE.getTime());
-    expect(result[1].getTime()).toBe(addDays(BASE, 7).getTime());
+    expect(result[0]?.getTime()).toBe(BASE.getTime());
+    expect(result[1]?.getTime()).toBe(addDays(BASE, 7).getTime());
   });
 
   it("includes occurrence that falls exactly on until (inclusive boundary)", () => {
@@ -63,7 +63,7 @@ describe("expandOccurrences: until bound", () => {
     const rule: RecurrenceRule = { freq: "weekly", interval: 1, until };
     const result = expandOccurrences(BASE, rule);
     expect(result).toHaveLength(2);
-    expect(result[1].getTime()).toBe(until.getTime());
+    expect(result[1]?.getTime()).toBe(until.getTime());
   });
 });
 
@@ -108,7 +108,7 @@ describe("expandOccurrences: count=1", () => {
     const rule: RecurrenceRule = { freq: "weekly", interval: 1, count: 1 };
     const result = expandOccurrences(BASE, rule);
     expect(result).toHaveLength(1);
-    expect(result[0].getTime()).toBe(BASE.getTime());
+    expect(result[0]?.getTime()).toBe(BASE.getTime());
   });
 });
 
@@ -121,16 +121,16 @@ describe("expandOccurrences: daily", () => {
     const rule: RecurrenceRule = { freq: "daily", interval: 1, count: 4 };
     const result = expandOccurrences(BASE, rule);
     expect(result).toHaveLength(4);
-    expect(result[1].getTime()).toBe(addDays(BASE, 1).getTime());
-    expect(result[2].getTime()).toBe(addDays(BASE, 2).getTime());
-    expect(result[3].getTime()).toBe(addDays(BASE, 3).getTime());
+    expect(result[1]?.getTime()).toBe(addDays(BASE, 1).getTime());
+    expect(result[2]?.getTime()).toBe(addDays(BASE, 2).getTime());
+    expect(result[3]?.getTime()).toBe(addDays(BASE, 3).getTime());
   });
 
   it("daily interval=3 steps 3 days", () => {
     const rule: RecurrenceRule = { freq: "daily", interval: 3, count: 3 };
     const result = expandOccurrences(BASE, rule);
-    expect(result[1].getTime()).toBe(addDays(BASE, 3).getTime());
-    expect(result[2].getTime()).toBe(addDays(BASE, 6).getTime());
+    expect(result[1]?.getTime()).toBe(addDays(BASE, 3).getTime());
+    expect(result[2]?.getTime()).toBe(addDays(BASE, 6).getTime());
   });
 });
 
@@ -144,15 +144,15 @@ describe("expandOccurrences: monthly", () => {
     const rule: RecurrenceRule = { freq: "monthly", interval: 1, count: 3 };
     const result = expandOccurrences(BASE, rule);
     expect(result).toHaveLength(3);
-    expect(result[1].getTime()).toBe(addMonths(BASE, 1).getTime());
-    expect(result[2].getTime()).toBe(addMonths(BASE, 2).getTime());
+    expect(result[1]?.getTime()).toBe(addMonths(BASE, 1).getTime());
+    expect(result[2]?.getTime()).toBe(addMonths(BASE, 2).getTime());
   });
 
   it("monthly interval=2 steps 2 calendar months", () => {
     const rule: RecurrenceRule = { freq: "monthly", interval: 2, count: 3 };
     const result = expandOccurrences(BASE, rule);
-    expect(result[1].getTime()).toBe(addMonths(BASE, 2).getTime());
-    expect(result[2].getTime()).toBe(addMonths(BASE, 4).getTime());
+    expect(result[1]?.getTime()).toBe(addMonths(BASE, 2).getTime());
+    expect(result[2]?.getTime()).toBe(addMonths(BASE, 4).getTime());
   });
 });
 
@@ -180,7 +180,7 @@ describe("expandOccurrences: materializeUntil", () => {
     const materializeUntil = addDays(BASE, 42);
     const result = expandOccurrences(BASE, rule, { materializeUntil });
     expect(result).toHaveLength(7);
-    expect(result[result.length - 1].getTime()).toBe(
+    expect(result[result.length - 1]?.getTime()).toBe(
       addDays(BASE, 42).getTime(),
     );
   });

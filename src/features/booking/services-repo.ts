@@ -6,7 +6,7 @@
  * Rows with unparseable config are skipped (logged, not thrown).
  */
 
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { DbClient } from "@/lib/supabase/db-client";
 import { parsePricingConfig } from "@/features/pricing";
 import type { PricingType, ServicePricingConfig } from "@/features/pricing";
 
@@ -33,11 +33,12 @@ export type PublicService = {
 
 /**
  * Returns active services ordered by sort_order.
- * Rows whose pricing_config fails Zod validation are silently skipped.
+ * Rows whose pricing_config fails Zod validation are skipped, and a failed query
+ * returns no services — both logged, so neither reads as an empty catalog.
  * Anon-readable via RLS ("services: public can read").
  */
 export async function listActiveServices(
-  supabase: SupabaseClient,
+  supabase: DbClient,
 ): Promise<PublicService[]> {
   const { data, error } = await supabase
     .from("services")
@@ -49,34 +50,40 @@ export async function listActiveServices(
     .neq("pricing_type", "meet_greet")
     .order("sort_order");
 
-  if (error || !data) return [];
+  if (error) {
+    console.error("listActiveServices: query failed", error);
+    return [];
+  }
+  if (!data) return [];
 
   const results: PublicService[] = [];
 
   for (const row of data) {
-    const pricingType = row.pricing_type as PricingType;
-
     let pricingConfig: ServicePricingConfig;
     try {
       pricingConfig = parsePricingConfig(row.pricing_config);
-    } catch {
-      // Skip rows with invalid pricing_config — don't crash the page.
+    } catch (parseError) {
+      // Skip rows with invalid pricing_config — don't crash the page. Log the
+      // slug: a mis-configured service vanishing from /services is otherwise
+      // indistinguishable from one Cal deactivated on purpose.
+      console.error(
+        "listActiveServices: skipping service with unparseable pricing_config",
+        row.slug,
+        parseError,
+      );
       continue;
     }
 
     results.push({
-      slug: row.slug as string,
-      name: row.name as string,
-      description: typeof row.description === "string" ? row.description : null,
-      pricingType,
+      slug: row.slug,
+      name: row.name,
+      description: row.description,
+      pricingType: row.pricing_type,
       pricingConfig,
-      concurrency: row.concurrency as "exclusive" | "resident",
-      default_duration_min:
-        typeof row.default_duration_min === "number"
-          ? row.default_duration_min
-          : null,
-      max_pets: typeof row.max_pets === "number" ? row.max_pets : null,
-    } as PublicService);
+      concurrency: row.concurrency,
+      default_duration_min: row.default_duration_min,
+      max_pets: row.max_pets,
+    });
   }
 
   return results;

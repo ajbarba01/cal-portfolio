@@ -6,7 +6,7 @@
  * walk-only (the one capped, multi-pet service), driven by the configured cap.
  */
 import type { PricingType } from "@/features/pricing";
-import type { PetSpecies } from "./_components/pet-avatar";
+import type { PetSpecies } from "@/features/pets";
 
 export function petStepHeading({
   pricingType,

@@ -194,3 +194,49 @@ export function transition(
     }
   }
 }
+
+// ---------------------------------------------------------------------------
+// Status display
+// ---------------------------------------------------------------------------
+
+/**
+ * The `Badge` variants a booking status can resolve to. A subset of the badge
+ * kit's full variant list, named identically so a pill can be spread straight
+ * onto `<Badge variant={…}>`.
+ */
+export type BookingStatusPillVariant =
+  | "default"
+  | "pending"
+  | "available"
+  | "destructive";
+
+/** A booking status rendered as a badge: visible text plus the variant token. */
+export interface BookingStatusPill {
+  readonly label: string;
+  readonly variant: BookingStatusPillVariant;
+}
+
+const STATUS_PILLS: Record<BookingStatus, BookingStatusPill> = {
+  pending_approval: { label: "Pending approval", variant: "pending" },
+  confirmed: { label: "Confirmed", variant: "available" },
+  completed: { label: "Completed", variant: "default" },
+  declined: { label: "Declined", variant: "destructive" },
+  cancelled: { label: "Cancelled", variant: "destructive" },
+  no_show: { label: "No-show", variant: "destructive" },
+};
+
+/**
+ * Maps a booking status to its display label and badge variant. Pure data — no
+ * JSX and no color values; the UI layer turns the variant into design tokens.
+ *
+ * The admin bookings row is the canonical map: it is the only one of the four
+ * shipping copies that covers all six statuses. The account view disagrees on
+ * `completed` and `no_show` and the admin client-detail map omits `no_show`
+ * entirely; both are drift, and both lose here.
+ *
+ * The returned object is the shared entry, not a copy, so its fields are
+ * readonly — the per-view maps this replaces each built a fresh object.
+ */
+export function bookingStatusPill(status: BookingStatus): BookingStatusPill {
+  return STATUS_PILLS[status];
+}

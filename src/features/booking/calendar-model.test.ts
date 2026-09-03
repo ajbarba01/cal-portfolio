@@ -1,11 +1,11 @@
-import { describe, it, expect } from "vitest";
+import { assert, describe, it, expect } from "vitest";
 import {
   overlapsHalfOpen,
-  markSlotsBusy,
   deriveBookableDays,
   hourlyAvailableDayKeys,
   validateStayRange,
 } from "./calendar-model";
+import type { DayAvailability } from "./calendar-model";
 import { denverMidnight } from "./availability";
 import type { TimeRange, BookingRuleSettings } from "./availability";
 
@@ -15,6 +15,13 @@ import type { TimeRange, BookingRuleSettings } from "./availability";
 
 function range(startIso: string, endIso: string): TimeRange {
   return { startsAt: new Date(startIso), endsAt: new Date(endIso) };
+}
+
+/** The sole classification a single-day derivation is expected to return. */
+function dayOnly(days: DayAvailability[]): DayAvailability {
+  const [day] = days;
+  assert(day, "expected deriveBookableDays to classify the day");
+  return day;
 }
 
 const RULES: BookingRuleSettings = {
@@ -77,35 +84,6 @@ describe("overlapsHalfOpen", () => {
 });
 
 // ---------------------------------------------------------------------------
-// markSlotsBusy
-// ---------------------------------------------------------------------------
-
-describe("markSlotsBusy", () => {
-  const slots = [
-    range("2025-03-01T10:00:00Z", "2025-03-01T11:00:00Z"),
-    range("2025-03-01T11:00:00Z", "2025-03-01T12:00:00Z"),
-    range("2025-03-01T12:00:00Z", "2025-03-01T13:00:00Z"),
-  ];
-
-  it("marks only the overlapping slot busy (half-open)", () => {
-    const busy = [range("2025-03-01T11:30:00Z", "2025-03-01T11:45:00Z")];
-    const out = markSlotsBusy(slots, busy);
-    expect(out.map((m) => m.busy)).toEqual([false, true, false]);
-  });
-
-  it("a busy range touching a slot boundary does NOT mark it busy", () => {
-    // busy [11:00,12:00) touches slot[0] end and equals slot[1].
-    const busy = [range("2025-03-01T11:00:00Z", "2025-03-01T12:00:00Z")];
-    const out = markSlotsBusy(slots, busy);
-    expect(out.map((m) => m.busy)).toEqual([false, true, false]);
-  });
-
-  it("no busy ranges → all free", () => {
-    expect(markSlotsBusy(slots, []).every((m) => !m.busy)).toBe(true);
-  });
-});
-
-// ---------------------------------------------------------------------------
 // deriveBookableDays
 // ---------------------------------------------------------------------------
 
@@ -158,7 +136,7 @@ describe("deriveBookableDays", () => {
       rules: RULES,
       now,
     });
-    return out[0].state;
+    return dayOnly(out).state;
   }
 
   it("classifies a yesterday as past", () => {
@@ -261,7 +239,7 @@ describe("deriveBookableDays", () => {
       rules: RULES,
       now,
     });
-    return out[0];
+    return dayOnly(out);
   }
 
   it("busy day with an identified block surfaces bookingId", () => {
@@ -311,7 +289,7 @@ describe("deriveBookableDays", () => {
       rules: rules48,
       now,
     });
-    expect(out[0].state).toBe("out-of-window");
+    expect(out[0]?.state).toBe("out-of-window");
   });
 
   it("U2: a check-in exactly at the lead-time boundary stays available (inclusive)", () => {
@@ -324,7 +302,7 @@ describe("deriveBookableDays", () => {
       rules: rules48,
       now: new Date("2025-06-09T12:30:00Z"), // exactly 48h before Jun 11 12:30Z
     });
-    expect(out[0].state).toBe("available");
+    expect(out[0]?.state).toBe("available");
   });
 
   it("U2: a day beyond the lead-time window is unaffected (available)", () => {
@@ -336,7 +314,7 @@ describe("deriveBookableDays", () => {
       rules: rules48,
       now,
     });
-    expect(out[0].state).toBe("available");
+    expect(out[0]?.state).toBe("available");
   });
 
   it("first match wins: when two resident bookings overlap the same day, bookingId is the first entry's id", () => {
