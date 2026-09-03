@@ -969,8 +969,29 @@ Every register item and where it lands. "Split" items are deliberate contract/ad
 
 ## Handoff log
 
-_(Empty at plan time. Implementers append `### ESCALATION — blocking` or `### NOTE` entries here per WORKFLOW.md; the orchestrator appends a one-paragraph wave summary at each gate.)_
+### NOTE — session close (2026-09-03)
+
+All eight waves landed and passed the between-wave gate (typecheck, lint, format, `next build`, unit, integration). Final state: 189 unit files / 1875 tests and 13 integration files / 177 tests green; `next build` green with every public route static; react-day-picker no longer ships on marketing pages.
+
+- **Wave 0** — shared contracts: `DbClient` alias over the generated database types, settings schema, client-pets repository, phone schema, cron auth, payments-enabled flag, drive-buffer guard, booking status pill, Denver time and money formatters.
+- **Wave 1** — booking core: client-safe barrels per ADR-0002, repository split, edit/create cores sharing the re-quote, drive buffer applied on reschedule, booking-received email on create.
+- **Wave 2** — admin: bounded queries on generated types, availability conflicts surfaced instead of reverted, per-night services no longer require a duration, admin client barrel keeping server-only modules out of the browser bundle.
+- **Wave 3** — notifications, payments switch, multi-day availability paint (mouse and keyboard), shared loaders, cursor ring.
+- **Wave 4** — manual discounts generalised from the Kiche one-off (Friends & Family, Complimentary) and persisted through edits; references section scaffold; net-paid / amount-owed projections; webhook verification through the gateway.
+- **Wave 5** — accessibility and design-system adoption (control variants, tokens, error-state defaults, section header and eyebrow), out-of-area address refusal, onboarding status fix, static marketing layout.
+- **Wave 6** — structure and boundaries, test fidelity (argument-recording Supabase double, integration cleanup and per-suite fixed hours), off-token radius/elevation lint, `noUncheckedIndexedAccess` enabled with real guards.
+- **Wave 7** — docs reconciled with the code, shipped plans and specs archived, CI on push, production build and route-shape verification, browser QA (client and admin flows, keyboard-only booking, 320px), owner decision queue in `OWNER-GATED.md`, QA fixes (bookings-hub month label and stale day panel, zero-amount payment pill on hub and client detail, availability-grid keyboard navigation), demo seed with real quote inputs.
+
+Browser re-verification after the QA fixes passed on the local stack: month navigation moves the caption, the `?month=` parameter and the rows together and hides the stale day panel; `$0` bookings show no payment pill on either surface; the availability grid is fully keyboard-navigable (arrows, Home/End to the week's first live day, month edge forward, no focus loss stepping into a past month, Shift+Arrow extend). The `/book` scheduler is unchanged.
+
+Non-blocking residuals, logged for a later pass:
+
+- Login: the browser driver cannot deliver a native Enter keypress, so "Enter submits the sign-in form" is pinned by a jsdom test and by a real mouse submit, not by a live keystroke. A human pressing Enter on `/login` closes it.
+- Availability grid: a Shift+Arrow extend off the month edge into a fully past month can still drop focus (pre-existing behaviour; plain arrows and Home/End are guarded).
+- Two demo-seed helpers still write bookings inside business hours; integration suites claim off-hours slots (02:00, 06:00, 23:00 UTC and the hours listed in each suite) to stay clear of them.
+
+History: the session's 111 working commits were regrouped into 45 logical commits on `main` (soft reset to `b417ba0` + regroup; tree byte-identical). Nothing has been pushed. Owner-gated items are listed in `docs/superpowers/OWNER-GATED.md`.
 
 ---
 
-_Last reviewed: 2026-09-02_
+_Last reviewed: 2026-09-03_
