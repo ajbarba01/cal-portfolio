@@ -1480,6 +1480,33 @@ containment rather than a fix — the addresses are still in the database. And
 /claim's SDK-failure branch now shows the site's own "Something went wrong.
 Please try again." instead of whatever GoTrue or Postgres said (W1-S11).
 
+#### Owner-dictated, 2026-09-04
+
+Alex reviewed the four email templates and approved three unchanged: the two
+admin alerts for a new request and a cancellation, and the inquiry alert.
+
+The client-facing booking-received email changed on Alex's own wording. Its
+body sentence is now "Your request will be reviewed shortly and you'll receive
+a confirmation email.", replacing "Cal reviews each request and sends a
+confirmation email when it is approved.", and the shared "Questions? Reply to
+this email." line was dropped from it because the site sends from a noreply
+address. That reply line still closes the confirmation and reminder emails,
+which is an inconsistency Alex has been asked about rather than resolved here.
+
+The confirmation email's cancellation sentence is also Alex's wording: "Note:
+cancellations within 48hrs of the booking will only refund 50% of the cost.",
+replacing "Cancel 48+ hours before the start and I refund you in full; cancel
+within 48 hours and I refund 50%." Both numbers still interpolate from the
+settings columns, so changing the policy in settings changes the sentence.
+
+#### Removed, 2026-09-04
+
+"A dog in Cal's care" was the single alt text on all seventy gallery photos. It
+is gone rather than replaced: Alex declined both per-photo captions and any
+default sentence, and the photo wall is decorative, so an empty alt is the
+accurate markup. Nothing user-visible changes; a screen reader stops announcing
+the sentence once per photo.
+
 ---
 
-_Last reviewed: 2026-09-03_
+_Last reviewed: 2026-09-04_

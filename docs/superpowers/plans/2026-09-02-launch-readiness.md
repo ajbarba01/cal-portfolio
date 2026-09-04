@@ -990,7 +990,44 @@ Non-blocking residuals, logged for a later pass:
 - Availability grid: a Shift+Arrow extend off the month edge into a fully past month can still drop focus (pre-existing behaviour; plain arrows and Home/End are guarded).
 - Two demo-seed helpers still write bookings inside business hours; integration suites claim off-hours slots (02:00, 06:00, 23:00 UTC and the hours listed in each suite) to stay clear of them.
 
-History: the session's 111 working commits were regrouped into 45 logical commits on `main` (soft reset to `b417ba0` + regroup; tree byte-identical). Nothing has been pushed. Owner-gated items are listed in `docs/superpowers/OWNER-GATED.md`.
+History: the session's working commits were regrouped twice by soft reset and
+regroup, each time leaving the tree byte-identical — 111 commits into 45, then
+the owner-decision follow-ups of 2026-09-03/04 into a further 7, for 53 logical
+commits on `main` above `b417ba0`.
+
+### NOTE — owner decisions worked through (2026-09-04)
+
+Every question in `docs/superpowers/OWNER-GATED.md` was put to Alex and answered;
+that file now carries each decision with its date. The ones that changed code or
+production:
+
+- The fifteen pending migrations were pushed to the hosted project. The pet
+  columns they drop were empty there, and the four owner intake rows were aged as
+  designed, so those clients re-enter vet contact before their next paid booking.
+- Prepay stays off at launch, and the reminder cron was removed from
+  `vercel.json` rather than paying for hourly runs — a once-daily sweep fires
+  late or not at all for short-notice bookings.
+- Cal's alert address is set in Vercel. No DNS was needed: the Resend records
+  already published for `calbarba.com` authorise the sender, not the recipient.
+- The client booking-received email was reworded by Alex and lost its reply line
+  (the site sends from a noreply address); the confirmation email's cancellation
+  sentence was restated. Both numbers in it still come from settings.
+- Gallery photos carry no alt text at all now — an empty alt is the correct
+  markup for a decorative wall, and the chip controls around it carry the names.
+- Four more consented references were added, first names only because that is
+  what was consented and the registry ships to the browser in full. Photos are
+  still outstanding, so each chip draws a paw-print bubble at the same size.
+- A Content Security Policy and companion headers now ship. It closes
+  exfiltration, not execution: App Router's inline flight scripts force
+  `'unsafe-inline'`, and a nonce would have made every public route dynamic.
+- `useAvailability` now ends the load when the fetch fails, instead of showing
+  the error and the loading line together.
+
+Deferred with the owner's agreement: carrying the intended destination through
+the email confirmation hop, dark mode, a Stripe event ledger, concurrency-aware
+availability marking, and the five borderline sentences. The admin calendar
+marking every committed day regardless of class is intended behaviour, not a
+defect.
 
 ---
 

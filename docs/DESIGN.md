@@ -268,7 +268,7 @@ Running list, updated as Cal answers. Most are **tunable config**, not blockers 
 - **Concurrency** — house-sit may overlap short services; same class never overlaps (exclusion constraint).
 - **Booking flow** — one booking per submit at MVP (no multi-item cart).
 - **Booking rules** — hours 6:30am–10:00pm (start & end within), min lead time unchanged, advance → soft `auto_confirm_horizon_days` (~1 month; beyond → pending, not refused) with a `hard_max_advance_days` sanity cap. Tunable.
-- **Reminder timing** — 24 h before a confirmed start (`reminder_lead_hours`). Tunable.
+- **Reminder timing** — 24 h before a confirmed start (`reminder_lead_hours`). Tunable. **Not scheduled:** the reminder cron is absent from `vercel.json` by owner decision — a Hobby plan allows one run a day, which fires late or not at all for short-notice bookings, and paying for hourly runs was declined. The route, the sweep and its tests all stay; restoring the schedule is one line.
 - **Prepay** — full amount, **pay-later default**, prepay optional, and shipped behind the payments kill-switch until Cal's Stripe account is live.
 - **Cancellation / refund** — full refund ≥48 h out; <48 h → 50%; unpaid late cancel / no-show → debt that blocks re-booking until settled. Values tunable (Booking state machine).
 - **Recurrence breadth** — weekly only at MVP; fixed week-count **or** open-ended via the rolling ~1-month materialization horizon (Recurrence). Kept behind its flag by owner decision.
@@ -334,6 +334,65 @@ Marketing copy Cal must write is stubbed with double-square-bracket markers. Kee
 - **Don't assume Cal's services or audience-facing voice** — overnight stays, meet-and-greets, cat care, medication handling, sliding-scale philosophy, background, etc. all placeholdered until Cal confirms.
 - **Public emergency resources** (ASPCA poison line, 24/7 vet ER) OK as real entries — verifiable, not a claim about Cal. **Generic local resources** (humane society, dog park) → stub.
 
+## Security response headers
+
+Every response carries a CSP and three companions, set by `headers()` in
+`next.config.ts` from the pure builder in `src/lib/security-headers.ts`. They go
+in the Next config rather than `src/proxy.ts` because the proxy matcher
+deliberately skips the public marketing routes so they can prerender — a policy
+set there would miss exactly the pages most people see.
+
+**The policy is not nonce-based, and cannot be.** A nonce has to be minted per
+request, which forces every page carrying one to render dynamically, and the
+performance floor requires the public routes to stay static. Measured on this
+app: with `'unsafe-inline'` removed from `script-src`, Chrome blocks ~28 inline
+scripts on the home page and the app throws `InvariantError: Expected a request
+ID … self.__next_r` — the App Router writes the RSC flight payload into inline
+`<script>` tags, their content differs per page, and no hash list or static
+nonce can cover them. So `script-src` and `style-src` both keep
+`'unsafe-inline'` (the root layout's `<noscript>` reveal fallback and
+next/image's blur placeholder need it on the style side).
+
+**Be honest about what that buys.** With `'unsafe-inline'` present, the policy
+does not stop injected script from _running_. What it does enforce exactly, and
+what the value here actually is, are the origin and navigation directives:
+`frame-ancestors 'none'` (no clickjacking), `object-src 'none'`,
+`base-uri 'self'` (no `<base>` rewrite of every relative URL), `form-action
+'self'` (no form posting credentials off-site), and the `connect-src` /
+`img-src` / `frame-src` / `font-src` allow-lists, which bound where anything on
+the page can send data to. Exfiltration is the class this closes, not execution.
+
+The JSON-LD block in `src/features/seo/json-ld-script.tsx` is **not** defended
+by this. `type="application/ld+json"` is a data block that the browser never
+executes, so its real defence is the existing `<` escape in that component — the
+CSP neither helps nor replaces it.
+
+Origins, each from code rather than guesswork:
+
+| Directive     | Beyond `'self'`                                                   | Why                                                                                     |
+| ------------- | ----------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `connect-src` | `NEXT_PUBLIC_SUPABASE_URL`, plus the same host as `ws:`/`wss:`    | REST, auth and storage; the socket for Realtime availability (`use-availability.ts`)    |
+| `img-src`     | same Supabase origin, `data:`, `blob:`                            | signed pet photos in `pet-avatar.tsx`; blur placeholders; the photo-crop canvas preview |
+| `font-src`    | nothing                                                           | `next/font` self-hosts the Google families at build time                                |
+| `script-src`  | `js.stripe.com` **only when payments are on**                     | `loadStripe` injects it; with the kill-switch off no Stripe code loads at all           |
+| `frame-src`   | `js.stripe.com`, `hooks.stripe.com` **only when payments are on** | Stripe Elements' field iframes                                                          |
+
+Because the Supabase URL and the payments kill-switch are read from env when the
+config is evaluated, and `headers()` is baked into the build manifest, the
+policy is correct for whatever a given deploy was built with — including the
+local stack, where the Supabase origin resolves to `http://127.0.0.1:54321` and
+its socket to `ws://`. `'unsafe-eval'` is added under `next dev` only, for
+Turbopack's HMR client; production builds never carry it.
+
+Companions: `Referrer-Policy: strict-origin-when-cross-origin`,
+`X-Content-Type-Options: nosniff`, and a `Permissions-Policy` denying camera,
+microphone, geolocation and browsing-topics — `payment` is left at its default
+so Stripe's iframe can still be delegated a wallet. **HSTS is deliberately
+absent**: Vercel already sends `Strict-Transport-Security: max-age=63072000`
+(verified against the live site), and a second owner of that policy is worse
+than none. `X-Frame-Options` is absent too — `frame-ancestors 'none'` says the
+same thing to every browser this site supports.
+
 ## Deliberately dormant
 
 Things that look unfinished on a read-through but are decisions. Each is one small change away from live; none of them should be "fixed" without asking.
@@ -345,5 +404,6 @@ Things that look unfinished on a read-through but are decisions. Each is one sma
 
 ---
 
-_Last reviewed: 2026-09-03_ (reconciled against the shipped code: pricing rewritten as the modifier model with the DB as the source of truth; travel is per road mile; Realtime scope corrected; service-area gate, payments kill-switch, manual discounts, multi-day availability, `onboardingRedirect` and the empty meet-and-greet requirement documented; dropped pet columns, vestigial columns and service-role-only admin writes recorded; dormant surfaces collected in one section)
+_Last reviewed: 2026-09-04_ (security response headers added and documented: a statically-compatible CSP plus `Referrer-Policy`, `X-Content-Type-Options` and `Permissions-Policy`, with `'unsafe-inline'` on scripts recorded as forced by prerendering and HSTS left to Vercel)
+_Earlier: 2026-09-03_ (reconciled against the shipped code: pricing rewritten as the modifier model with the DB as the source of truth; travel is per road mile; Realtime scope corrected; service-area gate, payments kill-switch, manual discounts, multi-day availability, `onboardingRedirect` and the empty meet-and-greet requirement documented; dropped pet columns, vestigial columns and service-role-only admin writes recorded; dormant surfaces collected in one section)
 _Earlier: 2026-06-10_ (meet & greet onboarding gate: `onboarding_status`, `meet_greet` service; meet-greet de-listed + scheduled inline in onboarding, `/book/meet-greet` retired, admin status dropdown; added `booking_series.skipped_starts` EXDATE column; in-place booking-edit spine: `editBookingCore` + `MutationPolicy`)
