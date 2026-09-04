@@ -11,7 +11,15 @@ export type GalleryImage = {
   src: string;
   width: number;
   height: number;
-  alt: string;
+  /**
+   * Always empty. The wall is decorative: each photo sits inside a button that
+   * names itself ("Open photo 3 of 70") and the lightbox that opens is labelled
+   * "Photo viewer", so the picture itself carries no information a description
+   * would add. An empty alt is the markup that says exactly that — assistive
+   * technology skips the image instead of reading a filler sentence once per
+   * photo. Owner decision, 2026-09-04: no per-photo descriptions, no default.
+   */
+  alt: "";
   /** Base64 blur from the gallery-sync pipeline (image-placeholders.json). */
   blurDataURL?: string;
 };
@@ -29,7 +37,6 @@ export function listGalleryFiles(filenames: string[]): string[] {
 /**
  * IO: read public/gallery, measure each image's intrinsic dimensions so the
  * masonry has no layout shift. Server-only (used by the Gallery RSC).
- * Generic non-claim alt until Cal supplies captions.
  *
  * `imageSizeFromFile` reads only the header bytes it needs; loading each photo
  * whole to measure it pulled the entire folder (tens of MB) through the build.
@@ -54,7 +61,7 @@ export async function getGalleryImages(): Promise<GalleryImage[]> {
         src: `/gallery/${file}`,
         width,
         height,
-        alt: "A dog in Cal's care",
+        alt: "",
         blurDataURL: blurMap[file],
       });
     } catch (err) {
