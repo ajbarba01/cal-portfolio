@@ -60,11 +60,21 @@ let petB: string;
 // Helpers
 // ──────────────────────────────────────────────────────────────────────────────
 
-/** A future timestamp well inside the covering window and business hours. */
+/**
+ * A future timestamp well inside the covering window.
+ *
+ * This suite claims 03:00 UTC. The hour matters: `no_same_class_overlap` is
+ * global, not per-client, so every exclusive booking in the database competes
+ * for it. 17:00 was the original choice and collided with the demo seed, which
+ * writes across roughly 13:00-22:00 UTC. Hours claimed by sibling suites:
+ * payments 02:00, admin 06:00, series-cron 14:23 and 16:41, admin-create 15:00,
+ * booking-service 23:00. Pick an unclaimed hour outside the seed's range before
+ * changing this.
+ */
 function futureStart(offsetDays = 5): Date {
   const d = new Date();
   d.setUTCDate(d.getUTCDate() + offsetDays);
-  d.setUTCHours(17, 0, 0, 0);
+  d.setUTCHours(3, 0, 0, 0);
   return d;
 }
 
@@ -172,7 +182,7 @@ beforeAll(async () => {
   petA = petRowA.id as string;
   petB = petRowB.id as string;
 
-  // 4. Wide availability window (now+1d … now+95d at 17:00 UTC) — covers all
+  // 4. Wide availability window (now+1d … now+95d, all day) — covers all
   //    test offsets (5–30 days). ADMIN_POLICY skips window-fit, but this is
   //    here to match the pattern of the existing integration suite.
   const winStart = new Date();
@@ -279,7 +289,7 @@ describe("editBookingCore — time move", () => {
       status: "confirmed",
     });
 
-    // New start: +1 day (same 17:00 UTC, inside the covering window).
+    // New start: +1 day (same 03:00 UTC, inside the covering window).
     const newStart = futureStart(8);
 
     const result = await editBookingCore(
