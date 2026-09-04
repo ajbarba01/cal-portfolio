@@ -29,7 +29,10 @@ export type ReferenceContact =
   | { phone: string; email?: string };
 
 export interface Reference {
-  /** The household as Cal writes it, people and pets — "Abby and Sloane". */
+  /**
+   * The consented display name — a first name. Nothing else about the household
+   * belongs here: this file reaches the browser in full.
+   */
   name: string;
   /** Published details, or `null` when the visitor has to ask Cal instead. */
   contact: ReferenceContact | null;
@@ -38,9 +41,26 @@ export interface Reference {
 }
 
 export const references: readonly Reference[] = [
-  // Consent to be named recorded 2026-06-19 (docs/content/cal-source.md). Both
-  // households also gave Cal a phone number privately, and neither is here:
-  // publishing a number is a second yes that has not been given.
-  { name: "Abby and Sloane", contact: null },
-  { name: "Madeleine, Apollo, Anabella", contact: null },
+  // Consent recorded 2026-06-19 for Abby and Madeleine, and 2026-09-04 (Alex,
+  // relaying Cal) for the other four. All six agreed to be named by first name
+  // only, so a first name is all this file holds: the registry is imported by a
+  // client component, and everything in it ships in the browser bundle, so a
+  // household member or pet named here would be published whether or not the
+  // page draws it. Cal's fuller household names live in docs/content/cal-source.md,
+  // which is never served.
+  //
+  // Every entry is `contact: null` by owner decision on 2026-09-04: treat all
+  // six the same for now, so each chip routes to the contact form and Cal makes
+  // the introduction. Two households are willing to have details published;
+  // which two, and what those details are, is still Cal's to say.
+  //
+  // `photo` is unset until Cal supplies the pet pictures. The chip draws its
+  // fallback face in the meantime, so adding photos later changes nothing about
+  // the layout.
+  { name: "Ginna", contact: null },
+  { name: "Simone", contact: null },
+  { name: "Carol", contact: null },
+  { name: "Claudia", contact: null },
+  { name: "Abby", contact: null },
+  { name: "Madeleine", contact: null },
 ];

@@ -50,3 +50,23 @@ describe("ReferenceList", () => {
     );
   });
 });
+
+describe("chip face", () => {
+  it("draws the fallback bubble until Cal supplies a photo", () => {
+    registry.push({ name: "Carol", contact: null });
+    const { container } = render(<ReferenceList />);
+    expect(container.querySelector("img")).toBeNull();
+    // The bubble itself still occupies the chip, so a photo landing later
+    // changes no geometry.
+    expect(container.querySelector(".lucide-paw-print")).not.toBeNull();
+  });
+
+  it("draws the photo once it exists", () => {
+    registry.push({ name: "Carol", contact: null, photo: "millie.jpg" });
+    const { container } = render(<ReferenceList />);
+    const img = container.querySelector("img");
+    expect(img).not.toBeNull();
+    expect(img?.getAttribute("alt")).toBe("");
+    expect(img?.getAttribute("src")).toContain("millie.jpg");
+  });
+});

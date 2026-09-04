@@ -3,7 +3,7 @@
 import * as React from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Mail, MessageSquare, Phone } from "lucide-react";
+import { Mail, MessageSquare, PawPrint, Phone } from "lucide-react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
@@ -52,7 +52,7 @@ export function ReferenceList({
                 variant="outline"
                 size="lg"
                 aria-haspopup="dialog"
-                className={chipClass(reference)}
+                className={chipClass}
                 onClick={() => setRevealed(reference)}
               >
                 <ChipFace
@@ -78,7 +78,7 @@ export function ReferenceList({
                 href={`/contact?ref=${encodeURIComponent(referenceFirstName(reference.name))}`}
                 className={cn(
                   buttonVariants({ variant: "outline", size: "lg" }),
-                  chipClass(reference),
+                  chipClass,
                 )}
               >
                 <ChipFace
@@ -129,15 +129,18 @@ export function ReferenceList({
   );
 }
 
-/** Pill geometry: the photo sits flush inside the chip's leading edge. */
-function chipClass(reference: Reference): string {
-  return cn("gap-2 rounded-full pr-3.5", reference.photo ? "pl-1" : "pl-3.5");
-}
+/** Pill geometry: the face sits flush inside the chip's leading edge. */
+const chipClass = "gap-2 rounded-full pr-3.5 pl-1";
 
 /**
- * Pet face plus the leading name. The photo is decorative — the name beside it
- * is the control's accessible label, so a second reading of it would only be
- * noise.
+ * Pet face plus the leading name. The face is decorative either way — the name
+ * beside it is the control's accessible label, so a second reading of it would
+ * only be noise.
+ *
+ * The bubble is always drawn. Cal supplies the pet photos one at a time, and a
+ * chip that dropped the circle until its photo landed would leave the row
+ * ragged and shift every neighbour when one arrived; the paw holds the same
+ * 28px so a photo drops straight in.
  */
 function ChipFace({
   reference,
@@ -148,8 +151,8 @@ function ChipFace({
 }) {
   return (
     <>
-      {reference.photo ? (
-        <span className="bg-sidebar-active relative size-7 shrink-0 overflow-hidden rounded-full">
+      <span className="bg-sidebar-active relative grid size-7 shrink-0 place-items-center overflow-hidden rounded-full">
+        {reference.photo ? (
           <Image
             src={`/references/${reference.photo}`}
             alt=""
@@ -159,8 +162,10 @@ function ChipFace({
             blurDataURL={blurDataURL}
             className="object-cover"
           />
-        </span>
-      ) : null}
+        ) : (
+          <PawPrint className="text-muted-foreground size-3.5" aria-hidden />
+        )}
+      </span>
       {referenceFirstName(reference.name)}
     </>
   );
