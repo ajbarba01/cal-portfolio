@@ -120,6 +120,10 @@ export function useAvailability({
       console.error("useAvailability: failed to load windows", cause);
       startTransition(() => {
         setError("Something went wrong. Please try again.");
+        // Leaving `loading` true here stacked the spinner line under the error
+        // message: the two render from independent flags, so a failed load has
+        // to end the load as well as report it.
+        setLoading(false);
       });
     }
   }, [hardMaxAdvanceDays]);
