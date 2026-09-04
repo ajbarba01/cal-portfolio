@@ -110,6 +110,17 @@ describe("buildBookingConfirmationEmail", () => {
     expect(msg.html).toContain("50%");
   });
 
+  it("reads the refund policy numbers from settings, not the sentence", () => {
+    const msg = buildBookingConfirmationEmail({
+      ...input,
+      cancellationFullRefundHours: 24,
+      lateCancelRefundPct: 75,
+    });
+    expect(msg.text).toContain(
+      "Note: cancellations within 24hrs of the booking will only refund 75% of the cost.",
+    );
+  });
+
   it("links to the client's bookings page", () => {
     const msg = buildBookingConfirmationEmail(input);
     expect(msg.text).toContain("/account/bookings");
@@ -187,10 +198,11 @@ describe("buildBookingReceivedEmail", () => {
     expect(msg.text.toLowerCase()).not.toContain("is confirmed");
   });
 
-  it("says what happens next, in the third person about Cal", () => {
+  it("says what happens next without inviting a reply", () => {
     const msg = buildBookingReceivedEmail(input);
-    expect(msg.text).toContain("Cal reviews");
+    expect(msg.text).toContain("reviewed shortly");
     expect(msg.text).not.toContain(" we ");
+    expect(msg.text).not.toContain("Reply to this email");
   });
 
   it("carries the booked times, total and bookings link", () => {

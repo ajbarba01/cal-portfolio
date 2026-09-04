@@ -215,7 +215,9 @@ export function buildBookingConfirmationEmail(
           ]
         : []),
       {
-        text: `Cancel ${cancellationFullRefundHours}+ hours before the start and I refund you in full; cancel within ${cancellationFullRefundHours} hours and I refund ${lateCancelRefundPct}%.`,
+        // Alex's wording, with the two numbers still read from settings rather
+        // than written into the sentence.
+        text: `Note: cancellations within ${cancellationFullRefundHours}hrs of the booking will only refund ${lateCancelRefundPct}% of the cost.`,
       },
       REPLY_BLOCK,
     ],
@@ -277,11 +279,12 @@ export function buildBookingReceivedEmail(
       ["Ends", formatBookingTime(endsAt)],
       ["Total", formatCents(finalCents)],
     ],
+    // No reply line: this one is sent from the noreply address, unlike the
+    // confirmation and reminder emails Cal signs.
     blocks: [
       {
-        text: "Cal reviews each request and sends a confirmation email when it is approved.",
+        text: "Your request will be reviewed shortly and you'll receive a confirmation email.",
       },
-      REPLY_BLOCK,
     ],
     link: CLIENT_BOOKINGS_LINK,
   });

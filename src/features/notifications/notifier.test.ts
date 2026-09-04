@@ -91,7 +91,7 @@ describe("ResendNotifier", () => {
 
     const msg = mailer.send.mock.calls[0]?.[0] as { to: string; text: string };
     expect(msg.to).toBe("client@example.com");
-    expect(msg.text).toContain("Cal reviews");
+    expect(msg.text).toContain("reviewed shortly");
   });
 
   it("routes an admin alert to the alert address, never to the client", async () => {
