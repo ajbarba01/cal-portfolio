@@ -144,12 +144,12 @@ frequency. No code change either way.
 
 ### 6. Gallery photos
 
-- [~] **PART-ANSWERED 2026-09-04 (Alex):** show all seventy, no curation. The
+- [~] **PART-ANSWERED 2026-09-04 (Alex):** show every photo Cal sends, no curation. The
   set is not final — Alex expects to swap photos around later, but not
   before launch. Launch on what is there; re-running `npm run gallery:sync`
   plus a deploy is the whole process whenever the set changes.
 
-`public/gallery` currently holds 70 web-ready files. `npm run gallery:sync`
+`public/gallery` currently holds 67 web-ready files. `npm run gallery:sync`
 re-encodes raw originals, content-hashes the filenames and writes blur
 placeholders into `src/content/image-placeholders.json`.
 `src/features/gallery/gallery-images.ts` reads the folder at build time and
@@ -163,7 +163,7 @@ measures each file, so adding photos is a sync plus a deploy.
 - [x] **ANSWERED 2026-09-04 (Alex): no captions, and no default sentence
       either.** Every gallery image now carries an empty `alt`, which is the
       correct markup for a decorative photo wall: assistive technology skips the
-      picture instead of reading a filler line seventy times. The accessible
+      picture instead of reading a filler line once per photo. The accessible
       names live on the controls around it — each thumbnail is a button reading
       "Open photo N of M" and the lightbox is labelled "Photo viewer" — so
       nothing is unreachable or unnamed. A test pins the empty alt. Service

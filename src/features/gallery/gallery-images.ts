@@ -13,7 +13,7 @@ export type GalleryImage = {
   height: number;
   /**
    * Always empty. The wall is decorative: each photo sits inside a button that
-   * names itself ("Open photo 3 of 70") and the lightbox that opens is labelled
+   * names itself ("Open photo 3 of 67") and the lightbox that opens is labelled
    * "Photo viewer", so the picture itself carries no information a description
    * would add. An empty alt is the markup that says exactly that — assistive
    * technology skips the image instead of reading a filler sentence once per
