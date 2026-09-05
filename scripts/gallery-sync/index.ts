@@ -225,17 +225,20 @@ async function main() {
         removed += c.removed;
       }
 
-      // Remove orphaned subfolders (a slug whose source folder is gone).
+      // Remove orphaned subfolders (a slug whose source folder is gone). Like
+      // processDir, only delete outputs this pipeline produced (tracked in the
+      // manifest) — a fresh clone has committed outputs but no manifest and no
+      // gitignored sources, and must not have its subfolders wiped.
       if (existsSync(outRoot)) {
         for (const entry of await readdir(outRoot, { withFileTypes: true })) {
           if (!entry.isDirectory() || expectedSubs.has(entry.name)) continue;
           const orphanDir = path.join(outRoot, entry.name);
           for (const f of await readdir(orphanDir)) {
             if (!IMAGE_EXT.test(f)) continue;
+            const key = `${job.outDir.replace(/\\/g, "/")}/${entry.name}/${f}`;
+            if (!(key in manifest)) continue;
             await unlink(path.join(orphanDir, f));
-            delete manifest[
-              `${job.outDir.replace(/\\/g, "/")}/${entry.name}/${f}`
-            ];
+            delete manifest[key];
             removedNames.add(f);
             removed++;
             console.log(`  remove   ${job.outDir}/${entry.name}/${f}`);

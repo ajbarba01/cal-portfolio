@@ -152,7 +152,7 @@ Raw camera files are never committed to `public/`. Instead:
   so a swapped photo busts caches; bg and reference outputs keep **stable basenames**
   (referenced by path in code). The services job is **nested**: each `services-originals/<slug>/`
   maps to `public/services/<slug>/`. Sync is idempotent (skip unchanged / delete orphaned /
-  process changed); running without source folders present never wipes committed placeholders.
+  process changed); an output is only deleted when the manifest says this pipeline produced it, so running without source folders present (fresh clone) wipes neither committed outputs nor placeholders.
 - **Blur placeholders** are emitted to `src/content/image-placeholders.json`
   (tracked). `getGalleryImages()` attaches them to grid images; `getServiceImages(slug)`
   to the service triptych; `MarketingHero` takes an optional `blurDataURL`. Always use
